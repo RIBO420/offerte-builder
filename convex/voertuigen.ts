@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireOrgContext, requireOrgId, verifyOrgOwnership } from "./auth";
+import { requireOrg, requireOrgId, verifyOrgOwnership } from "./auth";
 import { requireNotViewer } from "./roles";
 
 /**
@@ -210,13 +210,11 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
     const now = Date.now();
 
     return await ctx.db.insert("voertuigen", {
       orgId: org._id,
-      // `userId` blijft tot fase 6 verplicht in het schema.
-      userId: user._id,
       kenteken: args.kenteken,
       merk: args.merk,
       model: args.model,

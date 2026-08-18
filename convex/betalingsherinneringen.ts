@@ -17,7 +17,7 @@
 
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireOrgContext, requireOrgId } from "./auth";
+import { requireOrg, requireOrgId } from "./auth";
 import { requireNotViewer } from "./roles";
 
 /**
@@ -147,7 +147,7 @@ export const verstuurHandmatig = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
     const now = Date.now();
 
     // Get the factuur
@@ -188,7 +188,6 @@ export const verstuurHandmatig = mutation({
     const herinneringId = await ctx.db.insert("betalingsherinneringen", {
       factuurId: args.factuurId,
       orgId: org._id,
-      userId: user._id,
       type,
       volgnummer,
       dagenVervallen,
@@ -225,7 +224,7 @@ export const verstuurAanmaning = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
     const now = Date.now();
 
     // Get the factuur
@@ -273,7 +272,6 @@ export const verstuurAanmaning = mutation({
     const aanmaningId = await ctx.db.insert("betalingsherinneringen", {
       factuurId: args.factuurId,
       orgId: org._id,
-      userId: user._id,
       type: args.type,
       volgnummer,
       dagenVervallen,

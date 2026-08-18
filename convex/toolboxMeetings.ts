@@ -6,8 +6,8 @@ import {
   type QueryCtx,
 } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
-import { AuthError, requireOrgContext, requireOrgId } from "./auth";
-import { requireAdmin, requireNotViewer, getUserRole, isAdmin } from "./roles";
+import { requireOrg, requireOrgId } from "./auth";
+import { requireAdmin, requireNotViewer, getUserRole } from "./roles";
 
 /** Meeting ophalen + organisatiescope afdwingen (multi-tenant). */
 async function getMeetingBinnenOrg(
@@ -111,7 +111,7 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
 
     if (!args.onderwerp.trim()) throw new ConvexError("Onderwerp is verplicht");
     if (args.aanwezigen.length === 0) throw new ConvexError("Minimaal één aanwezige is verplicht");
@@ -119,8 +119,6 @@ export const create = mutation({
     const now = Date.now();
     return await ctx.db.insert("toolboxMeetings", {
       orgId: org._id,
-      // `userId` blijft tot fase 6 verplicht in het schema.
-      userId: user._id,
       datum: args.datum,
       onderwerp: args.onderwerp.trim(),
       beschrijving: args.beschrijving,
@@ -144,15 +142,11 @@ export const update = mutation({
     projectId: v.optional(v.id("projecten")),
   },
   handler: async (ctx, args) => {
-    const user = await requireNotViewer(ctx);
-    const meeting = await getMeetingBinnenOrg(ctx, args.id);
-
-    // Binnen de organisatie geldt nog de auteursregel: alleen de aanmaker of
-    // een admin mag wijzigen.
-    const userIsAdmin = await isAdmin(ctx);
-    if (!userIsAdmin && meeting.userId.toString() !== user._id.toString()) {
-      throw new AuthError("Je hebt geen toegang om deze meeting te wijzigen");
-    }
+    await requireNotViewer(ctx);
+    // De org-grens (getMeetingBinnenOrg) plus requireNotViewer is de toegang.
+    // De oude extra check leunde op `userId`, dat de bedrijfseigenaar was en
+    // niet de aanmaker — die regel bestond dus feitelijk al niet.
+    await getMeetingBinnenOrg(ctx, args.id);
 
     if (args.onderwerp !== undefined && !args.onderwerp.trim()) throw new ConvexError("Onderwerp is verplicht");
     if (args.aanwezigen !== undefined && args.aanwezigen.length === 0) throw new ConvexError("Minimaal één aanwezige is verplicht");

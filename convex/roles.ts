@@ -24,7 +24,6 @@
  * - isViewer(ctx)                 — true if klant (or legacy viewer)
  * - hasPermission(role, action, resource) — permission matrix check
  * - hasRole(role, roles[])        — check if role is in list
- * - getCompanyUserId(ctx)         — DEPRECATED, geen tenantgrens meer (zie doc)
  * - getLinkedMedewerker(ctx)      — returns linked medewerker doc
  * - requireLinkedMedewerker(ctx)  — throws if no linked medewerker
  */
@@ -606,47 +605,12 @@ export async function requireLinkedMedewerker(
 }
 
 /**
- * @deprecated Sinds de Clerk-Organizations-migratie is de tenant de
- * organisatie uit het JWT: gebruik `requireOrgId` / `requireOrgContext` uit
- * auth.ts. Deze helper geeft een *user*-id terug dat vroeger als tenantsleutel
- * diende en dat NIET meer is.
- *
- * Nog niet verwijderd omdat `chat.ts` (4×) en `chatThreads.ts` (2×) hem met een
- * gemotiveerde toelichting aanhouden: daar wordt hij niet als tenantgrens
- * gebruikt maar als deelnemers-/eigenaarsleutel op bestaande threads. Zodra
- * die laatste zes call-sites om zijn, kan deze functie weg.
- *
- * For directie: returns their own userId
- * For medewerkers/voorman/etc: returns the userId of the company (from medewerker record)
- * For klant: returns their own userId (they can only view their assigned data)
- */
-export async function getCompanyUserId(
-  ctx: QueryCtx | MutationCtx
-): Promise<Id<"users">> {
-  const user = await requireAuth(ctx);
-  const role = normalizeRole(user.role);
-
-  if (role === "directie") {
-    return user._id;
-  }
-
-  // For all other roles, get the company from their linked medewerker record
-  const medewerker = await getLinkedMedewerker(ctx);
-  if (medewerker) {
-    return medewerker.userId;
-  }
-
-  // Fallback to user's own ID (for klant or users without linked medewerker)
-  return user._id;
-}
-
-/**
  * Vereis dat een `users`-record binnen de eigen organisatie valt, en geef het
  * terug. DE tenantgrens voor alle user-management-mutaties: rol wijzigen,
  * koppelen, ontkoppelen, verwijderen.
  *
- * De users-tabel heeft (nog) geen `orgId` — dat komt in fase 6. Tot dan leiden
- * we de tenant af uit de enige koppeling die er wél is:
+ * De users-tabel heeft zelf geen `orgId` (een account kan in meerdere Clerk-
+ * organisaties zitten). We leiden de tenant af uit de koppeling die er wél is:
  *
  *   linkedMedewerkerId -> medewerker.orgId
  *   linkedKlantId      -> klant.orgId

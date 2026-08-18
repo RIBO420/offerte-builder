@@ -1,6 +1,6 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireOrgContext, requireOrgId } from "./auth";
+import { requireOrg, requireOrgId } from "./auth";
 import { requireNotViewer } from "./roles";
 import { voorcalculatieVanProject, voorcalculatieVanOfferte } from "./lib/voorcalculatieLookup";
 import { normurenUitRegels } from "./lib/normuren";
@@ -80,7 +80,7 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
 
     // Validate that at least one of projectId or offerteId is provided
     if (!args.projectId && !args.offerteId) {
@@ -119,10 +119,8 @@ export const create = mutation({
     const voorcalculatieId = await ctx.db.insert("voorcalculaties", {
       projectId: args.projectId,
       // Tenant-scope (audit §2): project én offerte zijn hierboven op
-      // eigenaarschap gecontroleerd tegen deze organisatie, dus die is de
-      // tenant. `userId` schrijven we mee tot fase 6.
+      // eigenaarschap gecontroleerd tegen deze organisatie.
       orgId: org._id,
-      userId: user._id,
       offerteId: args.offerteId,
       teamGrootte: args.teamGrootte,
       teamleden: args.teamleden,
@@ -215,12 +213,12 @@ export const calculate = query({
 
     // Correctiefactoren: systeemwaarden met de overrides van deze organisatie
     // eroverheen. Beide via de index — nooit een full table scan. De
-    // systeemrijen hebben bewust géén userId (en dus ook geen orgId); die
-    // undefined-match is hier de bedoeling (CLAUDE.md regel 4).
+    // systeemrijen hebben bewust géén orgId; die undefined-match is hier de
+    // bedoeling (CLAUDE.md regel 4).
     const [systemDefaults, orgOverrides] = await Promise.all([
       ctx.db
         .query("correctiefactoren")
-        .withIndex("by_user_type", (q) => q.eq("userId", undefined))
+        .withIndex("by_org_type", (q) => q.eq("orgId", undefined))
         .collect(),
       ctx.db
         .query("correctiefactoren")

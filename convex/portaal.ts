@@ -30,7 +30,8 @@ import {
   bordKolomVoorStatus,
   type MeldingType,
 } from "./servicemeldingen";
-import { zetTriggerMailKlaar, vindBedrijfseigenaarId } from "./mailTriggers";
+import { zetTriggerMailKlaar } from "./mailTriggers";
+import { eigenaarVanOrg } from "./lib/orgEigenaar";
 
 /**
  * Klant-zichtbaarheid van een factuur (portaal-regel 3): uitsluitend
@@ -479,7 +480,6 @@ export const respondToOfferte = mutation({
       // De klant SCHRIJFT hier niet op de tijdlijn (die blijft intern);
       // het systeem logt het feit van de acceptatie in het kantoordossier.
       await logTijdlijnEvent(ctx, {
-        userId: offerte.userId,
         klantId: klant._id,
         eventType: "offerte_geaccepteerd",
         tekst: `Offerte ${offerte.offerteNummer} geaccepteerd door de klant via het portaal`,
@@ -627,7 +627,6 @@ export const dienMeldingIn = mutation({
   },
   handler: async (ctx, args) => {
     const { user, klant } = await requireKlant(ctx);
-    const companyUserId = klant.userId;
     const now = Date.now();
 
     const beschrijving = args.beschrijving.trim();
@@ -648,10 +647,9 @@ export const dienMeldingIn = mutation({
     // kantoor herverdeelt op het bord. De klant-flow blokkeert nooit.
     const type: MeldingType = args.type;
     const routing = routingDefaultsVoorType(type);
-    const eigenaarId = (await vindBedrijfseigenaarId(ctx)) ?? undefined;
+    const eigenaarId = await eigenaarVanOrg(ctx, klant.orgId);
 
     const meldingId = await ctx.db.insert("servicemeldingen", {
-      userId: companyUserId,
       // Zelfde reden als bij zetTriggerMailKlaar hieronder: een portaalklant
       // heeft geen org_id-claim, dus de tenant komt uit de klant-rij. Zonder
       // dit veld valt de melding buiten elke by_org-query van kantoor.
@@ -676,14 +674,12 @@ export const dienMeldingIn = mutation({
 
     // Interne logging: klanttijdlijn (kantoordossier) + case-thread
     await logTijdlijnEvent(ctx, {
-      userId: companyUserId,
       klantId: klant._id,
       eventType: "melding_aangemaakt",
       tekst: `${type === "klacht" ? "Klacht" : "Serviceverzoek"} ingediend door de klant via het portaal: ${beschrijving.slice(0, 120)}`,
       meldingId,
     });
     await voegSysteemCommentToe(ctx, {
-      userId: companyUserId,
       meldingId,
       tekst: `Melding ingediend door ${klant.naam} via het klantenportaal (${PORTAAL_TYPE_LABEL[type]})`,
     });
@@ -700,7 +696,6 @@ export const dienMeldingIn = mutation({
         // wordt de ontvangstbevestiging stil nooit meer klaargezet. De klant
         // hangt aan het bedrijf, dus die rij weet wél bij welke org dit hoort.
         orgId: klant.orgId,
-        userId: companyUserId,
         ontvangerEmail: klant.email,
         ontvangerNaam: klant.naam,
         variabelen: {
@@ -822,7 +817,6 @@ export const openThreadVoorWerkitem = mutation({
       // Portaalklant heeft geen org_id-claim; de tenant komt uit de klant-rij.
       // Zonder orgId valt de thread buiten de by_org-queries van de staf.
       orgId: klant.orgId,
-      companyUserId: klant.userId,
       createdAt: Date.now(),
     });
   },
@@ -865,7 +859,6 @@ export const openThreadVoorMelding = mutation({
       // Portaalklant heeft geen org_id-claim; de tenant komt uit de klant-rij.
       // Zonder orgId valt de thread buiten de by_org-queries van de staf.
       orgId: klant.orgId,
-      companyUserId: klant.userId,
       createdAt: Date.now(),
     });
   },

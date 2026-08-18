@@ -45,11 +45,11 @@ export const getCalculationData = query({
         .query("correctiefactoren")
         .withIndex("by_org_type", (q) => q.eq("orgId", orgId))
         .collect(),
-      // Systeem-correctiefactoren (defaults): bewust de rijen ZONDER userId —
-      // die zijn bedrijfsoverstijgend en krijgen dus ook geen orgId.
+      // Systeem-correctiefactoren (defaults): bewust de rijen ZONDER orgId —
+      // die zijn bedrijfsoverstijgend.
       ctx.db
         .query("correctiefactoren")
-        .filter((q) => q.eq(q.field("userId"), undefined))
+        .filter((q) => q.eq(q.field("orgId"), undefined))
         .collect(),
       // Producten
       ctx.db
@@ -112,7 +112,7 @@ export const getCorrectie = query({
       .query("correctiefactoren")
       .filter((q) =>
         q.and(
-          q.eq(q.field("userId"), undefined),
+          q.eq(q.field("orgId"), undefined),
           q.eq(q.field("type"), args.type),
           q.eq(q.field("waarde"), args.waarde)
         )

@@ -34,7 +34,7 @@
 
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireOrgContext, requireOrgId } from "./auth";
+import { requireOrg, requireOrgId } from "./auth";
 import { requireNotViewer } from "./roles";
 
 // ============================================
@@ -151,12 +151,11 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
     const now = Date.now();
 
     const betalingId = await ctx.db.insert("betalingen", {
       orgId: org._id,
-      userId: user._id,
       molliePaymentId: args.molliePaymentId,
       bedrag: args.bedrag,
       status: "open",

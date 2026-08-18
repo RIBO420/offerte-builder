@@ -140,16 +140,11 @@ export const DEFAULT_PRODUCTEN = [
  * waar bestaande gemigreerde data van een user al een orgId heeft gekregen —
  * die mag niet nóg een keer geseed worden.
  *
- * `eigenaarUserId` is nodig omdat `userId` op instellingen/normuren/producten
- * in het schema nog VERPLICHT is zolang de migratie loopt. In fase 6 verdwijnt
- * dat veld en kan deze parameter weg.
- *
  * @returns true als er geseed is, false als de organisatie al ingericht was.
  */
 export async function seedOrgDefaults(
   ctx: MutationCtx,
-  orgId: Id<"organisaties">,
-  eigenaarUserId: Id<"users">
+  orgId: Id<"organisaties">
 ): Promise<boolean> {
   const bestaandeInstellingen = await ctx.db
     .query("instellingen")
@@ -158,14 +153,12 @@ export async function seedOrgDefaults(
   if (bestaandeInstellingen) return false;
 
   await ctx.db.insert("instellingen", {
-    userId: eigenaarUserId,
     orgId,
     ...standaardInstellingen(),
   });
 
   for (const normuur of DEFAULT_NORMUREN) {
     await ctx.db.insert("normuren", {
-      userId: eigenaarUserId,
       orgId,
       ...normuur,
     });
@@ -174,7 +167,6 @@ export async function seedOrgDefaults(
   const now = Date.now();
   for (const product of DEFAULT_PRODUCTEN) {
     await ctx.db.insert("producten", {
-      userId: eigenaarUserId,
       orgId,
       ...product,
       isActief: true,

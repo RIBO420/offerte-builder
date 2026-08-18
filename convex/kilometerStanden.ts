@@ -1,7 +1,7 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
-import { requireOrgContext, requireOrgId, verifyOrgOwnership } from "./auth";
+import { requireOrg, requireOrgId, verifyOrgOwnership } from "./auth";
 import { requireNotViewer } from "./roles";
 
 /** Voertuig van de eigen organisatie, of null (leespaden geven "niets" terug). */
@@ -66,7 +66,7 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
 
     // Eigendom van het voertuig = zelfde organisatie
     if (!(await voertuigVanOrg(ctx, org._id, args.voertuigId))) {
@@ -82,8 +82,6 @@ export const create = mutation({
     return await ctx.db.insert("kilometerStanden", {
       voertuigId: args.voertuigId,
       orgId: org._id,
-      // `userId` blijft tot fase 6 verplicht in het schema.
-      userId: user._id,
       datum: args.datum,
       kilometerstand: args.kilometerstand,
       projectId: args.projectId,
@@ -157,7 +155,7 @@ export const log = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
 
     // Eigendom van het voertuig = zelfde organisatie
     const voertuig = await voertuigVanOrg(ctx, org._id, args.voertuigId);
@@ -190,8 +188,6 @@ export const log = mutation({
     return await ctx.db.insert("kilometerStanden", {
       voertuigId: args.voertuigId,
       orgId: org._id,
-      // `userId` blijft tot fase 6 verplicht in het schema.
-      userId: user._id,
       datum: args.datum,
       kilometerstand: args.kilometerstand,
       projectId: args.projectId,

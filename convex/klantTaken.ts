@@ -324,9 +324,6 @@ export const create = mutation({
     const now = Date.now();
     return await ctx.db.insert("klantTaken", {
       orgId,
-      // Legacy-veld: `userId` is sinds fase 3 geen scope meer, maar nog wel
-      // verplicht in het schema tot fase 6.
-      userId: user._id,
       klantId: args.klantId,
       titel: schoonTitel(args.titel),
       omschrijving: schoonOmschrijving(args.omschrijving),

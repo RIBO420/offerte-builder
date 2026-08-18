@@ -362,8 +362,7 @@ export const getActive = query({
 /**
  * Maak een nieuwe medewerker aan — beheerrecht vereist (rechtenmatrix:
  * `manage` op `medewerkers`, dus directie). De rij krijgt de orgId van de
- * actieve organisatie; `userId` blijft tot fase 6 gevuld omdat het schema dat
- * veld nog verplicht stelt.
+ * actieve organisatie.
  */
 export const create = mutation({
   args: {
@@ -388,12 +387,11 @@ export const create = mutation({
     noodcontact: v.optional(noodcontactValidator),
   },
   handler: async (ctx, args) => {
-    const { orgId, userId } = await requireMedewerkerBeheer(ctx);
+    const { orgId } = await requireMedewerkerBeheer(ctx);
     const now = Date.now();
 
     return await ctx.db.insert("medewerkers", {
       orgId,
-      userId,
       naam: args.naam,
       email: args.email,
       telefoon: args.telefoon,

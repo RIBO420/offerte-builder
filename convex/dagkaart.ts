@@ -26,7 +26,7 @@ import {
 } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
-import { requireOrgContext, requireOrgId } from "./auth";
+import { requireOrg, requireOrgId } from "./auth";
 import { requireKantoor, requireNotViewer } from "./roles";
 import { logPlanwijziging, werkitemOpDag } from "./planbordLogica";
 import {
@@ -250,12 +250,9 @@ async function veldtakenVoorTeamDag(
       // Belt & braces bovenop de indexquery
       if (taak.status !== "open") continue;
       if (taak.medewerkerId.toString() !== medewerkerId.toString()) continue;
-      // Belt & braces, migratie-tolerant: de bemanning komt van een team van
-      // DEZE organisatie en de klant van een werkitem van deze organisatie, dus
-      // een match kan niet van een andere tenant komen. Veldtaken die nog geen
-      // `orgId` hebben (backfill fase 3 loopt) vallen daarom niet weg; een rij
-      // die er wél een heeft moet kloppen.
-      if (taak.orgId && taak.orgId.toString() !== orgId.toString()) continue;
+      // Belt & braces bovenop de indexquery: `orgId` is sinds fase 6 verplicht
+      // op veldtaken, dus een rij van een andere tenant valt hier hard af.
+      if (taak.orgId.toString() !== orgId.toString()) continue;
       if (!klantIds.has(taak.klantId.toString())) continue;
       const key = taak.klantId.toString();
       const lijst = result.get(key) ?? [];
@@ -551,7 +548,6 @@ export const herordenDag = mutation({
     }
     await logPlanwijziging(ctx, {
       orgId,
-      userId: kantoorUser._id,
       door: kantoorUser._id,
       actie: "volgorde_gewijzigd",
       details: `Dagkaart ${team.naam} ${args.datum}: volgorde gewijzigd (${args.werkitemIds.length} stops)`,
@@ -615,7 +611,6 @@ export const setTijdOverride = mutation({
     await ctx.db.patch(args.id, patch);
     await logPlanwijziging(ctx, {
       orgId,
-      userId: kantoorUser._id,
       door: kantoorUser._id,
       actie: "tijd_aangepast",
       details: `${item.naam}: ${wijzigingen.join(", ")} (cascade schuift door)`,
@@ -643,7 +638,7 @@ export const setDagAfwijking = mutation({
   },
   handler: async (ctx, args) => {
     const kantoorUser = await requireKantoor(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
     const team = await requireTeamVanOrg(ctx, args.teamId, org._id);
 
     const bestaand = await ctx.db
@@ -657,7 +652,6 @@ export const setDagAfwijking = mutation({
       if (bestaand) await ctx.db.delete(bestaand._id);
       await logPlanwijziging(ctx, {
         orgId: org._id,
-        userId: user._id,
         door: kantoorUser._id,
         actie: "dagblokken_aangepast",
         details: `Dagkaart ${team.naam} ${args.datum}: standaardblokken hersteld`,
@@ -698,7 +692,6 @@ export const setDagAfwijking = mutation({
     } else {
       await ctx.db.insert("dagkaartAfwijkingen", {
         orgId: org._id,
-        userId: user._id,
         teamId: args.teamId,
         datum: args.datum,
         vertrekTijd: args.vertrekTijd,
@@ -711,7 +704,6 @@ export const setDagAfwijking = mutation({
     }
     await logPlanwijziging(ctx, {
       orgId: org._id,
-      userId: user._id,
       door: kantoorUser._id,
       actie: "dagblokken_aangepast",
       details: `Dagkaart ${team.naam} ${args.datum}: standaardblokken afwijkend ingesteld`,
@@ -769,7 +761,6 @@ export const maakTaakLos = mutation({
     // Rest-opdracht: ongepland (geen geplandeStart) → verschijnt in de bak
     const restId = await ctx.db.insert("projecten", {
       orgId,
-      userId: item.userId,
       type: getType(item),
       klantId: item.klantId,
       status: "gepland",
@@ -787,7 +778,6 @@ export const maakTaakLos = mutation({
 
     await logPlanwijziging(ctx, {
       orgId,
-      userId: kantoorUser._id,
       door: kantoorUser._id,
       actie: "taak_losgemaakt",
       details: `Taak "${losgemaakt.omschrijving}" losgemaakt uit ${item.naam} → rest-opdracht in de bak`,
@@ -871,7 +861,7 @@ export const slaReistijdOp = internalMutation({
     bron: v.union(v.literal("standaard"), v.literal("google_maps")),
   },
   handler: async (ctx, args) => {
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
     const bestaand = await ctx.db
       .query("reistijdCache")
       .withIndex("by_org_sleutel", (q) =>
@@ -888,7 +878,6 @@ export const slaReistijdOp = internalMutation({
     } else {
       await ctx.db.insert("reistijdCache", {
         orgId: org._id,
-        userId: user._id,
         sleutel: args.sleutel,
         vanAdres: args.vanAdres,
         naarAdres: args.naarAdres,

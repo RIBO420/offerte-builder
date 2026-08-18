@@ -289,7 +289,8 @@ export const getProjectDetailsForMedewerker = query({
  * List all users (admin only).
  *
  * ORG-SCOPING (zelfde besluit als users.listUsersWithDetails): de users-tabel
- * heeft nog géén orgId — dat komt pas in fase 6. Tot dan is de zichtbare set:
+ * heeft géén orgId (een account kan in meerdere organisaties zitten). De
+ * zichtbare set is daarom:
  *  - accounts die via `linkedMedewerkerId` aan een medewerker van DEZE
  *    organisatie hangen, plus
  *  - accounts zonder koppeling die géén klant zijn (nodig om een vers

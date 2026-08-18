@@ -36,6 +36,7 @@ import { requireOrgId, verifyOrgOwnership } from "./auth";
 import { requireKantoor, isKantoorRol } from "./roles";
 import { effectieveStatussen } from "./facturatieLogica";
 import { logTijdlijnEvent } from "./tijdlijn";
+import { eigenaarVanOrg } from "./lib/orgEigenaar";
 import { voegSysteemCommentToe } from "./servicemeldingen";
 import { zetTriggerMailKlaar, mailEventVoorTrede } from "./mailTriggers";
 import {
@@ -134,11 +135,11 @@ export const listKantoorGebruikers = query({
   args: {},
   handler: async (ctx) => {
     await requireKantoor(ctx);
-    // BEKEND GAT (fase 6): `users` heeft geen `orgId` — die tabel is
-    // geclassificeerd als "systeem" (convex/lib/orgTabellen.ts) en er is in
-    // fase 3 dus geen veld om op te scopen. Deze kiezer toont daarmee de
-    // kantoorgebruikers van álle organisaties. Zodra users een tenant-veld
-    // heeft, hoort hier een org-filter.
+    // BEKEND GAT: `users` heeft geen `orgId` — die tabel is geclassificeerd
+    // als "systeem" (convex/lib/orgTabellen.ts), want een account kan in
+    // meerdere Clerk-organisaties zitten. Deze kiezer toont daarmee de
+    // kantoorgebruikers van álle organisaties. De org-gescopete route loopt
+    // via `medewerkers.by_org` (zie users.listUsersWithDetails).
     const users = await ctx.db.query("users").collect();
     return users
       .filter((u) => isKantoorRol(u.role))
@@ -241,7 +242,6 @@ export const pauzeerLadder = mutation({
     });
     if (factuur.klantId) {
       await logTijdlijnEvent(ctx, {
-        userId: factuur.userId,
         klantId: factuur.klantId,
         eventType: "debiteurenladder_gepauzeerd",
         tekst: `Debiteurenladder gepauzeerd voor factuur ${factuur.factuurnummer}: ${reden}`,
@@ -267,7 +267,6 @@ export const hervatLadder = mutation({
     });
     if (factuur.klantId) {
       await logTijdlijnEvent(ctx, {
-        userId: factuur.userId,
         klantId: factuur.klantId,
         eventType: "debiteurenladder_hervat",
         tekst: `Debiteurenladder hervat voor factuur ${factuur.factuurnummer}`,
@@ -319,7 +318,6 @@ export const slaTredeOver = mutation({
     });
     if (factuur.klantId) {
       await logTijdlijnEvent(ctx, {
-        userId: factuur.userId,
         klantId: factuur.klantId,
         eventType: "debiteurenladder_trede_overgeslagen",
         tekst: `Trede ${volgende.trede} van de debiteurenladder overgeslagen voor factuur ${factuur.factuurnummer}`,
@@ -469,7 +467,6 @@ async function verwerkMailTrede(
     // De ladder-cron draait zonder identity: zonder deze expliciete orgId kan
     // de trigger-motor de tenant niet bepalen en zet hij géén mail klaar.
     orgId: factuur.orgId,
-    userId: factuur.userId,
     ontvangerEmail: factuur.klant.email ?? "",
     ontvangerNaam: factuur.klant.naam,
     variabelen: {
@@ -500,7 +497,6 @@ async function verwerkMailTrede(
     factuurId: factuur._id,
     // De cron heeft geen identity: de tenant komt van de factuur.
     orgId: factuur.orgId,
-    userId: factuur.userId,
     type: tredeRecordType(trede),
     volgnummer: 1,
     dagenVervallen: dagenVerschuldigd(factuur.vervaldatum, now),
@@ -515,7 +511,6 @@ async function verwerkMailTrede(
 
   if (factuur.klantId) {
     await logTijdlijnEvent(ctx, {
-      userId: factuur.userId,
       klantId: factuur.klantId,
       eventType: "betalingsherinnering_klaargezet",
       tekst: `Betalingsherinnering (trede ${trede.trede}) klaargezet voor factuur ${factuur.factuurnummer} — ${dagen} dagen na verzending`,
@@ -568,7 +563,6 @@ async function verwerkTaakTrede(
     // Zonder orgId valt deze debiteurentaak buiten het org-gescoopte
     // cases-bord en ziet kantoor hem nooit staan.
     orgId: factuur.orgId,
-    userId: factuur.userId,
     klantId: factuur.klantId,
     beschrijving: tekst,
     isGarantie: false,
@@ -576,7 +570,7 @@ async function verwerkTaakTrede(
     prioriteit: "hoog",
     kosten: 0,
     kanaal: "intern",
-    eigenaarId: taakEigenaarId ?? factuur.userId,
+    eigenaarId: taakEigenaarId ?? (await eigenaarVanOrg(ctx, factuur.orgId)),
     taaksoort: "debiteurentaak",
     attenderingSleutel: sleutel,
     createdAt: now,
@@ -584,7 +578,6 @@ async function verwerkTaakTrede(
   });
 
   await voegSysteemCommentToe(ctx, {
-    userId: factuur.userId,
     meldingId,
     tekst: `Automatische debiteurenladder (trede ${trede.trede}): ${tekst}`,
   });
@@ -592,7 +585,6 @@ async function verwerkTaakTrede(
   await ctx.db.insert("betalingsherinneringen", {
     factuurId: factuur._id,
     orgId: factuur.orgId,
-    userId: factuur.userId,
     type: "interne_taak",
     volgnummer: 1,
     dagenVervallen: dagenVerschuldigd(factuur.vervaldatum, now),
@@ -605,7 +597,6 @@ async function verwerkTaakTrede(
   });
 
   await logTijdlijnEvent(ctx, {
-    userId: factuur.userId,
     klantId: factuur.klantId,
     eventType: "debiteurentaak_aangemaakt",
     tekst: `Interne taak (bellen/aanmaning) aangemaakt voor factuur ${factuur.factuurnummer} — trede ${trede.trede}, ${dagen} dagen na verzending`,

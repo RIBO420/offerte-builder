@@ -92,11 +92,6 @@ async function getKlantBinnenBedrijf(
 
 export type LogTijdlijnEventArgs = {
   /**
-   * Legacy tenant-veld; blijft verplicht zolang `klantTijdlijn.userId` in het
-   * schema verplicht is (verdwijnt in fase 6 van de org-migratie).
-   */
-  userId: Id<"users">;
-  /**
    * De organisatie waar deze entry bij hoort — DE tenant-scope sinds fase 3.
    * Optioneel voor aanroepers buiten dit cluster: laat je hem weg, dan wordt
    * hij afgeleid uit de klant zelf (een tijdlijn-entry hoort per definitie bij
@@ -136,10 +131,15 @@ export async function logTijdlijnEvent(
     // Zonder expliciete orgId de klant als bron nemen: die weet bij welke
     // organisatie het dossier hoort, en zo hoeven de twaalf aanroepers buiten
     // dit cluster hun eigen scope-resolver niet mee te sturen.
-    const orgId =
-      args.orgId ?? (await ctx.db.get(args.klantId))?.orgId ?? undefined;
+    const orgId = args.orgId ?? (await ctx.db.get(args.klantId))?.orgId;
+    if (!orgId) {
+      // Klant bestaat niet meer: zonder org-scope zou de entry dakloos zijn.
+      console.error(
+        `[tijdlijn] logTijdlijnEvent zonder org-scope (eventType=${args.eventType})`
+      );
+      return null;
+    }
     return await ctx.db.insert("klantTijdlijn", {
-      userId: args.userId,
       orgId,
       klantId: args.klantId,
       timestamp: args.timestamp ?? now,
@@ -576,9 +576,6 @@ export const voegEntryToe = mutation({
     const now = Date.now();
     return await ctx.db.insert("klantTijdlijn", {
       orgId,
-      // `userId` is sinds fase 3 geen scope meer maar nog wel verplicht in het
-      // schema; de schrijvende gebruiker is de zinnigste invulling tot fase 6.
-      userId: user._id,
       klantId: args.klantId,
       timestamp: now,
       auteurId: user._id,
@@ -681,8 +678,6 @@ export const legGesprekVast = mutation({
     const now = Date.now();
     const entryId = await ctx.db.insert("klantTijdlijn", {
       orgId,
-      // Zie voegEntryToe: legacy-veld, verplicht tot fase 6.
-      userId: user._id,
       klantId: args.klantId,
       timestamp: now,
       auteurId: user._id,
@@ -726,7 +721,6 @@ export const legGesprekVast = mutation({
       taakIds.push(
         await ctx.db.insert("klantTaken", {
           orgId,
-          userId: user._id,
           klantId: args.klantId,
           titel,
           status: "open",

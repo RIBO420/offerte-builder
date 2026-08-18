@@ -1,6 +1,6 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireOrgContext, requireOrgId } from "./auth";
+import { requireOrg, requireOrgContext, requireOrgId } from "./auth";
 import { requireNotViewer } from "./roles";
 import {
   sanitizeEmail,
@@ -137,7 +137,7 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
     const now = Date.now();
 
     // Validate required fields
@@ -165,8 +165,6 @@ export const create = mutation({
 
     return await ctx.db.insert("leveranciers", {
       orgId: org._id,
-      // Legacy-veld: verplicht in het schema tot fase 6 van de org-migratie.
-      userId: user._id,
       naam: args.naam.trim(),
       contactpersoon,
       email,

@@ -12,7 +12,7 @@
 
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireOrgContext, requireOrgId } from "./auth";
+import { requireOrg, requireOrgId } from "./auth";
 import { requireAdmin, requireNotViewer } from "./roles";
 
 // ============================================
@@ -235,7 +235,7 @@ export const saveInstellingen = mutation({
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
 
     const existing = await ctx.db
       .query("boekhoudInstellingen")
@@ -258,7 +258,6 @@ export const saveInstellingen = mutation({
     } else {
       return await ctx.db.insert("boekhoudInstellingen", {
         orgId: org._id,
-        userId: user._id,
         provider: args.provider,
         apiKey: args.apiKey,
         externalBedrijfsId: args.externalBedrijfsId,
@@ -314,7 +313,7 @@ export const markForSync = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
 
     const factuur = await ctx.db.get(args.factuurId);
     if (!factuur) {
@@ -345,7 +344,6 @@ export const markForSync = mutation({
     // Create sync log entry
     await ctx.db.insert("boekhoudSync", {
       orgId: org._id,
-      userId: user._id,
       factuurId: args.factuurId,
       entityType: "factuur",
       syncStatus: "pending",

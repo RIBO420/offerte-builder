@@ -72,11 +72,6 @@ export const maakVeldVerzoek = mutation({
     return await ctx.db.insert("meerwerk", {
       projectId: werkitem._id,
       orgId: org._id,
-      // Legacy-veld: `userId` is sinds fase 3 geen scope meer, maar nog wel
-      // verplicht in het schema tot fase 6. Het werkitem is hierboven al
-      // org-geverifieerd, dus dit blijft de bedrijfseigenaar — precies wat
-      // getCompanyUserId hier gaf.
-      userId: werkitem.userId,
       omschrijving,
       reden: args.reden?.trim() || undefined,
       // Prijsregels volgen bij facturatie (§2.8); het veld levert alleen
@@ -207,9 +202,6 @@ export const keurGoed = mutation({
       });
       await logPlanwijziging(ctx, {
         orgId,
-        // `userId` blijft verplicht tot fase 6; het werkitem is via het
-        // meerwerk-verzoek al org-geverifieerd.
-        userId: werkitem.userId,
         door: kantoorUser._id,
         actie: "tijd_aangepast",
         details: `${werkitem.naam}: meerwerk goedgekeurd (+${minuten} min, "${meerwerk.omschrijving}") — cascade schuift door`,
@@ -231,7 +223,6 @@ export const keurGoed = mutation({
       minuten > 0 ? Math.round((minuten / 60) * 100) / 100 : undefined;
     const nieuweOpdrachtId = await ctx.db.insert("projecten", {
       orgId,
-      userId: werkitem.userId,
       type: getType(werkitem),
       klantId: werkitem.klantId,
       status: "gepland",

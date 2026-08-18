@@ -108,19 +108,9 @@ export const linkOrphanedOffertes = internalMutation({
 
       if (!klant) continue;
 
-      // Verify same tenant to avoid cross-tenant linking. Deze util draait
-      // over legacy-data die de org-migratie mogelijk nog niet heeft gezien:
-      // hebben beide kanten een orgId, dan is dát de scope; anders valt hij
-      // terug op het oude userId-veld. Ontbreekt de scope aan één kant, dan
-      // wordt er niet gekoppeld — liever een offerte zonder klantId dan een
-      // koppeling over tenants heen.
-      const klantOrg = klant.orgId?.toString();
-      const offerteOrg = offerte.orgId?.toString();
-      if (klantOrg || offerteOrg) {
-        if (!klantOrg || !offerteOrg || klantOrg !== offerteOrg) continue;
-      } else if (klant.userId.toString() !== offerte.userId.toString()) {
-        continue;
-      }
+      // Verify same tenant to avoid cross-tenant linking: liever een offerte
+      // zonder klantId dan een koppeling over tenants heen.
+      if (klant.orgId.toString() !== offerte.orgId.toString()) continue;
 
       await ctx.db.patch(offerte._id, { klantId: klant._id });
       linked++;

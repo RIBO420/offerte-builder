@@ -413,8 +413,6 @@ async function maakEngineFactuur(
     // Tenant komt van het werkitem: dit pad draait ook vanuit de cron/afronding
     // zonder identity, dus nooit uit een JWT.
     orgId: werkitem.orgId,
-    // `userId` blijft tot fase 6 verplicht in het schema.
-    userId: werkitem.userId,
     projectId: werkitem._id, // werkitems leven in de projecten-tabel
     klantId: werkitem.klantId,
     factuurnummer,
@@ -628,8 +626,6 @@ export const factureerContractTermijnen = internalMutation({
       const factuurId = await ctx.db.insert("facturen", {
         // Identity-loze cron: de tenant komt uit het contract, niet uit een JWT.
         orgId: contract.orgId,
-        // `userId` blijft tot fase 6 verplicht in het schema.
-        userId: termijn.userId,
         klantId: contract.klantId,
         factuurnummer: `${prefix}${jaar}-${String(volgendNummer).padStart(3, "0")}`,
         status: "concept",

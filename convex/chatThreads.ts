@@ -3,7 +3,6 @@ import { query, mutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { requireAuth, requireOrgId } from "./auth";
 import {
-  getCompanyUserId,
   normalizeRole,
   assertKanNaarKlantVersturen,
   klantHeeftToegangTotThread,
@@ -14,17 +13,10 @@ import { chatThreadTypeValidator } from "./validators";
 /**
  * TENANT-SCOPE IN DIT BESTAND
  *
- * De bedrijfskant scopet op `orgId` (JWT-claim `org_id`); `companyUserId` is
- * geen tenant-grens meer. Het veld is in convex/schema.ts nog VERPLICHT
- * (`v.id("users")`), dus inserts vullen het nog — het verdwijnt in fase 6.
- * `getCompanyUserId` staat hier alleen nog daarvoor.
+ * De bedrijfskant scopet op `orgId` (JWT-claim `org_id`).
  *
  * De klantkant loopt via `by_klant` + `klantHeeftToegangTotThread`: een klant
  * heeft geen org-claim in zijn JWT, en de klant-rij zelf is al org-gescoped.
- *
- * Fail-closed: `orgId` is optioneel in het schema. Threads van vóór de backfill
- * vallen buiten de by_org-range en zijn dus tijdelijk onzichtbaar voor de
- * bedrijfskant, in plaats van zichtbaar voor iedereen.
  */
 
 // List threads for dashboard (bedrijf/medewerker) or portal (klant)
@@ -307,8 +299,6 @@ export const createKlantThread = mutation({
     // Klant-threads openen is een kantoor-taak (PRD §1.2)
     const user = await requireKantoor(ctx);
     const orgId = await requireOrgId(ctx);
-    // Alleen voor het (nog verplichte) legacy-veld companyUserId
-    const companyUserId = await getCompanyUserId(ctx);
 
     // Verify klant belongs to the organisation
     const klant = await ctx.db.get(args.klantId);
@@ -337,7 +327,6 @@ export const createKlantThread = mutation({
       klantId: args.klantId,
       participants: [user.clerkId],
       orgId,
-      companyUserId, // fase 6: verdwijnt zodra het schema het veld loslaat
       createdAt: Date.now(),
     });
 
@@ -394,8 +383,6 @@ export const openKlantThreadVoorContext = mutation({
   handler: async (ctx, args) => {
     const user = await requireKantoor(ctx);
     const orgId = await requireOrgId(ctx);
-    // Alleen voor het (nog verplichte) legacy-veld companyUserId
-    const companyUserId = await getCompanyUserId(ctx);
 
     if (!args.werkitemId && !args.meldingId) {
       throw new ConvexError("Werkitem of melding is verplicht");
@@ -456,7 +443,6 @@ export const openKlantThreadVoorContext = mutation({
       channelName,
       participants: [user.clerkId],
       orgId,
-      companyUserId, // fase 6: verdwijnt zodra het schema het veld loslaat
       createdAt: Date.now(),
     });
   },

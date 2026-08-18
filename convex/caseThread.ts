@@ -139,9 +139,6 @@ export const addComment = mutation({
 
     const commentId = await ctx.db.insert("meldingComments", {
       orgId,
-      // `userId` blijft tot fase 6 verplicht: comment en veldtaak erven de
-      // eigenaar van hun melding.
-      userId: melding.userId,
       meldingId: args.meldingId,
       auteurId: user._id,
       auteurNaam: user.name,
@@ -160,7 +157,6 @@ export const addComment = mutation({
       veldtaakIds.push(
         await ctx.db.insert("veldtaken", {
           orgId,
-          userId: melding.userId,
           meldingId: args.meldingId,
           klantId: meldingKlantId!,
           medewerkerId: medewerker._id,

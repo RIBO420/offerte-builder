@@ -354,8 +354,6 @@ export const create = mutation({
 
     return await ctx.db.insert("verlofaanvragen", {
       orgId: org._id,
-      // `userId` blijft tot fase 6 verplicht in het schema.
-      userId: medewerker.userId,
       medewerkerId: args.medewerkerId,
       startDatum: args.startDatum,
       eindDatum: args.eindDatum,

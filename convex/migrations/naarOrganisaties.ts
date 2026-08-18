@@ -365,6 +365,45 @@ export async function vindEigenaar(
   return treffers[0];
 }
 
+/**
+ * Zet `organisaties.eigenaarUserId` op een organisatie die al bestond toen dat
+ * veld erbij kwam (fase 6). Nieuwe organisaties krijgen hem van
+ * `maakOrganisatie`; deze backfill is er voor de dev- en prod-organisatie die
+ * de migratie eerder al aanmaakte.
+ *
+ * Idempotent: staat het veld al goed, dan gebeurt er niets.
+ *
+ *   npx convex run migrations/naarOrganisaties:backfillEigenaar \
+ *     '{"clerkOrgId":"org_…","eigenaarEmail":"…"}'
+ */
+export const backfillEigenaar = internalMutation({
+  args: {
+    clerkOrgId: v.string(),
+    eigenaarEmail: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const organisatie = await ctx.db
+      .query("organisaties")
+      .withIndex("by_clerk_org_id", (q) => q.eq("clerkOrgId", args.clerkOrgId))
+      .unique();
+    if (!organisatie) {
+      throw new ConvexError(
+        `Geen organisatie met clerkOrgId "${args.clerkOrgId}".`,
+      );
+    }
+
+    const eigenaar = await vindEigenaar(ctx, args.eigenaarEmail);
+    const eigenaarUserId = eigenaar._id as Id<"users">;
+
+    if (organisatie.eigenaarUserId === eigenaarUserId) {
+      return { orgId: organisatie._id, eigenaarUserId, gewijzigd: false };
+    }
+
+    await ctx.db.patch(organisatie._id, { eigenaarUserId });
+    return { orgId: organisatie._id, eigenaarUserId, gewijzigd: true };
+  },
+});
+
 // ─── (c) ontdubbeling ────────────────────────────────────────────────────────
 
 export interface OntdubbelResultaat {

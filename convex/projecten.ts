@@ -9,12 +9,7 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
-import {
-  getOwnedOfferte,
-  requireOrgContext,
-  requireOrgId,
-  verifyOrgOwnership,
-} from "./auth";
+import { getOwnedOfferte, requireOrg, requireOrgId, verifyOrgOwnership } from "./auth";
 import { Id } from "./_generated/dataModel";
 import { klantNaam } from "./lib/offerteKlant";
 import { getUserRole, getLinkedMedewerker, requireNotViewer, requireDirectieOrProjectleider } from "./roles";
@@ -67,7 +62,7 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
     const now = Date.now();
 
     // Verify the offerte exists and belongs to the organisatie
@@ -118,7 +113,6 @@ export const create = mutation({
     // Create the project with status "gepland" (voorcalculatie is now at offerte level)
     const projectId = await ctx.db.insert("projecten", {
       orgId: org._id,
-      userId: user._id,
       offerteId: args.offerteId,
       naam: projectNaam,
       status: "gepland",
@@ -139,7 +133,6 @@ export const create = mutation({
         // Tenant-scope (audit §2): het project hierboven is met dezelfde
         // organisatie aangemaakt, dus dit is per definitie de juiste tenant.
         orgId: org._id,
-        userId: user._id,
         offerteId: args.offerteId, // Keep link to original offerte
         teamGrootte: offerteVoorcalculatie.teamGrootte,
         teamleden: offerteVoorcalculatie.teamleden,

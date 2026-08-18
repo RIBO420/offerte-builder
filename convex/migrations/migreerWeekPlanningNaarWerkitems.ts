@@ -111,22 +111,17 @@ export const migreer = internalMutation({
         continue;
       }
 
-      // PRE-ORG legacy-migratie: deze eenmalige omzetting draait op data van
-      // vóór de Clerk-Organizations-migratie en zoekt de teams op via het oude
-      // tenantveld `projecten.userId`. Bewust niet omgezet naar `by_org`: op
-      // oude rijen is `orgId` nog leeg, en dan zou de migratie juist niets meer
-      // vinden. Nieuwe leescode hoort wél op `by_org`.
-      const userKey = project.userId.toString();
-      if (!teamsCache.has(userKey)) {
+      const orgKey = project.orgId.toString();
+      if (!teamsCache.has(orgKey)) {
         teamsCache.set(
-          userKey,
+          orgKey,
           await ctx.db
             .query("teams")
-            .withIndex("by_user", (q) => q.eq("userId", project.userId))
+            .withIndex("by_org", (q) => q.eq("orgId", project.orgId))
             .collect()
         );
       }
-      const teams = teamsCache.get(userKey)!;
+      const teams = teamsCache.get(orgKey)!;
 
       const afgeleid = afleidPlanningUitWeekPlanning(rijen, teams);
       if (!afgeleid) {

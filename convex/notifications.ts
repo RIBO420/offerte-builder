@@ -154,15 +154,12 @@ export const getPreferencesByClerkId = internalQuery({
 /**
  * Get all team members with push tokens for an organisation.
  *
- * `companyUserId` is GEEN tenant-grens: de medewerkers komen uit `orgId`. Het
- * is puur de directie-account, die als enige niet uit `medewerkers` te halen is
- * (`users` heeft geen `orgId`). Fase 6 kan dat argument laten vallen zodra er
- * een org→eigenaar-koppeling bestaat.
+ * De directie-account is als enige niet uit `medewerkers` te halen; die komt
+ * uit `organisaties.eigenaarUserId`.
  */
 export const getTeamMembersWithTokens = internalQuery({
   args: {
     orgId: v.id("organisaties"),
-    companyUserId: v.id("users"),
   },
   handler: async (ctx, args) => {
     // Get all active medewerkers for this organisation
@@ -208,7 +205,8 @@ export const getTeamMembersWithTokens = internalQuery({
     }
 
     // Also include the company owner
-    const owner = await ctx.db.get(args.companyUserId);
+    const eigenaarUserId = (await ctx.db.get(args.orgId))?.eigenaarUserId;
+    const owner = eigenaarUserId ? await ctx.db.get(eigenaarUserId) : null;
     if (owner) {
       const ownerPrefs = await ctx.db
         .query("notification_preferences")
@@ -383,9 +381,6 @@ export const sendChatNotifications = internalAction({
     // Tenant-scope: geen identity in een scheduled action, dus de organisatie
     // komt mee vanaf chat.sendTeamMessage.
     orgId: v.id("organisaties"),
-    // Alleen om de directie-account óók een push te geven — zie
-    // getTeamMembersWithTokens.
-    companyUserId: v.id("users"),
     channelType: v.union(
       v.literal("team"),
       v.literal("project"),
@@ -405,7 +400,7 @@ export const sendChatNotifications = internalAction({
     // Get all team members with push tokens
     const teamMembers = await ctx.runQuery(
       internal.notifications.getTeamMembersWithTokens,
-      { orgId: args.orgId, companyUserId: args.companyUserId }
+      { orgId: args.orgId }
     );
 
     const notificationType = `chat_${args.channelType}`;
@@ -1574,7 +1569,6 @@ export const getByOfferte = query({
  */
 export const createReminderNotification = internalMutation({
   args: {
-    userId: v.id("users"),
     offerteId: v.id("offertes"),
     offerteNummer: v.string(),
     klantNaam: v.string(),
@@ -1586,8 +1580,13 @@ export const createReminderNotification = internalMutation({
   },
   handler: async (ctx, args) => {
     // Geen identity (cron-pad): de tenant komt uit de offerte zelf — zelfde
-    // patroon als mailTriggers.bepaalOrgId.
+    // patroon als mailTriggers.bepaalOrgId. De ontvanger is de directie van
+    // die organisatie.
     const offerte = await ctx.db.get(args.offerteId);
+    const org = offerte ? await ctx.db.get(offerte.orgId) : null;
+    if (!offerte || !org?.eigenaarUserId) {
+      return { notificationId: null };
+    }
 
     // Build title and message based on reminder type
     let title: string;
@@ -1609,8 +1608,8 @@ export const createReminderNotification = internalMutation({
     }
 
     const notificationId = await ctx.db.insert("notifications", {
-      userId: args.userId,
-      orgId: offerte?.orgId,
+      userId: org.eigenaarUserId,
+      orgId: offerte.orgId,
       type: "offerte_herinnering",
       title,
       message,

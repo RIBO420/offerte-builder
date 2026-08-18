@@ -1,6 +1,6 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireOrgContext, requireOrgId } from "./auth";
+import { requireOrg, requireOrgId } from "./auth";
 import { requireNotViewer } from "./roles";
 
 // ─── Productbestand-domeinlogica (PRD §2.5c) ─────────────────────────────────
@@ -162,11 +162,10 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
     valideerBtwCode(args.btwCode);
     return await ctx.db.insert("producten", {
       orgId: org._id,
-      userId: user._id,
       productnaam: args.productnaam,
       categorie: args.categorie,
       inkoopprijs: args.inkoopprijs,
@@ -308,14 +307,13 @@ export const bulkImport = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
     const now = Date.now();
     const insertedIds: string[] = [];
 
     for (const product of args.producten) {
       const id = await ctx.db.insert("producten", {
         orgId: org._id,
-        userId: user._id,
         ...product,
         isActief: true,
         createdAt: now,
@@ -404,7 +402,7 @@ export const createDefaults = mutation({
   args: {},
   handler: async (ctx) => {
     await requireNotViewer(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
 
     // Idempotent: check if the organisation already has products
     const existing = await ctx.db
@@ -473,7 +471,6 @@ export const createDefaults = mutation({
     for (const product of defaultProducts) {
       await ctx.db.insert("producten", {
         orgId: org._id,
-        userId: user._id,
         ...product,
         isActief: true,
         createdAt: now,

@@ -89,7 +89,6 @@ export const create = mutation({
       offerteId: args.offerteId,
       // De offerte is via getOwnedOfferte al org-geverifieerd.
       orgId: offerte.orgId,
-      userId: offerte.userId,
       type: args.type,
       to: args.to,
       subject: args.subject,
@@ -114,7 +113,6 @@ export const createTriggerInternal = internalMutation({
   args: {
     offerteId: v.optional(v.id("offertes")),
     orgId: v.optional(v.id("organisaties")),
-    userId: v.id("users"),
     type: v.union(
       v.literal("offerte_verzonden"),
       v.literal("herinnering"),
@@ -135,11 +133,16 @@ export const createTriggerInternal = internalMutation({
   },
   handler: async (ctx, args) => {
     const offerte = args.offerteId ? await ctx.db.get(args.offerteId) : null;
+    const orgId = offerte?.orgId ?? args.orgId;
+    if (!orgId) {
+      // Zonder tenant is een logregel dakloos; niet-blokkerend overslaan.
+      console.error("[emailLogs] createTriggerInternal zonder org-scope");
+      return null;
+    }
 
     return await ctx.db.insert("email_logs", {
       offerteId: args.offerteId,
-      orgId: offerte?.orgId ?? args.orgId,
-      userId: args.userId,
+      orgId,
       type: args.type,
       to: args.to,
       subject: args.subject,
@@ -156,7 +159,6 @@ export const createTriggerInternal = internalMutation({
 export const createInternal = internalMutation({
   args: {
     offerteId: v.id("offertes"),
-    userId: v.id("users"),
     type: v.union(
       v.literal("offerte_verzonden"),
       v.literal("herinnering"),
@@ -180,11 +182,14 @@ export const createInternal = internalMutation({
   },
   handler: async (ctx, args) => {
     const offerte = await ctx.db.get(args.offerteId);
+    if (!offerte) {
+      console.error("[emailLogs] createInternal: offerte bestaat niet meer");
+      return null;
+    }
 
     return await ctx.db.insert("email_logs", {
       offerteId: args.offerteId,
-      orgId: offerte?.orgId,
-      userId: args.userId,
+      orgId: offerte.orgId,
       type: args.type,
       to: args.to,
       subject: args.subject,

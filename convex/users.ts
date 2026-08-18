@@ -19,7 +19,6 @@ import {
   DEFAULT_NORMUREN,
   DEFAULT_PRODUCTEN,
   seedOrgDefaults,
-  standaardInstellingen,
 } from "./lib/orgDefaults";
 
 // ============================================
@@ -106,43 +105,19 @@ const SYSTEM_CORRECTIEFACTOREN = [
   { type: "snoei", waarde: "beide", factor: 1.0 },
 ];
 
-// Helper: Create default normuren for a user
-async function createDefaultNormuren(ctx: MutationCtx, userId: Id<"users">) {
-  for (const normuur of DEFAULT_NORMUREN) {
-    await ctx.db.insert("normuren", {
-      userId,
-      ...normuur,
-    });
-  }
-}
-
-// Helper: Create default products for a user
-async function createDefaultProducten(ctx: MutationCtx, userId: Id<"users">) {
-  const now = Date.now();
-  for (const product of DEFAULT_PRODUCTEN) {
-    await ctx.db.insert("producten", {
-      userId,
-      ...product,
-      isActief: true,
-      createdAt: now,
-      updatedAt: now,
-    });
-  }
-}
-
-// Helper: Initialize system correction factors (shared across all users)
+// Helper: Initialize system correction factors (gedeeld door alle organisaties)
 async function initializeSystemCorrectieFactoren(ctx: MutationCtx) {
-  // Check if already initialized
+  // Systeemrijen zijn de rijen ZONDER orgId — die undefined-match ís hier de
+  // betekenis (CLAUDE.md regel 4).
   const existing = await ctx.db
     .query("correctiefactoren")
-    .filter((q) => q.eq(q.field("userId"), undefined))
+    .filter((q) => q.eq(q.field("orgId"), undefined))
     .first();
 
   if (existing) return; // Already initialized
 
   for (const factor of SYSTEM_CORRECTIEFACTOREN) {
     await ctx.db.insert("correctiefactoren", {
-      userId: undefined,
       ...factor,
     });
   }
@@ -451,7 +426,7 @@ export const initializeDefaults = mutation({
 
     // Org-defaults (instellingen + normuren + producten) in één idempotente
     // stap; `seedOrgDefaults` doet niets als de organisatie al instellingen heeft.
-    const geseed = await seedOrgDefaults(ctx, orgId, userId);
+    const geseed = await seedOrgDefaults(ctx, orgId);
     const normurenCreated = geseed ? DEFAULT_NORMUREN.length : 0;
     const productenCreated = geseed ? DEFAULT_PRODUCTEN.length : 0;
     const settingsCreated = geseed;
@@ -553,9 +528,10 @@ export const initializeDefaults = mutation({
 
 // Admin query to list all users (directie only — lekte voorheen alle e-mails/clerkIds zonder login)
 //
-// LEGACY HERSTELTOOL, PRE-ORG: deployment-breed, want de users-tabel heeft nog
-// geen orgId (fase 6). Voor het Team-scherm is `listUsersWithDetails` de
-// org-gescopete variant; dit blijft een kale dump voor directie/CLI.
+// DEPLOYMENT-BREED: de users-tabel heeft geen orgId (een account kan in
+// meerdere organisaties zitten). Voor het Team-scherm is
+// `listUsersWithDetails` de org-gescopete variant; dit blijft een kale dump
+// voor directie/CLI.
 export const adminListUsers = query({
   args: {},
   handler: async (ctx) => {
@@ -567,253 +543,6 @@ export const adminListUsers = query({
       name: u.name,
       clerkId: u.clerkId,
     }));
-  },
-});
-
-// Admin query to check data ownership (directie only)
-//
-// LEGACY HERSTELTOOL, PRE-ORG: diagnostiek op de userId-kolommen van vóór de
-// org-migratie. Niet herbouwd (YAGNI) — de tenantsleutel is nu orgId.
-export const adminCheckDataOwnership = query({
-  args: {},
-  handler: async (ctx) => {
-    await requireAdmin(ctx);
-    const normuren = await ctx.db.query("normuren").take(1);
-    const producten = await ctx.db.query("producten").take(1);
-    const instellingen = await ctx.db.query("instellingen").take(1);
-
-    return {
-      normurenSample: normuren[0] ? { userId: normuren[0].userId, activiteit: normuren[0].activiteit } : null,
-      productenSample: producten[0] ? { userId: producten[0].userId, productnaam: producten[0].productnaam } : null,
-      instellingenSample: instellingen[0] ? { userId: instellingen[0].userId } : null,
-    };
-  },
-});
-
-// Admin function to migrate data from one user to another
-// Use this when a user has data under an old userId
-//
-// LEGACY HERSTELTOOL, PRE-ORG: verplaatst tenantdata op userId. Sinds de
-// org-migratie is userId geen tenantsleutel meer, dus dit repareert alleen nog
-// oude, org-loze rijen. Bewust niet herbouwd naar orgId (YAGNI): een echte
-// tenantverhuizing is een migratiescript, geen knop in de app.
-export const adminMigrateUserData = mutation({
-  args: {
-    fromUserId: v.id("users"),
-    toUserId: v.id("users"),
-  },
-  handler: async (ctx, args) => {
-    await requireAdmin(ctx);
-
-    let migratedNormuren = 0;
-    let migratedProducten = 0;
-    let migratedInstellingen = 0;
-
-    // fromUserId/toUserId zijn hier de bedrijfsscope: dit is een directie-only
-    // hersteltool om data van een oud naar een nieuw bedrijfsaccount te tillen.
-    // De by_user-indexen doen wat de .filter()-scans deden, maar zonder de hele
-    // tabel van alle bedrijven te lezen.
-    const normuren = await ctx.db
-      .query("normuren")
-      .withIndex("by_user", (q) => q.eq("userId", args.fromUserId))
-      .collect();
-
-    for (const normuur of normuren) {
-      await ctx.db.patch(normuur._id, { userId: args.toUserId });
-      migratedNormuren++;
-    }
-
-    // Migrate producten
-    const producten = await ctx.db
-      .query("producten")
-      .withIndex("by_user", (q) => q.eq("userId", args.fromUserId))
-      .collect();
-
-    for (const product of producten) {
-      await ctx.db.patch(product._id, { userId: args.toUserId });
-      migratedProducten++;
-    }
-
-    // Migrate instellingen
-    const instellingen = await ctx.db
-      .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", args.fromUserId))
-      .collect();
-
-    for (const instelling of instellingen) {
-      await ctx.db.patch(instelling._id, { userId: args.toUserId });
-      migratedInstellingen++;
-    }
-
-    return {
-      success: true,
-      migratedNormuren,
-      migratedProducten,
-      migratedInstellingen,
-    };
-  },
-});
-
-// Admin function to seed data for a specific user by email
-// Run this from the Convex dashboard to fix missing defaults
-//
-// LEGACY HERSTELTOOL, PRE-ORG: zaait op userId. De levende route is
-// `initializeDefaults` / `organisaties.maakOrganisatie`, die via
-// `seedOrgDefaults` op orgId zaaien. Bewust niet herbouwd (YAGNI).
-export const adminSeedUserDefaults = mutation({
-  args: {
-    userEmail: v.string(),
-  },
-  handler: async (ctx, args) => {
-    await requireAdmin(ctx);
-
-    // Find user by email — bewust over alle accounts heen: dit is een
-    // directie-only hersteltool die per e-mailadres een specifiek account
-    // opzoekt. Via by_email in plaats van een .filter()-scan.
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_email", (q) => q.eq("email", args.userEmail))
-      .first();
-
-    if (!user) {
-      return { error: `User with email ${args.userEmail} not found` };
-    }
-
-    const userId = user._id;
-
-    // Initialize system correction factors
-    await initializeSystemCorrectieFactoren(ctx);
-
-    // Check and create normuren
-    const existingNormuren = await ctx.db
-      .query("normuren")
-      .withIndex("by_user_scope", (q) => q.eq("userId", userId))
-      .first();
-
-    let normurenCreated = 0;
-    if (!existingNormuren) {
-      await createDefaultNormuren(ctx, userId);
-      normurenCreated = DEFAULT_NORMUREN.length;
-    }
-
-    // Check and create products
-    const existingProducten = await ctx.db
-      .query("producten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .first();
-
-    let productenCreated = 0;
-    if (!existingProducten) {
-      await createDefaultProducten(ctx, userId);
-      productenCreated = DEFAULT_PRODUCTEN.length;
-    }
-
-    // Check and create settings
-    const existingSettings = await ctx.db
-      .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .unique();
-
-    let settingsCreated = false;
-    if (!existingSettings) {
-      await ctx.db.insert("instellingen", {
-        userId,
-        ...standaardInstellingen(),
-      });
-      settingsCreated = true;
-    }
-
-    // Run data migrations for archiving system
-    const now = Date.now();
-    const migrationResults = {
-      afgerondFixed: 0,
-      gefactureerdUpdated: 0,
-      projectsArchived: 0,
-      offertesArchived: 0,
-    };
-
-    // Get all user projects
-    const userProjects = await ctx.db
-      .query("projecten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .collect();
-
-    // Fix afgerond projects that have nacalculatie
-    for (const project of userProjects) {
-      if (project.status === "afgerond") {
-        const nacalculatie = await ctx.db
-          .query("nacalculaties")
-          .withIndex("by_project", (q) => q.eq("projectId", project._id))
-          .unique();
-
-        if (nacalculatie) {
-          await ctx.db.patch(project._id, {
-            status: "nacalculatie_compleet",
-            updatedAt: now,
-          });
-          migrationResults.afgerondFixed++;
-        }
-      }
-    }
-
-    // Get all facturen for user's projects
-    const projectIds = userProjects.map((p) => p._id);
-    const allFacturen = await ctx.db.query("facturen").collect();
-    const userFacturen = allFacturen.filter((f) =>
-      f.projectId !== undefined && projectIds.includes(f.projectId)
-    );
-
-    // Update projects with facturen to gefactureerd and archive paid ones
-    for (const factuur of userFacturen) {
-      const project = userProjects.find((p) => p._id === factuur.projectId);
-      if (!project) continue;
-
-      // Update to gefactureerd if has definitief/verzonden/betaald factuur
-      if (
-        ["definitief", "verzonden", "betaald"].includes(factuur.status) &&
-        project.status !== "gefactureerd"
-      ) {
-        await ctx.db.patch(project._id, {
-          status: "gefactureerd",
-          updatedAt: now,
-        });
-        migrationResults.gefactureerdUpdated++;
-      }
-
-      // Archive if factuur is betaald
-      if (factuur.status === "betaald") {
-        if (!project.isArchived) {
-          await ctx.db.patch(project._id, {
-            isArchived: true,
-            archivedAt: now,
-          });
-          migrationResults.projectsArchived++;
-        }
-
-        // Archive offerte too
-        if (project.offerteId) {
-          const offerte = await ctx.db.get(project.offerteId);
-          if (offerte && !offerte.isArchived) {
-            await ctx.db.patch(offerte._id, {
-              isArchived: true,
-              archivedAt: now,
-            });
-            migrationResults.offertesArchived++;
-          }
-        }
-      }
-    }
-
-    return {
-      success: true,
-      userId: userId,
-      userEmail: args.userEmail,
-      normurenCreated,
-      productenCreated,
-      settingsCreated,
-      systemFactorsInitialized: true,
-      migrationResults,
-    };
   },
 });
 
@@ -910,124 +639,6 @@ export const runDataMigrations = mutation({
 
     return {
       success: true,
-      ...results,
-      message: `Migratie voltooid: ${results.afgerondFixedCount} projecten status bijgewerkt, ${results.statusMigratedCount} naar gefactureerd, ${results.projectsArchivedCount} projecten gearchiveerd, ${results.offertesArchivedCount} offertes gearchiveerd`,
-    };
-  },
-});
-
-/**
- * Admin function to run data migrations for a specific user by email.
- *
- * LEGACY HERSTELTOOL, PRE-ORG: zoekt de projecten op `userId`. De levende
- * variant is `runDataMigrations` hierboven, die op de organisatie werkt.
- * Bewust niet herbouwd (YAGNI) — dit blijft de CLI-uitweg voor org-loze rijen.
- *
- * Usage: npx convex run users:adminRunMigrations '{"userEmail": "user@example.com"}'
- */
-export const adminRunMigrations = mutation({
-  args: {
-    userEmail: v.string(),
-  },
-  handler: async (ctx, args) => {
-    await requireAdmin(ctx);
-
-    // Find user by email — bewust over alle accounts heen (directie-only
-    // migratietool, zie requireAdmin hierboven). by_email in plaats van scan.
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_email", (q) => q.eq("email", args.userEmail))
-      .first();
-
-    if (!user) {
-      return { error: `User with email ${args.userEmail} not found` };
-    }
-
-    const userId = user._id;
-    const now = Date.now();
-
-    const results = {
-      afgerondFixedCount: 0,
-      statusMigratedCount: 0,
-      projectsArchivedCount: 0,
-      offertesArchivedCount: 0,
-    };
-
-    // Get all user projects
-    const userProjects = await ctx.db
-      .query("projecten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
-      .collect();
-
-    // Fix afgerond projects that have nacalculatie
-    for (const project of userProjects) {
-      if (project.status === "afgerond") {
-        const nacalculatie = await ctx.db
-          .query("nacalculaties")
-          .withIndex("by_project", (q) => q.eq("projectId", project._id))
-          .unique();
-
-        if (nacalculatie) {
-          await ctx.db.patch(project._id, {
-            status: "nacalculatie_compleet",
-            updatedAt: now,
-          });
-          results.afgerondFixedCount++;
-        }
-      }
-    }
-
-    // Get all facturen for user's projects
-    const projectIds = userProjects.map((p) => p._id);
-    const allFacturen = await ctx.db.query("facturen").collect();
-    const userFacturen = allFacturen.filter((f) =>
-      f.projectId !== undefined && projectIds.includes(f.projectId)
-    );
-
-    // Update projects with facturen to gefactureerd and archive paid ones
-    for (const factuur of userFacturen) {
-      const project = userProjects.find((p) => p._id === factuur.projectId);
-      if (!project) continue;
-
-      // Update to gefactureerd if has definitief/verzonden/betaald factuur
-      if (
-        ["definitief", "verzonden", "betaald"].includes(factuur.status) &&
-        project.status !== "gefactureerd"
-      ) {
-        await ctx.db.patch(project._id, {
-          status: "gefactureerd",
-          updatedAt: now,
-        });
-        results.statusMigratedCount++;
-      }
-
-      // Archive if factuur is betaald
-      if (factuur.status === "betaald") {
-        if (!project.isArchived) {
-          await ctx.db.patch(project._id, {
-            isArchived: true,
-            archivedAt: now,
-          });
-          results.projectsArchivedCount++;
-        }
-
-        // Archive offerte too
-        if (project.offerteId) {
-          const offerte = await ctx.db.get(project.offerteId);
-          if (offerte && !offerte.isArchived) {
-            await ctx.db.patch(offerte._id, {
-              isArchived: true,
-              archivedAt: now,
-            });
-            results.offertesArchivedCount++;
-          }
-        }
-      }
-    }
-
-    return {
-      success: true,
-      userEmail: args.userEmail,
       ...results,
       message: `Migratie voltooid: ${results.afgerondFixedCount} projecten status bijgewerkt, ${results.statusMigratedCount} naar gefactureerd, ${results.projectsArchivedCount} projecten gearchiveerd, ${results.offertesArchivedCount} offertes gearchiveerd`,
     };
@@ -1298,9 +909,9 @@ export const listUsersWithDetails = query({
     }
 
     // ── ORG-SCOPING, BESLUIT CLUSTER 3.9 ────────────────────────────────
-    // De users-tabel heeft (nog) GEEN orgId — dat komt pas in fase 6, samen
-    // met een echte org-koppeling op accounts. Tot dan leiden we de tenant af
-    // uit de enige koppeling die er wél is, `linkedMedewerkerId`, en tonen we:
+    // De users-tabel heeft GEEN orgId — een account kan in meerdere
+    // Clerk-organisaties zitten. We leiden de tenant af uit de koppeling die
+    // er wél is, `linkedMedewerkerId`, en tonen:
     //
     //   1. accounts die aan een medewerker van DEZE organisatie hangen, plus
     //   2. accounts zonder koppeling die géén klant zijn.
@@ -1617,18 +1228,22 @@ export const cliSetUserRole = mutation({
  * - All medewerkers (if admin)
  * - Activity logs if any
  *
- * PERSOONLIJK PAD — élke `by_user`-lezing hieronder is met opzet op `userId`
- * en blijft dat. AVG artikel 15 gaat over de gegevens van déze betrokkene, niet
- * over de dataset van zijn werkgever: een export op orgId zou de klanten,
- * offertes en uren van collega's meeleveren. Dat is precies het tegendeel van
- * wat het artikel vraagt. Zelfde regel geldt voor `requestDataDeletion`
- * hieronder en voor pushTokens/notification_preferences overal.
+ * TWEE SCOPES, BEWUST GESCHEIDEN (fase 6):
+ *  - Écht persoonlijk (`notification_preferences`, `pushTokens`,
+ *    `notifications`) blijft op `userId` — dat zijn de gegevens van déze
+ *    betrokkene.
+ *  - De bedrijfsdata (klanten, offertes, projecten, …) heeft sinds de
+ *    org-migratie geen user-eigenaar meer; die kolom wás de tenant. De export
+ *    levert dus de dataset van de organisatie waarin de aanvrager werkt —
+ *    precies wat de oude `by_user`-lezing feitelijk ook deed, want dat veld
+ *    stond op de bedrijfseigenaar.
  */
 export const exportPersonalData = query({
   args: {},
   handler: async (ctx) => {
-    const user = await requireAuth(ctx);
+    const { org, user } = await requireOrgContext(ctx);
     const userId = user._id;
+    const orgId = org._id;
 
     // 1. User profile data
     const userProfile = {
@@ -1645,25 +1260,25 @@ export const exportPersonalData = query({
     // 2. Instellingen (settings)
     const instellingen = await ctx.db
       .query("instellingen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .unique();
 
     // 3. Klanten (customers)
     const klanten = await ctx.db
       .query("klanten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     // 4. Offertes (quotes)
     const offertes = await ctx.db
       .query("offertes")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     // 5. Projecten (projects)
     const projecten = await ctx.db
       .query("projecten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     // 6. Facturen (invoices) - linked to projects
@@ -1696,39 +1311,39 @@ export const exportPersonalData = query({
     // 10. Producten (products/price book)
     const producten = await ctx.db
       .query("producten")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     // 11. Normuren (standard hours)
     const normuren = await ctx.db
       .query("normuren")
-      .withIndex("by_user_scope", (q) => q.eq("userId", userId))
+      .withIndex("by_org_scope", (q) => q.eq("orgId", orgId))
       .collect();
 
     // 12. Machines
     const machines = await ctx.db
       .query("machines")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     // 13. Medewerkers (employees) - only for admin users
     const medewerkers = isAdminRole(user.role)
       ? await ctx.db
           .query("medewerkers")
-          .withIndex("by_user", (q) => q.eq("userId", userId))
+          .withIndex("by_org", (q) => q.eq("orgId", orgId))
           .collect()
       : [];
 
     // 14. Voertuigen (vehicles)
     const voertuigen = await ctx.db
       .query("voertuigen")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     // 15. Email logs
     const emailLogs = await ctx.db
       .query("email_logs")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     // 16. Offerte versions (audit trail)
@@ -1741,24 +1356,24 @@ export const exportPersonalData = query({
     // 17. Leerfeedback historie (learning feedback history)
     const leerfeedbackHistorie = await ctx.db
       .query("leerfeedback_historie")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     // 18. Teams
     const teams = await ctx.db
       .query("teams")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     // 19. Location data (if applicable)
     const locationSessions = await ctx.db
       .query("locationSessions")
-      .withIndex("by_user_active", (q) => q.eq("userId", userId))
+      .withIndex("by_org_active", (q) => q.eq("orgId", orgId))
       .collect();
 
     const locationAuditLog = await ctx.db
       .query("locationAuditLog")
-      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
     // 20. Notifications
@@ -2011,43 +1626,35 @@ export const requestDataDeletion = mutation({
     // het systeem een notificatie met naam én e-mailadres van de aanvrager —
     // zelf een datalek binnen een AVG-functie (audit §2).
     //
-    // Bewust NIET via getCompanyUserId: die helper geeft voor een klant het
-    // eigen account terug (klanten zien alleen hun eigen data), terwijl het
-    // verzoek juist naar het hovenierbedrijf achter dat klantrecord moet.
-    //
-    // PRE-ORG, WACHT OP FASE 6: de ontvanger-resolutie loopt nog over
-    // `userId`-eigendom en niet over `orgId`. Omzetten kan pas als `users` een
-    // org-koppeling heeft: een klantaccount heeft géén org-claim in het JWT
-    // (dus `requireOrgId` werkt hier niet) en een directie-account zónder
-    // gekoppelde medewerker is via `orgId` op dit moment nergens aan te
-    // herkennen. Tot dan blijft dit pad zoals het is — het werkt, en fout
-    // raden is hier een datalek.
-    const rol = normalizeRole(user.role);
-    let companyUserId: Id<"users"> | null = null;
+    // De organisatie komt uit de koppeling van het account zelf, niet uit het
+    // JWT: een klantaccount heeft géén org-claim, dus `requireOrgId` werkt hier
+    // niet. Directie leest hem wel uit de sessie.
+    let orgId: Id<"organisaties"> | null = null;
 
-    if (rol === "directie") {
-      // Directie IS het bedrijfsaccount waar alle bedrijfsdata aan hangt.
-      companyUserId = user._id;
-    } else if (user.linkedMedewerkerId) {
-      const eigenMedewerker = await ctx.db.get(user.linkedMedewerkerId);
-      companyUserId = eigenMedewerker?.userId ?? null;
+    if (user.linkedMedewerkerId) {
+      orgId = (await ctx.db.get(user.linkedMedewerkerId))?.orgId ?? null;
     } else if (user.linkedKlantId) {
-      const eigenKlant = await ctx.db.get(user.linkedKlantId);
-      companyUserId = eigenKlant?.userId ?? null;
+      orgId = (await ctx.db.get(user.linkedKlantId))?.orgId ?? null;
+    }
+    if (!orgId) {
+      try {
+        orgId = await requireOrgId(ctx);
+      } catch {
+        orgId = null; // geen org-claim (klantaccount zonder koppeling)
+      }
     }
 
     const teNotificeren = new Map<string, Id<"users">>();
 
-    if (companyUserId) {
-      const bedrijfsAccount = await ctx.db.get(companyUserId);
-      if (bedrijfsAccount) {
-        teNotificeren.set(bedrijfsAccount._id.toString(), bedrijfsAccount._id);
+    if (orgId) {
+      const org = await ctx.db.get(orgId);
+      if (org?.eigenaarUserId) {
+        teNotificeren.set(org.eigenaarUserId.toString(), org.eigenaarUserId);
       }
 
-      // Overige directie-accounts binnen hetzelfde bedrijf zijn herkenbaar aan
-      // hun gekoppelde medewerker (medewerkers.userId = bedrijfsaccount). De
-      // by_role-index leest alleen de directie-rijen in plaats van de hele
-      // users-tabel te scannen.
+      // Overige directie-accounts binnen dezelfde organisatie zijn herkenbaar
+      // aan hun gekoppelde medewerker (medewerkers.orgId). De by_role-index
+      // leest alleen de directie-rijen in plaats van de hele users-tabel.
       for (const adminRol of ["directie", "admin"] as const) {
         const adminsMetRol = await ctx.db
           .query("users")
@@ -2059,10 +1666,7 @@ export const requestDataDeletion = mutation({
           if (!admin.linkedMedewerkerId) continue;
 
           const medewerker = await ctx.db.get(admin.linkedMedewerkerId);
-          if (
-            medewerker &&
-            medewerker.userId.toString() === companyUserId.toString()
-          ) {
+          if (medewerker && medewerker.orgId.toString() === orgId.toString()) {
             teNotificeren.set(admin._id.toString(), admin._id);
           }
         }
@@ -2077,34 +1681,39 @@ export const requestDataDeletion = mutation({
 
     // Create a notification for each admin
     const now = Date.now();
-    for (const adminUserId of adminUserIds) {
-      await ctx.db.insert("notifications", {
-        userId: adminUserId,
-        type: "system_reminder",
-        title: "GDPR Verwijderingsverzoek",
-        message: `Gebruiker ${user.name} (${user.email}) heeft een verzoek ingediend om alle persoonlijke gegevens te verwijderen.${args.reason ? ` Reden: ${args.reason}` : ""}`,
-        isRead: false,
-        isDismissed: false,
-        triggeredBy: user.clerkId,
-        metadata: {
-          gdprType: "deletion_request",
-          requestedBy: user._id.toString(),
-          requestedByEmail: user.email,
-          requestedByName: user.name,
-          ...(args.reason ? { reason: args.reason } : {}),
-          requestedAt: now.toString(),
-        },
-        createdAt: now,
-      });
+    if (orgId) {
+      for (const adminUserId of adminUserIds) {
+        await ctx.db.insert("notifications", {
+          userId: adminUserId,
+          orgId,
+          type: "system_reminder",
+          title: "GDPR Verwijderingsverzoek",
+          message: `Gebruiker ${user.name} (${user.email}) heeft een verzoek ingediend om alle persoonlijke gegevens te verwijderen.${args.reason ? ` Reden: ${args.reason}` : ""}`,
+          isRead: false,
+          isDismissed: false,
+          triggeredBy: user.clerkId,
+          metadata: {
+            gdprType: "deletion_request",
+            requestedBy: user._id.toString(),
+            requestedByEmail: user.email,
+            requestedByName: user.name,
+            ...(args.reason ? { reason: args.reason } : {}),
+            requestedAt: now.toString(),
+          },
+          createdAt: now,
+        });
+      }
     }
 
     // Log this action in the location audit log for GDPR compliance
-    await ctx.db.insert("locationAuditLog", {
-      userId: user._id,
-      action: "data_deleted",
-      details: `Data deletion requested. Reason: ${args.reason || "Not specified"}`,
-      createdAt: now,
-    });
+    if (orgId) {
+      await ctx.db.insert("locationAuditLog", {
+        orgId,
+        action: "data_deleted",
+        details: `Data deletion requested. Reason: ${args.reason || "Not specified"}`,
+        createdAt: now,
+      });
+    }
 
     return {
       success: true,

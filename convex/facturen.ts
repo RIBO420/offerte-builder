@@ -13,12 +13,7 @@ import {
   type MutationCtx,
 } from "./_generated/server";
 import { internal } from "./_generated/api";
-import {
-  requireAuth,
-  requireOrgContext,
-  requireOrgId,
-  verifyOrgOwnership,
-} from "./auth";
+import { requireAuth, requireOrg, requireOrgId, verifyOrgOwnership } from "./auth";
 import { requireNotViewer, assertKanNaarKlantVersturen } from "./roles";
 import { Doc, Id } from "./_generated/dataModel";
 import {
@@ -154,7 +149,6 @@ export async function verstuurFactuurKern(
   // Tijdlijn-event factuur_verzonden (§2.3) — voedt ook de debiteurenladder
   if (factuur.klantId) {
     await logTijdlijnEvent(ctx, {
-      userId: factuur.userId,
       klantId: factuur.klantId,
       eventType: "factuur_verzonden",
       tekst: `Factuur ${factuur.factuurnummer} verzonden (€ ${factuur.totaalInclBtw.toFixed(2)} incl. btw)`,
@@ -222,7 +216,6 @@ export async function verwerkBetaaldBedragKern(
     // Tijdlijn-event factuur_betaald (§2.3)
     if (factuur.klantId) {
       await logTijdlijnEvent(ctx, {
-        userId: factuur.userId,
         klantId: factuur.klantId,
         eventType: "factuur_betaald",
         tekst: `Factuur ${factuur.factuurnummer} betaald (€ ${factuur.totaalInclBtw.toFixed(2)})`,
@@ -255,7 +248,7 @@ export const generate = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
     const now = Date.now();
 
     // Haal project op en verifieer eigenaarschap
@@ -353,7 +346,6 @@ export const generate = mutation({
     // Maak de factuur aan
     const factuurId = await ctx.db.insert("facturen", {
       orgId: org._id,
-      userId: user._id,
       projectId: args.projectId,
       factuurnummer,
       status: "concept",
@@ -876,7 +868,7 @@ export const createVrij = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
     const now = Date.now();
 
     if (args.regels.length === 0) {
@@ -909,7 +901,6 @@ export const createVrij = mutation({
 
     const factuurId = await ctx.db.insert("facturen", {
       orgId: org._id,
-      userId: user._id,
       klantId: args.klantId,
       factuurnummer,
       status: "concept",
@@ -1031,7 +1022,6 @@ export const registreerBetaling = mutation({
     // getOwnedFactuur al org-geverifieerd, dus die orgId is de juiste tenant.
     await ctx.db.insert("betalingen", {
       orgId: factuur.orgId,
-      userId: factuur.userId,
       molliePaymentId: `handmatig_${args.factuurId}_${now}`,
       bedrag: args.bedrag,
       status: "paid",
@@ -1479,7 +1469,7 @@ export const createCreditnota = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
     const now = Date.now();
 
     // Haal originele factuur op en verifieer eigenaarschap
@@ -1558,7 +1548,6 @@ export const createCreditnota = mutation({
     // Maak de creditnota aan (als factuur met isCreditnota = true)
     const creditnotaId = await ctx.db.insert("facturen", {
       orgId: org._id,
-      userId: user._id,
       projectId: factuur.projectId,
       klantId: factuur.klantId,
       factuurnummer: creditnotaNummer,

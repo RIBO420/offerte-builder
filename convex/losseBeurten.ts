@@ -15,7 +15,7 @@
 
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireOrgContext, requireOrgId } from "./auth";
+import { requireOrg, requireOrgId } from "./auth";
 import { requireKantoor } from "./roles";
 import {
   spreidDatumsInVenster,
@@ -198,7 +198,7 @@ export const createLosseBeurt = mutation({
   },
   handler: async (ctx, args) => {
     await requireKantoor(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
 
     const klant = await ctx.db.get(args.klantId);
     // `orgId` is optioneel in het schema zolang de migratie loopt; een klant
@@ -243,8 +243,6 @@ export const createLosseBeurt = mutation({
     const now = Date.now();
     return await ctx.db.insert("projecten", {
       orgId: org._id,
-      // `userId` blijft tot fase 6 verplicht in het schema.
-      userId: user._id,
       type: "onderhoudsbeurt",
       klantId: args.klantId,
       naam: args.naam.trim(),

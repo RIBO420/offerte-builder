@@ -21,7 +21,7 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
-import { requireOrgContext, requireOrgId } from "./auth";
+import { requireOrg, requireOrgId } from "./auth";
 import { requireKantoor } from "./roles";
 import { requireInterneRol } from "./tijdlijn";
 import {
@@ -423,7 +423,7 @@ export const setDagBus = mutation({
   },
   handler: async (ctx, args) => {
     await requireKantoor(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
     if (!DATUM_PATROON.test(args.datum)) {
       throw new ConvexError("Ongeldige datum (verwacht YYYY-MM-DD)");
     }
@@ -453,8 +453,6 @@ export const setDagBus = mutation({
     }
     return await ctx.db.insert("teamBusOverrides", {
       orgId: org._id,
-      // `userId` blijft tot fase 6 verplicht in het schema.
-      userId: user._id,
       teamId: args.teamId,
       datum: args.datum,
       voertuigId: args.voertuigId,
@@ -479,7 +477,7 @@ export const reserveerMiddel = mutation({
   },
   handler: async (ctx, args) => {
     await requireKantoor(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
     if (!DATUM_PATROON.test(args.datum)) {
       throw new ConvexError("Ongeldige datum (verwacht YYYY-MM-DD)");
     }
@@ -546,8 +544,6 @@ export const reserveerMiddel = mutation({
 
     const id = await ctx.db.insert("middelReserveringen", {
       orgId: org._id,
-      // `userId` blijft tot fase 6 verplicht in het schema.
-      userId: user._id,
       middelType: args.voertuigId ? "voertuig" : "machine",
       voertuigId: args.voertuigId,
       machineId: args.machineId,

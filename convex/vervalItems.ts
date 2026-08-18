@@ -26,7 +26,7 @@
 import { v, ConvexError } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
-import { requireOrgContext, requireOrgId } from "./auth";
+import { requireOrg, requireOrgId } from "./auth";
 import { normalizeRole, requireKantoor } from "./roles";
 import { requireInterneRol } from "./tijdlijn";
 import { voegSysteemCommentToe } from "./servicemeldingen";
@@ -228,7 +228,7 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     await requireKantoor(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
     valideerVervalVelden(args);
     await valideerObjectKoppeling(ctx, org._id, args);
     if (args.ontvangerGebruikerId) {
@@ -239,8 +239,6 @@ export const create = mutation({
     const now = Date.now();
     return await ctx.db.insert("vervalItems", {
       orgId: org._id,
-      // `userId` blijft tot fase 6 verplicht in het schema.
-      userId: user._id,
       naam: args.naam.trim(),
       type: args.type,
       objectType: args.objectType,
@@ -336,10 +334,8 @@ export const remove = mutation({
  * engine-crons) en scoopt elke ronde met `by_org_actief`. Een uitgezette
  * organisatie krijgt bewust geen taken.
  *
- * `servicemeldingen.userId` is tot fase 6 verplicht. De cron heeft geen
- * ingelogde gebruiker, dus komt die waarde uit het vervalitem zelf
- * (`item.userId` = de bedrijfseigenaar die het item aanmaakte); die user is
- * meteen de fallback-ontvanger.
+ * De cron heeft geen ingelogde gebruiker, dus is de fallback-ontvanger de
+ * eigenaar van de organisatie (`organisaties.eigenaarUserId`).
  */
 export const genereerVervalTaken = internalMutation({
   args: {},
@@ -361,18 +357,29 @@ export const genereerVervalTaken = internalMutation({
         .collect();
       if (items.length === 0) continue;
 
+      // De taak heeft een eigenaar nodig (PRD §2.4). Zonder directie-account
+      // op de organisatie is die er niet en slaan we de hele org over.
+      const eigenaar = org.eigenaarUserId
+        ? await ctx.db.get(org.eigenaarUserId)
+        : null;
+      if (!eigenaar) {
+        console.warn(
+          `[vervalItems] organisatie ${org._id} heeft geen eigenaar-account — overgeslagen`
+        );
+        continue;
+      }
+
       // Bedrijfsgebruikers voor ontvanger-resolutie: gebruikers wier
-      // gekoppelde medewerker bij deze organisatie hoort, plus de eigenaren
-      // die op de vervalitems staan (directie heeft geen medewerker-rij).
+      // gekoppelde medewerker bij deze organisatie hoort, plus de eigenaar
+      // (directie heeft geen medewerker-rij).
       const medewerkers = await ctx.db
         .query("medewerkers")
         .withIndex("by_org", (q) => q.eq("orgId", org._id))
         .collect();
       const medewerkerIds = new Set(medewerkers.map((m) => m._id.toString()));
-      const eigenaarIds = new Set(items.map((i) => i.userId.toString()));
       const bedrijfsGebruikers = users.filter(
         (u) =>
-          eigenaarIds.has(u._id.toString()) ||
+          u._id.toString() === eigenaar._id.toString() ||
           (u.linkedMedewerkerId &&
             medewerkerIds.has(u.linkedMedewerkerId.toString()))
       );
@@ -381,16 +388,6 @@ export const genereerVervalTaken = internalMutation({
         // Belt & braces bovenop de indexquery
         if (item.orgId?.toString() !== org._id.toString()) continue;
         if (!vervalTaakNodig(item, vandaag)) continue;
-
-        // De taak heeft een eigenaar nodig (PRD §2.4); zonder bestaande
-        // users-rij kan die niet gezet worden en slaan we het item over.
-        const eigenaar = await ctx.db.get(item.userId);
-        if (!eigenaar) {
-          console.warn(
-            `[vervalItems] vervalitem ${item._id} verwijst naar een onbekende gebruiker — overgeslagen`
-          );
-          continue;
-        }
 
         // Idempotentie: bestaat de onderhoudstaak voor deze occurrence al?
         const sleutel = maakVervalSleutel(item._id.toString(), item.vervaldatum);
@@ -424,8 +421,6 @@ export const genereerVervalTaken = internalMutation({
         const now = Date.now();
         const meldingId = await ctx.db.insert("servicemeldingen", {
           orgId: org._id,
-          // `userId` blijft tot fase 6 verplicht in het schema.
-          userId: eigenaar._id,
           // GEEN klantId: vervalitems zijn niet klant-gebonden (§3.3);
           // daarom ook geen klanttijdlijn-log.
           beschrijving: tekst,
@@ -451,7 +446,6 @@ export const genereerVervalTaken = internalMutation({
         // pad: de org komt expliciet mee, niet uit een JWT.
         await voegSysteemCommentToe(ctx, {
           orgId: org._id,
-          userId: eigenaar._id,
           meldingId,
           tekst: `Automatische vervalattendering: ${tekst} (waarschuwtermijn ${item.waarschuwtermijnDagen} dagen, taak sinds ${addDagen(item.vervaldatum, -item.waarschuwtermijnDagen)})`,
         });

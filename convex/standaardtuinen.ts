@@ -1,6 +1,6 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { getOwnedKlant, requireOrgContext, requireOrgId } from "./auth";
+import { getOwnedKlant, requireOrg, requireOrgId } from "./auth";
 import { requireNotViewer } from "./roles";
 import { reserveerOfferteNummer } from "./lib/offerteNummer";
 
@@ -24,12 +24,12 @@ export const list = query({
   handler: async (ctx, { type }) => {
     const orgId = await requireOrgId(ctx);
 
-    // Systeemtemplates: bewust de rijen ZONDER userId — "geen eigenaar" ís
-    // hier de betekenis (CLAUDE.md regel 4). Die blijven bedrijfsoverstijgend
-    // en krijgen dus ook geen orgId.
+    // Systeemtemplates: bewust de rijen ZONDER orgId — "hoort bij geen enkele
+    // organisatie" ís hier de betekenis (CLAUDE.md regel 4). Die blijven
+    // bedrijfsoverstijgend.
     let systemQuery = ctx.db
       .query("standaardtuinen")
-      .filter((q) => q.eq(q.field("userId"), undefined));
+      .filter((q) => q.eq(q.field("orgId"), undefined));
 
     if (type) {
       systemQuery = systemQuery.filter((q) => q.eq(q.field("type"), type));
@@ -60,7 +60,7 @@ export const list = query({
 export const get = query({
   args: { id: v.id("standaardtuinen") },
   handler: async (ctx, { id }) => {
-    // Zelfde scoping als `list`: systeemtemplates (userId === undefined) zijn
+    // Zelfde scoping als `list`: systeemtemplates (orgId === undefined) zijn
     // voor elke ingelogde gebruiker zichtbaar, eigen templates alleen voor de
     // eigen organisatie. Zonder deze guard was elk template-id van elk bedrijf
     // leesbaar voor willekeurige (ook uitgelogde) aanroepers van dit publieke
@@ -70,11 +70,11 @@ export const get = query({
     const template = await ctx.db.get(id);
     if (!template) return null;
 
-    // template.userId leeg => systeemtemplate, altijd toegestaan.
+    // template.orgId leeg => systeemtemplate, altijd toegestaan.
     // Een template van een andere organisatie levert net als een onbekend id
     // `null` op — geen aparte foutmelding, want het verschil tussen "bestaat
     // niet" en "geen toegang" is zelf al een bestaans-orakel.
-    if (template.userId && template.orgId?.toString() !== orgId.toString()) {
+    if (template.orgId && template.orgId.toString() !== orgId.toString()) {
       return null;
     }
 
@@ -93,10 +93,9 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
     return await ctx.db.insert("standaardtuinen", {
       orgId: org._id,
-      userId: user._id,
       naam: args.naam,
       omschrijving: args.omschrijving,
       type: args.type,
@@ -121,8 +120,8 @@ export const update = mutation({
 
     const template = await ctx.db.get(id);
     if (!template) throw new ConvexError("Template niet gevonden");
-    if (!template.userId) throw new ConvexError("Systeemtemplates kunnen niet worden bewerkt");
-    if (template.orgId?.toString() !== orgId.toString()) {
+    if (!template.orgId) throw new ConvexError("Systeemtemplates kunnen niet worden bewerkt");
+    if (template.orgId.toString() !== orgId.toString()) {
       throw new ConvexError("Geen toegang tot dit template");
     }
 
@@ -146,8 +145,8 @@ export const remove = mutation({
 
     const template = await ctx.db.get(id);
     if (!template) throw new ConvexError("Template niet gevonden");
-    if (!template.userId) throw new ConvexError("Systeemtemplates kunnen niet worden verwijderd");
-    if (template.orgId?.toString() !== orgId.toString()) {
+    if (!template.orgId) throw new ConvexError("Systeemtemplates kunnen niet worden verwijderd");
+    if (template.orgId.toString() !== orgId.toString()) {
       throw new ConvexError("Geen toegang tot dit template");
     }
 
@@ -192,7 +191,7 @@ export const createOfferteFromTemplate = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
 
     // Dezelfde eigendomscheck als in `get`/`update`/`remove`. Zonder deze regel
     // omzeilde deze mutation de guard in `get` volledig: met alleen een
@@ -203,7 +202,7 @@ export const createOfferteFromTemplate = mutation({
     // niet" en "van iemand anders" is zelf al een bestaans-orakel.
     const template = await ctx.db.get(args.templateId);
     if (!template) throw new ConvexError("Template niet gevonden");
-    if (template.userId && template.orgId?.toString() !== org._id.toString()) {
+    if (template.orgId && template.orgId.toString() !== org._id.toString()) {
       throw new ConvexError("Template niet gevonden");
     }
 
@@ -244,7 +243,6 @@ export const createOfferteFromTemplate = mutation({
 
     const offerteId = await ctx.db.insert("offertes", {
       orgId: org._id,
-      userId: user._id,
       type: template.type,
       status: "concept",
       // Sjabloon-offertes zijn scope-offertes: dezelfde bewerkroute als de
@@ -270,7 +268,6 @@ export const createOfferteFromTemplate = mutation({
     await ctx.db.insert("offerte_versions", {
       offerteId,
       orgId: org._id,
-      userId: user._id,
       versieNummer: 1,
       snapshot: {
         status: "concept",

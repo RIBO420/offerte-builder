@@ -1,6 +1,6 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireOrgContext, requireOrgId, verifyOrgOwnership } from "./auth";
+import { requireOrg, requireOrgId, verifyOrgOwnership } from "./auth";
 import { requireNotViewer } from "./roles";
 import { validateNonNegative, sanitizeOptionalString } from "./validators";
 
@@ -256,7 +256,7 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
 
     // Product hoort bij dezelfde organisatie
     const product = await ctx.db.get(args.productId);
@@ -297,8 +297,6 @@ export const create = mutation({
 
     const voorraadId = await ctx.db.insert("voorraad", {
       orgId: org._id,
-      // `userId` blijft tot fase 6 verplicht in het schema.
-      userId: user._id,
       productId: args.productId,
       hoeveelheid,
       minVoorraad,
@@ -312,7 +310,6 @@ export const create = mutation({
     if (hoeveelheid > 0) {
       await ctx.db.insert("voorraadMutaties", {
         orgId: org._id,
-        userId: user._id,
         voorraadId,
         productId: args.productId,
         type: "inkoop",
@@ -390,7 +387,7 @@ export const adjustStock = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
 
     // Eigendom = zelfde organisatie
     const voorraad = await verifyOrgOwnership(
@@ -457,8 +454,6 @@ export const adjustStock = mutation({
     // Create voorraadMutatie record
     const mutatieId = await ctx.db.insert("voorraadMutaties", {
       orgId: org._id,
-      // `userId` blijft tot fase 6 verplicht in het schema.
-      userId: user._id,
       voorraadId: args.voorraadId,
       productId: voorraad.productId,
       type: args.type,
@@ -511,7 +506,7 @@ export const initializeFromProducts = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
 
     // Actieve producten van de organisatie
     const products = await ctx.db
@@ -543,8 +538,6 @@ export const initializeFromProducts = mutation({
 
       await ctx.db.insert("voorraad", {
         orgId: org._id,
-        // `userId` blijft tot fase 6 verplicht in het schema.
-        userId: user._id,
         productId: product._id,
         hoeveelheid: 0,
         minVoorraad: args.defaultMinVoorraad,

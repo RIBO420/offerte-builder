@@ -1181,9 +1181,6 @@ async function schrijfKwijting(
 ): Promise<void> {
   await ctx.db.insert("urenLogboek", {
     orgId: veld.orgId,
-    // Legacy-veld tot fase 6: de bedrijfseigenaar van de (org-geverifieerde)
-    // medewerker, niet de acterende kantoorgebruiker — die staat in `door`.
-    userId: medewerker.userId,
     medewerkerId: medewerker._id,
     datum,
     actie: "dag_akkoord",

@@ -13,7 +13,7 @@ import {
   type QueryCtx,
 } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
-import { getOwnedOfferte, requireOrgContext, requireOrgId } from "./auth";
+import { getOwnedOfferte, requireOrg, requireOrgId } from "./auth";
 import { klantVeld } from "./lib/offerteKlant";
 import {
   requireDirectieOrProjectleider,
@@ -720,7 +720,7 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     await requireDirectieOrProjectleider(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
     const now = Date.now();
 
     // Schrijfguard: het contract mag alleen aan een klant van de eigen
@@ -749,8 +749,6 @@ export const create = mutation({
     // Insert contract
     const contractId = await ctx.db.insert("onderhoudscontracten", {
       orgId: org._id,
-      // `userId` blijft tot fase 6 verplicht in het schema.
-      userId: user._id,
       klantId: args.klantId,
       contractNummer,
       naam: args.naam,
@@ -811,7 +809,6 @@ export const create = mutation({
         await ctx.db.insert("contractFacturen", {
           contractId,
           orgId: org._id,
-          userId: user._id,
           termijnNummer: periode.termijnNummer,
           periodeStart: periode.periodeStart,
           periodeEinde: periode.periodeEinde,
@@ -1142,7 +1139,6 @@ export const renewContract = mutation({
       await ctx.db.insert("contractFacturen", {
         contractId: args.id,
         orgId: contract.orgId,
-        userId: user._id,
         termijnNummer: maxTermijn + periode.termijnNummer,
         periodeStart: periode.periodeStart,
         periodeEinde: periode.periodeEinde,
@@ -1155,7 +1151,6 @@ export const renewContract = mutation({
     // — Klanttijdlijn (PRD §2.3): verlenging zet het contract (weer) op
     // actief — zelfde event-type als activering. Additief, niet-blokkerend.
     await logTijdlijnEvent(ctx, {
-      userId: contract.userId,
       orgId: contract.orgId,
       klantId: contract.klantId,
       eventType: "contract_geactiveerd",
@@ -1205,7 +1200,6 @@ export const cancelContract = mutation({
 
     // — Klanttijdlijn (PRD §2.3): contract opgezegd. Additief, niet-blokkerend.
     await logTijdlijnEvent(ctx, {
-      userId: contract.userId,
       orgId: contract.orgId,
       klantId: contract.klantId,
       eventType: "contract_opgezegd",
@@ -1630,8 +1624,6 @@ export async function maakContractVanGeaccepteerdeOfferte(
 
     const contractId = await ctx.db.insert("onderhoudscontracten", {
       orgId,
-      // `userId` blijft tot fase 6 verplicht in het schema.
-      userId: offerte.userId,
       klantId: offerte.klantId,
       offerteId: offerte._id,
       contractNummer,

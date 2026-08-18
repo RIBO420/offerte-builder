@@ -63,12 +63,17 @@ export const TEKSTBLOKKEN_STARTVULLING: TekstblokSeedRecord[] = [
 
 export const seedTekstblokken = internalMutation({
   args: {
+    // Sinds de org-migratie hoort een bibliotheek bij één organisatie.
+    orgId: v.id("organisaties"),
     dryRun: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const dryRun = args.dryRun ?? false;
 
-    const bestaande = await ctx.db.query("tekstblokken").collect();
+    const bestaande = await ctx.db
+      .query("tekstblokken")
+      .withIndex("by_org", (q) => q.eq("orgId", args.orgId))
+      .collect();
     const bestaandeSleutels = new Set(
       bestaande.map((b) => `${b.categorie}::${b.naam.trim().toLowerCase()}`)
     );
@@ -85,6 +90,7 @@ export const seedTekstblokken = internalMutation({
       }
       if (!dryRun) {
         await ctx.db.insert("tekstblokken", {
+          orgId: args.orgId,
           naam: record.naam,
           categorie: record.categorie,
           inhoud: record.inhoud,

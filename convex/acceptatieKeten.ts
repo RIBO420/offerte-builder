@@ -75,7 +75,7 @@ export async function voerKetenActieUit(
     await maakContractVanGeaccepteerdeOfferte(ctx, offerte);
   } else if (actie === "project_aanmaken") {
     await ctx.db.insert("projecten", {
-      userId: offerte.userId,
+      orgId: offerte.orgId,
       type: "project",
       offerteId: offerte._id,
       klantId: offerte.klantId,
@@ -105,7 +105,7 @@ export async function maakVangnetWerkitem(
   now: number
 ): Promise<void> {
   await ctx.db.insert("projecten", {
-    userId: offerte.userId,
+    orgId: offerte.orgId,
     type: "project",
     offerteId: offerte._id,
     offerteRegelIds: offerte.regels.map((r) => r.id),

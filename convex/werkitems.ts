@@ -15,7 +15,7 @@
 
 import { v, ConvexError } from "convex/values";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
-import { requireOrgContext, requireOrgId } from "./auth";
+import { requireOrg, requireOrgId } from "./auth";
 import { requireKantoor, requireNotViewer } from "./roles";
 import { Doc, Id } from "./_generated/dataModel";
 import {
@@ -271,7 +271,7 @@ export const createWerkitem = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
 
     // Type-invarianten (schema kan dit niet conditioneel afdwingen)
     assertVeldenVoorType(args.type, args);
@@ -299,7 +299,6 @@ export const createWerkitem = mutation({
     const now = Date.now();
     return await ctx.db.insert("projecten", {
       orgId: org._id,
-      userId: user._id,
       type: args.type,
       klantId: args.klantId,
       naam: args.naam,
@@ -458,7 +457,6 @@ export const updatePlanning = mutation({
     }
     await logPlanwijziging(ctx, {
       orgId,
-      userId: kantoorUser._id,
       door: kantoorUser._id,
       actie,
       details: `${werkitem.naam} — ${details}`,
@@ -473,7 +471,6 @@ export const updatePlanning = mutation({
     if (actie === "gepland" && werkitem.klantId) {
       await logTijdlijnEvent(ctx, {
         orgId,
-        userId: kantoorUser._id,
         klantId: werkitem.klantId,
         eventType: "werkitem_ingepland",
         werkitemId: werkitem._id,
@@ -491,7 +488,6 @@ export const updatePlanning = mutation({
         await zetTriggerMailKlaar(ctx, {
           event: "inplanning_bevestigd",
           orgId,
-          userId: kantoorUser._id,
           ontvangerEmail: klant.email,
           ontvangerNaam: klant.naam,
           variabelen: {

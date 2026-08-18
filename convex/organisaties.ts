@@ -51,10 +51,11 @@ export async function maakOrganisatieIntern(
     naam: args.naam,
     slug: args.slug,
     actief: true,
+    eigenaarUserId: args.eigenaarUserId,
     aangemaaktOp: Date.now(),
   });
   if (args.seedDefaults !== false) {
-    await seedOrgDefaults(ctx, orgId, args.eigenaarUserId);
+    await seedOrgDefaults(ctx, orgId);
   }
   return orgId;
 }
@@ -64,9 +65,9 @@ export async function maakOrganisatieIntern(
  * later aanmaken van een whitelabel-klant. Idempotent op clerkOrgId — bestaat
  * de organisatie al, dan komt er geen tweede rij en wordt er niets geseed.
  *
- * `eigenaarUserId` gaat mee naar de seed omdat `userId` op instellingen,
- * normuren en producten in het schema nog verplicht is; dat veld verdwijnt in
- * fase 6.
+ * `eigenaarUserId` legt de directie-account vast op de organisatie zelf: chat,
+ * push en de systeemtaken hebben die user nodig waar een *persoon* verwacht
+ * wordt (zie convex/lib/orgEigenaar.ts).
  */
 export const maakOrganisatie = internalMutation({
   args: {

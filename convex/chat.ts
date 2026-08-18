@@ -8,8 +8,8 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { requireAuth, requireOrgId } from "./auth";
-import { requireNotViewer, getCompanyUserId, isAdminRole, normalizeRole, getUserRole } from "./roles";
+import { requireAuth, requireOrg, requireOrgId } from "./auth";
+import { requireNotViewer, isAdminRole, normalizeRole, getUserRole } from "./roles";
 import {
   validateFile,
   MAX_FILE_SIZE_BYTES,
@@ -35,18 +35,11 @@ async function requireInterneChatToegang(ctx: QueryCtx | MutationCtx) {
 /**
  * TENANT-SCOPE IN DIT BESTAND
  *
- * Alle leesqueries lopen op `orgId` (requireOrgId → JWT-claim `org_id`). De
- * oude bedrijfs-user (`getCompanyUserId`) is GEEN tenant-grens meer.
+ * Alle queries lopen op `orgId` (requireOrgId → JWT-claim `org_id`).
  *
- * Waar `getCompanyUserId` toch nog staat, is dat om precies twee redenen —
- * nooit om te scopen:
- *   1. `team_messages.companyId`, `direct_messages.companyId` en
- *      `chat_attachments.companyId` zijn in convex/schema.ts nog VERPLICHT
- *      (`v.id("users")`). Zolang dat zo is moet een insert het veld vullen;
- *      het verdwijnt in fase 6, net als `userId` elders.
- *   2. De directie-account zelf is nog nergens uit een organisatie af te
- *      leiden: `users` heeft geen `orgId`. DM-rechten ("medewerker mag alleen
- *      de directie mailen") en de deelnemerslijst hebben die user-id nodig.
+ * Eén ding is géén tenant-grens maar wel nodig: de directie-account, voor
+ * DM-rechten ("medewerker mag alleen de directie mailen"), de deelnemerslijst
+ * en de push naar de eigenaar. Die komt uit `organisaties.eigenaarUserId`.
  */
 
 // ============ TEAM CHAT ============
@@ -89,9 +82,6 @@ export const sendTeamMessage = mutation({
     }
 
     const orgId = await requireOrgId(ctx);
-    // Alleen voor het (nog verplichte) legacy-veld companyId en voor de
-    // notificatie-ontvangerslijst — zie sectiecomment bovenaan.
-    const companyId = await getCompanyUserId(ctx);
 
     // Verify project access if projectId provided
     if (args.projectId) {
@@ -134,7 +124,6 @@ export const sendTeamMessage = mutation({
       senderClerkId: user.clerkId,
       senderRole: normalizeRole(user.role),
       orgId,
-      companyId, // fase 6: verdwijnt zodra het schema het veld loslaat
       channelType: args.channelType,
       projectId: args.projectId,
       channelName,
@@ -154,9 +143,6 @@ export const sendTeamMessage = mutation({
       senderClerkId: user.clerkId,
       senderName: user.name || "Onbekend",
       orgId,
-      // De directie-account: alleen om die ook een push te geven — de
-      // medewerkerslijst zelf komt uit de organisatie.
-      companyUserId: companyId,
       channelType: args.channelType,
       channelName,
       projectId: args.projectId?.toString(),
@@ -393,15 +379,12 @@ export const sendDirectMessage = mutation({
       throw new ConvexError("Ontvanger niet gevonden");
     }
 
-    const orgId = await requireOrgId(ctx);
-    // Niet als tenant-grens: de directie-account is nog nergens uit de
-    // organisatie af te leiden (users heeft geen orgId) en het schema eist
-    // companyId nog. Zie sectiecomment bovenaan het bestand.
-    const companyId = await getCompanyUserId(ctx);
+    const org = await requireOrg(ctx);
+    const orgId = org._id;
 
     // Medewerkers mogen alleen directe berichten sturen naar directie
     if (!isAdminRole(normalizeRole(user.role))) {
-      if (args.toUserId.toString() !== companyId.toString()) {
+      if (args.toUserId.toString() !== org.eigenaarUserId?.toString()) {
         throw new ConvexError(
           "Als medewerker kun je alleen berichten sturen naar de directie."
         );
@@ -411,13 +394,10 @@ export const sendDirectMessage = mutation({
     const messageId = await ctx.db.insert("direct_messages", {
       // Tenant-scope voor by_org
       orgId,
-      // fase 6: userId en companyId verdwijnen zodra het schema ze loslaat
-      userId: companyId,
       fromUserId: user._id,
       fromClerkId: user.clerkId,
       toUserId: args.toUserId,
       toClerkId: toUser.clerkId,
-      companyId,
       message: args.message,
       messageType: args.messageType || "text",
       attachmentStorageId: args.attachmentStorageId,
@@ -824,10 +804,8 @@ export const getUsersForDM = query({
   args: {},
   handler: async (ctx) => {
     const user = await requireInterneChatToegang(ctx);
-    const orgId = await requireOrgId(ctx);
-    // Alleen om de directie-account als gesprekspartner te tonen; users heeft
-    // geen orgId. Zie sectiecomment bovenaan het bestand.
-    const companyId = await getCompanyUserId(ctx);
+    const org = await requireOrg(ctx);
+    const orgId = org._id;
 
     // Get all active medewerkers for this organisation
     const medewerkers = await ctx.db
@@ -841,8 +819,8 @@ export const getUsersForDM = query({
     const usersWithAccounts = [];
 
     // Include the company owner (directie) if current user is not the owner
-    if (companyId.toString() !== user._id.toString()) {
-      const companyOwner = await ctx.db.get(companyId);
+    if (org.eigenaarUserId && org.eigenaarUserId.toString() !== user._id.toString()) {
+      const companyOwner = await ctx.db.get(org.eigenaarUserId);
       if (companyOwner) {
         usersWithAccounts.push({
           userId: companyOwner._id,
@@ -1099,7 +1077,7 @@ export const registerChatAttachment = mutation({
     directMessageId: v.optional(v.id("direct_messages")),
   },
   handler: async (ctx, args) => {
-    const user = await requireNotViewer(ctx);
+    await requireNotViewer(ctx);
 
     // Re-validate file info (in case of tampering)
     const validation = validateFile(args.fileName, args.fileType, args.fileSize);
@@ -1111,15 +1089,11 @@ export const registerChatAttachment = mutation({
 
     // Register the attachment
     const orgId = await requireOrgId(ctx);
-    // fase 6: companyId verdwijnt zodra het schema het veld loslaat
-    const companyId = await getCompanyUserId(ctx);
     const attachmentId = await ctx.db.insert("chat_attachments", {
       storageId: args.storageId,
       messageId: args.messageId,
       directMessageId: args.directMessageId,
-      userId: user._id,
       orgId,
-      companyId,
       fileName: args.fileName,
       fileType: args.fileType,
       fileSize: args.fileSize,

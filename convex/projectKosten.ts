@@ -15,7 +15,6 @@ import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import {
   requireOrg,
-  requireOrgContext,
   requireOrgId,
   verifyOrgOwnership,
 } from "./auth";
@@ -426,8 +425,8 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const { org, user } = await requireOrgContext(ctx);
-    const project = await getOwnedProject(ctx, args.projectId);
+    const org = await requireOrg(ctx);
+    await getOwnedProject(ctx, args.projectId); // org-eigendom afdwingen
 
     // Validate required fields
     if (!args.omschrijving.trim()) {
@@ -453,12 +452,8 @@ export const create = mutation({
       }
       const id = await ctx.db.insert("urenRegistraties", {
         projectId: args.projectId,
-        // Tenant-scope (audit §2): zelfde route als de backfill-migratie
-        // (projectId → project). Zonder dit veld valt de registratie buiten
-        // elke org-query en is hij dus onzichtbaar in de app. `userId` blijft
-        // tot fase 6 meelopen.
+        // Tenant-scope (audit §2): overgenomen van het project.
         orgId: org._id,
-        userId: project.userId,
         datum: args.datum,
         medewerker: args.medewerker,
         uren: args.hoeveelheid,
@@ -518,8 +513,6 @@ export const create = mutation({
       if (!voorraad) {
         const voorraadId = await ctx.db.insert("voorraad", {
           orgId: org._id,
-          // `userId` blijft tot fase 6 verplicht in het schema.
-          userId: user._id,
           productId: args.productId,
           hoeveelheid: 0,
           laatsteBijwerking: Date.now(),
@@ -530,7 +523,6 @@ export const create = mutation({
       // Create verbruik mutatie
       const id = await ctx.db.insert("voorraadMutaties", {
         orgId: org._id,
-        userId: user._id,
         voorraadId: voorraad!._id,
         productId: args.productId,
         type: "verbruik",
@@ -1396,10 +1388,11 @@ export const checkBudgetThreshold = mutation({
     if (bestaandeNotificatie) return; // Al gemeld, niet opnieuw
 
     // Maak notificatie aan voor de project-eigenaar
+    if (!org.eigenaarUserId) return; // geen directie-account om te attenderen
     await ctx.db.insert("notifications", {
       orgId: org._id,
-      // `userId` blijft tot fase 6 verplicht in het schema.
-      userId: project.userId,
+      // Ontvanger van het bericht: de directie van deze organisatie.
+      userId: org.eigenaarUserId,
       type: "budget_warning",
       title: percentage >= 100
         ? `Budget overschreden: ${project.naam}`

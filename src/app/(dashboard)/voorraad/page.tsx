@@ -81,7 +81,6 @@ function getStatusBadge(hoeveelheid: number, minVoorraad: number) {
 interface ConvexVoorraadItem {
   _id: Id<"voorraad">;
   _creationTime: number;
-  userId: Id<"users">;
   productId: Id<"producten">;
   hoeveelheid: number;
   minVoorraad?: number;

@@ -66,7 +66,7 @@ export async function migreerNotitieVoorKlant(
     // Timestamp = aanmaakdatum van de klant, zodat de entry onderaan de
     // tijdlijn staat ("genoteerd vóór tijdlijn"); createdAt = nu (audit).
     await ctx.db.insert("klantTijdlijn", {
-      userId: klant.userId,
+      orgId: klant.orgId,
       klantId: klant._id,
       timestamp: klant.createdAt ?? Date.now(),
       auteurNaam: "Systeem",

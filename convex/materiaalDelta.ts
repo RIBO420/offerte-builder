@@ -274,9 +274,6 @@ export const vinkAf = mutation({
 
     return await ctx.db.insert("materiaalChecks", {
       orgId,
-      // Legacy-veld tot fase 6; het werkitem is hierboven org-geverifieerd, dus
-      // dit blijft de bedrijfseigenaar (wat getCompanyUserId hier gaf).
-      userId: werkitem.userId,
       werkitemId: args.werkitemId,
       datum: args.datum,
       item,

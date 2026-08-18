@@ -1,13 +1,13 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireOrgContext, requireOrgId } from "./auth";
+import { requireOrg, requireOrgId } from "./auth";
 import { requireNotViewer } from "./roles";
 
 /**
  * Correctiefactoren van de organisatie, met de systeemwaarden eronder.
  *
- * Systeemdefaults zijn de rijen ZONDER `userId` (en dus ook zonder `orgId`):
- * die zijn bedrijfsoverstijgend en blijven dat. Alles wat een organisatie zelf
+ * Systeemdefaults zijn de rijen ZONDER `orgId`: die zijn bedrijfsoverstijgend
+ * en blijven dat. Alles wat een organisatie zelf
  * aanpast krijgt een `orgId` en wint van de systeemwaarde met dezelfde
  * type/waarde-combinatie.
  */
@@ -16,11 +16,12 @@ export const list = query({
   handler: async (ctx) => {
     const orgId = await requireOrgId(ctx);
 
-    // Systeemdefaults (userId = undefined) — bewuste undefined-match, want
-    // "geen eigenaar" ís hier de betekenis (CLAUDE.md regel 4).
+    // Systeemdefaults (orgId = undefined) — bewuste undefined-match, want
+    // "hoort bij geen enkele organisatie" ís hier de betekenis
+    // (CLAUDE.md regel 4).
     const systemDefaults = await ctx.db
       .query("correctiefactoren")
-      .filter((q) => q.eq(q.field("userId"), undefined))
+      .filter((q) => q.eq(q.field("orgId"), undefined))
       .collect();
 
     // Eigen overrides van deze organisatie
@@ -66,7 +67,7 @@ export const getByTypeAndValue = query({
       .query("correctiefactoren")
       .filter((q) =>
         q.and(
-          q.eq(q.field("userId"), undefined),
+          q.eq(q.field("orgId"), undefined),
           q.eq(q.field("type"), args.type),
           q.eq(q.field("waarde"), args.waarde)
         )
@@ -88,7 +89,7 @@ export const getByType = query({
       .query("correctiefactoren")
       .filter((q) =>
         q.and(
-          q.eq(q.field("userId"), undefined),
+          q.eq(q.field("orgId"), undefined),
           q.eq(q.field("type"), args.type)
         )
       )
@@ -114,7 +115,7 @@ export const upsert = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
 
     const existing = await ctx.db
       .query("correctiefactoren")
@@ -131,7 +132,6 @@ export const upsert = mutation({
 
     return await ctx.db.insert("correctiefactoren", {
       orgId: org._id,
-      userId: user._id,
       type: args.type,
       waarde: args.waarde,
       factor: args.factor,
@@ -169,7 +169,7 @@ export const initializeSystemDefaults = mutation({
     // Check if already initialized
     const existing = await ctx.db
       .query("correctiefactoren")
-      .filter((q) => q.eq(q.field("userId"), undefined))
+      .filter((q) => q.eq(q.field("orgId"), undefined))
       .first();
 
     if (existing) {
@@ -232,7 +232,6 @@ export const initializeSystemDefaults = mutation({
       // Systeembreed: bewust ZONDER userId én zonder orgId — dit zijn de
       // waarden waar elke organisatie op terugvalt.
       await ctx.db.insert("correctiefactoren", {
-        userId: undefined,
         ...factor,
       });
     }

@@ -6,13 +6,7 @@ import {
   type QueryCtx,
   type MutationCtx,
 } from "./_generated/server";
-import {
-  AuthError,
-  requireOrgContext,
-  requireOrgId,
-  getOwnedOfferte,
-  getOwnedKlant,
-} from "./auth";
+import { AuthError, getOwnedKlant, getOwnedOfferte, requireOrg, requireOrgContext, requireOrgId } from "./auth";
 import { requireNotViewer, assertKanNaarKlantVersturen } from "./roles";
 import { internal } from "./_generated/api";
 import { upgradeKlantPipeline } from "./pipelineHelpers";
@@ -669,7 +663,6 @@ export const create = mutation({
 
     const offerteId = await ctx.db.insert("offertes", {
       orgId: org._id,
-      userId,
       type: args.type,
       status: "concept",
       bron: args.bron,
@@ -703,7 +696,6 @@ export const create = mutation({
       await ctx.db.insert("offerte_versions", {
         offerteId,
         orgId: org._id,
-        userId,
         versieNummer: 1,
         snapshot: {
           status: offerte.status,
@@ -779,7 +771,7 @@ export const update = mutation({
     createVersion: v.optional(v.boolean()), // Optional: skip version for auto-save
   },
   handler: async (ctx, args) => {
-    const user = await requireNotViewer(ctx);
+    await requireNotViewer(ctx);
     const orgId = await requireOrgId(ctx);
     // Verify ownership before updating
     const offerte = await getOwnedOfferte(ctx, args.id);
@@ -801,7 +793,6 @@ export const update = mutation({
       await ctx.db.insert("offerte_versions", {
         offerteId: id,
         orgId,
-        userId: user._id,
         versieNummer,
         snapshot: {
           status: offerte.status,
@@ -874,7 +865,6 @@ export const update = mutation({
         await ctx.db.insert("offerte_versions", {
           offerteId: id,
           orgId,
-          userId: updatedOfferte.userId,
           versieNummer,
           snapshot: {
             status: updatedOfferte.status,
@@ -932,7 +922,7 @@ export const koppelKlant = mutation({
     ontkoppelen: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const user = await requireNotViewer(ctx);
+    await requireNotViewer(ctx);
     const orgId = await requireOrgId(ctx);
     const offerte = await getOwnedOfferte(ctx, args.id);
 
@@ -984,7 +974,6 @@ export const koppelKlant = mutation({
     await ctx.db.insert("offerte_versions", {
       offerteId: args.id,
       orgId,
-      userId: user._id,
       versieNummer: (versions[0]?.versieNummer ?? 0) + 1,
       snapshot: {
         status: offerte.status,
@@ -1077,7 +1066,7 @@ export const updateRegels = mutation({
     createVersion: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const user = await requireNotViewer(ctx);
+    await requireNotViewer(ctx);
     const orgId = await requireOrgId(ctx);
     // Verify ownership before updating
     const offerte = await getOwnedOfferte(ctx, args.id);
@@ -1099,7 +1088,6 @@ export const updateRegels = mutation({
       await ctx.db.insert("offerte_versions", {
         offerteId: args.id,
         orgId,
-        userId: user._id,
         versieNummer,
         snapshot: {
           status: offerte.status,
@@ -1216,7 +1204,6 @@ export const updateRegels = mutation({
         await ctx.db.insert("offerte_versions", {
           offerteId: args.id,
           orgId,
-          userId: offerte.userId,
           versieNummer,
           snapshot: {
             status: offerte.status,
@@ -1367,7 +1354,6 @@ export const updateStatus = mutation({
       (args.status === "verzonden" || args.status === "geaccepteerd")
     ) {
       await logTijdlijnEvent(ctx, {
-        userId: oldOfferte.userId,
         klantId: oldOfferte.klantId,
         eventType:
           args.status === "verzonden"
@@ -1408,7 +1394,6 @@ export const updateStatus = mutation({
       await ctx.db.insert("offerte_versions", {
         offerteId: args.id,
         orgId,
-        userId: offerte.userId,
         versieNummer,
         snapshot: {
           status: offerte.status,
@@ -1442,7 +1427,7 @@ export const updateStatus = mutation({
         await ctx.scheduler.runAfter(0, internal.notifications.notifyOfferteStatusChange, {
           offerteId: args.id,
           newStatus: args.status,
-          triggeredBy: offerte.userId.toString(),
+          triggeredBy: "systeem",
         });
       }
 
@@ -1479,7 +1464,6 @@ export const updateStatus = mutation({
             : `${siteUrl}/offertes`;
           await zetTriggerMailKlaar(ctx, {
             event: "offerte_verzonden",
-            userId: offerte.userId,
             ontvangerEmail: klant.email,
             ontvangerNaam: klant.naam,
             variabelen: {
@@ -1587,12 +1571,11 @@ export const duplicate = mutation({
     await requireNotViewer(ctx);
     // Verify ownership before duplicating
     const original = await getOwnedOfferte(ctx, args.id);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
     const now = Date.now();
 
     return await ctx.db.insert("offertes", {
       orgId: org._id,
-      userId: user._id,
       type: original.type,
       status: "concept",
       // `bron` bepaalt welke editor de kopie opent (PRD §2.5b). Zonder deze

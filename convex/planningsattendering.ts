@@ -24,7 +24,7 @@
 import { v, ConvexError } from "convex/values";
 import { internalMutation, mutation } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
-import { requireOrgContext } from "./auth";
+import { requireOrg } from "./auth";
 import { requireKantoor } from "./roles";
 import { logTijdlijnEvent } from "./tijdlijn";
 import { voegSysteemCommentToe } from "./servicemeldingen";
@@ -123,7 +123,7 @@ export function attenderingVandaagNodig(
  *
  * De verplichte users-velden (`userId`, `eigenaarId`) komen van het werkitem
  * zelf — dat is de gebruiker onder wie deze beurt in dezelfde organisatie is
- * vastgelegd. Ze verdwijnen in fase 6.
+ * vastgelegd.
  */
 export const genereerAttenderingen = internalMutation({
   args: {},
@@ -185,7 +185,6 @@ export const genereerAttenderingen = internalMutation({
         const now = Date.now();
         const meldingId = await ctx.db.insert("servicemeldingen", {
           orgId: org._id,
-          userId: beurt.userId,
           klantId: beurt.klantId,
           beschrijving: tekst,
           isGarantie: false,
@@ -193,7 +192,8 @@ export const genereerAttenderingen = internalMutation({
           prioriteit: "normaal",
           kosten: 0,
           kanaal: "intern",
-          eigenaarId: beurt.userId, // eigenaar: kantoor (eigenaar van het werkitem)
+          // eigenaar: kantoor (de directie van deze organisatie)
+          eigenaarId: org.eigenaarUserId,
           werkitemId: beurt._id, // klant + beurt gekoppeld
           taaksoort: "plantaak",
           attenderingSleutel: sleutel,
@@ -204,7 +204,6 @@ export const genereerAttenderingen = internalMutation({
 
         await logTijdlijnEvent(ctx, {
           orgId: org._id,
-          userId: beurt.userId,
           klantId: beurt.klantId,
           eventType: "melding_aangemaakt",
           tekst: `Plantaak aangemaakt: ${tekst}`,
@@ -212,7 +211,6 @@ export const genereerAttenderingen = internalMutation({
           meldingId,
         });
         await voegSysteemCommentToe(ctx, {
-          userId: beurt.userId,
           meldingId,
           tekst: `Automatische planningsattendering: ${tekst}`,
         });
@@ -243,7 +241,7 @@ export const geefBeurtVrij = mutation({
   args: { meldingId: v.id("servicemeldingen") },
   handler: async (ctx, args) => {
     const user = await requireKantoor(ctx);
-    const { org, user: tenantUser } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
 
     const melding = await ctx.db.get(args.meldingId);
     if (
@@ -295,7 +293,6 @@ export const geefBeurtVrij = mutation({
     } else {
       beurtId = await ctx.db.insert("projecten", {
         orgId: org._id,
-        userId: tenantUser._id,
         type: "onderhoudsbeurt",
         klantId: moeder.klantId,
         naam: `${moeder.naam} — ${datum}`,
@@ -328,7 +325,6 @@ export const geefBeurtVrij = mutation({
 
     await logTijdlijnEvent(ctx, {
       orgId: org._id,
-      userId: tenantUser._id,
       klantId: moeder.klantId,
       eventType: "melding_status_gewijzigd",
       tekst: `Beurt "${moeder.naam}" (${datum}) vrijgegeven naar de wachtrij`,
@@ -336,7 +332,6 @@ export const geefBeurtVrij = mutation({
       meldingId: melding._id,
     });
     await voegSysteemCommentToe(ctx, {
-      userId: tenantUser._id,
       meldingId: melding._id,
       tekst: `${user.name} gaf de beurt van ${datum} vrij naar de wachtrij`,
     });

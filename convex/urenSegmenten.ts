@@ -79,10 +79,7 @@ export interface VeldContext {
   user: Doc<"users">;
   rol: VeldRol;
   /**
-   * DE tenant-scope sinds fase 3: de organisatie uit het Clerk-JWT. Dit ving
-   * eerder `companyUserId` op (getCompanyUserId → via de gekoppelde medewerker
-   * naar de bedrijfseigenaar). Voor veld-accounts is het zicht identiek — de
-   * omweg is weg, de rolchecks hieronder zijn ongewijzigd.
+   * DE tenant-scope: de organisatie uit het Clerk-JWT.
    */
   orgId: Id<"organisaties">;
   eigenMedewerker: Doc<"medewerkers"> | null;
@@ -440,14 +437,6 @@ async function logUrenActie(
   ctx: MutationCtx,
   args: {
     orgId: Id<"organisaties">;
-    /**
-     * Legacy-veld, verplicht in het schema tot fase 6. Bewust de
-     * BEDRIJFSEIGENAAR (`medewerker.userId` van een al org-geverifieerde
-     * medewerker), niet de acterende user: het schema noemt dit veld
-     * "bedrijfseigenaar (multi-tenant scope)" en lezers buiten dit cluster
-     * (o.a. beurtNacalculatie.ts) filteren er nog op. `door` is de acteur.
-     */
-    userId: Id<"users">;
     medewerkerId: Id<"medewerkers">;
     datum: string;
     actie: Doc<"urenLogboek">["actie"];
@@ -457,7 +446,6 @@ async function logUrenActie(
 ): Promise<void> {
   await ctx.db.insert("urenLogboek", {
     orgId: args.orgId,
-    userId: args.userId,
     medewerkerId: args.medewerkerId,
     datum: args.datum,
     actie: args.actie,
@@ -534,9 +522,6 @@ async function voegSegmentToe(
   const now = Date.now();
   const id = await ctx.db.insert("urenSegmenten", {
     orgId: veld.orgId,
-    // Legacy-veld tot fase 6 — zie logUrenActie: de bedrijfseigenaar van de
-    // (org-geverifieerde) medewerker, niet de acterende user.
-    userId: medewerker.userId,
     medewerkerId: medewerker._id,
     datum: args.datum,
     categorie: args.categorie,
@@ -555,7 +540,6 @@ async function voegSegmentToe(
   if (kantoorCorrectie) {
     await logUrenActie(ctx, {
       orgId: veld.orgId,
-      userId: medewerker.userId,
       medewerkerId: medewerker._id,
       datum: args.datum,
       actie: "segment_gecorrigeerd",
@@ -814,7 +798,6 @@ export const updateSegment = mutation({
     if (kantoorCorrectie) {
       await logUrenActie(ctx, {
         orgId: veld.orgId,
-        userId: segment.userId,
         medewerkerId: segment.medewerkerId,
         datum: segment.datum,
         actie: "segment_gecorrigeerd",
@@ -854,7 +837,6 @@ export const verwijderSegment = mutation({
     if (kantoorCorrectie) {
       await logUrenActie(ctx, {
         orgId: veld.orgId,
-        userId: segment.userId,
         medewerkerId: segment.medewerkerId,
         datum: segment.datum,
         actie: "segment_gecorrigeerd",
@@ -914,8 +896,6 @@ export const dienDagIn = mutation({
     } else {
       await ctx.db.insert("urenDagen", {
         orgId: veld.orgId,
-        // Legacy-veld tot fase 6 — zie logUrenActie.
-        userId: medewerker.userId,
         medewerkerId: medewerker._id,
         datum: args.datum,
         status: "ingediend",
@@ -926,7 +906,6 @@ export const dienDagIn = mutation({
     }
     await logUrenActie(ctx, {
       orgId: veld.orgId,
-      userId: medewerker.userId,
       medewerkerId: medewerker._id,
       datum: args.datum,
       actie: "dag_ingediend",
@@ -981,7 +960,6 @@ export const heropenDag = mutation({
     }
     await logUrenActie(ctx, {
       orgId: veld.orgId,
-      userId: medewerker.userId,
       medewerkerId: medewerker._id,
       datum: args.datum,
       actie: "dag_heropend",
@@ -1193,9 +1171,6 @@ export const voegVeldFotoToe = mutation({
     }
     const entryId = await logTijdlijnEvent(ctx, {
       orgId: veld.orgId,
-      // `klantTijdlijn.userId` is verplicht tot fase 6; het werkitem is
-      // hierboven org-geverifieerd.
-      userId: werkitem.userId,
       klantId: werkitem.klantId,
       eventType: "handmatig",
       tekst:

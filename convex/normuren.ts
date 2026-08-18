@@ -1,6 +1,6 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireOrgContext, requireOrgId } from "./auth";
+import { requireOrg, requireOrgId } from "./auth";
 import { requireNotViewer } from "./roles";
 
 // List all normuren for authenticated user
@@ -58,10 +58,9 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
     return await ctx.db.insert("normuren", {
       orgId: org._id,
-      userId: user._id,
       activiteit: args.activiteit,
       scope: args.scope,
       normuurPerEenheid: args.normuurPerEenheid,
@@ -134,7 +133,7 @@ export const createDefaults = mutation({
   args: {},
   handler: async (ctx) => {
     await requireNotViewer(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
 
     // Idempotent: check if the organisation already has normuren
     const existing = await ctx.db
@@ -227,7 +226,6 @@ export const createDefaults = mutation({
     for (const normuur of defaultNormuren) {
       const id = await ctx.db.insert("normuren", {
         orgId: org._id,
-        userId: user._id,
         ...normuur,
       });
       insertedIds.push(id);

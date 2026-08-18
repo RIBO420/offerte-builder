@@ -22,7 +22,7 @@ import { mutation, query } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { Doc, Id } from "./_generated/dataModel";
-import { normalizeRole, requireKantoor } from "./roles";
+import { requireKantoor } from "./roles";
 import { AuthError, requireOrgId, verifyOrgOwnership } from "./auth";
 import { renderTemplateString } from "./lib/mailRender";
 
@@ -449,28 +449,8 @@ export const update = mutation({
 
 // ─── Trigger-motor (aangeroepen vanuit event-hooks) ──────────────────────────
 
-/**
- * Bedrijfseigenaar (auteur-userId) voor events zonder ingelogde gebruiker
- * (website-leads). Zelfde conventie als planningsattendering: de
- * directie-gebruiker is de bedrijfseigenaar.
- *
- * LET OP: dit is GEEN tenant-resolver. `users` heeft geen `orgId`, dus deze
- * functie kan de organisatie niet bepalen — identity-loze aanroepers geven
- * `orgId` apart mee aan `zetTriggerMailKlaar`. Verdwijnt in fase 6 samen met
- * het verplichte `userId`.
- */
-export async function vindBedrijfseigenaarId(
-  ctx: MutationCtx
-): Promise<Id<"users"> | null> {
-  const users = await ctx.db.query("users").collect();
-  const eigenaar = users.find((u) => normalizeRole(u.role) === "directie");
-  return eigenaar?._id ?? null;
-}
-
 export interface TriggerMailArgs {
   event: string;
-  /** Bedrijfseigenaar (auteur van de conceptmail; verplicht tot fase 6) */
-  userId: Id<"users">;
   /**
    * Tenant. Weglaten mag alleen als er een ingelogde gebruiker is: dan komt
    * de organisatie uit het JWT. Identity-loze instroom (publieke website-lead)
@@ -624,7 +604,6 @@ export async function zetTriggerMailKlaar(
 
   const conceptMailId = await ctx.db.insert("conceptMails", {
     orgId,
-    userId: args.userId,
     event: args.event,
     triggerId: trigger._id,
     klantId: args.klantId,

@@ -67,7 +67,7 @@ export const createVersion = mutation({
   },
   handler: async (ctx, args) => {
     // Derive userId from auth context instead of accepting from client
-    const user = await requireNotViewer(ctx);
+    await requireNotViewer(ctx);
 
     // Get the current offerte and verify ownership
     const offerte = await getOwnedOfferte(ctx, args.offerteId);
@@ -106,8 +106,8 @@ export const createVersion = mutation({
     };
 
     return await ctx.db.insert("offerte_versions", {
+      orgId: offerte.orgId,
       offerteId: args.offerteId,
-      userId: user._id,
       versieNummer,
       snapshot,
       actie: args.actie,
@@ -124,7 +124,7 @@ export const rollback = mutation({
   },
   handler: async (ctx, args) => {
     // Derive userId from auth context
-    const user = await requireNotViewer(ctx);
+    await requireNotViewer(ctx);
 
     // Get the version to restore
     const version = await ctx.db.get(args.versionId);
@@ -170,8 +170,8 @@ export const rollback = mutation({
 
     // Save current state as new version (before rollback)
     await ctx.db.insert("offerte_versions", {
+      orgId: offerte.orgId,
       offerteId: version.offerteId,
-      userId: user._id,
       versieNummer: newVersieNummer,
       snapshot: currentSnapshot,
       actie: "teruggedraaid",

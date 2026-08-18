@@ -209,8 +209,6 @@ export async function promoveerLead(
   if (!klantId) {
     klantId = await ctx.db.insert("klanten", {
       orgId,
-      // Legacy-veld: verplicht in het schema tot fase 6 van de org-migratie.
-      userId: currentUser._id,
       naam: lead.klantNaam.trim(),
       adres: lead.klantAdres?.trim() ?? "",
       postcode: lead.klantPostcode?.trim() ?? "",
@@ -227,7 +225,6 @@ export async function promoveerLead(
   //    createWerkitem — type "project", status "gepland", adres = klantadres).
   const werkitemId = await ctx.db.insert("projecten", {
     orgId,
-    userId: currentUser._id,
     type: "project",
     klantId,
     naam: lead.omschrijving?.trim() || `Aanvraag ${lead.referentie}`,
@@ -264,7 +261,6 @@ export async function promoveerLead(
   //    Additief, niet-blokkerend (logTijdlijnEvent vangt fouten zelf af).
   await logTijdlijnEvent(ctx, {
     orgId,
-    userId: currentUser._id,
     klantId,
     eventType: "lead_gewonnen",
     werkitemId,

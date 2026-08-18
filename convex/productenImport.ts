@@ -19,7 +19,7 @@ import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { requireKantoor } from "./roles";
-import { requireOrgContext, requireOrgId } from "./auth";
+import { requireOrg, requireOrgId } from "./auth";
 import {
   normaliseerProductnaam,
   bepaalPrijsOpRegel,
@@ -343,7 +343,7 @@ export const importeer = mutation({
   },
   handler: async (ctx, args) => {
     await requireKantoor(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
 
     if (args.rijen.length === 0) {
       throw new ConvexError("Geen rijen om te importeren");
@@ -404,7 +404,6 @@ export const importeer = mutation({
 
       await ctx.db.insert("producten", {
         orgId: org._id,
-        userId: user._id,
         productnaam: rij.naam.trim(),
         categorie: rij.categorie?.trim() || IMPORT_STANDAARD_CATEGORIE,
         inkoopprijs,

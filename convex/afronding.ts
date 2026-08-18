@@ -161,7 +161,6 @@ export const rondWerkitemAf = mutation({
       });
       if (werkitem.klantId) {
         await logTijdlijnEvent(ctx, {
-          userId: werkitem.userId,
           klantId: werkitem.klantId,
           eventType: "beurt_afgerond",
           tekst: `${werkitem.naam} afgerond — alle taken ✓ (klaar voor facturatie)`,
@@ -202,7 +201,6 @@ export const rondWerkitemAf = mutation({
 
     const restId = await ctx.db.insert("projecten", {
       orgId,
-      userId: werkitem.userId,
       type,
       klantId: werkitem.klantId,
       status: "gepland",
@@ -232,7 +230,6 @@ export const rondWerkitemAf = mutation({
 
     if (werkitem.klantId) {
       await logTijdlijnEvent(ctx, {
-        userId: werkitem.userId,
         klantId: werkitem.klantId,
         eventType: "beurt_afgerond",
         tekst: `${werkitem.naam} deels uitgevoerd — rest-opdracht in de wachtrij (${restOmschrijving}${

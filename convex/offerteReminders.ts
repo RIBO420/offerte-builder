@@ -161,7 +161,6 @@ async function verwerkOpvolgingsKlantmail(
 
     await zetTriggerMailKlaar(ctx, {
       event: "offerte_opvolging",
-      userId: reminder.userId,
       // Expliciet: de cron heeft geen sessie waaruit de org te halen valt
       orgId,
       ontvangerEmail: klant.email,
@@ -185,7 +184,6 @@ async function verwerkOpvolgingsKlantmail(
   await ctx.scheduler.runAfter(0, internal.offerteReminders.sendReminderEmail, {
     reminderId: reminder._id,
     offerteId: reminder.offerteId,
-    userId: reminder.userId,
     orgId: offerte.orgId,
     reminderType: reminder.type,
     klantEmail: klant.email,
@@ -250,7 +248,6 @@ export const scheduleReminders = mutation({
         // Zonder orgId valt de reminder buiten élke by_org-query; hij erft de
         // tenant van de offerte waar hij bij hoort.
         orgId: offerte.orgId,
-        userId: offerte.userId,
         type: schedule.type,
         scheduledAt,
         status: "pending",
@@ -317,7 +314,6 @@ export const processReminder = internalMutation({
 
     // Create the internal notification for the admin/owner
     await ctx.runMutation(internal.notifications.createReminderNotification, {
-      userId: reminder.userId,
       offerteId: reminder.offerteId,
       offerteNummer: offerte.offerteNummer,
       klantNaam: klantNaam(offerte.klant),
@@ -374,7 +370,6 @@ export const processDueReminders = internalMutation({
 
       // Create internal notification
       await ctx.runMutation(internal.notifications.createReminderNotification, {
-        userId: reminder.userId,
         offerteId: reminder.offerteId,
         offerteNummer: offerte.offerteNummer,
         klantNaam: klantNaam(offerte.klant),
@@ -417,13 +412,8 @@ export const sendReminderEmail = internalAction({
   args: {
     reminderId: v.id("offerte_reminders"),
     offerteId: v.id("offertes"),
-    userId: v.id("users"),
-    /**
-     * Tenant van de offerte. Optioneel zolang er offertes zonder orgId
-     * bestaan; zodra hij er is kiest emailTemplates op organisatie in plaats
-     * van op de userId-fallback (die in fase 6 verdwijnt).
-     */
-    orgId: v.optional(v.id("organisaties")),
+    /** Tenant van de offerte — bepaalt welk e-mailsjabloon geldt. */
+    orgId: v.id("organisaties"),
     reminderType: v.union(
       v.literal("niet_bekeken"),
       v.literal("niet_gereageerd"),
@@ -444,14 +434,11 @@ export const sendReminderEmail = internalAction({
       return { success: false, error: "unknown_reminder_type" };
     }
 
-    // 1. Look up bedrijfsgegevens from instellingen (org-gescoped; zonder
-    //    orgId — offertes van vóór de migratie — vallen we terug op de
-    //    standaard bedrijfsnaam hieronder)
-    const instellingen: Record<string, unknown> | null = args.orgId
-      ? await ctx.runQuery(internal.instellingen.getByOrgId, {
-          orgId: args.orgId,
-        })
-      : null;
+    // 1. Look up bedrijfsgegevens from instellingen (org-gescoped)
+    const instellingen: Record<string, unknown> | null = await ctx.runQuery(
+      internal.instellingen.getByOrgId,
+      { orgId: args.orgId }
+    );
 
     const bedrijfsgegevens = (instellingen?.bedrijfsgegevens ?? {}) as Record<string, string>;
     const bedrijfsNaam = bedrijfsgegevens.naam || "Top Tuinen";
@@ -462,7 +449,7 @@ export const sendReminderEmail = internalAction({
     const dbTemplate: { onderwerp: string; inhoud: string; actief: boolean } | null =
       await ctx.runQuery(
         internal.emailTemplates.getByTriggerInternal,
-        { userId: args.userId, orgId: args.orgId, trigger }
+        { orgId: args.orgId, trigger }
       );
 
     // 3. Use DB template or fallback
@@ -481,7 +468,6 @@ export const sendReminderEmail = internalAction({
         // Log the failure
         await ctx.runMutation(internal.emailLogs.createInternal, {
           offerteId: args.offerteId,
-          userId: args.userId,
           type: "herinnering",
           to: args.klantEmail,
           subject: `Herinnering: Offerte ${args.offerteNummer}`,
@@ -547,7 +533,6 @@ export const sendReminderEmail = internalAction({
       );
       await ctx.runMutation(internal.emailLogs.createInternal, {
         offerteId: args.offerteId,
-        userId: args.userId,
         type: "herinnering",
         to: args.klantEmail,
         subject: renderedOnderwerp,
@@ -571,7 +556,6 @@ export const sendReminderEmail = internalAction({
       );
       await ctx.runMutation(internal.emailLogs.createInternal, {
         offerteId: args.offerteId,
-        userId: args.userId,
         type: "herinnering",
         to: args.klantEmail,
         subject: renderedOnderwerp,
@@ -617,7 +601,6 @@ export const sendReminderEmail = internalAction({
         // Log failure
         await ctx.runMutation(internal.emailLogs.createInternal, {
           offerteId: args.offerteId,
-          userId: args.userId,
           type: "herinnering",
           to: args.klantEmail,
           subject: renderedOnderwerp,
@@ -653,7 +636,6 @@ export const sendReminderEmail = internalAction({
       // Log success
       await ctx.runMutation(internal.emailLogs.createInternal, {
         offerteId: args.offerteId,
-        userId: args.userId,
         type: "herinnering",
         to: args.klantEmail,
         subject: renderedOnderwerp,
@@ -682,7 +664,6 @@ export const sendReminderEmail = internalAction({
       // Log failure
       await ctx.runMutation(internal.emailLogs.createInternal, {
         offerteId: args.offerteId,
-        userId: args.userId,
         type: "herinnering",
         to: args.klantEmail,
         subject: renderedOnderwerp,

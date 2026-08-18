@@ -1,6 +1,6 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query, internalQuery } from "./_generated/server";
-import { requireOrgContext, requireOrgId } from "./auth";
+import { requireOrg, requireOrgId } from "./auth";
 import { requireKantoor, requireNotViewer } from "./roles";
 import { isGeldigeTijd, naarMinuten } from "./dagkaartLogica";
 import { isGeldigeSuggestieDrempel } from "./beurtNacalculatieLogica";
@@ -74,7 +74,7 @@ export const createDefaults = mutation({
   args: {},
   handler: async (ctx) => {
     await requireNotViewer(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
     const orgId = org._id;
 
     // Idempotent: return existing if already created
@@ -89,7 +89,6 @@ export const createDefaults = mutation({
 
     return await ctx.db.insert("instellingen", {
       orgId,
-      userId: user._id,
       uurtarief: 45.0,
       standaardMargePercentage: 15,
       btwPercentage: 21,

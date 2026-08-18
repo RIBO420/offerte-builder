@@ -1263,7 +1263,6 @@ export const vullen = internalMutation({
     for (const m of MEDEWERKERS) {
       const id = await bewaar(ctx, geseedOp, "medewerkers", {
         orgId,
-        userId,
         naam: m.naam,
         email: `${m.naam.toLowerCase().replace(/[^a-z]+/g, ".")}@voorbeeld.test`,
         telefoon: demoTelefoon(medewerkerIds.length),
@@ -1283,7 +1282,6 @@ export const vullen = internalMutation({
     for (const t of TEAMS) {
       const id = await bewaar(ctx, geseedOp, "teams", {
         orgId,
-        userId,
         naam: t.naam,
         leden: t.ledenIndex.map((i) => medewerkerIds[i]),
         kleur: t.kleur,
@@ -1310,7 +1308,6 @@ export const vullen = internalMutation({
     for (const [i, k] of KLANTEN.entries()) {
       const id = await bewaar(ctx, geseedOp, "klanten", {
         orgId,
-        userId,
         naam: k.naam,
         adres: k.adres,
         postcode: k.postcode,
@@ -1401,7 +1398,6 @@ export const vullen = internalMutation({
 
       const offerteId = await bewaar(ctx, geseedOp, "offertes", {
         orgId,
-        userId,
         klantId: klantIds[o.klant],
         type: o.type,
         status: o.status,
@@ -1464,7 +1460,6 @@ export const vullen = internalMutation({
         const normUrenTotaal = Object.values(normUrenPerScope).reduce((s, u) => s + u, 0);
         await bewaar(ctx, geseedOp, "voorcalculaties", {
           orgId,
-          userId,
           offerteId,
           teamGrootte,
           teamleden: TEAMS[i % TEAMS.length].ledenIndex.map((n) => MEDEWERKERS[n].naam),
@@ -1508,7 +1503,6 @@ export const vullen = internalMutation({
 
       const offerteId = await bewaar(ctx, geseedOp, "offertes", {
         orgId,
-        userId,
         klantId: klantIds[h.klant],
         type: h.type,
         status: h.status,
@@ -1552,7 +1546,6 @@ export const vullen = internalMutation({
       const normUrenTotaal = Object.values(normUrenPerScope).reduce((s, u) => s + u, 0);
       await bewaar(ctx, geseedOp, "voorcalculaties", {
         orgId,
-        userId,
         offerteId,
         teamGrootte,
         teamleden: TEAMS[i % TEAMS.length].ledenIndex.map((n) => MEDEWERKERS[n].naam),
@@ -1588,7 +1581,6 @@ export const vullen = internalMutation({
 
       await bewaar(ctx, geseedOp, "facturen", {
         orgId,
-        userId,
         // GEEN projectId — dat is precies wat deze reeks uit de archiveer-
         // migratie van `users.initializeDefaults` houdt (zie HISTORIE).
         klantId: klantIds[h.klant],
@@ -1630,7 +1622,6 @@ export const vullen = internalMutation({
       const eind = datumISO(nu, p.startDag + p.duurDagen - 1);
       const projectId = await bewaar(ctx, geseedOp, "projecten", {
         orgId,
-        userId,
         type: "project",
         offerteId: offerteIds[p.offerte],
         klantId: klantIds[spec.klant],
@@ -1703,7 +1694,6 @@ export const vullen = internalMutation({
           const uren = afgerond(6.5 + random() * 2.5);
           await bewaar(ctx, geseedOp, "urenRegistraties", {
             orgId,
-            userId,
             projectId: projectIds[i],
             datum,
             medewerker: MEDEWERKERS[ledenIndex].naam,
@@ -1807,7 +1797,6 @@ export const vullen = internalMutation({
 
       await bewaar(ctx, geseedOp, "facturen", {
         orgId,
-        userId,
         ...(f.project !== null ? { projectId: projectIds[f.project] } : {}),
         klantId: klantIds[klantIndex],
         factuurnummer: `FAC-2026-${String(201 + i)}`,
@@ -1871,7 +1860,6 @@ export const vullen = internalMutation({
       const aangemaakt = nu - m.dagenGeleden * DAG;
       await bewaar(ctx, geseedOp, "servicemeldingen", {
         orgId,
-        userId,
         klantId: klantIds[m.klant],
         beschrijving: m.beschrijving,
         isGarantie: m.garantie,

@@ -10,7 +10,7 @@ import {
   promoveerLead,
   type LeadPipelineStatus,
 } from "./leadsKlantenHelpers";
-import { vindBedrijfseigenaarId, zetTriggerMailKlaar } from "./mailTriggers";
+import { zetTriggerMailKlaar } from "./mailTriggers";
 import {
   checkConfiguratorEmailRateLimit,
   checkConfiguratorGlobaalRateLimit,
@@ -48,16 +48,21 @@ function wachttijdInMinuten(resetAt: number): number {
  */
 async function orgVoorPubliekeIntake(
   ctx: MutationCtx
-): Promise<Id<"organisaties"> | undefined> {
+): Promise<Id<"organisaties">> {
   const actieve = (await ctx.db.query("organisaties").collect()).filter(
     (o) => o.actief
   );
   if (actieve.length === 1) return actieve[0]._id;
 
+  // Fail-closed: een lead zonder tenant hoort bij niemand en zou op geen enkel
+  // leadbord verschijnen. Liever een nette fout naar de bezoeker dan een
+  // aanvraag die stilletjes in het niets valt.
   console.warn(
     `[configuratorAanvragen] publieke lead zonder organisatie: ${actieve.length} actieve organisaties gevonden (verwacht: 1)`
   );
-  return undefined;
+  throw new ConvexError(
+    "Aanvraag kan op dit moment niet verwerkt worden. Neem telefonisch contact op."
+  );
 }
 
 /**
@@ -97,12 +102,8 @@ async function zetLeadOntvangstbevestigingKlaar(
     orgId: Id<"organisaties"> | undefined;
   }
 ): Promise<void> {
-  const eigenaarId = await vindBedrijfseigenaarId(ctx);
-  if (!eigenaarId) return; // geen bedrijfseigenaar → geen mail (additief)
-
   await zetTriggerMailKlaar(ctx, {
     event: "lead_ontvangen",
-    userId: eigenaarId,
     orgId: lead.orgId,
     ontvangerEmail: lead.email,
     ontvangerNaam: lead.naam,

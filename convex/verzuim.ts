@@ -256,8 +256,6 @@ export const ziekmelden = mutation({
     const now = Date.now();
     return await ctx.db.insert("verzuimregistraties", {
       orgId: org._id,
-      // `userId` blijft tot fase 6 verplicht in het schema.
-      userId: medewerker.userId,
       medewerkerId: args.medewerkerId,
       startDatum: args.startDatum,
       reden: args.reden,

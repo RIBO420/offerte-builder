@@ -141,16 +141,14 @@ export function isGeescaleerd(
 export async function voegSysteemCommentToe(
   ctx: MutationCtx,
   args: {
-    userId: Id<"users">;
     orgId?: Id<"organisaties">;
     meldingId: Id<"servicemeldingen">;
     tekst: string;
   }
 ): Promise<void> {
-  const orgId =
-    args.orgId ?? (await ctx.db.get(args.meldingId))?.orgId ?? undefined;
+  const orgId = args.orgId ?? (await ctx.db.get(args.meldingId))?.orgId;
+  if (!orgId) return; // melding bestaat niet meer: geen dakloze comment
   await ctx.db.insert("meldingComments", {
-    userId: args.userId,
     orgId,
     meldingId: args.meldingId,
     auteurNaam: "Systeem",
@@ -532,7 +530,7 @@ export const listEigenaarKandidaten = query({
   args: {},
   handler: async (ctx) => {
     await requireInterneRol(ctx);
-    // Bewust nog niet org-gescoped: `users` draagt (tot fase 6) geen orgId —
+    // Bewust niet org-gescoped: `users` draagt geen orgId —
     // de koppeling loopt via medewerkers.linkedMedewerkerId, en directie
     // heeft géén medewerker-rij en zou dan uit de eigenaar-kiezer vallen.
     // Zelfde afweging als debiteuren.listKantoorGebruikers (cluster 3.3).
@@ -652,8 +650,6 @@ export const create = mutation({
 
     const id = await ctx.db.insert("servicemeldingen", {
       orgId,
-      // `userId` blijft tot fase 6 verplicht in het schema.
-      userId: user._id,
       klantId: args.klantId,
       projectId: args.projectId,
       garantieId: detectedGarantieId,
@@ -679,7 +675,6 @@ export const create = mutation({
 
     // Automatische logging (PRD §2.4): klanttijdlijn + interne case-thread
     await logTijdlijnEvent(ctx, {
-      userId: user._id,
       orgId,
       klantId: args.klantId,
       eventType: "melding_aangemaakt",
@@ -688,7 +683,6 @@ export const create = mutation({
       meldingId: id,
     });
     await voegSysteemCommentToe(ctx, {
-      userId: user._id,
       orgId,
       meldingId: id,
       tekst: `Melding aangemaakt door ${user.name} (${TYPE_LABEL[type].toLowerCase()}, eigenaar: ${eigenaar.name})`,
@@ -725,7 +719,6 @@ export const updateStatus = mutation({
     // Tijdlijn alleen indien klant-gerelateerd (onderhoudstaken §3.3 niet)
     if (melding.klantId) {
       await logTijdlijnEvent(ctx, {
-        userId: melding.userId,
         orgId,
         klantId: melding.klantId,
         eventType: "melding_status_gewijzigd",
@@ -735,7 +728,6 @@ export const updateStatus = mutation({
       });
     }
     await voegSysteemCommentToe(ctx, {
-      userId: melding.userId,
       orgId,
       meldingId: args.id,
       tekst: `Status gewijzigd door ${user.name}: ${STATUS_LABEL[melding.status]} → ${STATUS_LABEL[args.status]}`,
@@ -775,7 +767,6 @@ export const wijzigEigenaar = mutation({
       updatedAt: Date.now(),
     });
     await voegSysteemCommentToe(ctx, {
-      userId: melding.userId,
       orgId,
       meldingId: args.id,
       tekst: `Eigenaar gewijzigd door ${user.name} naar ${eigenaar.name}`,
@@ -823,8 +814,6 @@ export const promoveerNaarWerkitem = mutation({
     const now = Date.now();
     const werkitemId = await ctx.db.insert("projecten", {
       orgId,
-      // `userId` blijft tot fase 6 verplicht in het schema.
-      userId: melding.userId,
       type: "onderhoudsbeurt",
       klantId: melding.klantId,
       naam,
@@ -846,7 +835,6 @@ export const promoveerNaarWerkitem = mutation({
     });
 
     await logTijdlijnEvent(ctx, {
-      userId: melding.userId,
       orgId,
       klantId: melding.klantId,
       eventType: "melding_status_gewijzigd",
@@ -855,7 +843,6 @@ export const promoveerNaarWerkitem = mutation({
       meldingId: args.id,
     });
     await voegSysteemCommentToe(ctx, {
-      userId: melding.userId,
       orgId,
       meldingId: args.id,
       tekst: `${user.name} maakte werkitem "${naam}" uit deze melding (in de wachtrij)`,
@@ -939,9 +926,6 @@ export const addAfspraak = mutation({
     const afspraakId = await ctx.db.insert("serviceAfspraken", {
       meldingId: args.meldingId,
       orgId: gescoopteMelding.orgId,
-      // `userId` blijft tot fase 6 verplicht: de afspraak erft de eigenaar
-      // van haar melding.
-      userId: gescoopteMelding.userId,
       datum: args.datum,
       medewerkerIds: args.medewerkerIds,
       notities: args.notities,

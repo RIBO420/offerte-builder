@@ -26,6 +26,7 @@ import {
 } from "./_generated/server";
 import { Doc } from "./_generated/dataModel";
 import { requireKantoor } from "./roles";
+import { requireOrgId } from "./auth";
 import { logTijdlijnEvent } from "./tijdlijn";
 
 // ─── Constanten ──────────────────────────────────────────────────────────────
@@ -242,7 +243,7 @@ export async function genereerBeurtenVoorContract(
       bestaandeSleutels.add(sleutel);
 
       await ctx.db.insert("projecten", {
-        userId: contract.userId,
+        orgId: contract.orgId,
         type: "onderhoudsbeurt",
         klantId: contract.klantId,
         naam: beurtTitel(
@@ -310,11 +311,12 @@ export const activeerContract = mutation({
   handler: async (ctx, args) => {
     const user = await requireKantoor(ctx);
 
+    const orgId = await requireOrgId(ctx);
     const contract = await ctx.db.get(args.id);
     if (
       !contract ||
       contract.deletedAt ||
-      contract.userId.toString() !== user._id.toString()
+      contract.orgId.toString() !== orgId.toString()
     ) {
       throw new ConvexError("Contract niet gevonden");
     }
@@ -331,7 +333,6 @@ export const activeerContract = mutation({
       // echte overgang concept → actief; her-runs loggen niet dubbel).
       // Additief en niet-blokkerend.
       await logTijdlijnEvent(ctx, {
-        userId: contract.userId,
         klantId: contract.klantId,
         eventType: "contract_geactiveerd",
         auteurId: user._id,

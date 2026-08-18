@@ -7,7 +7,7 @@
 
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireOrgContext, requireOrgId, verifyOrgOwnership } from "./auth";
+import { requireOrg, requireOrgId, verifyOrgOwnership } from "./auth";
 import { requireNotViewer } from "./roles";
 import { Id } from "./_generated/dataModel";
 
@@ -257,7 +257,7 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
 
     // Verify ownership of project
     await getOwnedProject(ctx, args.projectId);
@@ -277,8 +277,6 @@ export const create = mutation({
 
     const id = await ctx.db.insert("kwaliteitsControles", {
       orgId: org._id,
-      // `userId` blijft tot fase 6 verplicht in het schema.
-      userId: user._id,
       projectId: args.projectId,
       scope: args.scope,
       checklistItems,

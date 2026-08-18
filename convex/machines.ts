@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireOrgContext, requireOrgId, verifyOrgOwnership } from "./auth";
+import { requireOrg, requireOrgId, verifyOrgOwnership } from "./auth";
 import { requireNotViewer } from "./roles";
 import { laadDocsMap } from "./lib/batchLoad";
 import { klantNaam } from "./lib/offerteKlant";
@@ -65,11 +65,9 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
     return await ctx.db.insert("machines", {
       orgId: org._id,
-      // `userId` blijft tot fase 6 verplicht in het schema.
-      userId: user._id,
       naam: args.naam,
       type: args.type,
       tarief: args.tarief,
@@ -216,7 +214,7 @@ export const createDefaults = mutation({
   args: {},
   handler: async (ctx) => {
     await requireNotViewer(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
 
     // Idempotent: heeft deze organisatie al machines?
     const existing = await ctx.db
@@ -278,7 +276,6 @@ export const createDefaults = mutation({
     for (const machine of defaultMachines) {
       await ctx.db.insert("machines", {
         orgId: org._id,
-        userId: user._id,
         ...machine,
         isActief: true,
       });

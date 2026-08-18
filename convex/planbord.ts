@@ -20,7 +20,7 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
-import { requireOrgContext, requireOrgId } from "./auth";
+import { requireOrg, requireOrgId } from "./auth";
 import { requireKantoor } from "./roles";
 import { beschikbaarheidsVensterValidator } from "./validators";
 import {
@@ -308,7 +308,7 @@ export const setBemanning = mutation({
   },
   handler: async (ctx, args) => {
     const kantoorUser = await requireKantoor(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
     const team = await ctx.db.get(args.teamId);
     if (!team || team.orgId?.toString() !== org._id.toString()) {
       throw new ConvexError("Team niet gevonden");
@@ -328,7 +328,6 @@ export const setBemanning = mutation({
     } else {
       await ctx.db.insert("teamBemanning", {
         orgId: org._id,
-        userId: user._id,
         teamId: args.teamId,
         datum: args.datum,
         medewerkerIds: args.medewerkerIds,
@@ -338,7 +337,6 @@ export const setBemanning = mutation({
     }
     await logPlanwijziging(ctx, {
       orgId: org._id,
-      userId: user._id,
       door: kantoorUser._id,
       actie: "bemanning_gewijzigd",
       details: `Bemanning ${team.naam} op ${args.datum}: ${args.medewerkerIds.length} medewerker(s)`,
@@ -353,7 +351,7 @@ export const herstelBemanning = mutation({
   args: { teamId: v.id("teams"), datum: v.string() },
   handler: async (ctx, args) => {
     const kantoorUser = await requireKantoor(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
     const team = await ctx.db.get(args.teamId);
     if (!team || team.orgId?.toString() !== org._id.toString()) {
       throw new ConvexError("Team niet gevonden");
@@ -368,7 +366,6 @@ export const herstelBemanning = mutation({
       await ctx.db.delete(bestaand._id);
       await logPlanwijziging(ctx, {
         orgId: org._id,
-        userId: user._id,
         door: kantoorUser._id,
         actie: "bemanning_gewijzigd",
         details: `Bemanning ${team.naam} op ${args.datum} teruggezet naar vaste teamleden`,
@@ -399,7 +396,7 @@ export const createAfwezigheid = mutation({
   },
   handler: async (ctx, args) => {
     const kantoorUser = await requireKantoor(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
     if (!args.medewerkerId === !args.teamId) {
       throw new ConvexError(
         "Kies precies één scope: een medewerker óf een heel team"
@@ -426,7 +423,6 @@ export const createAfwezigheid = mutation({
     const now = Date.now();
     const id = await ctx.db.insert("afwezigheidsblokken", {
       orgId: org._id,
-      userId: user._id,
       medewerkerId: args.medewerkerId,
       teamId: args.teamId,
       startDatum: args.startDatum,
@@ -438,7 +434,6 @@ export const createAfwezigheid = mutation({
     });
     await logPlanwijziging(ctx, {
       orgId: org._id,
-      userId: user._id,
       door: kantoorUser._id,
       actie: "afwezigheid_toegevoegd",
       details: `Afwezigheid (${args.reden}) voor ${scopeNaam}: ${args.startDatum} t/m ${args.eindDatum}`,
@@ -460,7 +455,6 @@ export const verwijderAfwezigheid = mutation({
     await ctx.db.delete(args.id);
     await logPlanwijziging(ctx, {
       orgId,
-      userId: kantoorUser._id,
       door: kantoorUser._id,
       actie: "afwezigheid_verwijderd",
       details: `Afwezigheid (${blok.reden}) verwijderd: ${blok.startDatum} t/m ${blok.eindDatum}`,
@@ -518,7 +512,6 @@ export const koppelTeamLos = mutation({
     }
     await logPlanwijziging(ctx, {
       orgId,
-      userId: kantoorUser._id,
       door: kantoorUser._id,
       actie: "team_losgekoppeld",
       details: `Team ${team.naam} losgekoppeld van ${args.datum}: ${geraakt.length} werkitem(s) terug in de bak`,
@@ -535,9 +528,8 @@ export const koppelTeamLos = mutation({
  */
 function kopieerbareVelden(item: WerkItem) {
   return {
-    // Tenant-scope: `orgId` is de scope; `userId` blijft tot fase 6 meegeschreven
+    // Tenant-scope
     orgId: item.orgId,
-    userId: item.userId,
     type: getType(item),
     klantId: item.klantId,
     status: "gepland" as const,
@@ -588,7 +580,6 @@ export const dupliceerWerkitem = mutation({
     });
     await logPlanwijziging(ctx, {
       orgId,
-      userId: kantoorUser._id,
       door: kantoorUser._id,
       actie: "gedupliceerd",
       details: `${item.naam} gedupliceerd naar ${args.doelDatum} (team en tijden behouden)`,
@@ -679,7 +670,6 @@ export const splitsWerkitem = mutation({
 
     await logPlanwijziging(ctx, {
       orgId,
-      userId: kantoorUser._id,
       door: kantoorUser._id,
       actie: "gesplitst",
       details: `${basisNaam} gesplitst in ${n} delen (${args.delen

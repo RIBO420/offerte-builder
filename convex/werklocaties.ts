@@ -8,7 +8,7 @@
 
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireOrgContext, requireOrgId, verifyOrgOwnership } from "./auth";
+import { requireOrg, requireOrgId, verifyOrgOwnership } from "./auth";
 import { requireNotViewer } from "./roles";
 import { Id } from "./_generated/dataModel";
 import { klantNaam, klantVeld } from "./lib/offerteKlant";
@@ -99,7 +99,7 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
     const now = Date.now();
 
     // Verify project ownership
@@ -126,7 +126,6 @@ export const create = mutation({
     // Create the werklocatie
     const werklocatieId = await ctx.db.insert("werklocaties", {
       orgId: org._id,
-      userId: user._id,
       projectId: args.projectId,
       adres: args.adres,
       postcode: args.postcode,
@@ -288,7 +287,7 @@ export const createFromOfferte = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
     const now = Date.now();
 
     // Get the project
@@ -337,7 +336,6 @@ export const createFromOfferte = mutation({
     // Create the werklocatie with data from offerte
     const werklocatieId = await ctx.db.insert("werklocaties", {
       orgId: org._id,
-      userId: user._id,
       projectId: args.projectId,
       adres,
       postcode,

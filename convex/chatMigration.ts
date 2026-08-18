@@ -4,7 +4,6 @@ import { internalMutation } from "./_generated/server";
  * Eenmalige migraties zonder identity: de organisatie komt uit het brondocument
  * (de offerte, of het eerste bericht van de groep). Zonder `orgId` zou een
  * gemigreerde thread buiten elke by_org-query vallen en dus onzichtbaar zijn.
- * `companyUserId` blijft meegeschreven zolang het schema het veld eist (fase 6).
  */
 
 // Migrate offerte_messages → chat_threads + chat_messages
@@ -47,7 +46,6 @@ export const migrateOfferteMessages = internalMutation({
         unreadByBedrijf,
         unreadByKlant,
         orgId: offerte.orgId,
-        companyUserId: offerte.userId,
         createdAt: msgs.sort((a, b) => a.createdAt - b.createdAt)[0].createdAt,
       });
       threadsCreated++;
@@ -86,7 +84,7 @@ export const migrateTeamMessages = internalMutation({
     // Group by company + channel
     const byChannel = new Map<string, typeof messages>();
     for (const msg of messages) {
-      const key = `${msg.companyId}_${msg.channelType}_${msg.channelName}`;
+      const key = `${msg.orgId}_${msg.channelType}_${msg.channelName}`;
       if (!byChannel.has(key)) byChannel.set(key, []);
       byChannel.get(key)!.push(msg);
     }
@@ -106,7 +104,6 @@ export const migrateTeamMessages = internalMutation({
         lastMessageAt: lastMsg?.createdAt,
         lastMessagePreview: lastMsg?.message?.substring(0, 80),
         orgId: firstMsg.orgId,
-        companyUserId: firstMsg.companyId,
         createdAt: firstMsg.createdAt,
       });
       threadsCreated++;
@@ -145,7 +142,7 @@ export const migrateDirectMessages = internalMutation({
     const byConversation = new Map<string, typeof messages>();
     for (const msg of messages) {
       const pair = [msg.fromClerkId, msg.toClerkId].sort().join("_");
-      const key = `${msg.companyId}_${pair}`;
+      const key = `${msg.orgId}_${pair}`;
       if (!byConversation.has(key)) byConversation.set(key, []);
       byConversation.get(key)!.push(msg);
     }
@@ -169,7 +166,6 @@ export const migrateDirectMessages = internalMutation({
         lastMessageAt: lastMsg?.createdAt,
         lastMessagePreview: lastMsg?.message?.substring(0, 80),
         orgId: firstMsg.orgId,
-        companyUserId: firstMsg.companyId,
         createdAt: firstMsg.createdAt,
       });
       threadsCreated++;

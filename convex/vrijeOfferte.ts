@@ -66,7 +66,7 @@ export const updateVrijeRegels = mutation({
     registreerGebruik: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    const user = await requireNotViewer(ctx);
+    await requireNotViewer(ctx);
     const offerte = await getOwnedOfferte(ctx, args.id);
     const now = Date.now();
 
@@ -107,7 +107,7 @@ export const updateVrijeRegels = mutation({
       ) as Id<"producten">[];
       for (const productId of nieuweIds) {
         const product = await ctx.db.get(productId);
-        if (product && product.userId.toString() === user._id.toString()) {
+        if (product && product.orgId.toString() === offerte.orgId.toString()) {
           await ctx.db.patch(productId, {
             gebruiksteller: verhoogTeller(product.gebruiksteller),
             updatedAt: now,
@@ -131,8 +131,8 @@ export const updateVrijeRegels = mutation({
       .order("desc")
       .take(1);
     await ctx.db.insert("offerte_versions", {
+      orgId: offerte.orgId,
       offerteId: args.id,
-      userId: offerte.userId,
       versieNummer: (versions[0]?.versieNummer ?? 0) + 1,
       snapshot: {
         status: offerte.status,

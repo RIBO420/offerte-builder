@@ -232,7 +232,6 @@ export const applyAanpassing = mutation({
     // Log the change in historie
     await ctx.db.insert("leerfeedback_historie", {
       orgId: org._id,
-      userId: user._id,
       normuurId: args.normuurId,
       scope: normuur.scope,
       activiteit: normuur.activiteit,
@@ -400,7 +399,6 @@ export const revertAanpassing = mutation({
     // Log the revert in historie
     await ctx.db.insert("leerfeedback_historie", {
       orgId: org._id,
-      userId: user._id,
       normuurId: historieEntry.normuurId,
       scope: historieEntry.scope,
       activiteit: historieEntry.activiteit,

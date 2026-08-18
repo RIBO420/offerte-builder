@@ -236,12 +236,18 @@ export const BOUWSTENEN_STARTVULLING: BouwsteenSeedRecord[] = [
 
 export const seedBouwstenen = internalMutation({
   args: {
+    // Sinds de org-migratie hoort een catalogus bij één organisatie; de
+    // aanroeper (CLI) geeft expliciet mee welke.
+    orgId: v.id("organisaties"),
     dryRun: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const dryRun = args.dryRun ?? false;
 
-    const bestaande = await ctx.db.query("bouwstenen").collect();
+    const bestaande = await ctx.db
+      .query("bouwstenen")
+      .withIndex("by_org", (q) => q.eq("orgId", args.orgId))
+      .collect();
     const bestaandeCodes = new Set(bestaande.map((b) => b.code));
 
     let aangemaakt = 0;
@@ -255,6 +261,7 @@ export const seedBouwstenen = internalMutation({
       }
       if (!dryRun) {
         await ctx.db.insert("bouwstenen", {
+          orgId: args.orgId,
           naam: record.naam,
           code: record.code,
           categorie: record.categorie,
@@ -276,11 +283,15 @@ export const seedBouwstenen = internalMutation({
     }
 
     // Start-uurtarief €65 ex btw — alleen als er nog geen enkel tarief bestaat
-    const bestaandeTarieven = await ctx.db.query("uurtarieven").collect();
+    const bestaandeTarieven = await ctx.db
+      .query("uurtarieven")
+      .withIndex("by_org", (q) => q.eq("orgId", args.orgId))
+      .collect();
     let uurtariefGezet = false;
     if (bestaandeTarieven.length === 0) {
       if (!dryRun) {
         await ctx.db.insert("uurtarieven", {
+          orgId: args.orgId,
           bedrag: STANDAARD_UURTARIEF,
           ingangsdatum: START_UURTARIEF_INGANGSDATUM,
           opmerking: "Startwaarde (PRD §2.5a, besluit 8 juli 2026)",

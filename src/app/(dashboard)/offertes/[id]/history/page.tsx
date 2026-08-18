@@ -169,7 +169,6 @@ type VersionSnapshot = {
 type Version = {
   _id: Id<"offerte_versions">;
   offerteId: Id<"offertes">;
-  userId: Id<"users">;
   versieNummer: number;
   snapshot: VersionSnapshot;
   actie: string;

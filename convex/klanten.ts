@@ -8,12 +8,7 @@ import {
 } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
-import {
-  requireOrgContext,
-  requireOrgId,
-  getOwnedKlant,
-  generateSecureToken,
-} from "./auth";
+import { generateSecureToken, getOwnedKlant, requireOrg, requireOrgContext, requireOrgId } from "./auth";
 import { requireNotViewer, requireAdmin, assertKanNaarKlantVersturen } from "./roles";
 import {
   sanitizeEmail,
@@ -187,7 +182,7 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
     const now = Date.now();
 
     // Validate required fields
@@ -214,8 +209,6 @@ export const create = mutation({
 
     return await ctx.db.insert("klanten", {
       orgId: org._id,
-      // Legacy-veld: verplicht in het schema tot fase 6 van de org-migratie.
-      userId: user._id,
       naam: args.naam.trim(),
       adres: args.adres.trim(),
       postcode,
@@ -585,7 +578,7 @@ export const createFromOfferte = mutation({
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
-    const { org, user } = await requireOrgContext(ctx);
+    const org = await requireOrg(ctx);
 
     // Check if a klant with the same name and address already exists
     const existingKlanten = await ctx.db
@@ -615,8 +608,6 @@ export const createFromOfferte = mutation({
     const now = Date.now();
     return await ctx.db.insert("klanten", {
       orgId: org._id,
-      // Legacy-veld: verplicht in het schema tot fase 6 van de org-migratie.
-      userId: user._id,
       naam: args.naam.trim(),
       adres: args.adres.trim(),
       postcode,
@@ -1098,7 +1089,6 @@ export const importKlanten = mutation({
         // verdween — vandaar dat hij nu expliciet in dit object staat.
         const nieuweVelden = {
           orgId: org._id,
-          // Legacy-veld: verplicht tot fase 6 van de org-migratie.
           userId: user._id,
           naam: klant.naam.trim(),
           adres,
@@ -1415,7 +1405,6 @@ export const sendPortalInvitation = mutation({
     // Additief, niet-blokkerend; bewust zonder e-mailadres in de tekst.
     await logTijdlijnEvent(ctx, {
       orgId: klant.orgId,
-      userId: klant.userId,
       klantId: args.id,
       eventType: "portaal_uitnodiging",
       auteurId: user._id,

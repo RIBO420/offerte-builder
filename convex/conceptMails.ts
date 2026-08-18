@@ -314,7 +314,6 @@ export const maakInplanConcept = mutation({
     const resultaat = await zetTriggerMailKlaar(ctx, {
       event: "inplan_attendering",
       orgId,
-      userId: melding.userId,
       ontvangerEmail: klant.email,
       ontvangerNaam: klant.naam,
       variabelen: {
@@ -341,7 +340,6 @@ export const maakInplanConcept = mutation({
     }
 
     await voegSysteemCommentToe(ctx, {
-      userId: melding.userId,
       meldingId: melding._id,
       tekst: `Inplan-mail klaargezet in Concept-mails door ${kantoorUser.name ?? "kantoor"} — goedkeuren en versturen via het Concept-mails-scherm.`,
     });
@@ -463,7 +461,6 @@ export const registreerVerzendResultaat = internalMutation({
       offerteId: concept.offerteId,
       // Interne cron/actie zonder identity: de tenant komt uit de concept-mail.
       orgId: concept.orgId,
-      userId: concept.userId,
       type: emailLogTypeVoorEvent(concept.event),
       to: concept.ontvangerEmail,
       subject: concept.onderwerp,
@@ -483,7 +480,6 @@ export const registreerVerzendResultaat = internalMutation({
             ? "mislukt"
             : "onderdrukt (sandbox)";
       await logTijdlijnEvent(ctx, {
-        userId: concept.userId,
         klantId: concept.klantId,
         eventType: "mail_verzonden",
         kanaal: "email",

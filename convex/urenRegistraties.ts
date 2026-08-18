@@ -197,16 +197,12 @@ export const add = mutation({
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
     const orgId = await requireOrgId(ctx);
-    const project = await getProjectVanOrg(ctx, args.projectId, orgId);
+    await getProjectVanOrg(ctx, args.projectId, orgId); // org-eigendom afdwingen
 
     return await ctx.db.insert("urenRegistraties", {
       projectId: args.projectId,
-      // Tenant-scope: `orgId` is sinds fase 3 DE scope. `userId` blijft tot
-      // fase 6 meegeschreven langs dezelfde route als de backfill-migratie
-      // (projectId → projecten.userId), zodat lezers die nog op by_user_datum
-      // staan (o.a. medewerkers.ts) de registratie blijven zien.
+      // Tenant-scope: overgenomen van het project.
       orgId,
-      userId: project.userId,
       datum: args.datum,
       medewerker: args.medewerker,
       uren: args.uren,
@@ -235,7 +231,7 @@ export const importBatch = mutation({
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
     const orgId = await requireOrgId(ctx);
-    const project = await getProjectVanOrg(ctx, args.projectId, orgId);
+    await getProjectVanOrg(ctx, args.projectId, orgId); // org-eigendom afdwingen
 
     const insertedIds: string[] = [];
 
@@ -245,7 +241,6 @@ export const importBatch = mutation({
         // Tenant-scope: zie `add` — het project is hierboven al op
         // org-eigendom gecontroleerd.
         orgId,
-        userId: project.userId,
         datum: entry.datum,
         medewerker: entry.medewerker,
         uren: entry.uren,

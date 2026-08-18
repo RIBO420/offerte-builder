@@ -70,6 +70,10 @@ export async function requireAuth(ctx: QueryCtx | MutationCtx) {
 
 /**
  * Get the authenticated user's ID, throwing if not authenticated.
+ *
+ * GEEN tenant-resolver: sinds de org-migratie scopet alle bedrijfsdata op
+ * `orgId`. Alleen persoonlijke paden (het eigen notificatiepostvak) gebruiken
+ * dit nog.
  */
 export async function requireAuthUserId(ctx: QueryCtx | MutationCtx): Promise<Id<"users">> {
   const user = await requireAuth(ctx);
@@ -145,10 +149,10 @@ export async function requireOrg(ctx: QueryCtx | MutationCtx) {
  * De organisatie én de users-rij van de ingelogde gebruiker, in één
  * identity-call.
  *
- * Gebruik dit op schrijfpaden: zolang `userId` verplicht is (tot fase 6) heeft
- * een insert zowel `orgId` als `userId` nodig, en `requireOrg` + `requireAuth`
- * naast elkaar zou de identity- en users-lookup dubbel doen. Leespaden houden
- * het bij `requireOrg`/`requireOrgId` — die hoeven de users-tabel niet te raken.
+ * Gebruik dit waar naast de tenant ook de gebruiker zelf nodig is (een `door`-
+ * of `auteur`-veld, een rolcheck): `requireOrg` + `requireAuth` naast elkaar
+ * zou de identity- en users-lookup dubbel doen. Heb je alleen de tenant nodig,
+ * gebruik dan `requireOrgId` — die raakt de users-tabel niet.
  */
 export async function requireOrgContext(ctx: QueryCtx | MutationCtx) {
   const identity = await ctx.auth.getUserIdentity();
@@ -181,10 +185,11 @@ export async function requireOrgId(
 }
 
 /**
- * Org-variant van verifyOwnership; vervangt die volledig in fase 6.
+ * DE eigendomscheck: een document hoort bij de organisatie uit het JWT.
  *
- * `orgId` is optioneel in het schema zolang de migratie loopt; een document dat
- * het veld (nog) niet heeft, hoort bij niemand en wordt hier geweigerd.
+ * Blijft tolerant getypeerd (`orgId?`) voor de systeemdefault-tabellen, waar
+ * een ontbrekende `orgId` "systeembreed" betekent — zo'n rij hoort bij geen
+ * enkele organisatie en wordt hier dus geweigerd.
  */
 export async function verifyOrgOwnership<
   T extends { orgId?: Id<"organisaties"> },
@@ -199,27 +204,6 @@ export async function verifyOrgOwnership<
 
   const orgId = await requireOrgId(ctx);
   if (!document.orgId || document.orgId.toString() !== orgId.toString()) {
-    throw new AuthError(`Je hebt geen toegang tot deze ${resourceName}`);
-  }
-
-  return document;
-}
-
-/**
- * Verify that a document belongs to the authenticated user.
- * Throws AuthError if the user doesn't own the document.
- */
-export async function verifyOwnership<T extends { userId: Id<"users"> }>(
-  ctx: QueryCtx | MutationCtx,
-  document: T | null,
-  resourceName: string = "resource"
-): Promise<T> {
-  if (!document) {
-    throw new AuthError(`${resourceName} niet gevonden`);
-  }
-
-  const user = await requireAuth(ctx);
-  if (document.userId.toString() !== user._id.toString()) {
     throw new AuthError(`Je hebt geen toegang tot deze ${resourceName}`);
   }
 
