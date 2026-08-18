@@ -562,8 +562,23 @@ describe("users.upsert — uitnodigings-koppeling", () => {
 
     expect(db.byId(medewerkerId)?.clerkUserId).toBe("clerk_uitgenodigd");
     expect(db.byId(medewerkerId)?.uitnodigingStatus).toBe("geaccepteerd");
+    // Leeg werk-e-mailveld wordt gevuld met het geverifieerde token-adres.
+    expect(db.byId(medewerkerId)?.email).toBe("nieuw@toptuinen.nl");
     expect(db.byId(userId)?.linkedMedewerkerId).toBe(medewerkerId);
     expect(db.byId(userId)?.role).toBe("voorman");
+  });
+
+  it("overschrijft een al ingevuld e-mailadres van de medewerker niet", async () => {
+    const medewerkerId = seedMedewerker({ email: "prive@voorbeeld.nl" });
+
+    identity = {
+      subject: "clerk_eigen_adres",
+      email: "nieuw@toptuinen.nl",
+      emailVerified: true,
+    };
+
+    await upsertHandler(ctx, {});
+    expect(db.byId(medewerkerId)?.email).toBe("prive@voorbeeld.nl");
   });
 
   it("valt terug op 'medewerker' als de uitnodiging geen rol draagt", async () => {
@@ -602,20 +617,77 @@ describe("users.upsert — uitnodigings-koppeling", () => {
 
   it("koppelt niet bij een ingetrokken of al geaccepteerde uitnodiging", async () => {
     const ingetrokkenId = seedMedewerker({
-      uitnodigingEmail: "ingetrokken@toptuinen.nl",
+      uitnodigingEmail: "oud-adres@toptuinen.nl",
       uitnodigingStatus: "ingetrokken",
+    });
+    const geaccepteerdId = seedMedewerker({
+      uitnodigingEmail: "oud-adres@toptuinen.nl",
+      uitnodigingStatus: "geaccepteerd",
     });
 
     identity = {
       subject: "clerk_ingetrokken",
-      email: "ingetrokken@toptuinen.nl",
+      email: "oud-adres@toptuinen.nl",
       emailVerified: true,
     };
 
     const userId = await upsertHandler(ctx, {});
 
     expect(db.byId(ingetrokkenId)?.clerkUserId).toBeUndefined();
+    expect(db.byId(geaccepteerdId)?.clerkUserId).toBeUndefined();
     expect(db.byId(userId)?.linkedMedewerkerId).toBeUndefined();
+  });
+
+  it("degradeert een bestaande directie-user niet naar de uitgenodigde rol", async () => {
+    // Een uitnodiging is een instapkaart, geen rolbeheerinstrument: koppelen
+    // gebeurt wél, maar de bestaande (hogere) rol blijft staan.
+    const directieId = seedUser({
+      clerkId: "clerk_directie_uitgenodigd",
+      email: "baas@toptuinen.nl",
+      role: "directie",
+    });
+    const medewerkerId = seedMedewerker({
+      uitnodigingEmail: "baas@toptuinen.nl",
+      uitnodigingRol: "voorman",
+    });
+
+    identity = {
+      subject: "clerk_directie_uitgenodigd",
+      email: "baas@toptuinen.nl",
+      emailVerified: true,
+    };
+
+    const userId = await upsertHandler(ctx, {});
+
+    expect(userId).toBe(directieId);
+    expect(db.byId(directieId)?.role).toBe("directie");
+    expect(db.byId(directieId)?.linkedMedewerkerId).toBe(medewerkerId);
+    expect(db.byId(medewerkerId)?.clerkUserId).toBe("clerk_directie_uitgenodigd");
+    expect(db.byId(medewerkerId)?.uitnodigingStatus).toBe("geaccepteerd");
+  });
+
+  it("laat een ADMIN_EMAILS-promotie niet overschrijven door de uitnodiging", async () => {
+    // De promotie gebeurt in dezelfde aanroep, vlak vóór de koppeling: de
+    // rol-guard moet die verse "directie" al zien.
+    const adminId = seedUser({
+      clerkId: "clerk_admin_invite",
+      email: ADMIN_EMAIL,
+      role: "medewerker",
+    });
+    seedMedewerker({
+      uitnodigingEmail: ADMIN_EMAIL,
+      uitnodigingRol: "voorman",
+    });
+
+    identity = {
+      subject: "clerk_admin_invite",
+      email: ADMIN_EMAIL,
+      emailVerified: true,
+    };
+
+    await upsertHandler(ctx, {});
+    expect(db.byId(adminId)?.role).toBe("directie");
+    expect(db.byId(adminId)?.linkedMedewerkerId).toBeDefined();
   });
 
   it("koppelt ook een bestaande user die later wordt uitgenodigd", async () => {

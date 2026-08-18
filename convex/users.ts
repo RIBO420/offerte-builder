@@ -8,7 +8,7 @@ import {
   isAdminRole,
   getCompanyUserId,
 } from "./roles";
-import { Id } from "./_generated/dataModel";
+import { Doc, Id } from "./_generated/dataModel";
 import { MutationCtx } from "./_generated/server";
 import {
   DEFAULT_NORMUREN,
@@ -21,9 +21,15 @@ import {
 // ============================================
 //
 // Admin users are determined by:
-// 1. First user created in the system is automatically an admin
-// 2. Users with emails matching ADMIN_EMAILS list are automatically admins
-// 3. Existing users can be promoted via makeCurrentUserAdmin() (internal, server-side only)
+// 1. Users with a VERIFIED email matching the ADMIN_EMAILS list below are
+//    automatically promoted to "directie" (both on first login and on later
+//    logins) — zie de upsert-header.
+// 2. Existing users can be promoted via makeCurrentUserAdmin() (internal, server-side only)
+//
+// De oude regel "de eerste user in het systeem wordt automatisch admin" bestaat
+// NIET meer: sinds de Clerk-Organizations-migratie is een nieuwe aanmelding geen
+// tenant-eigenaar meer, maar een kaal account dat via org-lidmaatschap (en
+// eventueel een uitnodiging) toegang krijgt.
 //
 // To add more admin emails, add them to this list:
 const ADMIN_EMAILS: string[] = [
@@ -250,6 +256,10 @@ export const upsert = mutation({
       await koppelOpenstaandeUitnodiging(ctx, {
         userId: existing._id,
         alGekoppeld: existing.linkedMedewerkerId !== undefined,
+        // De rol ná het patch-blok hierboven: een zojuist toegekende
+        // ADMIN_EMAILS-promotie telt mee, anders zou de uitnodiging hem in
+        // dezelfde aanroep weer overschrijven.
+        huidigeRol: (updates.role as Doc<"users">["role"]) ?? existing.role,
         clerkId,
         emailClaim,
         emailBruikbaar,
@@ -282,6 +292,7 @@ export const upsert = mutation({
     await koppelOpenstaandeUitnodiging(ctx, {
       userId,
       alGekoppeld: false,
+      huidigeRol: role,
       clerkId,
       emailClaim,
       emailBruikbaar,
@@ -308,22 +319,46 @@ export const upsert = mutation({
  *      herbinding van een bestaand, al gekoppeld account.
  * De uitnodiging is dus een eenmalig, door de beheerder gezet lootje.
  *
+ * ROL-OVERNAME IS EENRICHTINGSVERKEER (geen downgrade). De uitgenodigde rol wordt
+ * alleen overgenomen als de user nog op de default "medewerker" staat (of nog géén
+ * rol heeft). Een bestaande `directie`/`projectleider`/`voorman` behoudt zijn rol,
+ * ook als iemand hem per ongeluk met een lagere rol uitnodigt — een uitnodiging is
+ * een instapkaart, geen rolbeheerinstrument. Rollen wijzigen doe je bewust via
+ * `setUserRole`. Dit voorkomt óók de ADMIN_EMAILS-flikkering: de directie-promotie
+ * een paar regels hierboven werd anders in dezelfde sessie weer overschreven.
+ * De koppeling (clerkUserId + linkedMedewerkerId + status) gebeurt wél gewoon.
+ *
  * CLAUDE.md regel 4: `uitnodigingEmail` is optioneel, en `q.eq(veld, undefined)`
  * zou álle medewerkers zonder dat veld matchen. Daarom staat de hele query
  * binnen de `emailBruikbaar`-guard: binnen die guard is `emailClaim` gegarandeerd
  * een niet-lege, genormaliseerde string.
+ *
+ * `.first()` EN DUBBELE UITNODIGINGEN: het schema dwingt geen uniciteit af op
+ * `uitnodigingEmail`, dus twee openstaande uitnodigingen op één adres zijn
+ * technisch mogelijk. Hier is `.first()` bewust — géén `.unique()`, want dat zou
+ * élke login van dat adres hard laten falen, en dat is een slechtere uitkomst dan
+ * één koppeling. De verliezer blijft op "uitgenodigd" staan (uithongering) tot een
+ * beheerder hem intrekt; hij wordt nooit stilzwijgend aan iemand anders gekoppeld.
+ * Dit is niet het nondeterminisme dat de upsert-header veroordeelt — daar kon de
+ * insertievolgorde bepalen welk BESTAAND account met welke rol werd overgenomen;
+ * hier gaat het om twee verse uitnodigingen die de beheerder zelf heeft gezet, en
+ * de rol-guard hierboven zorgt dat de uitkomst nooit rechten wegneemt. De echte
+ * oplossing zit aan de verzendkant: het Team-scherm dwingt uniciteit af bij het
+ * versturen (plan Task 4.2).
  */
 async function koppelOpenstaandeUitnodiging(
   ctx: MutationCtx,
   opties: {
     userId: Id<"users">;
     alGekoppeld: boolean;
+    huidigeRol: Doc<"users">["role"];
     clerkId: string;
     emailClaim: string;
     emailBruikbaar: boolean;
   }
 ) {
-  const { userId, alGekoppeld, clerkId, emailClaim, emailBruikbaar } = opties;
+  const { userId, alGekoppeld, huidigeRol, clerkId, emailClaim, emailBruikbaar } =
+    opties;
 
   if (!emailBruikbaar || alGekoppeld) return;
 
@@ -337,15 +372,28 @@ async function koppelOpenstaandeUitnodiging(
 
   if (!uitgenodigde || uitgenodigde.clerkUserId) return;
 
-  await ctx.db.patch(uitgenodigde._id, {
+  // Het geverifieerde token-adres is het adres waarop is uitgenodigd; staat het
+  // werk-e-mailveld van de medewerker nog leeg, dan vullen we het meteen. Een
+  // bestaande waarde blijft staan: die kan bewust afwijken (privé vs. werk) en
+  // wordt elders (mail-triggers, klantdossier) gebruikt.
+  const medewerkerPatch: Partial<Doc<"medewerkers">> = {
     clerkUserId: clerkId,
     uitnodigingStatus: "geaccepteerd",
-  });
+  };
+  if (!uitgenodigde.email) {
+    medewerkerPatch.email = emailClaim;
+  }
+  await ctx.db.patch(uitgenodigde._id, medewerkerPatch);
 
-  await ctx.db.patch(userId, {
+  // Rol alleen overnemen als er nog niets te verliezen valt — zie de comment
+  // hierboven over eenrichtingsverkeer.
+  const userPatch: Partial<Doc<"users">> = {
     linkedMedewerkerId: uitgenodigde._id,
-    role: uitgenodigde.uitnodigingRol ?? "medewerker",
-  });
+  };
+  if (huidigeRol === undefined || huidigeRol === "medewerker") {
+    userPatch.role = uitgenodigde.uitnodigingRol ?? "medewerker";
+  }
+  await ctx.db.patch(userId, userPatch);
 }
 
 // Update authenticated user's profile
