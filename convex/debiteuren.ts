@@ -454,6 +454,8 @@ async function verwerkMailTrede(
   // (bv. crash tussen twee writes) — dan alleen het record herstellen.
   await ctx.db.insert("betalingsherinneringen", {
     factuurId: factuur._id,
+    // De cron heeft geen identity: de tenant komt van de factuur.
+    orgId: factuur.orgId,
     userId: factuur.userId,
     type: tredeRecordType(trede),
     volgnummer: 1,
@@ -516,6 +518,9 @@ async function verwerkTaakTrede(
   )} openstaand) is ${dagen} dagen na verzending nog niet betaald.`;
 
   const meldingId = await ctx.db.insert("servicemeldingen", {
+    // Zonder orgId valt deze debiteurentaak buiten het org-gescoopte
+    // cases-bord en ziet kantoor hem nooit staan.
+    orgId: factuur.orgId,
     userId: factuur.userId,
     klantId: factuur.klantId,
     beschrijving: tekst,
@@ -539,6 +544,7 @@ async function verwerkTaakTrede(
 
   await ctx.db.insert("betalingsherinneringen", {
     factuurId: factuur._id,
+    orgId: factuur.orgId,
     userId: factuur.userId,
     type: "interne_taak",
     volgnummer: 1,

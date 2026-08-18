@@ -423,6 +423,22 @@ describe("verwerkLadder — mail-treden (§2.7 concept-wachtrij)", () => {
     expect(store.getAll("betalingsherinneringen")).toHaveLength(0);
   });
 
+  it("ladder-records en concept-mail dragen de orgId van de factuur", async () => {
+    const { ctx, store, userId, orgId, klantId } = kantoorMetKlant();
+    insertTrigger(store, "betalingsherinnering_1");
+    insertFactuur(store, userId, klantId, 15);
+
+    await runLadder()(ctx, {});
+
+    // Zonder orgId op het record valt de herinnering buiten de org-gescoopte
+    // leeskant (listByFactuur/getAanmaningStatus) en telt de ladder hem niet
+    // meer als afgedekte trede.
+    const records = store.getAll("betalingsherinneringen");
+    expect(records).toHaveLength(1);
+    expect(records[0].orgId).toBe(orgId);
+    expect(store.getAll("conceptMails")[0].orgId).toBe(orgId);
+  });
+
   it("deelbetaling verandert de ladder niet; volledige betaling stopt hem", async () => {
     const { ctx, store, userId, klantId } = kantoorMetKlant();
     insertTrigger(store, "betalingsherinnering_1");
@@ -476,7 +492,7 @@ describe("verwerkLadder — mail-treden (§2.7 concept-wachtrij)", () => {
 
 describe("verwerkLadder — trede 3 kantoortaak (cases-bord)", () => {
   it("dag 29 met trede 1+2 afgedekt → debiteurentaak, idempotent", async () => {
-    const { ctx, store, userId, klantId } = kantoorMetKlant();
+    const { ctx, store, userId, orgId, klantId } = kantoorMetKlant();
     const factuurId = insertFactuur(store, userId, klantId, 29);
     for (const trede of [1, 2]) {
       store.insert("betalingsherinneringen", {
@@ -504,10 +520,16 @@ describe("verwerkLadder — trede 3 kantoortaak (cases-bord)", () => {
     expect(taken[0].attenderingSleutel).toBe(
       debiteurSleutel(factuurId, 3)
     );
+    // De cron draait zonder identity: de taak moet de tenant van de factuur
+    // meekrijgen, anders valt hij buiten het org-gescoopte cases-bord en ziet
+    // kantoor hem nooit staan.
+    expect(taken[0].orgId).toBe(orgId);
 
     // Record + tijdlijn + systeem-comment in de case-thread
     const records = store.getAll("betalingsherinneringen");
-    expect(records.filter((r) => r.type === "interne_taak")).toHaveLength(1);
+    const taakRecords = records.filter((r) => r.type === "interne_taak");
+    expect(taakRecords).toHaveLength(1);
+    expect(taakRecords[0].orgId).toBe(orgId);
     expect(
       store
         .getAll("klantTijdlijn")
