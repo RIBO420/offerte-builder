@@ -11,6 +11,8 @@ import type { BreadcrumbItem } from "@/components/ui/smart-breadcrumb";
 const ROUTE_LABELS: Record<string, string> = {
   // Sidebar: Werk
   dashboard: "Dashboard",
+  "mijn-dag": "Mijn dag",
+  veld: "Veld",
   klanten: "Klanten",
   projecten: "Projecten",
   planning: "Planning",

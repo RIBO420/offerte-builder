@@ -47,7 +47,10 @@ export function PageHeader({
   children,
 }: PageHeaderProps) {
   return (
-    <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+    // Geen eigen balk met onderrand meer: de kruimels zijn een bescheiden
+    // regel die met de pagina meeloopt, direct boven de paginatitel. Zo
+    // verdwijnt de lege 64px-strook en leest kruimelpad + titel als één kop.
+    <header className="flex shrink-0 items-center gap-2 px-4 pt-3 md:px-8 md:pt-5">
       {/* Op desktop klapt de balk uit bij hover (vastzetten kan met Cmd+B),
           dus daar is de knop overbodig; op mobiel is hij de enige manier om
           het menu (de Sheet) te openen en blijft hij staan. */}
