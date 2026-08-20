@@ -82,8 +82,6 @@ export type VerrijkteTaak = Omit<KlantTaak, "status"> & {
   reactieCount: number;
   klantNaam: string;
   werkitemNaam?: string;
-  /** DEPRECATED (v1-UI): naam van de maker. Vervalt met fase 2. */
-  toegewezenAanNaam?: string;
 };
 
 // ============================================
@@ -199,31 +197,6 @@ async function valideerPersoon(
   return userId;
 }
 
-/**
- * DEPRECATED-brug (v1-UI): een medewerkerstoewijzing vertalen naar het account
- * dat erbij hoort, zodat de oude dossierkaart blijft werken tot fase 2 hem
- * vervangt. Geen match → geen maker; liever leeg dan de verkeerde naam.
- */
-async function makerVanMedewerker(
-  ctx: MutationCtx,
-  medewerkerId: Id<"medewerkers"> | null | undefined,
-  orgId: Id<"organisaties">
-): Promise<Id<"users"> | undefined> {
-  if (!medewerkerId) return undefined;
-  const medewerker = await ctx.db.get(medewerkerId);
-  if (!medewerker || medewerker.orgId?.toString() !== orgId.toString()) {
-    throw new ConvexError("Medewerker niet gevonden");
-  }
-  // Convex-regel 4: `clerkUserId` is optioneel — nooit ongeguard de index in.
-  const clerkUserId = medewerker.clerkUserId;
-  if (!clerkUserId) return undefined;
-  const user = await ctx.db
-    .query("users")
-    .withIndex("by_clerk_id", (q) => q.eq("clerkId", clerkUserId))
-    .unique();
-  return user?._id;
-}
-
 async function valideerWerkitem(
   ctx: MutationCtx,
   werkitemId: Id<"projecten"> | undefined,
@@ -308,14 +281,13 @@ async function verrijkTaken(
   };
 
   return taken.map((taak, i) => {
-    const maker = persoon(taak.makerId);
     return {
       ...taak,
       status: normaliseerStatus(taak.status),
       stilDagen: stilDagen(taak.laatsteBewegingOp, taak._creationTime, nu),
       over: isOver(taak.deadline, taak.status, vandaag),
       ai: taak.bronTijdlijnId !== undefined,
-      maker,
+      maker: persoon(taak.makerId),
       checker: persoon(taak.checkerId),
       uitzetter: persoon(taak.uitgezetDoorId),
       ...telSubtaken(taak.subtaken),
@@ -324,7 +296,6 @@ async function verrijkTaken(
       werkitemNaam: taak.werkitemId
         ? werkitemMap.get(taak.werkitemId.toString())?.naam
         : undefined,
-      toegewezenAanNaam: maker?.naam,
     };
   });
 }
@@ -502,15 +473,11 @@ export const create = mutation({
     makerId: v.optional(v.id("users")),
     checkerId: v.optional(v.id("users")),
     werkitemId: v.optional(v.id("projecten")),
-    /** DEPRECATED (v1-UI): wordt vertaald naar `makerId`. Vervalt met fase 2. */
-    toegewezenAanId: v.optional(v.id("medewerkers")),
   },
   handler: async (ctx, args): Promise<Id<"klantTaken">> => {
     const user = await requireInterneRol(ctx);
     const { orgId } = await getKlantBinnenBedrijf(ctx, args.klantId);
-    const makerId =
-      (await valideerPersoon(ctx, args.makerId, orgId, "maker")) ??
-      (await makerVanMedewerker(ctx, args.toegewezenAanId, orgId));
+    const makerId = await valideerPersoon(ctx, args.makerId, orgId, "maker");
     const checkerId = await valideerPersoon(
       ctx,
       args.checkerId,
@@ -550,8 +517,6 @@ export const update = mutation({
     deadline: v.optional(v.string()),
     subtaken: v.optional(v.array(subtaakValidator)),
     werkitemId: v.optional(v.union(v.id("projecten"), v.null())),
-    /** DEPRECATED (v1-UI): wordt vertaald naar `makerId`. Vervalt met fase 2. */
-    toegewezenAanId: v.optional(v.union(v.id("medewerkers"), v.null())),
   },
   handler: async (ctx, args): Promise<{ success: boolean }> => {
     await requireInterneRol(ctx);
@@ -574,11 +539,6 @@ export const update = mutation({
       const werkitemId = args.werkitemId ?? undefined;
       await valideerWerkitem(ctx, werkitemId, orgId);
       patch.werkitemId = werkitemId;
-    }
-    if (args.toegewezenAanId !== undefined) {
-      // Toewijzen is een beweging, ook via de oude weg.
-      patch.makerId = await makerVanMedewerker(ctx, args.toegewezenAanId, orgId);
-      Object.assign(patch, bewegingPatch());
     }
 
     await ctx.db.patch(args.taakId, patch);

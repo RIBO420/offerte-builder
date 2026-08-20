@@ -87,8 +87,15 @@ const TAAK = {
   klantId: "k1",
   klantNaam: "Ger Hermans",
   prioriteit: "normaal",
-  status: "open",
+  status: "todo",
   deadline: undefined,
+  // Taakmodel v2: de kit leest deze afleidingen mee (tags en avatars).
+  maker: null,
+  checker: null,
+  ai: false,
+  subtakenKlaar: 0,
+  subtakenTotaal: 0,
+  reactieCount: 0,
 };
 
 async function toonBlok(taken: unknown) {
@@ -189,7 +196,7 @@ describe("Mijn taken: de klantkiezer", () => {
 });
 
 describe("Mijn taken: een taak toevoegen", () => {
-  it("slaat op bij de gekozen klant, op naam van de ingelogde medewerker", async () => {
+  it("slaat op bij de gekozen klant, op naam van het ingelogde account", async () => {
     const gebruiker = userEvent.setup();
     await toonBlok([]);
 
@@ -221,7 +228,9 @@ describe("Mijn taken: een taak toevoegen", () => {
       titel: "Offerte narekenen",
       prioriteit: "normaal",
       deadline: undefined,
-      toegewezenAanId: "m1",
+      // Taakmodel v2: de taak komt op je ACCOUNT te staan (maker), niet op een
+      // medewerkersrij — kantoor en directie hebben die vaak niet.
+      makerId: "u1",
     });
     expect(toastGoed).toHaveBeenCalledWith("Taak toegevoegd");
   });

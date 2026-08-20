@@ -3855,7 +3855,8 @@ export default defineSchema({
     laatsteBewegingOp: v.number(),
     // DEPRECATED (v2): de oude medewerkers-toewijzing. De migratie zet hem om
     // naar `makerId` en maakt hem leeg; het veld blijft staan zodat er geen
-    // dataverlies is en oude rijen valideren.
+    // dataverlies is en oude rijen valideren. Sinds fase 2 (de taken-UI-kit)
+    // schrijft geen enkele mutation hem nog: de brug in `klantTaken.ts` is weg.
     toegewezenAanId: v.optional(v.id("medewerkers")),
     // Optionele koppeling met een werkitem ("over welke klus?")
     werkitemId: v.optional(v.id("projecten")),

@@ -186,11 +186,14 @@ function KlantKiezer({
  * het dashboard staat die klant niet vast. De strip krijgt daarom een compacte
  * klantkiezer, en zonder klant kun je niet opslaan.
  *
- * Tweede keuze: de taak komt op jóuw naam. Dit blok heet "Mijn taken" — wie
- * hier iets invoert, voert het voor zichzelf in. Toewijzen aan een collega
- * blijft op het klantdossier, waar de hele ploeg in de keuzelijst staat.
- * (Zonder gekoppeld medewerkerprofiel — kantoor — blijft de taak onverdeeld;
- * `klantTaken.mijnTaken` toont die gebruiker toch alle open taken.)
+ * Tweede keuze: de taak komt op jóuw naam — je wordt de **maker**. Dit blok
+ * heet "Mijn taken": wie hier iets invoert, voert het voor zichzelf in. Wie het
+ * maakt of checkt kies je op de taakkaart zelf (klantdossier of Mijn dag),
+ * waar de hele ploeg in de keuzelijst staat.
+ *
+ * Sinds taakmodel v2 hangt dat aan het ACCOUNT (`makerId` → `users`), niet aan
+ * een `medewerkers`-rij. Kantoor en directie hebben die rij vaak niet, en hun
+ * taken kwamen daardoor onverdeeld binnen.
  */
 export function DagstaatTaakComposer({
   metScheiding,
@@ -245,7 +248,7 @@ export function DagstaatTaakComposer({
         titel: titel.trim(),
         prioriteit,
         deadline: deadline || undefined,
-        toegewezenAanId: user?.linkedMedewerkerId ?? undefined,
+        makerId: user?._id ?? undefined,
       });
       showSuccessToast("Taak toegevoegd");
       // Klant blijft staan: twee taken voor dezelfde klant achter elkaar

@@ -3,15 +3,16 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useMutation, useQuery } from "convex/react";
-import { CalendarClock, ListTodo } from "lucide-react";
+import { ListTodo } from "lucide-react";
 import { TaakCheckbox } from "@/components/taken/taak-checkbox";
+import { PersoonAvatar } from "@/components/taken/persoon-avatar";
+import { TaakTags } from "@/components/taken/taak-tags";
 import { SectiePaneel } from "@/components/ui/sectie-paneel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DagstaatTaakComposer } from "@/components/dashboard/taak-composer";
-import { cn } from "@/lib/utils";
 import { showErrorToast } from "@/lib/toast-utils";
-import { api } from "../../../convex/_generated/api";
-import { Id } from "../../../convex/_generated/dataModel";
+import { api } from "@convex/_generated/api";
+import type { Id } from "@convex/_generated/dataModel";
 
 const STANDAARD_ZICHTBAAR = 5;
 
@@ -24,39 +25,26 @@ export function useMijnTaken() {
   return useQuery(api.klantTaken.mijnTaken, { limit: 25 });
 }
 
-function vandaagISO(): string {
-  const nu = new Date();
-  const maand = `${nu.getMonth() + 1}`.padStart(2, "0");
-  const dag = `${nu.getDate()}`.padStart(2, "0");
-  return `${nu.getFullYear()}-${maand}-${dag}`;
-}
-
-function formatDeadline(deadline: string): string {
-  const [jaar, maand, dag] = deadline.split("-").map(Number);
-  return new Intl.DateTimeFormat("nl-NL", {
-    day: "numeric",
-    month: "short",
-  }).format(new Date(jaar, maand - 1, dag));
-}
-
 /**
- * "Mijn taken": openstaande klanttaken van de ingelogde medewerker (kantoor
- * zonder gekoppeld medewerkerprofiel ziet alle open taken van het bedrijf —
- * zie `klantTaken.mijnTaken`).
+ * "Mijn taken" op de dagstaat: de taken waar ík aan zit.
  *
- * Gewicht `primair`, net als op het klantdossier: taken zijn werkstroom, geen
- * naslag. Het warme anker houdt "Aandacht nodig" ernaast wél het zwaarste blok.
+ * **"Van mij" betekent sinds taakmodel v2: maker óf checker = ik** — de scope
+ * hangt aan het account, niet aan een `medewerkers`-rij. Dat repareert de
+ * stille v1-bug waarin kantoor en directie (die vaak geen medewerkersrij
+ * hebben) hier álle openstaande taken van het bedrijf zagen onder de kop "Mijn
+ * taken". Het filter zit in `klantTaken.mijnTaken`; dit paneel toont wat het
+ * teruggeeft.
  *
- * De eerste regel is de composer, óók zonder taken. Een lijst die je alleen
- * elders kunt vullen is een dood blok: er stond "Geen open taken" en verder
- * niets te doen. Nu is de lege staat één regel ("Nog geen taken — voeg de
- * eerste toe.") mét de composer eronder, dus de reden dat je hier kijkt is
- * ook de reden dat je hier iets kunt.
+ * Voor het echte dagwerk — slepen, herinneren, reacties — linkt de voetregel
+ * door naar het werkbord `/mijn-dag`. Dit blok is de blik erop, niet de
+ * werkplek.
+ *
+ * De eerste regel is de composer, óók zonder taken: een lijst die je alleen
+ * elders kunt vullen is een dood blok.
  *
  * `verbergAlsLeeg` is de default, zodat de medewerkerpagina (een enkele kolom
- * kaarten) niet volloopt met lege dozen; daar begint het blok dus pas te
- * bestaan zodra er een taak is. De dagstaat zet hem uit: daar is een gat in
- * het raster erger dan één lege regel.
+ * kaarten) niet volloopt met lege dozen; de dagstaat zet hem uit, want daar is
+ * een gat in het raster erger dan één lege regel.
  */
 export function MijnTaken({
   verbergAlsLeeg = true,
@@ -95,7 +83,15 @@ export function MijnTaken({
       icoon={<ListTodo />}
       telling={lijst.length}
       gewicht="primair"
-      uitleg="Openstaande taken die aan jou zijn toegewezen. Wat je hier toevoegt komt op jouw naam en bij de gekozen klant te staan; toewijzen aan een collega doe je op het klantdossier. Enter slaat direct op."
+      uitleg="Taken waar jij aan zit: je maakt ze, of je checkt ze voor verzending. Wat je hier toevoegt komt op jouw naam en bij de gekozen klant te staan; wie het checkt kies je op de taakkaart in het klantdossier of op Mijn dag."
+      acties={
+        <Link
+          href="/mijn-dag"
+          className="rounded text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          Naar Mijn dag &rarr;
+        </Link>
+      }
       legeRegel={
         leeg
           ? { tekst: "Nog geen taken", hint: "— voeg de eerste toe." }
@@ -116,55 +112,38 @@ export function MijnTaken({
       )}
 
       <ul className="divide-y divide-border/60">
-        {zichtbaar.map((taak) => {
-          const isTeLaat = taak.deadline && taak.deadline < vandaagISO();
-          return (
-            <li key={taak._id} className="flex items-center gap-2.5 px-3 py-1.5">
-              <TaakCheckbox
-                className="shrink-0"
-                checked={false}
-                disabled={bezigMet === taak._id}
-                onCheckedChange={() => handleAfronden(taak._id)}
-                aria-label={`Taak ${taak.titel} afronden`}
-              />
-              <div className="min-w-0 flex-1 @[24rem]/sectie:flex @[24rem]/sectie:items-baseline @[24rem]/sectie:gap-2">
-                <p
-                  className="truncate text-[13px] leading-5 font-medium @[24rem]/sectie:max-w-[60%] @[24rem]/sectie:shrink-0"
-                  title={taak.titel}
+        {zichtbaar.map((taak) => (
+          <li key={taak._id} className="flex items-start gap-2.5 px-3 py-1.5">
+            <TaakCheckbox
+              wrapperClassName="mt-0.5"
+              checked={false}
+              disabled={bezigMet === taak._id}
+              onCheckedChange={() => handleAfronden(taak._id)}
+              aria-label={`Taak ${taak.titel} afronden`}
+            />
+            <div className="min-w-0 flex-1">
+              <p
+                className="truncate text-[13px] font-medium leading-5"
+                title={taak.titel}
+              >
+                {taak.titel}
+              </p>
+              <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs leading-4 text-muted-foreground">
+                <Link
+                  href={`/klanten/${taak.klantId}`}
+                  className="truncate hover:underline"
                 >
-                  {taak.titel}
-                </p>
-                <div className="flex min-w-0 items-center gap-2 text-xs leading-4 text-muted-foreground @[24rem]/sectie:leading-5">
-                  {taak.klantNaam && (
-                    <Link
-                      href={`/klanten/${taak.klantId}`}
-                      className="truncate hover:underline"
-                    >
-                      {taak.klantNaam}
-                    </Link>
-                  )}
-                  {taak.deadline && (
-                    <span
-                      className={cn(
-                        "flex shrink-0 items-center gap-1 tabular-nums",
-                        isTeLaat && "font-medium text-status-vervallen-text"
-                      )}
-                    >
-                      <CalendarClock className="size-3" aria-hidden="true" />
-                      {formatDeadline(taak.deadline)}
-                      {isTeLaat && " · te laat"}
-                    </span>
-                  )}
-                </div>
+                  {taak.klantNaam}
+                </Link>
+                <TaakTags taak={taak} />
               </div>
-              {taak.prioriteit === "hoog" && (
-                <span className="shrink-0 rounded bg-accent-warm/15 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-foreground uppercase">
-                  hoog
-                </span>
-              )}
-            </li>
-          );
-        })}
+            </div>
+            <span className="mt-0.5 flex shrink-0 items-center gap-1">
+              <PersoonAvatar persoon={taak.maker} rol="maker" />
+              <PersoonAvatar persoon={taak.checker} rol="checker" />
+            </span>
+          </li>
+        ))}
       </ul>
       {lijst.length > STANDAARD_ZICHTBAAR && (
         <button
