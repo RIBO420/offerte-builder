@@ -3823,27 +3823,11 @@ export default defineSchema({
     // ── TAAKMODEL v2: STATUS ───────────────────────────────────────────────
     // v2 kent vier statussen (todo | bezig | check | klaar). "check" is een
     // échte status ("Wacht op check", harde klanteis 7), geen label.
-    //
-    // TIJDELIJK TOLERANT (fase 1.1 van het v13-plan): de twee legacy-waarden
-    // staan er alleen bij zodat de schema-push kan slagen op bestaande data.
-    // `convex/migrations/taakmodelV2.ts:migreer` zet ze om (open→todo,
-    // afgerond→klaar). Zodra die migratie op dev én prod gedraaid is, gaat de
-    // union terug naar de vier v2-waarden:
-    //
-    //   STRAKKE VARIANT (na de migratie — vervang de union hieronder hiermee):
-    //     status: v.union(
-    //       v.literal("todo"),
-    //       v.literal("bezig"),
-    //       v.literal("check"),
-    //       v.literal("klaar")
-    //     ),
     status: v.union(
       v.literal("todo"),
       v.literal("bezig"),
       v.literal("check"),
-      v.literal("klaar"),
-      v.literal("open"), // LEGACY — weg na migrations/taakmodelV2:migreer
-      v.literal("afgerond") // LEGACY — weg na migrations/taakmodelV2:migreer
+      v.literal("klaar")
     ),
     prioriteit: v.union(
       v.literal("laag"),
@@ -3868,11 +3852,7 @@ export default defineSchema({
     // Stilstandmeter (ms). ÉLKE status-, toewijzings- of overdrachtsmutatie
     // zet dit op Date.now(); "Dit blijft liggen" telt hierop. Bewust niet
     // `updatedAt`: een titelcorrectie is geen beweging op de taak.
-    //
-    // OPTIONEEL tot de migratie geweest is (bestaande rijen hebben het veld
-    // niet en een verplicht veld laat de push falen). STRAKKE VARIANT na
-    // `migrations/taakmodelV2:migreer`:  laatsteBewegingOp: v.number(),
-    laatsteBewegingOp: v.optional(v.number()),
+    laatsteBewegingOp: v.number(),
     // DEPRECATED (v2): de oude medewerkers-toewijzing. De migratie zet hem om
     // naar `makerId` en maakt hem leeg; het veld blijft staan zodat er geen
     // dataverlies is en oude rijen valideren.
