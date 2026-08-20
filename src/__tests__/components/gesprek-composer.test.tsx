@@ -127,7 +127,9 @@ describe("GesprekComposer: de analyse stelt voor, de gebruiker beslist", () => {
       taken: [
         { titel: "Terugbellen over ontwerp", deadline: "2026-08-25", confidence: 0.9 },
         { titel: "Offerte vlonder versturen", deadline: null, confidence: 0.8 },
-        // Onder de drempel van 0,6: staat standaard uit en mag niet meegaan.
+        // Onder 0,6: krijgt het merkje "onzeker", maar staat — net als de rest
+        // — standaard AAN (inventaris §A4). Een voorstel dat standaard uitstaat
+        // wordt zelden alsnog aangeklikt.
         { titel: "Foto's nasturen", deadline: null, confidence: 0.3 },
       ],
     });
@@ -140,9 +142,12 @@ describe("GesprekComposer: de analyse stelt voor, de gebruiker beslist", () => {
     const zeker = screen.getByRole("checkbox", { name: "Terugbellen over ontwerp" });
     const twijfel = screen.getByRole("checkbox", { name: "Foto's nasturen" });
     expect(zeker).toBeChecked();
-    expect(twijfel).not.toBeChecked();
+    expect(twijfel).toBeChecked();
+    // Het onzekere voorstel is als zodanig gemarkeerd, en alleen dat ene.
+    expect(screen.getAllByText("onzeker")).toHaveLength(1);
 
-    // Eén zekere eruit vinken: hij mag daarna niet meer in de mutation zitten.
+    // Twee eruit vinken: die mogen daarna niet meer in de mutation zitten.
+    await user.click(twijfel);
     await user.click(screen.getByRole("checkbox", { name: "Offerte vlonder versturen" }));
 
     await user.click(

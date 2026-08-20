@@ -348,6 +348,52 @@ export const setInplanBevestigingsMail = mutation({
   },
 });
 
+/**
+ * De twee toestemmingsvlaggen uit de dossier-tab Instellingen (v13 §A8).
+ *
+ * Bewust een eigen mutation naast `setInplanBevestigingsMail` hierboven: die
+ * schrijft het óudere veld `inplanBevestigingsMail`, waar de mailtrigger in
+ * `werkitems.ts` op leest. De dossier-tab bedient de v13-velden
+ * (`bevestigingsmailBijInplannen`, `opnameToestemming`); samenvoegen van de
+ * twee velden is een migratiebeslissing, geen UI-beslissing.
+ *
+ * `opnameToestemming` zet NOOIT de meldplicht opzij (harde eis 3): de
+ * gesprekscomposer blijft de meldingsstap tonen en voegt alleen de notitie
+ * "Mondelinge toestemming eerder vastgelegd" toe.
+ *
+ * Beide argumenten zijn optioneel zodat één schakelaar de andere niet
+ * overschrijft; org-scope en rolcheck lopen via `requireNotViewer` +
+ * `getOwnedKlant` (klantaccounts hebben hier niets te zoeken).
+ */
+export const setDossierToestemmingen = mutation({
+  args: {
+    id: v.id("klanten"),
+    bevestigingsmailBijInplannen: v.optional(v.boolean()),
+    opnameToestemming: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
+    await getOwnedKlant(ctx, args.id);
+
+    const patch: {
+      bevestigingsmailBijInplannen?: boolean;
+      opnameToestemming?: boolean;
+    } = {};
+    if (args.bevestigingsmailBijInplannen !== undefined) {
+      patch.bevestigingsmailBijInplannen = args.bevestigingsmailBijInplannen;
+    }
+    if (args.opnameToestemming !== undefined) {
+      patch.opnameToestemming = args.opnameToestemming;
+    }
+    // Niets meegegeven = niets te doen; wél een lege patch schrijven zou
+    // alleen `updatedAt` verzetten en de klant onterecht "gewijzigd" maken.
+    if (Object.keys(patch).length === 0) return args.id;
+
+    await ctx.db.patch(args.id, { ...patch, updatedAt: Date.now() });
+    return args.id;
+  },
+});
+
 // Delete a klant
 export const remove = mutation({
   args: { id: v.id("klanten") },

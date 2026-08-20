@@ -41,6 +41,7 @@ import {
   Mail,
   Mic,
   Phone,
+  ShieldCheck,
   Sparkles,
   Square,
   StickyNote,
@@ -94,8 +95,16 @@ const NAAR_TIJDLIJN: Record<
 /** Hoe lang de gebruiker maximaal op de analyse wacht voor we doorpakken. */
 const ANALYSE_TIMEOUT_MS = 8000;
 
-/** Vanaf deze zekerheid staat een voorstel standaard aangevinkt. */
-const DREMPEL_AANGEVINKT = 0.6;
+/**
+ * Onder deze zekerheid krijgt een voorstel het merkje "onzeker".
+ *
+ * Aan/uit is het NIET: elk voorstel staat standaard aangevinkt (inventaris
+ * §A4). Een voorstel dat standaard uitstaat wordt namelijk zelden alsnog
+ * aangeklikt, en dan is de taak die de AI wél goed zag stilletjes verdwenen.
+ * De gebruiker beslist (harde eis 1) — dit merkje vertelt hem alleen wáár hij
+ * beter twee keer kijkt.
+ */
+const DREMPEL_ONZEKER = 0.6;
 
 /** De zin die de klant te horen krijgt vóór er ook maar iets opneemt. */
 const MELDINGSZIN =
@@ -138,7 +147,22 @@ function takenZin(aantal: number): string {
   return `Gesprek vastgelegd, ${aantal} ${aantal === 1 ? "taak" : "taken"} aangemaakt`;
 }
 
-export function GesprekComposer({ klantId }: { klantId: Id<"klanten"> }) {
+export function GesprekComposer({
+  klantId,
+  opnameToestemming = false,
+}: {
+  klantId: Id<"klanten">;
+  /**
+   * De klant heeft eerder mondeling toestemming gegeven voor opnemen (vlag uit
+   * de dossier-instellingen, v13 §A8).
+   *
+   * Dit verandert NIETS aan de flow: de meldingsstap blijft altijd staan en de
+   * opname start pas na "Melding gedaan, start opname" (harde eis 3). Het
+   * voegt alleen een regel toe naast de notice — je weet dan dat je het niet
+   * opnieuw hoeft uit te leggen, maar je zegt het nog steeds.
+   */
+  opnameToestemming?: boolean;
+}) {
   const analyseer = useAction(api.gesprekAnalyse.analyseer);
   const transcribeer = useAction(api.transcriptie.transcribeer);
   const legVast = useMutation(api.tijdlijn.legGesprekVast);
@@ -286,7 +310,7 @@ export function GesprekComposer({ klantId }: { klantId: Id<"klanten"> }) {
     }
 
     setVoorstellen(uitkomst.taken);
-    setAangevinkt(uitkomst.taken.map((t) => t.confidence >= DREMPEL_AANGEVINKT));
+    setAangevinkt(uitkomst.taken.map(() => true));
     setFase("voorstellen");
   };
 
@@ -378,7 +402,7 @@ export function GesprekComposer({ klantId }: { klantId: Id<"klanten"> }) {
     }
 
     setVoorstellen(uitkomst.taken);
-    setAangevinkt(uitkomst.taken.map((t) => t.confidence >= DREMPEL_AANGEVINKT));
+    setAangevinkt(uitkomst.taken.map(() => true));
     setFase("voorstellen");
   };
 
@@ -584,6 +608,17 @@ export function GesprekComposer({ klantId }: { klantId: Id<"klanten"> }) {
               </p>
             </div>
 
+            {/* De vlag uit de dossier-instellingen scheelt uitleg, geen stap:
+                de notice hierboven blijft staan en de opname start nog steeds
+                pas na de bevestiging (harde eis 3). */}
+            {opnameToestemming && (
+              <p className="mt-1.5 flex items-start gap-1.5 text-[11px] leading-tight text-muted-foreground">
+                <ShieldCheck className="mt-px size-3.5 shrink-0" aria-hidden />
+                Mondelinge toestemming eerder vastgelegd — meld het gesprek toch
+                even.
+              </p>
+            )}
+
             {opnameFase === "melding" && (
               <div className="mt-2.5 flex flex-wrap items-center gap-2">
                 <Button
@@ -693,6 +728,14 @@ export function GesprekComposer({ klantId }: { klantId: Id<"klanten"> }) {
                       <span className="min-w-0 flex-1 truncate text-[13px] leading-snug">
                         {voorstel.titel}
                       </span>
+                      {voorstel.confidence < DREMPEL_ONZEKER && (
+                        <span
+                          title="De AI leidde deze actie af uit de context; lees hem even na."
+                          className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+                        >
+                          onzeker
+                        </span>
+                      )}
                       {deadline && (
                         <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
                           {deadline}

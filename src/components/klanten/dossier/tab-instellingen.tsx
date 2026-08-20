@@ -73,7 +73,11 @@ export interface KlantInstellingenGegevens {
   website?: string;
   /** Relatienummer uit het bronsysteem; alleen tonen, nooit bewerken. */
   klantnummer?: string;
+  /** Het oudere veld (§2.7) waar de mailtrigger in `werkitems.ts` op leest. */
   inplanBevestigingsMail?: boolean;
+  /** De v13-velden uit de dossier-instellingen (§A8). */
+  bevestigingsmailBijInplannen?: boolean;
+  opnameToestemming?: boolean;
 }
 
 /** Eén regel, ook als het gegeven ontbreekt: "—" is een antwoord. */
@@ -462,6 +466,60 @@ export function ContactgegevensFormulier({
   );
 }
 
+/* ── Voorkeuren ───────────────────────────────────────────────────────────── */
+
+/**
+ * Eén schakelaar met uitleg eronder. De uitleg staat in beeld en niet in een
+ * tooltip: een toestemming die je niet kunt nalezen is geen toestemming.
+ */
+function VoorkeurRegel({
+  titel,
+  uitleg,
+  aan,
+  onZet,
+  meldingAan,
+  meldingUit,
+}: {
+  titel: string;
+  uitleg: string;
+  aan: boolean;
+  onZet: (aan: boolean) => Promise<unknown>;
+  meldingAan: string;
+  meldingUit: string;
+}) {
+  const [bezig, setBezig] = useState(false);
+
+  return (
+    <div className="flex items-start justify-between gap-3 px-3 py-3">
+      <div className="min-w-0">
+        <p className="text-sm font-medium">{titel}</p>
+        <p className="mt-0.5 max-w-[64ch] text-xs text-muted-foreground">
+          {uitleg}
+        </p>
+      </div>
+      <Switch
+        className="mt-0.5 shrink-0"
+        checked={aan}
+        disabled={bezig}
+        onCheckedChange={async (waarde) => {
+          setBezig(true);
+          try {
+            await onZet(waarde);
+            showSuccessToast(waarde ? meldingAan : meldingUit);
+          } catch (fout) {
+            showErrorToast(
+              fout instanceof Error ? fout.message : "Bijwerken mislukt"
+            );
+          } finally {
+            setBezig(false);
+          }
+        }}
+        aria-label={titel}
+      />
+    </div>
+  );
+}
+
 /* ── Tab ──────────────────────────────────────────────────────────────────── */
 
 export function TabInstellingen({
@@ -472,7 +530,7 @@ export function TabInstellingen({
   isAnonymized: boolean;
 }) {
   const isAdmin = useIsAdmin();
-  const setInplanMail = useMutation(api.klanten.setInplanBevestigingsMail);
+  const setToestemmingen = useMutation(api.klanten.setDossierToestemmingen);
   const gdprAnonymize = useMutation(api.klanten.gdprAnonymize);
   const gdprBlockers = useQuery(api.klanten.checkGdprBlockers, {
     id: klant._id,
@@ -536,36 +594,47 @@ export function TabInstellingen({
 
       {/* ── Voorkeuren ───────────────────────────────────────────────────── */}
       <SectiePaneel titel="Voorkeuren" icoon={<SlidersHorizontal />} kopbalk>
-        {/* §2.7: opt-in inplanning-bevestigingsmail (default uit) — zet bij
-            inplannen een concept-mail klaar; kantoor keurt goed.
-            Bewust één schakelaar: de opnametoestemming uit het prototype is
-            geschrapt, de briefing-bevestiging per opname vervangt hem. */}
-        <div className="flex items-start justify-between gap-3 px-3 py-3">
-          <div className="min-w-0">
-            <p className="text-sm font-medium">Bevestigingsmail bij inplannen</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Zet een concept-mail klaar in Concept-mails
-            </p>
-          </div>
-          <Switch
-            className="mt-0.5 shrink-0"
-            checked={klant.inplanBevestigingsMail === true}
-            onCheckedChange={async (aan) => {
-              try {
-                await setInplanMail({
-                  id: klant._id,
-                  inplanBevestigingsMail: aan,
-                });
-                showSuccessToast(
-                  aan
-                    ? "Bevestigingsmail bij inplannen aangezet"
-                    : "Bevestigingsmail bij inplannen uitgezet"
-                );
-              } catch {
-                showErrorToast("Bijwerken mislukt");
-              }
-            }}
-            aria-label="Bevestigingsmail bij inplannen"
+        <div className="divide-y">
+          {/* §A8 / §2.7: opt-in inplanning-bevestigingsmail (default uit) —
+              zet bij inplannen een concept-mail klaar; kantoor keurt goed.
+
+              LET OP: deze schakelaar schrijft het v13-veld
+              `bevestigingsmailBijInplannen`. De mailtrigger in
+              `convex/werkitems.ts` leest (nog) het oudere
+              `inplanBevestigingsMail`. Ze staan voor dezelfde wens; welk veld
+              de waarheid wordt is een migratiebesluit, geen UI-besluit. Zolang
+              dat niet gevallen is tonen we hieronder de oude waarde als
+              terugval, zodat een bestaande opt-in niet plots "uit" lijkt. */}
+          <VoorkeurRegel
+            titel="Bevestigingsmail bij inplannen"
+            uitleg="Zet een concept-mail klaar in Concept-mails zodra er werk voor deze klant ingepland wordt."
+            aan={
+              klant.bevestigingsmailBijInplannen ??
+              klant.inplanBevestigingsMail ??
+              false
+            }
+            onZet={(aan) =>
+              setToestemmingen({
+                id: klant._id,
+                bevestigingsmailBijInplannen: aan,
+              })
+            }
+            meldingAan="Bevestigingsmail bij inplannen aangezet"
+            meldingUit="Bevestigingsmail bij inplannen uitgezet"
+          />
+
+          {/* Harde eis 3 blijft overeind: deze vlag legt alleen vast dát de
+              klant mondeling akkoord ging. De gesprekscomposer toont nog
+              steeds de meldingsstap en start pas na de bevestiging. */}
+          <VoorkeurRegel
+            titel="Gesprekken mogen opgenomen worden"
+            uitleg="De klant gaf hier mondeling toestemming voor. Melden blijft verplicht: de app vraagt vóór elke opname opnieuw om de bevestiging dat je het gezegd hebt."
+            aan={klant.opnameToestemming === true}
+            onZet={(aan) =>
+              setToestemmingen({ id: klant._id, opnameToestemming: aan })
+            }
+            meldingAan="Toestemming voor opnemen vastgelegd"
+            meldingUit="Toestemming voor opnemen ingetrokken"
           />
         </div>
       </SectiePaneel>
