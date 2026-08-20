@@ -603,6 +603,14 @@ export const wijsToe = mutation({
     // Wie werk uitzet dat nog geen uitzetter had, is de uitzetter. Zonder dit
     // blijft "Uitgezet door mij" op het bord leeg voor alles wat vóór v2
     // bestond.
+    //
+    // BEWUSTE AFWIJKING VAN §B2. De inventaris beschrijft "opnieuw toewijzen"
+    // alsof de laatste toewijzer de uitzetter wordt. Dat doen we niet: een
+    // bestaande `uitgezetDoorId` blijft staan. Anders schuift de attributie mee
+    // met elke doorgeefbeweging — Kim zet werk uit bij Bart, Bart geeft het aan
+    // Sanne, en ineens staat het niet meer in Kims "Uitgezet door mij", terwijl
+    // zij degene is die erop wacht. Alleen een taak die nog géén uitzetter had
+    // (alles van vóór v2) krijgt er hier één.
     if (taak.uitgezetDoorId === undefined) {
       patch.uitgezetDoorId = user._id;
     }

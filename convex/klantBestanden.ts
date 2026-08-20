@@ -133,6 +133,22 @@ export const genereerUploadUrl = mutation({
   },
 });
 
+/**
+ * Een geüpload bestand aan het dossier hangen.
+ *
+ * RESTRISICO, bewust geaccepteerd: de `storageId` komt van de client en is
+ * niet te verifiëren. Convex geeft geen eigenaar-metadata op een storage-object
+ * — er is geen manier om te vragen "wie heeft dit geüpload, en voor welke
+ * organisatie?". Een intern account kan dus in theorie een storageId van een
+ * andere tenant registreren en zo een vreemd bestand in zijn eigen dossier
+ * zichtbaar maken. Wat er wél staat: de aanroeper moet een interne rol hebben,
+ * de klant moet van zijn eigen organisatie zijn, en een storageId is een
+ * ondoorzichtige, niet-radende sleutel.
+ *
+ * Follow-up als dit echt dicht moet: een uploadregister — `genereerUploadUrl`
+ * legt vast welke storageId voor welke organisatie is uitgegeven, en deze
+ * mutation controleert die rij.
+ */
 export const registreer = mutation({
   args: {
     klantId: v.id("klanten"),
