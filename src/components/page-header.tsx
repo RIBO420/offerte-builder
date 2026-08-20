@@ -48,8 +48,11 @@ export function PageHeader({
 }: PageHeaderProps) {
   return (
     <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-      <SidebarTrigger className="-ml-1" />
-      <Separator orientation="vertical" className="mr-2 h-4" />
+      {/* Op desktop klapt de balk uit bij hover (vastzetten kan met Cmd+B),
+          dus daar is de knop overbodig; op mobiel is hij de enige manier om
+          het menu (de Sheet) te openen en blijft hij staan. */}
+      <SidebarTrigger className="-ml-1 md:hidden" />
+      <Separator orientation="vertical" className="mr-2 h-4 md:hidden" />
       <BreadcrumbNav
         customLabels={customLabels}
         skipSegments={skipSegments}
