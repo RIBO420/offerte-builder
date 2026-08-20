@@ -29,6 +29,7 @@ import {
   mijnTaken,
   mijnDag,
   create as createTaak,
+  update as updateTaak,
   setStatus,
   wijsToe,
   zelfOppakken,
@@ -375,6 +376,29 @@ describe("stilstandmeter", () => {
         `${naam} zette de stilstandmeter niet terug`
       ).toBe(true);
     }
+  });
+
+  it("reset bij het verzetten van de deadline, maar niet bij een titelcorrectie", async () => {
+    const wereld = bouwWereld();
+    const lang = Date.now() - 9 * DAG;
+
+    // Slepen in de Wanneer-indeling = planning verzetten = beweging (§B2).
+    const verzetId = insertTaak(wereld, { laatsteBewegingOp: lang });
+    await handler(updateTaak)(wereld.ctx, {
+      taakId: verzetId,
+      deadline: "2026-08-25",
+    });
+    expect(
+      (wereld.store.get(verzetId)!.laatsteBewegingOp as number) > lang
+    ).toBe(true);
+
+    // Een titelcorrectie is geen beweging op de taak.
+    const titelId = insertTaak(wereld, { laatsteBewegingOp: lang });
+    await handler(updateTaak)(wereld.ctx, {
+      taakId: titelId,
+      titel: "Nieuwe titel",
+    });
+    expect(wereld.store.get(titelId)!.laatsteBewegingOp).toBe(lang);
   });
 
   it("laat de stilstandmeter met rust bij een herinnering", async () => {

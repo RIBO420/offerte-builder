@@ -531,6 +531,9 @@ export const update = mutation({
     if (args.prioriteit !== undefined) patch.prioriteit = args.prioriteit;
     if (args.deadline !== undefined) {
       patch.deadline = schoonDeadline(args.deadline);
+      // Planning verzetten (slepen in de Wanneer-indeling) is beweging op de
+      // taak — anders blijft een net verplaatste taak in "Dit blijft liggen".
+      patch.laatsteBewegingOp = Date.now();
     }
     if (args.subtaken !== undefined) {
       patch.subtaken = schoonSubtaken(args.subtaken);
