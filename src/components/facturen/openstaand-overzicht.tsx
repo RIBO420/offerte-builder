@@ -52,6 +52,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/format/currency";
+import { factuurZoekHref } from "@/components/facturen/zoek-param";
 
 const BUCKET_LABELS: Record<string, string> = {
   "0_14": "0–14 dagen",
@@ -213,7 +214,7 @@ export function OpenstaandOverzicht({ isKantoor }: OpenstaandOverzichtProps) {
                     <TableRow key={post.factuurId}>
                       <TableCell>
                         <Link
-                          href={`/facturen?zoek=${encodeURIComponent(post.factuurnummer)}`}
+                          href={factuurZoekHref(post.factuurnummer)}
                           className="font-medium hover:underline"
                         >
                           {post.factuurnummer}

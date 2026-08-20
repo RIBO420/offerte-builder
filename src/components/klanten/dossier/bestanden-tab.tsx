@@ -52,6 +52,7 @@ import { cn } from "@/lib/utils";
 import { showErrorToast, showSuccessToast } from "@/lib/toast-utils";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
+import { factuurZoekHref } from "@/components/facturen/zoek-param";
 
 /** Waardenlijst uit inventaris §E; "na" hoort erbij (toelichting v13). */
 const FOTO_LABELS = ["voor", "tijdens", "na", "schets"] as const;
@@ -116,10 +117,7 @@ function documentDoel(bestand: Bestand): { href: string; extern: boolean } | nul
   if (bestand.factuurId && bestand.nummer) {
     // Facturen hebben geen detailroute op id; de factuurlijst zoekt op nummer
     // (zelfde patroon als het debiteurenoverzicht).
-    return {
-      href: `/facturen?zoek=${encodeURIComponent(bestand.nummer)}`,
-      extern: false,
-    };
+    return { href: factuurZoekHref(bestand.nummer), extern: false };
   }
   return null;
 }

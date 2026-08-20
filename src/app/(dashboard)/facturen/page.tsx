@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useMemo, useCallback, Suspense } from "react";
+import { useState, useMemo, useCallback, useEffect, Suspense } from "react";
 import { useDebounce } from "@/hooks/use-debounce";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { PaginaReveal } from "@/components/pagina-reveal";
 import { RequireRole } from "@/components/require-admin";
 import { Card, CardContent } from "@/components/ui/card";
@@ -50,6 +50,7 @@ import {
 } from "@/components/export-dropdown";
 import { formatCurrency } from "@/lib/format/currency";
 import { OpenstaandOverzicht } from "@/components/facturen/openstaand-overzicht";
+import { zoekTermUitParams } from "@/components/facturen/zoek-param";
 import {
   type FactuurStatus,
 } from "@/lib/constants/statuses";
@@ -121,7 +122,20 @@ function FacturenPageContent() {
   const router = useRouter();
   const { user, isLoading: isUserLoading } = useCurrentUser();
 
-  const [searchQuery, setSearchQuery] = useState("");
+  // `/facturen?zoek=<factuurnummer>` is de enige manier om naar één factuur te
+  // linken (er is geen detailroute op id). Het dossier en het
+  // debiteurenoverzicht bouwen die URL met `factuurZoekHref`; hier wordt hij
+  // gelezen, anders komt zo'n link uit op een ongefilterde lijst.
+  const searchParams = useSearchParams();
+  const zoekParam = zoekTermUitParams(searchParams);
+  const [searchQuery, setSearchQuery] = useState(zoekParam);
+
+  // Ook meenemen als het param verandert terwijl de pagina al open staat —
+  // twee dossierlinks achter elkaar remounten deze component niet.
+  useEffect(() => {
+    if (zoekParam) setSearchQuery(zoekParam);
+  }, [zoekParam]);
+
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [activeTab, setActiveTab] = useState("alle");
 
