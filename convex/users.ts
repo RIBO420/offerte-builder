@@ -155,6 +155,30 @@ async function initializeSystemCorrectieFactoren(ctx: MutationCtx) {
 // bestaand account (met rol) herbinden aan een andere Clerk-identiteit, was
 // niet-deterministisch bij dubbele adressen (`.first()` zonder uniciteit in het
 // schema) en matchte hoofdlettergevoelig terwijl ADMIN_EMAILS dat niet doet.
+/**
+ * Het `org_id`-claim van een identity omzetten naar een organisaties-id.
+ *
+ * Losse helper omdat `upsert` het claim ANDERS behandelt dan
+ * `organisatieVanIdentity` (convex/auth.ts): daar is een ontbrekende of
+ * onbekende organisatie een AuthError, hier is het gewoon "nog niets te
+ * stempelen". Inloggen mag zonder actieve Clerk-organisatie.
+ */
+async function orgIdVanIdentityClaim(
+  ctx: MutationCtx,
+  claim: unknown
+): Promise<Id<"organisaties"> | undefined> {
+  // De typeof-guard is geen formaliteit: `q.eq("clerkOrgId", undefined)` zou
+  // elke organisatie zonder dat veld matchen (CLAUDE.md regel 4).
+  const clerkOrgId = typeof claim === "string" ? claim.trim() : "";
+  if (clerkOrgId === "") return undefined;
+
+  const org = await ctx.db
+    .query("organisaties")
+    .withIndex("by_clerk_org_id", (q) => q.eq("clerkOrgId", clerkOrgId))
+    .unique();
+  return org?._id;
+}
+
 export const upsert = mutation({
   args: {
     bedrijfsnaam: v.optional(v.string()),
@@ -185,6 +209,15 @@ export const upsert = mutation({
     const emailBruikbaar = emailClaim !== "" && identity.emailVerified !== false;
     const naamClaim = (identity.name ?? identity.givenName ?? "").trim();
 
+    // De organisatie uit het JWT-org-claim, als er een is. Zelfde afleiding als
+    // `organisatieVanIdentity` in convex/auth.ts — inclusief de typeof-guard,
+    // want een niet-string claim mag nooit als string de index-query in
+    // glippen. Hier faalt een ontbrekend claim NIET: inloggen zonder actieve
+    // organisatie mag, de OrgGate in de app regelt de rest. Ontbreekt de org,
+    // dan blijft `orgId` staan zoals hij stond (zie het patch-blok hieronder):
+    // wegschrijven zou het account uit zijn tenant tillen.
+    const orgIdVanClaim = await orgIdVanIdentityClaim(ctx, identity.org_id);
+
     // Ensure system correction factors are initialized (runs once)
     await initializeSystemCorrectieFactoren(ctx);
 
@@ -208,7 +241,16 @@ export const upsert = mutation({
       // elke aanroep het e-mailadres, de bedrijfsnaam of een via updateProfile
       // zelfgekozen naam. Dat zou setUserRole, bootstrapAdminEmails, de
       // e-mailkoppelingen én de e-mailcheck in linkKlantAccount slopen.
-      const updates: Record<string, string | undefined> = {};
+      const updates: Record<string, unknown> = {};
+
+      // Tenant-stempel bijwerken: bij elke login, want het lidmaatschap kan in
+      // Clerk zijn veranderd (uitgenodigd bij een ander bedrijf, of pas nu een
+      // organisatie gekregen). Alleen schrijven als het claim ook echt een
+      // bekende organisatie oplevert én afwijkt van wat er staat — een sessie
+      // zonder org-claim mag het stempel niet wissen.
+      if (orgIdVanClaim && existing.orgId !== orgIdVanClaim) {
+        updates.orgId = orgIdVanClaim;
+      }
 
       if (emailBruikbaar && existing.email !== emailClaim) {
         updates.email = emailClaim;
@@ -267,6 +309,9 @@ export const upsert = mutation({
       name: naamClaim !== "" ? naamClaim : "Gebruiker",
       bedrijfsnaam: args.bedrijfsnaam,
       role,
+      // Undefined als de sessie (nog) geen organisatie heeft; de eerstvolgende
+      // login mét org-claim stempelt hem alsnog.
+      orgId: orgIdVanClaim,
       createdAt: Date.now(),
     });
 

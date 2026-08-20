@@ -12,7 +12,9 @@
  * 7. de klant-rol die overal een fout krijgt;
  * 8. de mijnTaken-REGRESSIE: een account zonder medewerkersrij kreeg vroeger
  *    álle taken van het bedrijf te zien in een paneel dat "Mijn taken" heet;
- * 9. toewijsbaarheid: admins staan er expliciet bij (harde klanteis).
+ * 9. toewijsbaarheid: admins staan er expliciet bij (harde klanteis), en een
+ *    account van een andere tenant NOOIT (review v13, bevinding 1);
+ * 10. de backfill die `users.orgId` vult voor accounts van vóór die fix.
  */
 
 import { describe, it, expect } from "vitest";
@@ -51,6 +53,7 @@ import {
   registreer as registreerBestand,
 } from "../../../../convex/klantBestanden";
 import { takenToewijsbaar } from "../../../../convex/users";
+import { backfillUsersOrg } from "../../../../convex/migrations/usersOrgBackfill";
 import { dossierTellingen } from "../../../../convex/klanten";
 import {
   migreer,
@@ -99,9 +102,11 @@ interface Wereld {
 function bouwWereld(role: string = "directie", extra: Record<string, unknown> = {}): Wereld {
   const store = new MockConvexStore();
   const orgId = seedMockOrganisatie(store);
+  // `orgId` op de users-rij ís het lidmaatschap: sinds review v13 telt een
+  // account zonder koppeling nergens meer mee (zie convex/lib/taakPersonen.ts).
   const userId = store.insert(
     "users",
-    createMockUser({ role, name: "Ricardo Bos", ...extra })
+    createMockUser({ role, name: "Ricardo Bos", orgId, ...extra })
   );
   const klantId = store.insert(
     "klanten",
@@ -112,11 +117,11 @@ function bouwWereld(role: string = "directie", extra: Record<string, unknown> = 
 
 /** Tweede account binnen dezelfde organisatie (geen medewerkersrij nodig). */
 function voegCollegaToe(
-  store: MockConvexStore,
+  wereld: Wereld,
   naam: string,
   role: string = "medewerker"
 ): string {
-  return store.insert(
+  return wereld.store.insert(
     "users",
     createMockUser({
       _id: undefined,
@@ -124,6 +129,7 @@ function voegCollegaToe(
       email: `${naam.toLowerCase().replace(/\s+/g, ".")}@toptuinen.nl`,
       name: naam,
       role,
+      orgId: wereld.orgId,
     })
   );
 }
@@ -190,7 +196,7 @@ describe("migratie taakmodel v2", () => {
 
   it("zet status om, vertaalt de medewerker naar zijn account en vult de stilstandmeter", async () => {
     const wereld = bouwWereld();
-    const collegaId = voegCollegaToe(wereld.store, "Jan Bakker");
+    const collegaId = voegCollegaToe(wereld, "Jan Bakker");
     const collega = wereld.store.get(collegaId)!;
     const medewerkerId = wereld.store.insert("medewerkers", {
       orgId: wereld.orgId,
@@ -304,7 +310,7 @@ describe("afgeleide velden", () => {
 
   it("levert de verrijkte taak zoals het dossier hem verwacht", async () => {
     const wereld = bouwWereld();
-    const checkerId = voegCollegaToe(wereld.store, "Sanne Groen");
+    const checkerId = voegCollegaToe(wereld, "Sanne Groen");
     const tijdlijnId = wereld.store.insert("klantTijdlijn", {
       orgId: wereld.orgId,
       klantId: wereld.klantId,
@@ -360,7 +366,7 @@ describe("afgeleide velden", () => {
 describe("stilstandmeter", () => {
   it("reset bij setStatus, wijsToe en zelfOppakken", async () => {
     const wereld = bouwWereld();
-    const collegaId = voegCollegaToe(wereld.store, "Jan Bakker");
+    const collegaId = voegCollegaToe(wereld, "Jan Bakker");
     const lang = Date.now() - 9 * DAG;
 
     for (const [naam, fn, args] of [
@@ -433,8 +439,8 @@ describe("stilstandmeter", () => {
 describe("herinnering", () => {
   it("richt zich op de checker zodra de taak op 'check' staat", async () => {
     const wereld = bouwWereld();
-    const makerId = voegCollegaToe(wereld.store, "Jan Bakker");
-    const checkerId = voegCollegaToe(wereld.store, "Sanne Groen");
+    const makerId = voegCollegaToe(wereld, "Jan Bakker");
+    const checkerId = voegCollegaToe(wereld, "Sanne Groen");
     const taakId = insertTaak(wereld, {
       status: "check",
       makerId,
@@ -455,8 +461,8 @@ describe("herinnering", () => {
 
   it("richt zich op de maker bij elke andere status", async () => {
     const wereld = bouwWereld();
-    const makerId = voegCollegaToe(wereld.store, "Jan Bakker");
-    const checkerId = voegCollegaToe(wereld.store, "Sanne Groen");
+    const makerId = voegCollegaToe(wereld, "Jan Bakker");
+    const checkerId = voegCollegaToe(wereld, "Sanne Groen");
     const taakId = insertTaak(wereld, { status: "bezig", makerId, checkerId });
 
     const uitkomst = (await handler(plaatsHerinnering)(wereld.ctx, {
@@ -522,7 +528,7 @@ describe("daglogboek", () => {
 
   it("toont de regels van een collega niet", async () => {
     const wereld = bouwWereld();
-    const collegaId = voegCollegaToe(wereld.store, "Jan Bakker");
+    const collegaId = voegCollegaToe(wereld, "Jan Bakker");
     await handler(logboekVoegToe)(wereld.ctx, { tekst: "1u eigen werk" });
     wereld.store.insert("dagLogboek", {
       orgId: wereld.orgId,
@@ -555,7 +561,7 @@ describe("mijnTaken (regressie v1-bug)", () => {
   it("toont een account zonder medewerkersrij alleen eigen taken", async () => {
     const wereld = bouwWereld("directie");
     expect(wereld.store.get(wereld.userId)!.linkedMedewerkerId).toBeUndefined();
-    const collegaId = voegCollegaToe(wereld.store, "Jan Bakker");
+    const collegaId = voegCollegaToe(wereld, "Jan Bakker");
 
     insertTaak(wereld, { titel: "Van mij (maker)", makerId: wereld.userId });
     insertTaak(wereld, {
@@ -578,7 +584,7 @@ describe("mijnTaken (regressie v1-bug)", () => {
 
   it("geeft met alleenEigen:false wél het teamoverzicht", async () => {
     const wereld = bouwWereld("directie");
-    const collegaId = voegCollegaToe(wereld.store, "Jan Bakker");
+    const collegaId = voegCollegaToe(wereld, "Jan Bakker");
     insertTaak(wereld, { titel: "Van mij", makerId: wereld.userId });
     insertTaak(wereld, { titel: "Van Jan", makerId: collegaId });
 
@@ -641,8 +647,8 @@ describe("mijnDag", () => {
 describe("takenToewijsbaar", () => {
   it("bevat het admin-account en markeert het als admin", async () => {
     const wereld = bouwWereld("directie");
-    voegCollegaToe(wereld.store, "Jan Bakker", "medewerker");
-    voegCollegaToe(wereld.store, "Kantoor Kim", "projectleider");
+    voegCollegaToe(wereld, "Jan Bakker", "medewerker");
+    voegCollegaToe(wereld, "Kantoor Kim", "projectleider");
 
     const personen = (await handler(takenToewijsbaar)(wereld.ctx, {})) as Array<{
       naam: string;
@@ -661,7 +667,7 @@ describe("takenToewijsbaar", () => {
   it("laat klantaccounts en accounts van een andere organisatie weg", async () => {
     const wereld = bouwWereld("directie");
     const andereOrgId = seedAndereOrganisatie(wereld.store);
-    voegCollegaToe(wereld.store, "Klant Kees", "klant");
+    voegCollegaToe(wereld, "Klant Kees", "klant");
 
     const buurmanMedewerker = wereld.store.insert("medewerkers", {
       orgId: andereOrgId,
@@ -709,6 +715,138 @@ describe("takenToewijsbaar", () => {
     await expect(
       handler(wijsToe)(wereld.ctx, { taakId, makerId: buurmanUser })
     ).rejects.toThrow();
+  });
+
+  /**
+   * REGRESSIE (review v13, bevinding 1): een account ZONDER medewerkersrij
+   * werd als lid van élke organisatie behandeld. Het kantooraccount van de
+   * buurman verscheen daardoor mét naam en e-mail in de selects van Mijn dag,
+   * en `wijsToe` accepteerde hem ook nog. Lidmaatschap moet blijken uit een
+   * koppeling: `users.orgId`, een medewerkersrij van deze org, of eigenaar
+   * zijn van deze org.
+   */
+  it("laat het kantooraccount van de buurman (users.orgId elders, geen medewerkersrij) niet zien", async () => {
+    const wereld = bouwWereld("directie");
+    const andereOrgId = seedAndereOrganisatie(wereld.store);
+    const buurmanUser = wereld.store.insert(
+      "users",
+      createMockUser({
+        clerkId: "clerk_bianca",
+        email: "bianca@groen.nl",
+        name: "Bianca Buurman",
+        role: "projectleider",
+        orgId: andereOrgId,
+      })
+    );
+
+    const personen = (await handler(takenToewijsbaar)(wereld.ctx, {})) as Array<{
+      naam: string;
+    }>;
+    expect(personen.map((p) => p.naam)).not.toContain("Bianca Buurman");
+
+    const bord = (await handler(mijnDag)(wereld.ctx, {})) as {
+      personen: Array<{ naam: string }>;
+    };
+    expect(bord.personen.map((p) => p.naam)).not.toContain("Bianca Buurman");
+
+    const taakId = insertTaak(wereld);
+    await expect(
+      handler(wijsToe)(wereld.ctx, { taakId, makerId: buurmanUser })
+    ).rejects.toThrow();
+  });
+
+  it("laat de eigenaar van een andere organisatie (zonder users.orgId) niet zien", async () => {
+    const wereld = bouwWereld("directie");
+    const andereOrgId = seedAndereOrganisatie(wereld.store);
+    const buurmanEigenaar = wereld.store.insert(
+      "users",
+      createMockUser({
+        clerkId: "clerk_els",
+        email: "els@groen.nl",
+        name: "Els Eigenaar",
+        role: "directie",
+      })
+    );
+    // Nog niet gestempeld door de backfill: alleen de org wijst naar hem.
+    wereld.store.patch(andereOrgId, { eigenaarUserId: buurmanEigenaar });
+
+    const personen = (await handler(takenToewijsbaar)(wereld.ctx, {})) as Array<{
+      naam: string;
+    }>;
+    expect(personen.map((p) => p.naam)).not.toContain("Els Eigenaar");
+
+    const taakId = insertTaak(wereld);
+    await expect(
+      handler(wijsToe)(wereld.ctx, { taakId, makerId: buurmanEigenaar })
+    ).rejects.toThrow();
+  });
+
+  it("houdt het eigen kantooraccount zonder medewerkersrij wél toewijsbaar", async () => {
+    const wereld = bouwWereld("directie");
+    const kantoorId = wereld.store.insert(
+      "users",
+      createMockUser({
+        clerkId: "clerk_kim",
+        email: "kim@toptuinen.nl",
+        name: "Kantoor Kim",
+        role: "projectleider",
+        orgId: wereld.orgId,
+      })
+    );
+
+    const personen = (await handler(takenToewijsbaar)(wereld.ctx, {})) as Array<{
+      naam: string;
+    }>;
+    expect(personen.map((p) => p.naam)).toContain("Kantoor Kim");
+
+    const taakId = insertTaak(wereld);
+    await expect(
+      handler(wijsToe)(wereld.ctx, { taakId, makerId: kantoorId })
+    ).resolves.toEqual({ success: true });
+  });
+
+  it("houdt de eigenaar van de eigen organisatie toewijsbaar, ook zonder users.orgId", async () => {
+    const wereld = bouwWereld("directie");
+    const eigenaarId = wereld.store.insert(
+      "users",
+      createMockUser({
+        clerkId: "clerk_ricardo_eigenaar",
+        email: "eigenaar@toptuinen.nl",
+        name: "Eigen Eigenaar",
+        role: "directie",
+      })
+    );
+    wereld.store.patch(wereld.orgId, { eigenaarUserId: eigenaarId });
+
+    const personen = (await handler(takenToewijsbaar)(wereld.ctx, {})) as Array<{
+      naam: string;
+    }>;
+    expect(personen.map((p) => p.naam)).toContain("Eigen Eigenaar");
+  });
+
+  it("noemt een account met alléén een medewerkersrij van deze org één keer", async () => {
+    const wereld = bouwWereld("directie");
+    const medewerkerId = wereld.store.insert("medewerkers", {
+      orgId: wereld.orgId,
+      naam: "Jan Bakker",
+    });
+    // Beide routes wijzen naar hem: users.by_org én de medewerkerskoppeling.
+    wereld.store.insert(
+      "users",
+      createMockUser({
+        clerkId: "clerk_jan",
+        email: "jan@toptuinen.nl",
+        name: "Jan Bakker",
+        role: "medewerker",
+        orgId: wereld.orgId,
+        linkedMedewerkerId: medewerkerId,
+      })
+    );
+
+    const personen = (await handler(takenToewijsbaar)(wereld.ctx, {})) as Array<{
+      naam: string;
+    }>;
+    expect(personen.filter((p) => p.naam === "Jan Bakker")).toHaveLength(1);
   });
 });
 
@@ -981,5 +1119,116 @@ describe("dossierTellingen", () => {
     expect(t.factuurTeLaat).toBe(true);
     expect(t.bestanden).toBe(1);
     expect(typeof t.klantSinds).toBe("number");
+  });
+});
+
+// ─── 12. Backfill users.orgId ────────────────────────────────────────────────
+
+/**
+ * `migrations/usersOrgBackfill` vult het tenant-stempel voor accounts die er al
+ * stonden toen `users.orgId` erbij kwam. Zonder deze run zou de fix uit
+ * bevinding 1 bestaande kantooraccounts uit hun eigen selects gooien.
+ */
+describe("backfillUsersOrg", () => {
+  it("stempelt via de medewerkersrij, via de koppeling en via het eigenaarschap", async () => {
+    const wereld = bouwWereld();
+    const andereOrgId = seedAndereOrganisatie(wereld.store);
+
+    // (a2) alleen bekend via medewerkers.clerkUserId
+    wereld.store.insert("medewerkers", {
+      orgId: wereld.orgId,
+      naam: "Jan Bakker",
+      clerkUserId: "clerk_jan",
+    });
+    const janId = wereld.store.insert(
+      "users",
+      createMockUser({ clerkId: "clerk_jan", name: "Jan Bakker", role: "medewerker" })
+    );
+
+    // (a1) expliciete koppeling naar een medewerkersrij van de buurman
+    const bertMedewerker = wereld.store.insert("medewerkers", {
+      orgId: andereOrgId,
+      naam: "Buurman Bert",
+    });
+    const bertId = wereld.store.insert(
+      "users",
+      createMockUser({
+        clerkId: "clerk_bert",
+        name: "Buurman Bert",
+        role: "medewerker",
+        linkedMedewerkerId: bertMedewerker,
+      })
+    );
+
+    // (b) eigenaar van de organisatie
+    const elsId = wereld.store.insert(
+      "users",
+      createMockUser({ clerkId: "clerk_els", name: "Els Eigenaar", role: "directie" })
+    );
+    wereld.store.patch(andereOrgId, { eigenaarUserId: elsId });
+
+    // Geen enkele koppeling: bewust overslaan, hij krijgt zijn stempel bij login.
+    const zwevendId = wereld.store.insert(
+      "users",
+      createMockUser({ clerkId: "clerk_zwevend", name: "Zwevend Account" })
+    );
+
+    const uitkomst = (await handler(backfillUsersOrg)(wereld.ctx, {})) as {
+      gestempeld: number;
+      overgeslagen: number;
+      klaar: boolean;
+    };
+
+    expect(uitkomst.gestempeld).toBe(3);
+    expect(uitkomst.overgeslagen).toBe(1);
+    expect(uitkomst.klaar).toBe(true);
+    expect(wereld.store.get(janId)!.orgId).toBe(wereld.orgId);
+    expect(wereld.store.get(bertId)!.orgId).toBe(andereOrgId);
+    expect(wereld.store.get(elsId)!.orgId).toBe(andereOrgId);
+    expect(wereld.store.get(zwevendId)!.orgId).toBeUndefined();
+  });
+
+  it("is idempotent: een tweede run stempelt niets meer", async () => {
+    const wereld = bouwWereld();
+    wereld.store.insert("medewerkers", {
+      orgId: wereld.orgId,
+      naam: "Jan Bakker",
+      clerkUserId: "clerk_jan",
+    });
+    wereld.store.insert(
+      "users",
+      createMockUser({ clerkId: "clerk_jan", name: "Jan Bakker", role: "medewerker" })
+    );
+
+    await handler(backfillUsersOrg)(wereld.ctx, {});
+    const tweede = (await handler(backfillUsersOrg)(wereld.ctx, {})) as {
+      gestempeld: number;
+      klaar: boolean;
+    };
+
+    expect(tweede.gestempeld).toBe(0);
+    expect(tweede.klaar).toBe(true);
+  });
+
+  it("blijft aflopen als álle resterende accounts worden overgeslagen", async () => {
+    // De batchgrens telt stempels, niet bekeken rijen: anders bleef een
+    // overgeslagen account voor eeuwig vooraan in de lijst staan.
+    const wereld = bouwWereld();
+    wereld.store.insert(
+      "users",
+      createMockUser({ clerkId: "clerk_zwevend_1", name: "Zwevend Een" })
+    );
+    wereld.store.insert(
+      "users",
+      createMockUser({ clerkId: "clerk_zwevend_2", name: "Zwevend Twee" })
+    );
+
+    const uitkomst = (await handler(backfillUsersOrg)(wereld.ctx, {
+      limit: 1,
+    })) as { gestempeld: number; overgeslagen: number; klaar: boolean };
+
+    expect(uitkomst.gestempeld).toBe(0);
+    expect(uitkomst.overgeslagen).toBe(2);
+    expect(uitkomst.klaar).toBe(true);
   });
 });

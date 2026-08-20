@@ -141,6 +141,8 @@ class FakeDb {
 }
 
 interface FakeIdentity {
+  // Het Clerk-org-claim; `upsert` leidt er `users.orgId` uit af.
+  org_id?: string;
   subject: string;
   email?: string;
   emailVerified?: boolean;
@@ -773,5 +775,77 @@ describe("users.upsert — uitnodigings-koppeling", () => {
 
     expect(db.byId(medewerkerId)?.clerkUserId).toBeUndefined();
     expect(db.byId(userId)?.linkedMedewerkerId).toBeUndefined();
+  });
+});
+
+// ─── Org-stempel (review v13, bevinding 1) ───────────────────────────────────
+
+/**
+ * `users.orgId` is sinds review v13 het bewijs dat een account bij een tenant
+ * hoort: `convex/lib/taakPersonen.ts` leunt erop om te bepalen wie er in de
+ * toewijs-selects van Mijn dag mag staan. Het stempel komt uit het
+ * `org_id`-claim van het JWT en wordt hier gezet — bij aanmaken én bij elke
+ * login waarin hij afwijkt.
+ */
+describe("users.upsert — org-stempel", () => {
+  function seedOrganisatie(clerkOrgId: string, naam = "Top Tuinen"): string {
+    return db.insertSync("organisaties", {
+      clerkOrgId,
+      naam,
+      actief: true,
+      aangemaaktOp: Date.now(),
+    });
+  }
+
+  it("stempelt de organisatie uit het JWT op een nieuw account", async () => {
+    const orgId = seedOrganisatie("org_toptuinen");
+    identity = { subject: "clerk_nieuw", org_id: "org_toptuinen" };
+
+    const userId = await upsertHandler(ctx, {});
+
+    expect(db.byId(userId)?.orgId).toBe(orgId);
+  });
+
+  it("vult het stempel alsnog bij een volgende login", async () => {
+    const orgId = seedOrganisatie("org_toptuinen");
+    const bestaandeId = seedUser({ clerkId: "clerk_bestaand" });
+    expect(db.byId(bestaandeId)?.orgId).toBeUndefined();
+
+    identity = { subject: "clerk_bestaand", org_id: "org_toptuinen" };
+    await upsertHandler(ctx, {});
+
+    expect(db.byId(bestaandeId)?.orgId).toBe(orgId);
+  });
+
+  it("wist een bestaand stempel niet als de sessie geen org-claim heeft", async () => {
+    const orgId = seedOrganisatie("org_toptuinen");
+    const bestaandeId = seedUser({ clerkId: "clerk_bestaand", orgId });
+
+    identity = { subject: "clerk_bestaand" };
+    await upsertHandler(ctx, {});
+
+    expect(db.byId(bestaandeId)?.orgId).toBe(orgId);
+  });
+
+  it("laat inloggen zonder organisatie gewoon slagen, zonder stempel", async () => {
+    identity = { subject: "clerk_zwevend" };
+
+    const userId = await upsertHandler(ctx, {});
+
+    expect(db.byId(userId)).not.toBeNull();
+    expect(db.byId(userId)?.orgId).toBeUndefined();
+  });
+
+  it("stempelt niets bij een onbekend of niet-tekstueel org-claim", async () => {
+    seedOrganisatie("org_toptuinen");
+
+    identity = { subject: "clerk_onbekend", org_id: "org_bestaat_niet" };
+    const onbekendId = await upsertHandler(ctx, {});
+    expect(db.byId(onbekendId)?.orgId).toBeUndefined();
+
+    // Een niet-string claim mag nooit als string de index-query in glippen.
+    identity = { subject: "clerk_rommel", org_id: 42 as unknown as string };
+    const rommelId = await upsertHandler(ctx, {});
+    expect(db.byId(rommelId)?.orgId).toBeUndefined();
   });
 });

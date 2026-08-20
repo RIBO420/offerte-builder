@@ -47,13 +47,28 @@ export default defineSchema({
     // enabling them to see only their own time registrations, projects, etc.
     linkedMedewerkerId: v.optional(v.id("medewerkers")),
     linkedKlantId: v.optional(v.id("klanten")),
+    // De organisatie waar dit account bij hoort. GESTEMPELD BIJ LOGIN uit het
+    // `org_id`-claim van het JWT (users.upsert), en eenmalig gevuld voor
+    // bestaande rijen door `migrations/usersOrgBackfill:backfillUsersOrg`.
+    //
+    // Waarom het veld er is: zonder deze kolom was "hoort dit account bij deze
+    // organisatie?" alleen af te leiden uit een medewerkersrij — en juist
+    // kantoor en directie hebben die vaak niet. `convex/lib/taakPersonen.ts`
+    // behandelde zo'n account als lid van ÉLKE tenant, waardoor het
+    // kantooraccount van de buurman in de toewijs-selects opdook.
+    //
+    // OPTIONEEL: een account zonder actieve Clerk-organisatie mag gewoon
+    // inloggen (de OrgGate in de app regelt de rest). Ontbreekt `orgId`, dan is
+    // dat "nog niet gestempeld" — nooit "lid van alles".
+    orgId: v.optional(v.id("organisaties")),
     createdAt: v.number(),
   })
     .index("by_clerk_id", ["clerkId"])
     .index("by_email", ["email"])
     .index("by_role", ["role"])
     .index("by_linked_medewerker", ["linkedMedewerkerId"])
-    .index("by_linked_klant", ["linkedKlantId"]),
+    .index("by_linked_klant", ["linkedKlantId"])
+    .index("by_org", ["orgId"]),
 
   // Organisaties (bedrijven) — spiegelt een Clerk-organization.
   // Elke org-gescopeerde tabel heeft een `orgId` die hiernaar wijst;
