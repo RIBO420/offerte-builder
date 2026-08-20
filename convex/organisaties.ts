@@ -6,7 +6,7 @@ import { v } from "convex/values";
 import { internalMutation, query } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
-import { requireOrg } from "./auth";
+import { orgToegang, requireOrg } from "./auth";
 import { seedOrgDefaults } from "./lib/orgDefaults";
 
 export interface MaakOrganisatieArgs {
@@ -84,4 +84,26 @@ export const maakOrganisatie = internalMutation({
 export const getCurrent = query({
   args: {},
   handler: async (ctx) => await requireOrg(ctx),
+});
+
+/**
+ * Kán deze sessie überhaupt org-data lezen? Eén tolerante voorvraag voor de
+ * OrgGate — de enige query die vóór de dashboard-shell draait.
+ *
+ * Bewust géén `getCurrent`: die gooit, en een gooiende `useQuery` valt in de
+ * ErrorBoundary in plaats van in een nette staat. Vandaar deze variant die de
+ * uitslag teruggeeft in plaats van hem te werpen. Wijst het JWT naar een
+ * organisatie die niet in Convex staat (nooit geprovisioneerd), dan blokkeert
+ * de gate hierop en blijven de tientallen org-gescoopte queries van de shell
+ * ongemount — anders gooit elk van hen zijn eigen "Organisatie niet gevonden".
+ *
+ * Geeft alleen de status terug, geen organisatiegegevens: dit is een
+ * toegangscontrole, geen datakanaal.
+ */
+export const toegangsStatus = query({
+  args: {},
+  handler: async (ctx) => {
+    const toegang = await orgToegang(ctx);
+    return { status: toegang.status };
+  },
 });

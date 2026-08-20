@@ -9,7 +9,7 @@
 import { ConvexError } from "convex/values";
 import type { UserIdentity } from "convex/server";
 import { QueryCtx, MutationCtx } from "./_generated/server";
-import { Id } from "./_generated/dataModel";
+import { Doc, Id } from "./_generated/dataModel";
 import { normalizeRole } from "./roles";
 
 /**
@@ -81,14 +81,30 @@ export async function requireAuthUserId(ctx: QueryCtx | MutationCtx): Promise<Id
 }
 
 /**
- * Zoekt de organisatie die bij het org_id-claim van deze identity hoort.
- * Losse functie zodat `requireOrg` en `requireOrgContext` dezelfde controles
- * doen zonder de identity-call te herhalen.
+ * De uitkomst van de org-resolutie, *zonder* te gooien.
+ *
+ * De vier faalgevallen zijn echt vier verschillende problemen (geen sessie,
+ * geen actieve org in Clerk, een claim dat naar niets wijst, een uitgezette
+ * org) en de UI moet ze uit elkaar kunnen houden om de juiste zin te tonen.
+ * `requireOrg` c.s. vertalen dit naar een AuthError; `orgToegang` geeft het
+ * onvertaald door aan wie er zélf op wil beslissen — de OrgGate en het
+ * bootstrap-hulpje `users.initializeDefaults`.
  */
-async function organisatieVanIdentity(
+export type OrgToegang =
+  | { status: "geen-sessie" }
+  | { status: "geen-organisatie" }
+  | { status: "onbekende-organisatie"; clerkOrgId: string }
+  | { status: "inactieve-organisatie"; org: Doc<"organisaties"> }
+  | { status: "ok"; org: Doc<"organisaties"> };
+
+/**
+ * Zoekt de organisatie die bij het org_id-claim van deze identity hoort en
+ * geeft terug wát er aan de hand is. Gooit nooit.
+ */
+async function toegangVanIdentity(
   ctx: QueryCtx | MutationCtx,
   identity: UserIdentity
-) {
+): Promise<OrgToegang> {
   // Convex hangt custom claims ongewijzigd aan de identity: `UserIdentity`
   // heeft een index-signature `[key: string]: JSONValue | undefined`, en alleen
   // de OIDC-standaardvelden worden hernoemd (given_name → givenName). Het claim
@@ -99,9 +115,7 @@ async function organisatieVanIdentity(
   if (!clerkOrgId) {
     // Ook de lege string komt hier terecht: Clerk vult `{{org.id}}` niet als de
     // gebruiker geen actieve organisatie heeft.
-    throw new AuthError(
-      "Je account is nog niet aan een organisatie gekoppeld. Vraag je beheerder om een uitnodiging."
-    );
+    return { status: "geen-organisatie" };
   }
 
   const org = await ctx.db
@@ -109,28 +123,71 @@ async function organisatieVanIdentity(
     .withIndex("by_clerk_org_id", (q) => q.eq("clerkOrgId", clerkOrgId))
     .unique();
 
-  // Twee verschillende problemen, dus twee meldingen. Een geldig JWT dat naar
-  // een onbekende organisatie wijst is een systeemfout: de org is nooit
-  // geprovisioneerd (of is verwijderd terwijl de sessie liep). Dat hoort in het
-  // serverlog, want de gebruiker kan er niets aan doen en support moet het zien.
-  if (!org) {
-    console.warn(
-      `[auth] JWT verwijst naar onbekende organisatie "${clerkOrgId}" (subject: ${identity.subject}) — niet geprovisioneerd?`
-    );
-    throw new AuthError(
-      "Organisatie niet gevonden. Neem contact op met je beheerder."
-    );
-  }
+  if (!org) return { status: "onbekende-organisatie", clerkOrgId };
+  if (!org.actief) return { status: "inactieve-organisatie", org };
+  return { status: "ok", org };
+}
 
-  // Een bestaande maar uitgezette organisatie is juist een bewuste
-  // beheerdersactie — geen logregel waard.
-  if (!org.actief) {
-    throw new AuthError(
-      "Deze organisatie is niet actief. Neem contact op met je beheerder."
-    );
-  }
+/**
+ * De org-resolutie als *uitslag* in plaats van als fout.
+ *
+ * Gebruik dit alleen waar een fout géén nette uitkomst is: de OrgGate moet op
+ * "onbekende organisatie" naar het geen-toegang-scherm sturen in plaats van de
+ * hele dashboard-tree tientallen queries te laten gooien. Voor gewone
+ * tenant-data blijft `requireOrg`/`requireOrgId` de norm — die weigert, en dat
+ * hoort ook.
+ */
+export async function orgToegang(
+  ctx: QueryCtx | MutationCtx
+): Promise<OrgToegang> {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) return { status: "geen-sessie" };
+  return toegangVanIdentity(ctx, identity);
+}
 
-  return org;
+/**
+ * Zoekt de organisatie die bij het org_id-claim van deze identity hoort.
+ * Losse functie zodat `requireOrg` en `requireOrgContext` dezelfde controles
+ * doen zonder de identity-call te herhalen.
+ */
+async function organisatieVanIdentity(
+  ctx: QueryCtx | MutationCtx,
+  identity: UserIdentity
+) {
+  const toegang = await toegangVanIdentity(ctx, identity);
+
+  switch (toegang.status) {
+    case "ok":
+      return toegang.org;
+
+    case "geen-organisatie":
+      throw new AuthError(
+        "Je account is nog niet aan een organisatie gekoppeld. Vraag je beheerder om een uitnodiging."
+      );
+
+    // Twee verschillende problemen, dus twee meldingen. Een geldig JWT dat naar
+    // een onbekende organisatie wijst is een systeemfout: de org is nooit
+    // geprovisioneerd (of is verwijderd terwijl de sessie liep). Dat hoort in
+    // het serverlog, want de gebruiker kan er niets aan doen en support moet
+    // het zien.
+    case "onbekende-organisatie":
+      console.warn(
+        `[auth] JWT verwijst naar onbekende organisatie "${toegang.clerkOrgId}" (subject: ${identity.subject}) — niet geprovisioneerd?`
+      );
+      throw new AuthError(
+        "Organisatie niet gevonden. Neem contact op met je beheerder."
+      );
+
+    // Een bestaande maar uitgezette organisatie is juist een bewuste
+    // beheerdersactie — geen logregel waard.
+    case "inactieve-organisatie":
+      throw new AuthError(
+        "Deze organisatie is niet actief. Neem contact op met je beheerder."
+      );
+
+    case "geen-sessie":
+      throw new AuthError("Je moet ingelogd zijn om deze actie uit te voeren");
+  }
 }
 
 /**

@@ -1,22 +1,32 @@
 "use client";
 
 import { useAuth, useOrganizationList } from "@clerk/nextjs";
+import { useQuery } from "convex/react";
 import { useEffect, useState, type ReactNode } from "react";
+import { api } from "@convex/_generated/api";
 import { GeenToegang } from "@/app/(dashboard)/geen-toegang/geen-toegang";
 
 /**
- * Zorgt dat er een actieve Clerk-organisatie is voordat er ook maar één
- * org-gescoopte query afgaat.
+ * Zorgt dat er een actieve Clerk-organisatie is *die Convex ook kent*, voordat
+ * er ook maar één org-gescoopte query afgaat.
  *
  * De Convex-backend leest `org_id` uit het JWT (`requireOrg`). Clerk vult dat
  * claim alleen als de sessie een *actieve* organisatie heeft — lid zijn is niet
  * genoeg. Iedereen zit hier in precies één organisatie, dus die zetten we
  * automatisch actief; de gebruiker hoeft niets te kiezen.
  *
- * Drie uitkomsten:
- * - actieve org → children;
+ * Een geldig claim is echter nog geen toegang: wijst het naar een organisatie
+ * die nooit in Convex geprovisioneerd is, dan gooit élke query van de shell
+ * (normuren, sidebartellingen, dashboard, klanten…) zijn eigen
+ * "Organisatie niet gevonden", klapt de shell in de ErrorBoundary en loopt de
+ * console vol. Daarom stelt de gate één tolerante voorvraag
+ * (`organisaties.toegangsStatus`) en blokkeert hij vóórdat de children mounten.
+ *
+ * Uitkomsten:
+ * - actieve org die Convex kent → children;
  * - lid, nog niet actief → laadstaat terwijl `setActive` loopt;
- * - geen lidmaatschap (of `setActive` mislukt) → `GeenToegang`.
+ * - geen lidmaatschap (of `setActive` mislukt) → `GeenToegang`;
+ * - org onbekend of uitgezet in Convex → `GeenToegang` met de passende zin.
  *
  * Deze gate hoort alleen om de dashboard-tree. Het klantenportaal scoopt via de
  * klant-koppeling en heeft bewust géén org-lidmaatschap, en de publieke
@@ -43,6 +53,12 @@ export function OrgGate({
   // in een lus opnieuw.
   const [setActiveMislukt, setSetActiveMislukt] = useState(false);
 
+  // De voorvraag draait pas als Clerk een org-claim heeft: zonder claim weten
+  // we het antwoord al ("geen-organisatie") en zou de query alleen maar een
+  // extra rondje zijn. `toegangsStatus` gooit niet, dus deze ene query kan de
+  // gate zelf niet in een ErrorBoundary laten vallen.
+  const toegang = useQuery(api.organisaties.toegangsStatus, orgId ? {} : "skip");
+
   const eersteOrgId = userMemberships?.data?.[0]?.organization?.id;
   // In de niet-geladen tak van Clerk's union is dit `false`; pas na isLoaded
   // zegt het iets. Zonder deze vlag flitst GeenToegang tijdens het ophalen van
@@ -65,7 +81,26 @@ export function OrgGate({
   }, [isLoaded, orgId, eersteOrgId, setActive, setActiveMislukt]);
 
   if (!isLoaded || ledenLaden) return <>{laadstaat}</>;
-  if (orgId) return <>{children}</>;
+
+  if (orgId) {
+    // Zolang de voorvraag loopt blijven de children ongemount — dit is precies
+    // de plek waar de query-storm anders begon.
+    if (toegang === undefined) return <>{laadstaat}</>;
+    if (toegang.status === "ok") return <>{children}</>;
+    if (toegang.status === "onbekende-organisatie") {
+      return <GeenToegang reden="onbekende-organisatie" />;
+    }
+    if (toegang.status === "inactieve-organisatie") {
+      return <GeenToegang reden="inactieve-organisatie" />;
+    }
+    // "geen-sessie"/"geen-organisatie" terwijl Clerk wél een actieve org meldt:
+    // het Convex-token loopt nog achter op de Clerk-sessie (vlak na `setActive`
+    // zit het claim er nog niet in). Convex vraagt de query opnieuw zodra het
+    // token ververst is, dus hier wachten in plaats van ten onrechte de
+    // no-access-staat tonen.
+    return <>{laadstaat}</>;
+  }
+
   if (!eersteOrgId || setActiveMislukt) return <GeenToegang />;
   // Lid, maar de organisatie is nog niet actief: setActive loopt.
   return <>{laadstaat}</>;
