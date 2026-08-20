@@ -181,8 +181,10 @@ export function ikBetrokken(
  * 1. de deadline is voorbij — hard, want die datum is aan iemand beloofd;
  * 2. de taak staat op "wacht op check" en ligt ≥ 2 dagen stil — hard, want
  *    hier is het werk gedaan en houdt alleen de check het op;
- * 3. de taak ligt ≥ 3 dagen stil bij een ánder — zacht: misschien loopt het,
- *    misschien is het vergeten, maar het is het aankijken waard.
+ * 3. de taak ligt ≥ 3 dagen stil bij een ánder, of bij NIEMAND — zacht:
+ *    misschien loopt het, misschien is het vergeten, maar het is het aankijken
+ *    waard. De ongeadresseerde variant hoort er nadrukkelijk bij: een taak
+ *    zonder maker is precies degene die niemand oppakt (review v13).
  *
  * 2 en 3 sluiten elkaar uit: een wachtende check is al gemeld, en twee regels
  * over dezelfde stilstand maken het kaartje alleen maar drukker.
@@ -208,16 +210,17 @@ export function redenen(
       tekst: `ligt ${taak.stilDagen}d te wachten op ${wie}`,
       hard: true,
     });
-  } else if (
-    taak.stilDagen >= 3 &&
-    taak.makerId !== undefined &&
-    !gelijk(taak.makerId, ikId)
-  ) {
-    const wie = taak.maker ? voornaamVan(taak.maker.naam) : "iemand anders";
-    uit.push({
-      tekst: `${taak.stilDagen}d geen beweging bij ${wie}`,
-      hard: false,
-    });
+  } else if (taak.stilDagen >= 3 && !gelijk(taak.makerId, ikId)) {
+    // Twee gevallen, één trigger: stilstand bij een ánder, en stilstand op een
+    // taak die aan niemand hangt. Alleen "bij mijzelf" valt af — dat is mijn
+    // eigen werkvoorraad, niet iets wat blijft liggen.
+    const tekst =
+      taak.makerId === undefined
+        ? `${taak.stilDagen}d geen beweging, niemand toegewezen`
+        : `${taak.stilDagen}d geen beweging bij ${
+            taak.maker ? voornaamVan(taak.maker.naam) : "iemand anders"
+          }`;
+    uit.push({ tekst, hard: false });
   }
 
   return uit;

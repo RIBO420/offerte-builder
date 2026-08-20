@@ -364,6 +364,26 @@ describe("blijft liggen (§B3)", () => {
     expect(r).toEqual([{ tekst: "4d geen beweging bij Bart", hard: false }]);
   });
 
+  it("meldt drie dagen stilstand op een taak die aan niemand hangt (zacht)", () => {
+    // Regressie review v13: juist een taak zónder maker is degene die niemand
+    // oppakt. Die viel uit trigger 3 omdat de check op een maker stond.
+    const t = taak({ makerId: undefined, uitgezetDoorId: IK, stilDagen: 5 });
+    expect(redenen(t, IK, VANDAAG)).toEqual([
+      { tekst: "5d geen beweging, niemand toegewezen", hard: false },
+    ]);
+  });
+
+  it("zet een ongeadresseerde blijver ook echt in het paneel", () => {
+    const t = taak({ makerId: undefined, uitgezetDoorId: IK, stilDagen: 3 });
+    const lijst = blijftLiggen([t], IK, VANDAAG);
+    expect(lijst.map((x) => x.taak._id)).toEqual([t._id]);
+  });
+
+  it("meldt een ongeadresseerde taak die nog geen drie dagen stilligt niet", () => {
+    const t = taak({ makerId: undefined, uitgezetDoorId: IK, stilDagen: 2 });
+    expect(redenen(t, IK, VANDAAG)).toEqual([]);
+  });
+
   it("meldt stilstand bij mijzelf niet — dat is mijn eigen werkvoorraad", () => {
     const t = taak({ makerId: IK, stilDagen: 9 });
     expect(redenen(t, IK, VANDAAG)).toEqual([]);
