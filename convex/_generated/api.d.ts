@@ -95,6 +95,7 @@ import type * as migrations_seedBouwstenen from "../migrations/seedBouwstenen.js
 import type * as migrations_seedTekstblokken from "../migrations/seedTekstblokken.js";
 import type * as migrations_splitsFactuurStatus from "../migrations/splitsFactuurStatus.js";
 import type * as migrations_taakmodelV2 from "../migrations/taakmodelV2.js";
+import type * as migrations_usersOrgBackfill from "../migrations/usersOrgBackfill.js";
 import type * as mobile from "../mobile.js";
 import type * as nacalculaties from "../nacalculaties.js";
 import type * as normuren from "../normuren.js";
@@ -256,6 +257,7 @@ declare const fullApi: ApiFromModules<{
   "migrations/seedTekstblokken": typeof migrations_seedTekstblokken;
   "migrations/splitsFactuurStatus": typeof migrations_splitsFactuurStatus;
   "migrations/taakmodelV2": typeof migrations_taakmodelV2;
+  "migrations/usersOrgBackfill": typeof migrations_usersOrgBackfill;
   mobile: typeof mobile;
   nacalculaties: typeof nacalculaties;
   normuren: typeof normuren;
