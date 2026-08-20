@@ -177,7 +177,13 @@ export const verwijder = mutation({
       throw new ConvexError("Bestand niet gevonden");
     }
 
-    if (bestand.storageId) {
+    // ALLEEN een eigen upload heeft een eigen storage-object. Een rij met bron
+    // `offerte`/`factuur` is een VERWIJZING naar een document dat elders leeft;
+    // `storage.delete` daarop sloopte de PDF onder de offerte vandaan, terwijl
+    // de gebruiker alleen een regel uit zijn dossier haalde (review v13,
+    // bevinding 7). Zo'n rij verdwijnt hieronder gewoon, zonder storage.
+    const eigenUpload = bestand.bron === "upload" || bestand.bron === "klant";
+    if (eigenUpload && bestand.storageId) {
       // Een storage-object dat al weg is mag het verwijderen niet laten klappen.
       try {
         await ctx.storage.delete(bestand.storageId);

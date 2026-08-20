@@ -146,3 +146,75 @@ describe("gdprAnonymize: klantbestanden vallen onder het verzoek", () => {
     expect(store.get(klantId)?.gdprAnonymized).toBe(true);
   });
 });
+
+// ─── 2. Eén rij verwijderen ──────────────────────────────────────────────────
+
+describe("klantBestanden.verwijder: alleen eigen uploads raken de storage", () => {
+  it("verwijdert het storage-object van een eigen upload", async () => {
+    const { ctx, store, orgId, userId, klantId, verwijderd } = opzet();
+    const bestandId = insertBestand(
+      store,
+      { orgId, klantId, userId },
+      { bron: "upload", storageId: "_storage:foto-1" }
+    );
+
+    await handler(verwijderBestand)(ctx, { bestandId });
+
+    expect(verwijderd).toHaveBeenCalledWith("_storage:foto-1");
+    expect(store.get(bestandId)).toBeNull();
+  });
+
+  it("laat de PDF van een offerte staan en haalt alleen de dossierrij weg", async () => {
+    // De rij is een VERWIJZING: het storage-object hangt onder de offerte zelf.
+    // storage.delete erop sloopte de PDF onder de offerte vandaan.
+    const { ctx, store, orgId, userId, klantId, verwijderd } = opzet();
+    const bestandId = insertBestand(
+      store,
+      { orgId, klantId, userId },
+      {
+        bron: "offerte",
+        soort: "document",
+        titel: "Offerte 2026-001",
+        storageId: "_storage:offerte-pdf",
+      }
+    );
+
+    await handler(verwijderBestand)(ctx, { bestandId });
+
+    expect(verwijderd).not.toHaveBeenCalled();
+    expect(store.get(bestandId)).toBeNull();
+  });
+
+  it("doet hetzelfde voor een factuurverwijzing", async () => {
+    const { ctx, store, orgId, userId, klantId, verwijderd } = opzet();
+    const bestandId = insertBestand(
+      store,
+      { orgId, klantId, userId },
+      {
+        bron: "factuur",
+        soort: "document",
+        titel: "Factuur 2026-014",
+        storageId: "_storage:factuur-pdf",
+      }
+    );
+
+    await handler(verwijderBestand)(ctx, { bestandId });
+
+    expect(verwijderd).not.toHaveBeenCalled();
+    expect(store.get(bestandId)).toBeNull();
+  });
+
+  it("ruimt een door de klant geüpload bestand wél op", async () => {
+    const { ctx, store, orgId, userId, klantId, verwijderd } = opzet();
+    const bestandId = insertBestand(
+      store,
+      { orgId, klantId, userId },
+      { bron: "klant", storageId: "_storage:klant-foto" }
+    );
+
+    await handler(verwijderBestand)(ctx, { bestandId });
+
+    expect(verwijderd).toHaveBeenCalledWith("_storage:klant-foto");
+    expect(store.get(bestandId)).toBeNull();
+  });
+});
