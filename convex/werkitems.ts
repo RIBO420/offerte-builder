@@ -127,6 +127,25 @@ export function assertVeldenVoorType(
  * Adres van een werkitem: eigen adres wint, anders het klantadres (PRD §1.1:
  * default = klantadres, overschrijfbaar).
  */
+/**
+ * Wil deze klant een bevestigingsmail bij het inplannen? Het v13-dossierveld
+ * `bevestigingsmailBijInplannen` is leidend zodra het ooit gezet is (ook
+ * expliciet uit); het oudere `inplanBevestigingsMail` blijft de terugval voor
+ * klanten die alleen dat veld hebben. Default uit.
+ */
+export function wilInplanBevestigingsmail(
+  klant: Pick<
+    Doc<"klanten">,
+    "bevestigingsmailBijInplannen" | "inplanBevestigingsMail"
+  > | null
+): boolean {
+  return (
+    klant?.bevestigingsmailBijInplannen ??
+    klant?.inplanBevestigingsMail ??
+    false
+  );
+}
+
 export function resolveAdres(
   werkitem: Pick<WerkItem, "adres">,
   klant: Pick<Doc<"klanten">, "adres" | "postcode" | "plaats"> | null
@@ -479,12 +498,12 @@ export const updatePlanning = mutation({
         tekst: `${werkitem.naam} — ${details}`,
       });
 
-      // §2.7 (event inplanning_bevestigd): optioneel PER KLANT (veld
-      // inplanBevestigingsMail, default uit) — bevestigingsmail als CONCEPT
-      // in de wachtrij; kantoor keurt goed (§1.2). Additief: zonder
-      // klant-opt-in, actieve trigger of e-mailadres gebeurt er niets.
+      // §2.7 (event inplanning_bevestigd): optioneel PER KLANT, default uit —
+      // bevestigingsmail als CONCEPT in de wachtrij; kantoor keurt goed
+      // (§1.2). Additief: zonder klant-opt-in, actieve trigger of e-mailadres
+      // gebeurt er niets.
       const klant = await ctx.db.get(werkitem.klantId);
-      if (klant?.inplanBevestigingsMail === true && klant.email && nieuweStart) {
+      if (wilInplanBevestigingsmail(klant) && klant?.email && nieuweStart) {
         await zetTriggerMailKlaar(ctx, {
           event: "inplanning_bevestigd",
           orgId,

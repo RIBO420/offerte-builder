@@ -6,15 +6,17 @@
  *
  * 1. **Eén schakelaar zet de andere niet om.** Beide argumenten zijn optioneel;
  *    wie alleen de opnametoestemming aanzet, mag de mailvoorkeur niet wissen.
- * 2. **Het oudere `inplanBevestigingsMail` blijft ongemoeid.** Dat veld voedt
- *    de mailtrigger in `werkitems.ts`; samenvoegen is een migratiebesluit, en
- *    deze mutation mag daar niet stiekem op vooruitlopen.
+ * 2. **Het oudere `inplanBevestigingsMail` blijft ongemoeid.** De mailtrigger
+ *    in `werkitems.ts` leest sinds v13 beide velden (nieuw veld leidend, oud
+ *    veld terugval — zie `wilInplanBevestigingsmail`), dus de mutation hoeft
+ *    en mag het oude veld niet aanraken.
  * 3. **Een klantaccount en een andere organisatie komen er niet in.** Dit is
  *    intern dossier.
  */
 import { describe, it, expect } from "vitest";
 
 import { setDossierToestemmingen } from "../../../../convex/klanten";
+import { wilInplanBevestigingsmail } from "../../../../convex/werkitems";
 import {
   MockConvexStore,
   createMockCtx,
@@ -97,6 +99,28 @@ describe("klanten.setDossierToestemmingen", () => {
 
     const klant = wereld.store.get(wereld.klantId) as Record<string, unknown>;
     expect(klant.opnameToestemming).toBeUndefined();
+  });
+
+  it("de mailtrigger leest het v13-veld als leidend en valt terug op het oude", () => {
+    type Voorkeur = Parameters<typeof wilInplanBevestigingsmail>[0];
+    const geval = (
+      nieuw: boolean | undefined,
+      oud: boolean | undefined
+    ): Voorkeur =>
+      ({
+        bevestigingsmailBijInplannen: nieuw,
+        inplanBevestigingsMail: oud,
+      }) as Voorkeur;
+
+    // De dossier-toggle (schrijft alleen het nieuwe veld) moet écht iets doen:
+    expect(wilInplanBevestigingsmail(geval(true, undefined))).toBe(true);
+    // …ook uitzetten, al staat de oude opt-in nog aan:
+    expect(wilInplanBevestigingsmail(geval(false, true))).toBe(false);
+    // Terugval voor klanten van vóór v13:
+    expect(wilInplanBevestigingsmail(geval(undefined, true))).toBe(true);
+    // Default uit:
+    expect(wilInplanBevestigingsmail(geval(undefined, undefined))).toBe(false);
+    expect(wilInplanBevestigingsmail(null)).toBe(false);
   });
 
   it("komt niet bij de klant van een andere organisatie", async () => {

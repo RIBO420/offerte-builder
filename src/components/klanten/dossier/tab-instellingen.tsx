@@ -598,13 +598,12 @@ export function TabInstellingen({
           {/* §A8 / §2.7: opt-in inplanning-bevestigingsmail (default uit) —
               zet bij inplannen een concept-mail klaar; kantoor keurt goed.
 
-              LET OP: deze schakelaar schrijft het v13-veld
-              `bevestigingsmailBijInplannen`. De mailtrigger in
-              `convex/werkitems.ts` leest (nog) het oudere
-              `inplanBevestigingsMail`. Ze staan voor dezelfde wens; welk veld
-              de waarheid wordt is een migratiebesluit, geen UI-besluit. Zolang
-              dat niet gevallen is tonen we hieronder de oude waarde als
-              terugval, zodat een bestaande opt-in niet plots "uit" lijkt. */}
+              Deze schakelaar schrijft het v13-veld
+              `bevestigingsmailBijInplannen`; de mailtrigger
+              (`wilInplanBevestigingsmail` in convex/werkitems.ts) leest dat
+              veld als leidend met het oudere `inplanBevestigingsMail` als
+              terugval. Dezelfde terugval hieronder in de weergave, zodat een
+              bestaande opt-in niet plots "uit" lijkt. */}
           <VoorkeurRegel
             titel="Bevestigingsmail bij inplannen"
             uitleg="Zet een concept-mail klaar in Concept-mails zodra er werk voor deze klant ingepland wordt."
