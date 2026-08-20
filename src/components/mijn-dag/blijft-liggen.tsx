@@ -165,7 +165,7 @@ export function BlijftLiggenKolom({
   return (
     <section
       aria-label="Dit blijft liggen"
-      className="sticky left-0 z-20 flex w-[18.5rem] shrink-0 flex-col rounded-xl border border-status-vervallen-border bg-status-vervallen/40 shadow-sm"
+      className="sticky left-0 z-20 flex min-w-[15rem] max-w-[24rem] flex-1 basis-[18.5rem] flex-col rounded-xl border border-status-vervallen-border bg-status-vervallen/40 shadow-sm"
     >
       {/* De kop is het enige verzadigde vlak op het bord: donkerrood met witte
           tekst in licht thema; in dark een rode tint met rode tekst, omdat

@@ -36,7 +36,10 @@ export function BordKolomWeergave({
       ref={setNodeRef}
       aria-label={kolom.titel}
       className={cn(
-        "flex w-[18.5rem] shrink-0 flex-col rounded-xl border bg-muted/50 transition-colors",
+        // Vloeibare breedte: kolommen verdelen de beschikbare ruimte en
+        // krimpen mee tot 15rem (bijv. bij een uitgeklapte zijbalk); pas als
+        // zelfs dat niet past, scrollt de bordstrook horizontaal.
+        "flex min-w-[15rem] max-w-[24rem] flex-1 basis-[18.5rem] flex-col rounded-xl border bg-muted/50 transition-colors",
         isOver && kolom.sleepbaar && "border-primary bg-accent/50"
       )}
     >
