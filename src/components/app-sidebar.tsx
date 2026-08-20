@@ -355,7 +355,10 @@ export function AppSidebar() {
     <Sidebar variant="inset" collapsible="icon" aria-label="Hoofdnavigatie">
       <SidebarHeader>
         <SidebarMenu>
-          <SidebarMenuItem>
+          {/* Vaste rijhoogte: de lg-knop is uitgeklapt 48px maar ingeklapt
+              32px; zonder dit groeit de kop 16px bij hover-uitklap en zakt
+              alles eronder zichtbaar mee. */}
+          <SidebarMenuItem className="flex h-12 items-center">
             <SidebarMenuButton size="lg" asChild>
               <Link href="/dashboard">
                 {/* Groene drager onder het witte merkteken: bg-sidebar is licht
@@ -368,7 +371,7 @@ export function AppSidebar() {
                       voorrang. */}
                   <TopTuinenLogo variant="wit" size={22} className="size-[22px]" priority />
                 </div>
-                <div className="grid flex-1 text-left text-sm leading-tight">
+                <div className="grid flex-1 text-left text-sm leading-tight transition-opacity duration-200 ease-in-out group-data-[collapsible=icon]:opacity-0">
                   {/* Merkmoment (WS3b): het woordmerk in het displayfont — de
                       eerste plek waar je het merk ziet, niet zomaar een label. */}
                   <span className="truncate font-display text-[15px] font-semibold tracking-tight" title="Top Tuinen OS">Top Tuinen OS</span>
@@ -489,7 +492,7 @@ export function AppSidebar() {
                     ) : (
                       <div className="size-8 rounded-full bg-muted animate-pulse" />
                     )}
-                    <div className="grid flex-1 text-left text-sm leading-tight">
+                    <div className="grid flex-1 text-left text-sm leading-tight transition-opacity duration-200 ease-in-out group-data-[collapsible=icon]:opacity-0">
                       <span className="truncate font-medium" title={mounted && isUserLoaded ? userDisplayName : undefined}>
                         {mounted && isUserLoaded ? userDisplayName : "Laden..."}
                       </span>

@@ -70,10 +70,6 @@ type SidebarContextProps = {
   open: boolean
   /** Alleen de vastgepinde voorkeur (knop/Cmd+B), zonder de hoverlaag. */
   pinned: boolean
-  /** Open dóór hover (niet vastgepind): de balk zweeft dan als overlay over
-   *  de content in plaats van hem weg te duwen — anders reflowt de hele
-   *  pagina bij elke hover en "zakt" alles zichtbaar. */
-  hoverOverlay: boolean
   setOpen: (open: boolean) => void
   openMobile: boolean
   setOpenMobile: (open: boolean) => void
@@ -185,8 +181,6 @@ function SidebarProvider({
 
   // Zichtbare staat = vastgepind óf tijdelijk uitgeklapt door hover.
   const open = pinned || hoverOpen
-  // Alleen-door-hover open → overlay-gedrag (content blijft staan).
-  const hoverOverlay = hoverOpen && !pinned
 
   // De knop en Cmd+B zetten de pin om, niet de zichtbare staat.
   //
@@ -232,7 +226,6 @@ function SidebarProvider({
       state,
       open,
       pinned,
-      hoverOverlay,
       setOpen,
       isMobile,
       openMobile,
@@ -244,7 +237,6 @@ function SidebarProvider({
       state,
       open,
       pinned,
-      hoverOverlay,
       setOpen,
       isMobile,
       openMobile,
@@ -291,7 +283,7 @@ function Sidebar({
   variant?: "sidebar" | "floating" | "inset"
   collapsible?: "offcanvas" | "icon" | "none"
 }) {
-  const { isMobile, state, openMobile, setOpenMobile, setHovering, hoverOverlay } =
+  const { isMobile, state, openMobile, setOpenMobile, setHovering } =
     useSidebar()
 
   if (collapsible === "none") {
@@ -344,7 +336,6 @@ function Sidebar({
       className="group peer text-sidebar-foreground hidden md:block"
       data-state={state}
       data-collapsible={state === "collapsed" ? collapsible : ""}
-      data-hover-overlay={hoverOverlay ? "true" : "false"}
       data-variant={variant}
       data-side={side}
       data-slot="sidebar"
@@ -363,22 +354,18 @@ function Sidebar({
       <div
         data-slot="sidebar-gap"
         className={cn(
-          "relative w-(--sidebar-width) bg-transparent transition-[width] duration-150 ease-out",
+          "relative w-(--sidebar-width) bg-transparent transition-[width] duration-200 ease-in-out",
           "group-data-[collapsible=offcanvas]:w-0",
           "group-data-[side=right]:rotate-180",
-          // Overlay (open door hover, niet vastgepind): de gap blijft op de
-          // ingeklapte breedte, zodat de content niet reflowt — de balk
-          // schuift er als paneel overheen.
           variant === "floating" || variant === "inset"
-            ? "group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4)))] group-data-[hover-overlay=true]:w-[calc(var(--sidebar-width-icon)+(--spacing(4)))]!"
-            : "group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[hover-overlay=true]:w-(--sidebar-width-icon)!"
+            ? "group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4)))]"
+            : "group-data-[collapsible=icon]:w-(--sidebar-width-icon)"
         )}
       />
       <div
         data-slot="sidebar-container"
         className={cn(
-          "fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-150 ease-out md:flex",
-          "group-data-[hover-overlay=true]:z-30 group-data-[hover-overlay=true]:[&>[data-sidebar=sidebar]]:shadow-[6px_0_24px_-8px_rgb(0_0_0/0.35)]",
+          "fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-200 ease-in-out md:flex",
           side === "left"
             ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
             : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
@@ -478,11 +465,8 @@ function SidebarInset({ className, ...props }: React.ComponentProps<"main">) {
         // het contentvlak in één keer 8px opzij terwijl de balk zelf 200ms
         // aan het schuiven is — dat zie je nu bij elke hover, niet alleen bij
         // een klik op de knop.
-        "md:transition-[margin] md:duration-150 md:ease-out",
-        // De ml-2 hangt óók aan de overlay-stand: bij hover-uitklap houdt de
-        // content dezelfde linkermarge als ingeklapt, anders schuift alles
-        // alsnog 8px opzij terwijl de balk eroverheen zweeft.
-        "md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow-sm md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-2 md:peer-data-[variant=inset]:peer-data-[hover-overlay=true]:ml-2",
+        "md:transition-[margin] md:duration-200 md:ease-in-out",
+        "md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow-sm md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-2",
         className
       )}
       {...props}
@@ -646,7 +630,7 @@ function SidebarMenuItem({ className, ...props }: React.ComponentProps<"li">) {
 }
 
 const sidebarMenuButtonVariants = cva(
-  "peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-hidden ring-sidebar-ring transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0",
+  "peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-hidden ring-sidebar-ring transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! [&>span:last-child]:truncate [&>span:last-child]:transition-opacity [&>span:last-child]:duration-200 [&>span:last-child]:ease-in-out group-data-[collapsible=icon]:[&>span:last-child]:opacity-0 [&>svg]:size-4 [&>svg]:shrink-0",
   {
     variants: {
       variant: {
