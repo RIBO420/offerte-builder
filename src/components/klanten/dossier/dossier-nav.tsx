@@ -7,6 +7,7 @@ import {
   Clock,
   FileText,
   FolderKanban,
+  Images,
   Receipt,
   Settings2,
   Zap,
@@ -42,6 +43,7 @@ export type DossierTab =
   | "onderhoud"
   | "offertes"
   | "facturen"
+  | "bestanden"
   | "instellingen";
 
 export const DOSSIER_TABS: readonly DossierTab[] = [
@@ -52,6 +54,7 @@ export const DOSSIER_TABS: readonly DossierTab[] = [
   "onderhoud",
   "offertes",
   "facturen",
+  "bestanden",
   "instellingen",
 ] as const;
 
@@ -68,6 +71,7 @@ export const DOSSIER_TAB_LABELS: Record<DossierTab, string> = {
   onderhoud: "Onderhoud",
   offertes: "Offertes",
   facturen: "Facturen",
+  bestanden: "Bestanden",
   instellingen: "Instellingen",
 };
 
@@ -147,14 +151,18 @@ function bouwGroepen(t: DossierTellingen | null | undefined): NavGroep[] {
   // leeg. Dat is rustiger dan skeletons die één tel later wegspringen.
   const openTaken = t?.openTaken ?? 0;
   const openFacturen = t?.openFacturen ?? 0;
-  const teLaat = t?.factuurTeLaat === true;
+  // §A2: rood is één ding — er staat een factuur langer dan 30 dagen open.
+  // "Over de vervaldatum" (`factuurTeLaat`) is amber-materiaal: dat gebeurt bij
+  // elke betaaltermijn van 14 dagen een keer, en als dát al rood is heeft rood
+  // geen betekenis meer op het moment dat het écht misgaat.
+  const ouderDan30 = t?.factuurOuderDan30 === true;
   const actueel = openTaken + openFacturen;
 
   // "1 projecten" leest als een tikfout — de voorgelezen labels vervoegen mee.
   const meervoud = (n: number, ev: string, mv: string) =>
     `${n} ${n === 1 ? ev : mv}`;
 
-  const facturenToon: PilToon = teLaat
+  const facturenToon: PilToon = ouderDan30
     ? "rood"
     : openFacturen > 0
       ? "amber"
@@ -166,11 +174,13 @@ function bouwGroepen(t: DossierTellingen | null | undefined): NavGroep[] {
         {
           tab: "actueel",
           icoon: <Zap />,
+          // §A2: Actueel = open taken + open facturen, en die teller is amber
+          // zodra er iets openstaat. Rood blijft bij de factuurteller.
           waarde: actueel,
-          toon: actueel > 0 ? (teLaat ? "rood" : "amber") : "leeg",
+          toon: actueel > 0 ? "amber" : "leeg",
           pilLabel:
             actueel > 0
-              ? `${actueel} openstaand${teLaat ? ", waarvan een factuur te laat" : ""}`
+              ? `${actueel} openstaand${ouderDan30 ? ", waarvan een factuur ouder dan 30 dagen" : ""}`
               : "niets openstaand",
         },
       ],
@@ -235,7 +245,7 @@ function bouwGroepen(t: DossierTellingen | null | undefined): NavGroep[] {
           toon: facturenToon,
           pilLabel:
             openFacturen > 0
-              ? `${openFacturen} open${teLaat ? ", waarvan een langer dan 30 dagen" : ""}`
+              ? `${openFacturen} open${ouderDan30 ? ", waarvan een langer dan 30 dagen" : ""}`
               : `${meervoud(t?.facturen ?? 0, "factuur", "facturen")}, geen openstaand`,
         },
       ],
@@ -243,6 +253,15 @@ function bouwGroepen(t: DossierTellingen | null | undefined): NavGroep[] {
     {
       label: "Klant",
       items: [
+        {
+          tab: "bestanden",
+          icoon: <Images />,
+          // Neutrale telling: een foto of document vraagt niets van je, het
+          // staat er gewoon (§A2).
+          waarde: t?.bestanden ?? 0,
+          toon: telling(t?.bestanden ?? 0),
+          pilLabel: meervoud(t?.bestanden ?? 0, "bestand", "bestanden"),
+        },
         {
           tab: "instellingen",
           icoon: <Settings2 />,

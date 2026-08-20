@@ -1,16 +1,24 @@
 "use client";
 
 import { Cel, Cijferstrip } from "@/components/ui/cijferstrip";
-import { formatRelativeTime } from "@/lib/format/date";
 import type { DossierTab, DossierTellingen } from "./dossier-nav";
 
 /**
- * De vier tegels boven het klantdossier: wat vraagt hier geld, tijd en
- * aandacht, en wanneer sprak je deze klant voor het laatst.
+ * De statregel boven het klantdossier (prototype v13 §A1): vier tegels die het
+ * dossier samenvatten én bedienen.
  *
- * Dezelfde strook als op het dashboard (`@/components/ui/cijferstrip`), maar
- * de tegels zijn hier knoppen in plaats van links: ze schakelen een tab in
- * dezelfde pagina, en een link die niet navigeert hoort geen link te zijn.
+ * Elke tegel heeft een 4px gekleurde linkerbalk, zodat je de strook op kleur
+ * scant in plaats van op tekst. De betekenis komt uit inventaris §C, vertaald
+ * naar onze eigen tokens (nooit de prototype-hexwaarden):
+ *
+ * - **amber** (`status-herinnering-dot`) — geld: wat er nog binnen moet komen;
+ * - **groen** (`chart-1`) — werk: wat er nog te doen staat;
+ * - **kleibruin** (`accent-warm`) — kansen: offertes;
+ * - **donkergroen** (`primary`) — relatie: wanneer sprak je deze klant.
+ *
+ * Dezelfde strook als op het dashboard (`@/components/ui/cijferstrip`), maar de
+ * tegels zijn hier knoppen in plaats van links: ze zetten `?tab=` op dezelfde
+ * pagina, en een link die niet navigeert hoort geen link te zijn.
  */
 
 function datumKort(timestamp: number): string {
@@ -19,6 +27,28 @@ function datumKort(timestamp: number): string {
     month: "short",
     year: "numeric",
   });
+}
+
+/** "2026-08-25" → "di 25 aug"; een onleesbare waarde geeft null. */
+function deadlineKort(deadline: string): string | null {
+  const datum = new Date(`${deadline}T12:00:00`);
+  if (Number.isNaN(datum.getTime())) return null;
+  return datum.toLocaleDateString("nl-NL", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+}
+
+/** Zelfde kalenderdag als nu — dan zegt "vandaag" meer dan een datum. */
+function isVandaag(timestamp: number): boolean {
+  const datum = new Date(timestamp);
+  const nu = new Date();
+  return (
+    datum.getFullYear() === nu.getFullYear() &&
+    datum.getMonth() === nu.getMonth() &&
+    datum.getDate() === nu.getDate()
+  );
 }
 
 export function KlantCijferstrip({
@@ -35,10 +65,16 @@ export function KlantCijferstrip({
 }) {
   const openstaand = tellingen?.openstaandBedrag ?? 0;
   const openFacturen = tellingen?.openFacturen ?? 0;
-  const teLaat = tellingen?.factuurTeLaat === true;
+  // Rood is in v13 gereserveerd voor "staat langer dan 30 dagen open"; een
+  // factuur die net over de vervaldatum is blijft amber (§A2).
+  const ouderDan30 = tellingen?.factuurOuderDan30 === true;
   const openTaken = tellingen?.openTaken ?? 0;
-  const offertes = tellingen?.offertes ?? 0;
-  const laatsteContact = tellingen?.laatsteContactTimestamp ?? null;
+  const eerstvolgende = tellingen?.eerstvolgendeDeadline ?? null;
+  const offertes = tellingen?.offertesTotaal ?? 0;
+  const concepten = tellingen?.offertesConcept ?? 0;
+  const laatsteContact = tellingen?.laatsteContactOp ?? null;
+
+  const eerstvolgendeTekst = eerstvolgende ? deadlineKort(eerstvolgende) : null;
 
   return (
     <Cijferstrip
@@ -48,13 +84,14 @@ export function KlantCijferstrip({
     >
       <Cel
         label="Openstaand"
+        balk="bg-status-herinnering-dot"
         onClick={() => onKies("facturen")}
         actief={actief === "facturen"}
         waarde={openstaand}
         // Geld dat binnen moet komen krijgt kleur; een nul blijft stil.
         waardeClassName={
           openstaand > 0
-            ? teLaat
+            ? ouderDan30
               ? "text-status-vervallen-text"
               : "text-status-herinnering-text"
             : undefined
@@ -62,13 +99,16 @@ export function KlantCijferstrip({
         voet={
           openFacturen === 0 ? (
             <span className="text-muted-foreground">geen open facturen</span>
-          ) : teLaat ? (
-            <span className="text-status-vervallen-text">
-              {openFacturen} open · ouder dan 30 dagen
-            </span>
           ) : (
-            <span className="text-muted-foreground tabular-nums">
-              {openFacturen} open {openFacturen === 1 ? "factuur" : "facturen"}
+            <span
+              className={
+                ouderDan30
+                  ? "text-status-vervallen-text tabular-nums"
+                  : "text-muted-foreground tabular-nums"
+              }
+            >
+              {openFacturen} open{" "}
+              {openFacturen === 1 ? "factuur" : "facturen"}
             </span>
           )
         }
@@ -76,6 +116,7 @@ export function KlantCijferstrip({
 
       <Cel
         label="Open taken"
+        balk="bg-chart-1"
         onClick={() => onKies("taken")}
         actief={actief === "taken"}
         waarde={openTaken}
@@ -83,16 +124,19 @@ export function KlantCijferstrip({
         voet={
           openTaken === 0 ? (
             <span className="text-muted-foreground">alles afgerond</span>
-          ) : (
+          ) : eerstvolgendeTekst ? (
             <span className="text-muted-foreground">
-              wachten op een volgende stap
+              eerstvolgende: {eerstvolgendeTekst}
             </span>
+          ) : (
+            <span className="text-muted-foreground">geen deadline gepland</span>
           )
         }
       />
 
       <Cel
         label="Offertes"
+        balk="bg-accent-warm"
         onClick={() => onKies("offertes")}
         actief={actief === "offertes"}
         waarde={offertes}
@@ -100,9 +144,13 @@ export function KlantCijferstrip({
         voet={
           offertes === 0 ? (
             <span className="text-muted-foreground">nog geen offertes</span>
+          ) : concepten > 0 ? (
+            <span className="text-muted-foreground tabular-nums">
+              {concepten} in concept
+            </span>
           ) : (
-            <span className="text-muted-foreground">
-              in dit dossier vastgelegd
+            <span className="text-muted-foreground tabular-nums">
+              {offertes} {offertes === 1 ? "offerte" : "offertes"}
             </span>
           )
         }
@@ -110,20 +158,20 @@ export function KlantCijferstrip({
 
       <Cel
         label="Laatste contact"
+        balk="bg-primary"
         onClick={() => onKies("tijdlijn")}
         actief={actief === "tijdlijn"}
-        // Geen getal maar een tijdsafstand: "3 dagen geleden" zegt hier meer
-        // dan een datum die je zelf moet narekenen. Een graadje kleiner dan de
-        // cijfers ernaast, want een zin van vijftien tekens op 22px past niet
-        // in een kwart strook — en inkorten gaat vóór uitwijken.
+        // Geen getal maar een moment. Een graadje kleiner dan de cijfers
+        // ernaast, want een datum van vijftien tekens op 22px past niet in een
+        // kwart strook — en inkorten gaat vóór uitwijken.
         waardeClassName="block truncate text-[17px] leading-6"
         waardeTekst={
           laatsteContact === null ? (
             <span className="text-muted-foreground">—</span>
+          ) : isVandaag(laatsteContact) ? (
+            <span title={datumKort(laatsteContact)}>vandaag</span>
           ) : (
-            <span title={datumKort(laatsteContact)}>
-              {formatRelativeTime(laatsteContact)}
-            </span>
+            <span>{datumKort(laatsteContact)}</span>
           )
         }
         voet={

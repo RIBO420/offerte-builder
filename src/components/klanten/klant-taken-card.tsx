@@ -85,7 +85,18 @@ const PRIORITEIT_RANG: Record<TaakPrioriteit, number> = {
  * formulier moet openen — de snelste route van gedachte naar taak is klikken
  * en typen.
  */
-export function KlantTakenCard({ klantId }: { klantId: Id<"klanten"> }) {
+export function KlantTakenCard({
+  klantId,
+  onAlleTaken,
+}: {
+  klantId: Id<"klanten">;
+  /**
+   * "Alle taken" in de kopbalk (§A3, tabblad Actueel). Zonder deze prop —
+   * bijvoorbeeld op de Taken-tab zélf — staat er geen knop: daar zou hij naar
+   * de pagina wijzen waar je al bent.
+   */
+  onAlleTaken?: () => void;
+}) {
   const taken = useQuery(api.klantTaken.listVoorKlant, { klantId });
   const personen = useQuery(api.users.takenToewijsbaar, {});
 
@@ -234,6 +245,13 @@ export function KlantTakenCard({ klantId }: { klantId: Id<"klanten"> }) {
       telling={openTaken.length}
       kopbalk
       legeRegel={legeRegel}
+      acties={
+        onAlleTaken ? (
+          <Button variant="outline" size="xs" onClick={onAlleTaken}>
+            Alle taken
+          </Button>
+        ) : undefined
+      }
       uitleg="Losse to-do's voor deze klant: terugbellen, offerte narekenen, materiaal bestellen. Op een open kaart kies je wie het maakt en wie het vóór verzending checkt; die taak komt dan ook op hun Mijn dag te staan. Enter slaat direct op."
     >
       {/* Composer: één regel die pas openklapt zodra je hem aanraakt. */}

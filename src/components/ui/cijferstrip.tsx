@@ -27,6 +27,7 @@ export function Cel({
   onClick,
   actief = false,
   span,
+  balk,
   waarde,
   waardeTekst,
   waardeClassName,
@@ -46,6 +47,13 @@ export function Cel({
   /** Alleen bij `onClick`: markeert de cel die nu open staat. */
   actief?: boolean;
   span?: string;
+  /**
+   * Achtergrondklasse van een 4px linkerbalk (`bg-…`). Bedoeld om een strook
+   * op kleur te kunnen scannen in plaats van op tekst: geld amber, werk groen,
+   * offertes kleibruin, relatie donkergroen. Zonder deze prop verandert er
+   * niets aan de cel.
+   */
+  balk?: string;
   /** Getal — telt op met `AnimatedNumber`. Laat weg bij `waardeTekst`. */
   waarde?: number;
   /** Niet-numerieke waarde ("3 dagen geleden", "—"). Wint van `waarde`. */
@@ -58,8 +66,9 @@ export function Cel({
   chip?: ReactNode;
 }) {
   const basis = cn(
-    "group flex flex-col gap-1 bg-card px-3 py-2.5 text-left transition-colors hover:bg-accent/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+    "group relative flex flex-col gap-1 bg-card px-3 py-2.5 text-left transition-colors hover:bg-accent/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
     actief && "bg-accent/50",
+    balk && "pl-4",
     span
   );
 
@@ -73,6 +82,13 @@ export function Cel({
 
   const inhoud = (
     <>
+      {balk && (
+        <span
+          aria-hidden
+          data-balk
+          className={cn("absolute inset-y-0 left-0 w-1", balk)}
+        />
+      )}
       <div className="flex items-center justify-between gap-2">
         <span className="truncate text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
           {label}

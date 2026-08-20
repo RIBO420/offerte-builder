@@ -30,6 +30,7 @@ import { TabProjecten } from "@/components/klanten/dossier/tab-projecten";
 import { TabOnderhoud } from "@/components/klanten/dossier/tab-onderhoud";
 import { TabOffertes } from "@/components/klanten/dossier/tab-offertes";
 import { TabFacturen } from "@/components/klanten/dossier/tab-facturen";
+import { BestandenTab } from "@/components/klanten/dossier/bestanden-tab";
 import { TabInstellingen } from "@/components/klanten/dossier/tab-instellingen";
 import { KlantReminderBanner } from "@/components/klant-reminder-banner";
 import { KLANT_PIPELINE_CONFIG, statusClasses } from "@/lib/constants/statuses";
@@ -388,6 +389,13 @@ export default function KlantDetailPage({
               <TabActueel
                 klantId={id as Id<"klanten">}
                 onNaarTijdlijn={() => setTab("tijdlijn")}
+                onNaarTaken={() => setTab("taken")}
+                // Alleen een notitie naast de meldingsnotice; de meldplicht
+                // vóór een opname blijft altijd staan (harde eis 3).
+                opnameToestemming={
+                  (klant as { opnameToestemming?: boolean }).opnameToestemming ===
+                  true
+                }
               />
             )}
             {actieveTab === "tijdlijn" && (
@@ -407,6 +415,9 @@ export default function KlantDetailPage({
             )}
             {actieveTab === "facturen" && (
               <TabFacturen klantId={id as Id<"klanten">} />
+            )}
+            {actieveTab === "bestanden" && (
+              <BestandenTab klantId={id as Id<"klanten">} />
             )}
             {actieveTab === "instellingen" && (
               <TabInstellingen klant={klant} isAnonymized={isAnonymized} />
