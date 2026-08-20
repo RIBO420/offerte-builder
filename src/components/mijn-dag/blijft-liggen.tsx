@@ -22,10 +22,18 @@ import { api } from "@convex/_generated/api";
  * simpelweg uit het paneel zonder dat er iets gebeurd is.
  */
 function BijWie({ taak }: { taak: VerrijkteTaak }) {
-  const wie = taak.maker ?? taak.checker;
+  // "Bij wie ligt dit nu?" — bij een taak die op check wacht is dat de
+  // checker, niet de maker die hem klaarzette.
+  const wie =
+    taak.status === "check"
+      ? (taak.checker ?? taak.maker)
+      : (taak.maker ?? taak.checker);
+  // Zonder toewijzing zegt de redenregel al "niemand toegewezen";
+  // dat hier herhalen is ruis.
+  if (!wie) return null;
   return (
-    <span className="inline-flex items-center gap-1 text-[11px] leading-4 text-muted-foreground">
-      {wie ? `bij ${voornaamVan(wie.naam)}` : "niet toegewezen"}
+    <span className="inline-flex items-center gap-1 text-xs leading-4 text-muted-foreground">
+      bij {voornaamVan(wie.naam)}
       <PersoonAvatar persoon={taak.maker} rol="maker" />
       <PersoonAvatar persoon={taak.checker} rol="checker" />
     </span>
@@ -55,14 +63,14 @@ function Acties({ taak }: { taak: VerrijkteTaak }) {
   };
 
   const knop =
-    "rounded-md border bg-card px-2 py-1 text-[11px] font-medium leading-4 transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50";
+    "rounded-md px-2.5 py-1.5 text-xs font-medium leading-4 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50";
 
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex flex-wrap gap-1.5 pt-0.5">
       <button
         type="button"
         disabled={bezig}
-        className={knop}
+        className={cn(knop, "border bg-card hover:bg-accent")}
         onClick={(e) => {
           e.stopPropagation();
           void doe(
@@ -82,7 +90,10 @@ function Acties({ taak }: { taak: VerrijkteTaak }) {
       <button
         type="button"
         disabled={bezig}
-        className={knop}
+        className={cn(
+          knop,
+          "bg-foreground text-background hover:bg-foreground/90"
+        )}
         onClick={(e) => {
           e.stopPropagation();
           void doe(
@@ -105,16 +116,16 @@ function LiggenKaart({
   onOpen: (taak: VerrijkteTaak) => void;
 }) {
   return (
-    <article className="grid gap-1.5 rounded-lg border border-status-vervallen-border bg-card px-2.5 py-2">
+    <article className="grid gap-1.5 rounded-lg border border-status-vervallen-border bg-card px-3 py-2.5 shadow-xs">
       <button
         type="button"
         onClick={() => onOpen(item.taak)}
-        className="grid gap-0.5 rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="grid justify-items-start gap-1.5 rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <span className="truncate text-[11px] leading-4 text-muted-foreground">
+        <span className="max-w-full truncate rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium leading-4 text-muted-foreground">
           {item.taak.klantNaam}
         </span>
-        <span className="line-clamp-2 break-words text-[13px] font-medium leading-snug">
+        <span className="line-clamp-2 break-words text-sm font-semibold leading-snug">
           {item.taak.titel}
         </span>
       </button>
@@ -124,7 +135,7 @@ function LiggenKaart({
           <li
             key={reden.tekst}
             className={cn(
-              "text-[11px] leading-4",
+              "text-xs leading-4",
               reden.hard
                 ? "font-medium text-status-vervallen-text"
                 : "text-muted-foreground"
@@ -154,27 +165,27 @@ export function BlijftLiggenKolom({
   return (
     <section
       aria-label="Dit blijft liggen"
-      className="sticky left-0 z-20 flex w-[17.5rem] shrink-0 flex-col rounded-xl border border-status-vervallen-border bg-status-vervallen/40"
+      className="sticky left-0 z-20 flex w-[18.5rem] shrink-0 flex-col rounded-xl border border-status-vervallen-border bg-status-vervallen/40 shadow-sm"
     >
-      <header className="sticky top-0 z-10 flex items-center gap-2 rounded-t-xl border-b border-status-vervallen-border bg-status-vervallen px-3 py-2">
-        <AlertTriangle
-          aria-hidden
-          className="size-4 shrink-0 text-status-vervallen-text"
-        />
+      {/* De kop is het enige verzadigde vlak op het bord: donkerrood met witte
+          tekst in licht thema; in dark een rode tint met rode tekst, omdat
+          witte tekst op onze lichtere dark-rood te weinig contrast houdt. */}
+      <header className="sticky top-0 z-10 flex items-center gap-2.5 rounded-t-xl bg-destructive px-3 py-2.5 text-white dark:bg-destructive/15 dark:text-status-vervallen-text">
+        <AlertTriangle aria-hidden className="size-4 shrink-0" />
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-medium text-status-vervallen-text">
+          <span className="block truncate text-sm font-semibold">
             Dit blijft liggen
           </span>
-          <span className="block truncate text-[11px] leading-4 text-status-vervallen-text/80">
+          <span className="block truncate text-[11px] leading-4 opacity-85">
             eerst dit, dan de rest
           </span>
         </span>
-        <span className="shrink-0 rounded-full bg-card px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-status-vervallen-text">
+        <span className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-card text-[11px] font-semibold tabular-nums text-status-vervallen-text">
           {items.length}
         </span>
       </header>
 
-      <div className="flex flex-1 flex-col gap-2 p-2">
+      <div className="flex flex-1 flex-col gap-2 p-2.5">
         {items.map((item) => (
           <LiggenKaart key={item.taak._id} item={item} onOpen={onOpen} />
         ))}

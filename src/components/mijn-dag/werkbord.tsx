@@ -223,8 +223,9 @@ export function Werkbord() {
         onDragEnd={(event) => void handleDragEnd(event)}
       >
         {/* De enige horizontale beweging op dit scherm zit hier, binnen de
-            bordstrook — de pagina zelf blijft staan (harde regel 1). */}
-        <div className="min-w-0 overflow-x-auto pb-2">
+            bordstrook — de pagina zelf blijft staan (harde regel 1). De
+            scrollbalk kleurt mee met het thema in plaats van browsergrijs. */}
+        <div className="min-w-0 overflow-x-auto pb-2 [scrollbar-color:var(--border)_transparent] [scrollbar-width:thin]">
           <div className="flex min-h-[16rem] items-stretch gap-3">
             {blijftLiggenModus === "kolom" && (
               <BlijftLiggenKolom

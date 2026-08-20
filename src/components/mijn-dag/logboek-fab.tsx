@@ -151,12 +151,14 @@ export function LogboekFab() {
         onClick={() => setOpen((vorig) => !vorig)}
         aria-expanded={open}
         className={cn(
-          "inline-flex items-center gap-2 rounded-full border bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-lg transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          "inline-flex items-center gap-2 rounded-full bg-primary py-2 pl-4 pr-2 text-sm font-semibold text-primary-foreground shadow-lg transition-[background-color,transform] hover:bg-primary/90 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         )}
       >
         <NotebookPen className="size-4" aria-hidden />
         Logboek
-        <span className="tabular-nums">{urenTekst(totaal)}</span>
+        <span className="rounded-full bg-primary-foreground/15 px-2.5 py-1 text-xs font-semibold tabular-nums leading-4">
+          {urenTekst(totaal)}
+        </span>
       </button>
     </div>
   );

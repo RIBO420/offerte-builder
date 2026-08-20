@@ -55,8 +55,9 @@ export function BordKaart({
       style={{ transform: CSS.Translate.toString(transform) }}
       data-status={taak.status}
       className={cn(
-        "grid gap-1 rounded-lg border bg-card px-2.5 py-2 text-left shadow-xs transition-colors",
-        sleepbaar && "cursor-grab active:cursor-grabbing",
+        "grid gap-1.5 rounded-lg border bg-card px-3 py-2.5 text-left shadow-xs transition-[border-color,box-shadow]",
+        sleepbaar &&
+          "cursor-grab hover:border-primary/40 hover:shadow-sm active:cursor-grabbing",
         isDragging && "z-20 opacity-80 shadow-md",
         isKlaar && "opacity-70"
       )}
@@ -70,14 +71,14 @@ export function BordKaart({
         onClick={() => {
           if (!isDragging) onOpen(taak);
         }}
-        className="grid gap-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+        className="grid justify-items-start gap-1.5 rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <span className="truncate text-[11px] leading-4 text-muted-foreground">
+        <span className="max-w-full truncate rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium leading-4 text-muted-foreground">
           {taak.klantNaam}
         </span>
         <span
           className={cn(
-            "line-clamp-2 break-words text-[13px] font-medium leading-snug",
+            "line-clamp-2 break-words text-sm font-semibold leading-snug",
             isKlaar &&
               "text-muted-foreground line-through decoration-muted-foreground/50"
           )}
