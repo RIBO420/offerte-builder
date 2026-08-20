@@ -454,13 +454,20 @@ export function AppSidebar() {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            {/* Ingeklapt is er geen ruimte voor avatar én bel naast elkaar in
-                een balk van 48px; dan onder elkaar, zodat allebei bereikbaar
-                blijft. */}
-            <div className="flex items-center justify-between px-2 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:gap-1 group-data-[collapsible=icon]:px-0">
+            {/* Eén rij in béide standen: ingeklapt alleen de avatar, de bel
+                verschijnt pas uitgeklapt (één hover verderop). Stapelen zou
+                de voet van hoogte laten wisselen en dan zakt de avatar
+                zichtbaar mee tijdens de hover-uitklap. */}
+            <div className="flex items-center justify-between group-data-[collapsible=icon]:justify-center">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <SidebarMenuButton size="lg" className="flex-1 cursor-pointer">
+                  <SidebarMenuButton
+                    size="lg"
+                    // Vaste hoogte en dezelfde inspringing in beide standen:
+                    // alleen dan staat de avatar tijdens de hover-uitklap
+                    // exact stil (geen 8px zakken, geen zijwaartse sprong).
+                    className="h-12 flex-1 cursor-pointer group-data-[collapsible=icon]:h-12! group-data-[collapsible=icon]:p-2!"
+                  >
                     {mounted && isUserLoaded ? (
                       user?.imageUrl ? (
                         <Image
@@ -581,7 +588,9 @@ export function AppSidebar() {
                   </DropdownMenuGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <NotificationCenter />
+              <span className="group-data-[collapsible=icon]:hidden">
+                <NotificationCenter />
+              </span>
             </div>
           </SidebarMenuItem>
         </SidebarMenu>
