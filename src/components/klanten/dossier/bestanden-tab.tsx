@@ -140,6 +140,10 @@ export function BestandenTab({ klantId }: { klantId: Id<"klanten"> }) {
 
   const fotos = bestanden?.fotos ?? [];
   const documenten = bestanden?.documenten ?? [];
+  /** Wat de viewer kan tonen; een rij zonder bestand hoort daar niet in. */
+  const fotosMetUrl = fotos.filter(
+    (foto): foto is typeof foto & { url: string } => Boolean(foto.url)
+  );
 
   /**
    * Upload → registreer, per bestand. Eén mislukking stopt de rest niet: wie
@@ -292,13 +296,22 @@ export function BestandenTab({ klantId }: { klantId: Id<"klanten"> }) {
           </div>
         ) : fotos.length === 0 ? null : (
           <ul className="grid grid-cols-2 gap-2 p-3 @[30rem]/sectie:grid-cols-3 @[46rem]/sectie:grid-cols-4">
-            {fotos.map((foto, index) => (
+            {fotos.map((foto) => (
               <li key={foto._id} className="group/foto min-w-0">
                 <div className="relative overflow-hidden rounded-md border bg-muted">
                   <button
                     type="button"
-                    onClick={() => setBekijkFoto(index)}
-                    className="block w-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                    // De viewer krijgt alleen foto's mét URL, dus de plek in
+                    // díe lijst opzoeken — een index uit `fotos` zou de
+                    // verkeerde foto openen zodra er één zonder bestand
+                    // tussen staat.
+                    onClick={() =>
+                      setBekijkFoto(
+                        fotosMetUrl.findIndex((kandidaat) => kandidaat._id === foto._id)
+                      )
+                    }
+                    disabled={!foto.url}
+                    className="block w-full focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:cursor-default"
                     aria-label={`${foto.titel} groot bekijken`}
                   >
                     {foto.url ? (
@@ -450,9 +463,10 @@ export function BestandenTab({ klantId }: { klantId: Id<"klanten"> }) {
       </SectiePaneel>
 
       <FotoViewer
-        fotos={fotos
-          .filter((foto) => foto.url)
-          .map((foto) => ({ url: foto.url as string, alt: foto.titel }))}
+        fotos={fotosMetUrl.map((foto) => ({
+          url: foto.url,
+          alt: foto.titel,
+        }))}
         index={bekijkFoto}
         onIndexChange={setBekijkFoto}
         titel="Foto bij deze klant"
