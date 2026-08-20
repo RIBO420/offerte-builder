@@ -6,7 +6,7 @@
  * ook uren kunnen invoeren voor mensen").
  *
  * Bewust géén tweede invoerformulier: de popover kiest alleen wíe en wélke
- * dag, en stuurt dan door naar Mijn dag (`/veld?dag=…&medewerker=…`) — de ene
+ * dag, en stuurt dan door naar Veld (`/veld?dag=…&medewerker=…`) — de ene
  * invoer-engine met voorstellen, overlapbewaking en het dag-indienen. Kantoor
  * mag daar al voor iedereen schrijven; dit maakt de ingang expliciet.
  */
@@ -69,7 +69,7 @@ export function UrenInvoerKnop() {
       <PopoverContent align="end" className="w-64 p-3">
         <p className="text-sm font-medium">Voor wie en welke dag?</p>
         <p className="mt-0.5 text-xs text-muted-foreground">
-          Je schrijft in Mijn dag, in de dag van de gekozen medewerker.
+          Je schrijft op het Veld-scherm, in de dag van de gekozen medewerker.
         </p>
         <Select value={medewerkerId} onValueChange={setMedewerkerId}>
           <SelectTrigger

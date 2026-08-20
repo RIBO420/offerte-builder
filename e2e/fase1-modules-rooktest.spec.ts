@@ -7,7 +7,7 @@
  * kernelementen aanwezig zijn en dat er geen console-errors optreden:
  * - /planning/weekbord (bord + opdrachtenbak)
  * - /planning/dagkaart (kop + inhoud)
- * - /veld (Mijn dag, Buiten-modus-toggle, noodprotocol-knop)
+ * - /veld (kop "Veld", Buiten-modus-toggle, noodprotocol-knop)
  * - /meldingen (bord + aanmaak-dialoog)
  * - /mails (concept-wachtrij)
  * - /instellingen/mailtriggers (beheerscherm)
@@ -84,10 +84,10 @@ test("fase 1 rooktest: planning, veld, meldingen, mails en facturatie", async ({
     });
   });
 
-  await test.step("/veld: Mijn dag + Buiten-modus + noodprotocol", async () => {
+  await test.step("/veld: kop + Buiten-modus + noodprotocol", async () => {
     await gaNaar(page, "/veld", "veld");
     await expect(
-      page.getByRole("heading", { name: "Mijn dag" })
+      page.getByRole("heading", { name: "Veld" })
     ).toBeVisible({ timeout: 30_000 });
     // Noodprotocol-knop is altijd zichtbaar (bijlage C)
     const noodKnop = page.getByRole("button", { name: "Noodprotocol" });

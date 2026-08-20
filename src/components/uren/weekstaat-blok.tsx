@@ -24,7 +24,7 @@ import { SectiePaneel } from "@/components/ui/sectie-paneel";
 import { cn } from "@/lib/utils";
 import type { WeekstaatCel, WeekstaatRij } from "./controle-types";
 
-/** Invoer gebeurt in Mijn dag; kantoor mag daar voor iedereen schrijven. */
+/** Invoer gebeurt op het Veld-scherm; kantoor mag daar voor iedereen schrijven. */
 function invoerHref(medewerkerId: string, datum: string): string {
   return `/veld?dag=${datum}&medewerker=${medewerkerId}`;
 }
@@ -80,7 +80,7 @@ function Cel({
     "w-full transition-shadow hover:ring-2 hover:ring-ring focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none";
 
   // Een leeg vak ís de invoeringang (melding 17 aug: "we missen totaal de
-  // optie om uren in te voegen"): klik → Mijn dag voor die persoon en die dag.
+  // optie om uren in te voegen"): klik → Veld voor die persoon en die dag.
   if (cel.status === "leeg") {
     return (
       <Link

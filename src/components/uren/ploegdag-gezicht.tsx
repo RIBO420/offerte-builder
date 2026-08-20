@@ -206,7 +206,7 @@ export function PloegDagGezicht() {
               className="h-9 font-normal text-muted-foreground"
             >
               <Link href={`/veld?dag=${ploegDag.datum}`}>
-                Eigen dag afwijken in Mijn dag
+                Eigen dag afwijken in Veld
               </Link>
             </Button>
           </div>
@@ -277,11 +277,11 @@ function GeenPloegVandaag() {
         <p className="max-w-[58ch] text-[13px] text-pretty text-muted-foreground">
           Voor deze dag staat er geen ploeg met jou erin gepland, of je account
           is nog niet aan een medewerker gekoppeld. Je eigen uren doe je gewoon
-          in Mijn dag; kantoor kan de koppeling controleren.
+          op het Veld-scherm; kantoor kan de koppeling controleren.
         </p>
         <div>
           <Button asChild size="sm" className="h-8">
-            <Link href="/veld">Naar mijn dag</Link>
+            <Link href="/veld">Naar Veld</Link>
           </Button>
         </div>
       </div>

@@ -98,7 +98,7 @@ export function KantoorControlekamer({
       )
     : undefined;
 
-  // Invoer gebeurt in Mijn dag (kantoor mag daar voor iedereen schrijven);
+  // Invoer gebeurt op het Veld-scherm (kantoor mag daar voor iedereen schrijven);
   // deze knop kiest wie + welke dag, lege weekstaat-vakken zijn de snelle weg.
   const invoerKnop = <UrenInvoerKnop />;
 

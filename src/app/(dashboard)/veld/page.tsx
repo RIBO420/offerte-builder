@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Veld-weergave "Mijn dag" (PRD §2.6 + bijlage C, fase 1 stap 9a).
+ * Veld-weergave (PRD §2.6 + bijlage C, fase 1 stap 9a).
  *
  * De dagkaart voor buiten: voorman en medewerker zien de eigen dag, bevestigen
  * of corrigeren urensegmenten (voorinvulling uit de dagkaart, §8.10), vinken

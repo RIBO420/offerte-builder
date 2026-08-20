@@ -351,7 +351,7 @@ describe("Ploegdag bevestigen voor N man", () => {
     queryAntwoorden.set("urenControle:getPloegDag", null);
     render(<PloegDagGezicht />);
     expect(screen.getByText("Geen ploegdag gevonden")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Naar mijn dag" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Naar Veld" })).toHaveAttribute(
       "href",
       "/veld"
     );

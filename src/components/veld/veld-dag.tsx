@@ -179,8 +179,11 @@ export function VeldDag() {
       {/* Kop: titel + buiten-modus + noodprotocol */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
+          {/* "Veld", niet "Mijn dag": die naam hoort sinds v13 bij het
+              werkbord op /mijn-dag. Twee schermen met dezelfde kop is precies
+              hoe je mensen op de verkeerde pagina laat zoeken. */}
           <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
-            Mijn dag
+            Veld
           </h1>
           <p className="text-muted-foreground">
             Bevestig je uren, vink taken af en dien je dag in.

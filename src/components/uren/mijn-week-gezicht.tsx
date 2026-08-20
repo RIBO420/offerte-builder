@@ -103,7 +103,7 @@ export function MijnWeekGezicht() {
           </h1>
           <p className="mt-1.5 text-[13px] text-muted-foreground">
             Je eigen week: per dag de balk, de status en wat kantoor eventueel
-            heeft aangepast. Invullen en indienen doe je in Mijn dag.
+            heeft aangepast. Invullen en indienen doe je op het Veld-scherm.
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1">
@@ -199,7 +199,7 @@ export function MijnWeekGezicht() {
 
           <div>
             <Button asChild size="sm" variant="outline" className="h-8">
-              <Link href="/veld">Naar mijn dag</Link>
+              <Link href="/veld">Naar Veld</Link>
             </Button>
           </div>
         </div>
@@ -239,11 +239,11 @@ function GeenKoppeling() {
         <p className="max-w-[58ch] text-[13px] text-pretty text-muted-foreground">
           Je account is nog niet gekoppeld aan een medewerker, dus er is geen
           eigen week om te tonen. Vraag kantoor om de koppeling te leggen; je
-          uren invoeren kan daarna gewoon in Mijn dag.
+          uren invoeren kan daarna gewoon op het Veld-scherm.
         </p>
         <div>
           <Button asChild size="sm" className="h-8">
-            <Link href="/veld">Naar mijn dag</Link>
+            <Link href="/veld">Naar Veld</Link>
           </Button>
         </div>
       </div>
