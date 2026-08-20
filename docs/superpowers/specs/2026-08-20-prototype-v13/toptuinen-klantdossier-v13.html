@@ -1,0 +1,1835 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Top Tuinen OS · Alanys Rerimassie</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --zwart:#17231C;
+    --zwart-2:#0D160F;
+    --nav:#16241B;
+    --nav-2:#1F3327;
+    --klei:#8A6244;
+    --klei-tint:#F5EDE6;
+    --klei-lijn:#E4D5C6;
+    --groen:#2C7A4B;
+    --groen-donker:#215D39;
+    --groen-tint:#E9F2EC;
+    --groen-lijn:#BFD8C7;
+    --groen-card:#EBF3ED;
+    --paper:#FAFAF8;
+    --wit:#FFFFFF;
+    --ink:#1C231E;
+    --grijs:#68736C;
+    --lijn:#D8DDD6;
+    --lijn-zacht:#E8EBE6;
+    --amber:#B27A17;
+    --amber-bg:#FBF3DE;
+    --blauw:#44549C;
+    --blauw-bg:#E7ECFA;
+    --rood:#C13E30;
+    --r:16px;
+    --shadow:0 1px 2px rgba(28,35,30,.04);
+    --sans:"Plus Jakarta Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    --disp:"Plus Jakarta Sans",var(--sans);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:var(--sans);color:var(--ink);background:var(--paper);font-size:14.5px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  button{font-family:inherit;cursor:pointer;background:none;border:none;color:inherit;font-size:inherit}
+
+  .app{display:flex;min-height:100vh}
+
+  /* ============ SIDEBAR ============ */
+  .sidebar{width:264px;flex-shrink:0;display:flex;flex-direction:column;padding:22px 14px 14px;background:var(--nav);color:#D7E2DA}
+  .logo{display:flex;align-items:center;gap:11px;padding:0 10px;margin-bottom:28px}
+  .logomark{width:40px;height:40px;border-radius:11px;background:var(--wit);display:flex;align-items:center;justify-content:center;color:var(--nav)}
+  .logo b{font-family:var(--disp);font-size:18.5px;font-weight:800;letter-spacing:-.01em;color:#fff}
+  .navsection{font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:#A8C3B1;padding:0 12px;margin:4px 0 9px}
+  .navsection.later{margin-top:22px;padding-top:20px;border-top:1px solid rgba(255,255,255,.1)}
+  .snav{display:flex;flex-direction:column;gap:1px}
+  .snav a{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:10px;font-size:14.5px;font-weight:600;color:#F4F8F5;text-decoration:none}
+  .snav a svg{color:#EAF2EC;flex-shrink:0;stroke-width:2}
+  .snav a:hover{background:var(--nav-2);color:#fff}
+  .snav a:hover svg{color:#fff}
+  .snav a.active{background:var(--wit);color:var(--nav);font-weight:700}
+  .snav a.active svg{color:var(--groen)}
+  .pill{margin-left:auto;font-size:11.5px;font-weight:800;border-radius:99px;padding:1px 8px;background:rgba(255,255,255,.16);color:#FFFFFF;font-variant-numeric:tabular-nums}
+  .pill.lime{background:var(--groen);color:#fff}
+  .snav a.active .pill{background:#EDF0EB;color:var(--grijs)}
+  .userfoot{margin-top:auto;background:var(--nav-2);border-radius:14px;padding:12px;display:flex;align-items:center;gap:10px}
+  .useravatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#7B6CF6,#B39DF8);display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0}
+  .userfoot .un{font-size:13.5px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:118px}
+  .userfoot .ue{font-size:11.5px;color:#B6CDBF}
+  .bell{margin-left:auto;position:relative;color:#EAF2EC}
+  .bell i{position:absolute;top:-6px;right:-7px;background:var(--rood);color:#fff;font-style:normal;font-size:10.5px;font-weight:700;border-radius:99px;padding:0 5px;line-height:15px}
+
+  /* ============ MAIN ============ */
+  .main{flex:1;min-width:0;display:flex;flex-direction:column}
+  .topbar{display:flex;align-items:center;gap:16px;padding:14px 32px;background:var(--wit);border-bottom:1px solid var(--lijn)}
+  .crumbs{display:flex;align-items:center;gap:9px;font-size:13.5px;color:var(--grijs)}
+  .crumbs .sep{color:#B9C1BA}
+  .crumbs .cur{color:var(--ink);font-weight:600}
+  .topbar .search{margin-left:auto;display:flex;align-items:center;gap:8px;background:var(--paper);border:1px solid var(--lijn);border-radius:9px;padding:7px 12px;font-size:13px;color:var(--grijs);width:220px}
+
+  .content{padding:28px 36px 60px;max-width:1520px}
+
+  /* client header */
+  .chead{display:flex;gap:18px;align-items:center;margin-bottom:20px}
+  .cavatar{width:60px;height:60px;border-radius:16px;background:var(--nav);color:#fff;font-family:var(--disp);font-weight:700;font-size:19px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .chead h1{font-family:var(--disp);font-weight:800;font-size:30px;line-height:1.05;letter-spacing:-.02em}
+  .ctag{display:inline-block;vertical-align:7px;margin-left:12px;font-size:11.5px;font-weight:700;color:var(--blauw);background:var(--blauw-bg);border-radius:99px;padding:3px 11px}
+  .crow{display:flex;gap:8px 20px;flex-wrap:wrap;margin-top:6px;font-size:13.5px;font-weight:500;color:#3A453D}
+  .crow span{display:inline-flex;align-items:center;gap:7px}
+  .crow svg{color:#7C8A80}
+  .crow .dot{color:#C3CBC4}
+  .cactions{margin-left:auto}
+  .btn-offerte{display:inline-flex;align-items:stretch;background:var(--nav);color:#fff;border-radius:11px;overflow:hidden;font-size:14px;font-weight:700}
+  .btn-offerte .m{display:flex;align-items:center;gap:8px;padding:11px 18px}
+  .btn-offerte .m:hover{background:var(--zwart-2)}
+  .btn-offerte .c{display:flex;align-items:center;padding:0 11px;border-left:1px solid rgba(255,255,255,.22)}
+  .btn-offerte .c:hover{background:var(--zwart-2)}
+
+  /* statregel */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+  .stat{background:var(--wit);border:1px solid var(--lijn);border-radius:13px;padding:15px 18px;text-align:left;transition:border-color .15s,box-shadow .15s;position:relative;overflow:hidden}
+  .stat::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px}
+  .stat .k{display:flex;align-items:center;gap:7px}
+  .stat.geld{background:var(--amber-bg)}
+  .stat.geld::before{background:var(--amber)}
+  .stat.geld .v{color:#8A6410}
+  .stat.taken{background:var(--groen-tint)}
+  .stat.taken::before{background:var(--groen)}
+  .stat.taken .v{color:var(--groen-donker)}
+  .stat.offerte{background:var(--klei-tint)}
+  .stat.offerte::before{background:var(--klei)}
+  .stat.offerte .v{color:var(--klei)}
+  .stat.contact::before{background:var(--nav)}
+  .stat.contact .v{color:var(--nav)}
+  .stat:hover{border-color:var(--groen);background:#FCFDFC}
+  .stat .k{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#93A097}
+  .stat .v{font-family:var(--disp);font-size:22px;font-weight:800;letter-spacing:-.01em;margin-top:3px;font-variant-numeric:tabular-nums}
+  .stat .v.amber{color:var(--amber)}
+  .stat .s{font-size:12px;color:var(--grijs);margin-top:1px}
+
+  /* ============ dossier layout ============ */
+  .dgrid{display:grid;grid-template-columns:196px minmax(0,1fr);gap:24px;align-items:start}
+  .dnav{position:sticky;top:20px}
+  .dnav-group{background:var(--wit);border:1px solid var(--lijn);border-radius:14px;padding:6px;margin-bottom:12px}
+  .dlabel{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#93A097;font-weight:700;padding:8px 10px 6px;margin:0}
+  .ditem{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border-radius:10px;padding:9px 10px;font-size:13.5px;font-weight:500;color:#414B44;margin-bottom:1px}
+  .ditem svg{color:#7C8A80;flex-shrink:0}
+  .ditem:hover{background:#EDEFEA}
+  .ditem.active{background:var(--nav);color:#fff;font-weight:700}
+  .ditem.active svg{color:#9DC7AC}
+  .dpill{margin-left:auto;font-size:11px;font-weight:700;border-radius:99px;padding:1px 7px;background:#E5E8E2;color:var(--grijs);font-variant-numeric:tabular-nums}
+  .ditem.active .dpill{background:rgba(255,255,255,.2);color:#fff}
+  .dpill.amber{background:var(--amber-bg);color:var(--amber)}
+  .switch{margin-left:auto;width:36px;height:22px;border-radius:99px;background:#D8DDD6;position:relative;flex-shrink:0;transition:background .2s;cursor:pointer}
+  .switch::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+  .switch.on{background:var(--groen)}
+  .switch.on::after{left:17px}
+
+  /* panels & cards */
+  .panel{display:none}
+  .panel.active{display:block}
+  .wcard{background:var(--wit);border:1px solid var(--lijn);border-radius:var(--r);margin-bottom:16px;overflow:hidden}
+  .whead{display:flex;align-items:center;gap:10px;padding:14px 20px;border-bottom:1px solid var(--lijn);background:#FCFDFC}
+  .wtitle{font-family:var(--disp);font-size:15px;font-weight:700;letter-spacing:-.01em}
+  .whead .sub{font-size:12.5px;color:var(--grijs)}
+  .whead .right{margin-left:auto;display:flex;gap:8px;align-items:center}
+
+  .btn-green{background:var(--nav);color:#fff;border-radius:10px;padding:10px 18px;font-size:13.5px;font-weight:700;letter-spacing:-.005em}
+  .btn-green:hover{background:var(--zwart-2)}
+  .btn-line{background:var(--wit);border:1px solid #C9CFC7;border-radius:10px;padding:9px 16px;font-size:13px;font-weight:700;color:var(--ink)}
+  .btn-line:hover{border-color:var(--zwart);background:#F4F5F2}
+
+  /* gesprek loggen */
+  .logcard{background:var(--wit);border:1px solid var(--lijn);border-radius:var(--r);padding:20px 22px;margin-bottom:16px}
+  .loghead{display:flex;align-items:baseline;gap:10px;margin:-20px -22px 14px;padding:14px 20px;border-bottom:1px solid var(--lijn);background:#FCFDFC;border-radius:var(--r) var(--r) 0 0}
+  .loghead b{font-family:var(--disp);font-size:16px;font-weight:700}
+  .loghead .sub{font-size:12.5px;color:var(--grijs)}
+  .typerow{display:flex;gap:7px;margin-bottom:11px;flex-wrap:wrap}
+  .chip{border:1px solid var(--lijn);background:var(--wit);border-radius:99px;padding:6px 14px;font-size:12.5px;font-weight:600;color:#3A453D}
+  .chip:hover{border-color:var(--zwart)}
+  .chip.active{background:var(--nav);border-color:var(--nav);color:#fff}
+  .logcard textarea{width:100%;min-height:76px;resize:vertical;border:1px solid var(--lijn);border-radius:12px;padding:12px 15px;font-family:inherit;font-size:14px;color:var(--ink);background:var(--paper)}
+  .logcard textarea::placeholder{color:#8B978F}
+  .logcard textarea:focus{outline:none;border-color:var(--groen);background:var(--wit);box-shadow:0 0 0 3px rgba(44,122,75,.1)}
+  .gfoot{display:flex;align-items:center;gap:14px;margin-top:11px}
+  .ghint{font-size:12px;color:var(--grijs)}
+  .btn-lime{margin-left:auto;background:var(--nav);color:#fff;border-radius:10px;padding:10px 20px;font-size:13.5px;font-weight:700}
+  .btn-lime:hover{background:var(--zwart-2)}
+  .ai{display:none;margin-top:13px;background:var(--paper);border:1px solid var(--lijn);border-radius:12px;padding:13px 15px}
+  .ai.visible{display:block}
+  .ai-title{display:flex;align-items:center;gap:9px;font-size:13px;font-weight:700;color:var(--groen-donker);margin-bottom:10px}
+  .ai-dot{width:8px;height:8px;border-radius:50%;background:var(--groen);animation:pulse 1.1s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  .ai-task{display:flex;align-items:center;gap:10px;background:var(--wit);border:1px solid var(--lijn);border-radius:10px;padding:9px 12px;margin-bottom:7px;font-size:13.5px;color:var(--ink);cursor:pointer}
+  .ai-task input{width:15px;height:15px;accent-color:var(--groen)}
+  .ai-task .due{margin-left:auto;font-size:11.5px;color:var(--grijs);white-space:nowrap}
+  .ai-actions{display:flex;gap:9px;margin-top:10px}
+  .ghostw{background:var(--wit);border:1px solid var(--lijn);border-radius:9px;padding:9px 14px;font-size:13px;font-weight:600;color:var(--ink)}
+
+  /* tijdlijn met datumgroepen en lijn */
+  .tl{padding:10px 20px 16px}
+  .tl-group{margin-bottom:6px}
+  .tl-date{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#93A097;padding:8px 0 4px 46px}
+  .tl-item{display:flex;gap:13px;padding:11px 0;position:relative}
+  .tl-item::before{content:"";position:absolute;left:16px;top:44px;bottom:-11px;width:2px;background:var(--lijn)}
+  .tl-item:last-child::before{display:none}
+  .tl-icon{width:34px;height:34px;border-radius:10px;background:var(--groen-tint);color:var(--groen-donker);display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative;z-index:1}
+  .tl-icon.mail{background:var(--blauw-bg);color:var(--blauw)}
+  .tl-icon.sys{background:#EEF0EC;color:var(--grijs)}
+  .tl-body{flex:1;min-width:0}
+  .tl-top{display:flex;gap:10px;align-items:baseline}
+  .tl-top b{font-size:13.5px;font-weight:700}
+  .tl-top time{font-size:12px;color:var(--grijs);margin-left:auto;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .tl-text{font-size:13.5px;color:#414B44;margin-top:2px}
+  .tl-linked{display:inline-flex;align-items:center;gap:6px;margin-top:7px;font-size:11.5px;font-weight:700;color:var(--groen-donker);background:var(--groen-tint);border-radius:99px;padding:3px 10px}
+
+  /* taken: open / afgerond */
+  .tasks{padding:6px 20px 12px}
+  .tsection{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#93A097;padding:12px 0 4px}
+  .task{display:flex;align-items:flex-start;gap:12px;padding:11px 0;border-bottom:1px solid var(--lijn)}
+  .task:last-child{border-bottom:none}
+  .task input{width:17px;height:17px;margin-top:2px;accent-color:var(--groen)}
+  .t-title{font-size:14px;font-weight:600}
+  .task.done .t-title{text-decoration:line-through;color:var(--grijs);font-weight:400}
+  .t-meta{font-size:12px;color:var(--grijs);margin-top:2px;display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+  .badge-ai{font-size:10.5px;font-weight:700;letter-spacing:.02em;color:var(--groen-donker);background:var(--groen-tint);border-radius:99px;padding:1px 8px}
+  .due-soon{color:var(--amber);font-weight:700}
+
+  /* tabellen */
+  table{width:100%;border-collapse:collapse}
+  th{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:#93A097;text-align:left;font-weight:700;padding:11px 20px;border-bottom:1px solid var(--lijn)}
+  td{padding:13px 20px;border-bottom:1px solid var(--lijn);font-size:13.5px;vertical-align:middle}
+  tr:last-child td{border-bottom:none}
+  tr.row:hover td{background:#FAFBF9}
+  td b{font-weight:600}
+  .docnr{font-size:11.5px;color:var(--grijs);margin-top:1px;font-variant-numeric:tabular-nums}
+  td.amount{text-align:right;font-family:var(--disp);font-variant-numeric:tabular-nums;font-weight:700;font-size:14px;white-space:nowrap}
+  .status{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;border-radius:99px;padding:3px 11px}
+  .status::before{content:"";width:6px;height:6px;border-radius:50%}
+  .st-betaald{color:var(--groen-donker);background:var(--groen-tint)}.st-betaald::before{background:var(--groen)}
+  .st-open{color:var(--amber);background:var(--amber-bg)}.st-open::before{background:var(--amber)}
+  .st-verzonden{color:var(--blauw);background:var(--blauw-bg)}.st-verzonden::before{background:var(--blauw)}
+  .st-concept{color:var(--grijs);background:#EEF0EC}.st-concept::before{background:var(--grijs)}
+  .totalbar{display:flex;gap:26px;padding:13px 20px;border-top:1px solid var(--lijn);background:#FAFBF9;font-size:12.5px;color:var(--grijs)}
+  .totalbar b{color:var(--ink);font-family:var(--disp);font-weight:700;font-variant-numeric:tabular-nums}
+  .totalbar .open b{color:var(--amber)}
+  .empty{padding:32px 20px;text-align:center;color:var(--grijs);font-size:13.5px}
+  .empty svg{display:block;margin:0 auto 8px;color:#B9C1BA}
+  .filterrow{display:flex;gap:6px}
+  .fchip{border:1px solid var(--lijn);background:var(--wit);border-radius:99px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--grijs)}
+  .fchip.active{background:var(--nav);border-color:var(--nav);color:#fff}
+
+  
+  /* ===== taakkaart ===== */
+  .tcard{border:1px solid var(--lijn);border-radius:12px;margin-bottom:10px;background:var(--wit);overflow:hidden}
+  .tcard.open{border-color:var(--groen-lijn)}
+  .tcard.klaar{opacity:.62}
+  .thead{display:flex;align-items:flex-start;gap:11px;padding:12px 14px;cursor:pointer}
+  .thead:hover{background:#FCFDFC}
+  .thead input[type=checkbox]{width:17px;height:17px;margin-top:2px;accent-color:var(--groen);flex-shrink:0}
+  .tmain{flex:1;min-width:0}
+  .ttitle{font-size:14px;font-weight:600;line-height:1.35}
+  .tcard.klaar .ttitle{text-decoration:line-through;color:var(--grijs);font-weight:400}
+  .tmeta{display:flex;flex-wrap:wrap;gap:7px;align-items:center;margin-top:6px}
+  .chev{color:#96A199;transition:transform .18s;flex-shrink:0;margin-top:3px}
+  .tcard.open .chev{transform:rotate(90deg)}
+  .tag{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;border-radius:99px;padding:2px 9px;background:#EFF1ED;color:var(--grijs);white-space:nowrap}
+  .tag.prio-hoog{background:#F8E9E6;color:var(--rood)}
+  .tag.prio-hoog::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--rood)}
+  .tag.prio-normaal::before{content:"";width:6px;height:6px;border-radius:50%;background:#96A199}
+  .tag.prio-laag{color:#9AA49C}
+  .tag.st-todo{background:#EFF1ED;color:var(--grijs)}
+  .tag.st-bezig{background:var(--blauw-bg);color:var(--blauw)}
+  .tag.st-check{background:var(--amber-bg);color:var(--amber)}
+  .tag.st-klaar{background:var(--groen-tint);color:var(--groen-donker)}
+  .tag.due{background:var(--amber-bg);color:var(--amber)}
+  .avs{display:inline-flex;align-items:center}
+  .av{width:22px;height:22px;border-radius:50%;background:var(--groen-tint);border:1.5px solid var(--wit);color:var(--groen-donker);font-size:9.5px;font-weight:800;display:flex;align-items:center;justify-content:center;margin-left:-6px;letter-spacing:.02em}
+  .av:first-child{margin-left:0}
+  .av.check{background:var(--amber-bg);color:var(--amber)}
+  .tbody{display:none;padding:2px 14px 14px 42px;border-top:1px solid var(--lijn-zacht)}
+  .tcard.open .tbody{display:block}
+  .tsec{font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#96A199;margin:14px 0 7px}
+  .tnote{font-size:13px;color:#414B44;background:var(--paper);border:1px solid var(--lijn);border-radius:9px;padding:9px 11px}
+  .sub{display:flex;align-items:center;gap:10px;padding:7px 0;font-size:13.5px;border-bottom:1px solid var(--lijn-zacht)}
+  .sub:last-of-type{border-bottom:none}
+  .sub input{width:15px;height:15px;accent-color:var(--groen)}
+  .sub.done span{text-decoration:line-through;color:var(--grijs)}
+  .subadd{display:flex;align-items:center;gap:9px;padding:8px 0 0;font-size:13px;color:var(--grijs);cursor:pointer}
+  .subadd:hover{color:var(--groen-donker)}
+  .prog{height:4px;border-radius:99px;background:#EDF0EB;overflow:hidden;margin:8px 0 2px;max-width:240px}
+  .prog i{display:block;height:100%;background:var(--groen);border-radius:99px;transition:width .25s}
+  .rolerow{display:flex;flex-wrap:wrap;gap:16px}
+  .rolebox{min-width:190px}
+  .rolelabel{font-size:11.5px;color:var(--grijs);margin-bottom:5px}
+  .who{display:flex;align-items:center;gap:8px;background:var(--paper);border:1px solid var(--lijn);border-radius:9px;padding:6px 10px;font-size:13px;font-weight:600}
+  .who select{border:none;background:none;font-family:inherit;font-size:13px;font-weight:600;color:var(--ink);outline:none;cursor:pointer;flex:1}
+  .statusrow{display:flex;gap:6px;flex-wrap:wrap}
+  .sbtn{border:1px solid #C9CFC7;background:var(--wit);border-radius:9px;padding:7px 13px;font-size:12.5px;font-weight:700;color:#2A322C}
+  .sbtn:hover{border-color:var(--zwart)}
+  .sbtn.on{background:var(--nav);border-color:var(--nav);color:#fff}
+  .sbtn.on.warn{background:var(--amber);border-color:var(--amber)}
+  .tfoot{display:flex;gap:8px;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid var(--lijn-zacht)}
+
+  /* ===== mijn dag ===== */
+  .screen{display:none}
+  .screen.active{display:block}
+  .daghead{display:flex;align-items:flex-start;gap:16px;margin-bottom:20px;flex-wrap:wrap}
+  .daghead h1{font-family:var(--disp);font-size:30px;font-weight:800;letter-spacing:-.02em}
+  .daghead p{font-size:14px;color:var(--grijs);margin-top:3px}
+  .dagctl{display:flex;gap:8px;align-items:center;margin-bottom:20px;flex-wrap:wrap}
+  .ctl{display:flex;align-items:center;gap:9px;border:1px solid var(--lijn);background:var(--wit);border-radius:10px;padding:8px 13px;font-size:13.5px;font-weight:600}
+  .ctl select{border:none;background:none;font-family:inherit;font-size:13.5px;font-weight:600;outline:none;cursor:pointer;color:var(--ink)}
+  .urenbar{display:flex;align-items:center;gap:18px;background:var(--wit);border:1px solid var(--lijn);border-radius:12px;padding:14px 18px;margin-bottom:18px;flex-wrap:wrap}
+  .urenbar .uk{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#96A199}
+  .urenbar .uv{font-family:var(--disp);font-size:20px;font-weight:800;font-variant-numeric:tabular-nums}
+  .urenbar .sep{width:1px;height:32px;background:var(--lijn)}
+  .klantblok{background:var(--wit);border:1px solid var(--lijn);border-radius:14px;margin-bottom:14px;overflow:hidden}
+  .kbhead{display:flex;align-items:center;gap:11px;padding:13px 18px;border-bottom:1px solid var(--lijn);background:#FCFDFC}
+  .kbav{width:30px;height:30px;border-radius:9px;background:var(--groen-tint);color:var(--groen-donker);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center}
+  .kbname{font-weight:700;font-size:14.5px}
+  .kbsub{font-size:12.5px;color:var(--grijs)}
+  .kbhead .kbright{margin-left:auto;display:flex;gap:8px;align-items:center}
+  .kbtasks{padding:8px 14px 12px}
+
+  /* ===== werkbord ===== */
+  .bordctl{display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+  .seg{display:inline-flex;background:var(--wit);border:1px solid var(--lijn);border-radius:10px;overflow:hidden}
+  .seg button{padding:8px 15px;font-size:13.5px;font-weight:600;color:#3A453D;border-right:1px solid var(--lijn)}
+  .seg button:last-child{border-right:none}
+  .seg button.on{background:var(--nav);color:#fff}
+  .bord{display:flex;gap:14px;overflow-x:auto;padding-bottom:14px;align-items:flex-start}
+  .kolom{flex:0 0 292px;background:#F1F3F0;border:1px solid var(--lijn);border-radius:14px;display:flex;flex-direction:column;max-height:calc(100vh - 250px)}
+  .kolom.over{border-color:var(--groen);background:#EDF4EF}
+  .kolomhead{display:flex;align-items:center;gap:9px;padding:12px 14px;border-bottom:1px solid var(--lijn)}
+  .kolomhead .kav{width:26px;height:26px;border-radius:8px;background:var(--groen-tint);color:var(--groen-donker);font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .kolomhead .kav.st{background:#E4E8E2;color:var(--grijs)}
+  .kolomhead b{font-size:13.5px}
+  .kolomhead .kn{font-size:11.5px;color:var(--grijs)}
+  .kolomhead .cnt{margin-left:auto;font-size:11.5px;font-weight:700;background:var(--wit);border:1px solid var(--lijn);border-radius:99px;padding:1px 9px;color:var(--grijs)}
+  .kolombody{padding:10px;overflow-y:auto;flex:1;min-height:80px}
+  .bcard{background:var(--wit);border:1px solid var(--lijn);border-radius:11px;padding:11px 12px;margin-bottom:9px;cursor:pointer;transition:border-color .15s,transform .06s}
+  .bcard:hover{border-color:var(--groen-lijn)}
+  .bcard:active{transform:scale(.985)}
+  .bcard.dragging{opacity:.45}
+  .bklant{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--groen-donker);background:var(--groen-tint);border-radius:99px;padding:2px 8px;margin-bottom:7px}
+  .btitel{font-size:13.5px;font-weight:600;line-height:1.35}
+  .bmeta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px}
+  .bmeta .avs{margin-left:auto}
+  .kolomleeg{font-size:12.5px;color:#9AA49C;text-align:center;padding:18px 8px;border:1px dashed var(--lijn);border-radius:10px}
+
+  /* ===== detailpaneel ===== */
+  .overlay{position:fixed;inset:0;background:rgba(28,35,30,.32);opacity:0;pointer-events:none;transition:opacity .2s;z-index:60}
+  .overlay.open{opacity:1;pointer-events:auto}
+  .drawer{position:fixed;top:0;right:0;bottom:0;width:min(470px,94vw);background:var(--wit);border-left:1px solid var(--lijn);transform:translateX(102%);transition:transform .24s cubic-bezier(.4,0,.2,1);z-index:61;display:flex;flex-direction:column}
+  .drawer.open{transform:none}
+  .dhead{display:flex;align-items:flex-start;gap:12px;padding:18px 20px;border-bottom:1px solid var(--lijn);background:#FCFDFC}
+  .dhead h3{font-family:var(--disp);font-size:17px;font-weight:700;line-height:1.3}
+  .dclose{margin-left:auto;color:var(--grijs);flex-shrink:0}
+  .dbody{padding:6px 20px 20px;overflow-y:auto;flex:1}
+  .cmt{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--lijn-zacht)}
+  .cmt:last-of-type{border-bottom:none}
+  .cmt .av{margin-left:0;flex-shrink:0}
+  .cmt .cb{flex:1;min-width:0}
+  .cmt .cw{font-size:12.5px;font-weight:700}
+  .cmt .ct{font-size:11.5px;color:var(--grijs);margin-left:7px;font-weight:400}
+  .cmt .cx{font-size:13.5px;color:#414B44;margin-top:2px}
+  .cmtform{display:flex;gap:8px;margin-top:10px}
+  .cmtform input{flex:1;border:1px solid var(--lijn);border-radius:9px;padding:9px 12px;font-family:inherit;font-size:13.5px;background:var(--paper)}
+  .cmtform input:focus{outline:none;border-color:var(--groen);background:var(--wit)}
+
+  /* ===== logboek rechtsonder ===== */
+  .logfab{position:fixed;right:22px;bottom:22px;z-index:55;display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+  .fabbtn{display:inline-flex;align-items:center;gap:9px;background:var(--nav);color:#fff;border-radius:99px;padding:12px 20px;font-size:13.5px;font-weight:700;box-shadow:0 8px 24px rgba(20,22,21,.22)}
+  .fabbtn:hover{background:var(--zwart-2)}
+  .fabbtn .u{background:rgba(255,255,255,.22);border-radius:99px;padding:1px 9px;font-variant-numeric:tabular-nums}
+  .logpanel{display:none;width:min(370px,92vw);background:var(--wit);border:1px solid var(--lijn);border-radius:14px;box-shadow:0 12px 40px rgba(28,35,30,.16);overflow:hidden}
+  .logpanel.open{display:block}
+  .lphead{display:flex;align-items:center;gap:9px;padding:13px 16px;border-bottom:1px solid var(--lijn);background:#FCFDFC}
+  .lphead b{font-size:14px;font-family:var(--disp);font-weight:700}
+  .lphead .tot{margin-left:auto;font-size:12.5px;font-weight:700;color:var(--groen-donker);background:var(--groen-tint);border-radius:99px;padding:2px 10px;font-variant-numeric:tabular-nums}
+  .lplist{max-height:230px;overflow-y:auto;padding:6px 16px}
+  .lpitem{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--lijn-zacht);font-size:13px}
+  .lpitem:last-child{border-bottom:none}
+  .lpitem .lt{color:var(--grijs);font-variant-numeric:tabular-nums;flex-shrink:0;font-size:12px;padding-top:1px}
+  .lpitem .lu{margin-left:auto;font-size:11.5px;font-weight:700;color:var(--groen-donker);background:var(--groen-tint);border-radius:99px;padding:1px 8px;flex-shrink:0;height:fit-content}
+  .lpform{padding:12px 16px;border-top:1px solid var(--lijn);background:#FCFDFC}
+  .lpform input{width:100%;border:1px solid var(--lijn);border-radius:9px;padding:10px 12px;font-family:inherit;font-size:13.5px;background:var(--wit)}
+  .lpform input:focus{outline:none;border-color:var(--groen);box-shadow:0 0 0 3px rgba(44,122,75,.1)}
+  .lphint{font-size:11.5px;color:var(--grijs);margin-top:7px}
+  .lpfoot{display:flex;gap:8px;padding:0 16px 14px}
+
+
+  /* toegankelijkheid en duidelijkheid */
+  button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible{
+    outline:2px solid var(--zwart);outline-offset:2px;border-radius:8px}
+  .btn-green:active,.btn-lime:active,.btn-line:active,.fabbtn:active{transform:translateY(1px)}
+
+  /* primaire actie per kaart duidelijk rechtsboven */
+  .whead .right .btn-green{padding:8px 15px;font-size:13px}
+
+  /* kolomkop op het bord: zwart telbolletje */
+  .kolomhead .cnt{background:var(--nav);border-color:var(--nav);color:#fff}
+  .kolomhead .kav{background:var(--nav);color:#fff}
+  .kolomhead .kav.st{background:#E4E8E2;color:#4A544C}
+  .kolom.over{border-color:var(--zwart);background:#F1F3F0;box-shadow:inset 0 0 0 1px var(--zwart)}
+  .bcard:hover{border-color:var(--zwart)}
+
+  /* sleep-affordance op kaartjes */
+  .bcard{position:relative}
+  .bcard::after{content:"";position:absolute;top:12px;right:11px;width:10px;height:10px;opacity:0;transition:opacity .15s;
+    background-image:radial-gradient(circle,#B4BBB5 1.1px,transparent 1.1px);background-size:5px 5px}
+  .bcard:hover::after{opacity:1}
+
+  /* statregel als knop herkenbaar */
+  .stat{cursor:pointer}
+  .stat:hover{border-color:var(--zwart);box-shadow:0 2px 10px rgba(23,35,28,.08)}
+
+  /* taakkaart: duidelijker open-staat */
+  .tcard.open{border-color:var(--zwart);box-shadow:0 0 0 1px var(--zwart)}
+
+
+  /* ===== let op-strip ===== */
+  .attn{border:1px solid #E8CFCB;background:#FDF6F4;border-radius:14px;margin-bottom:16px;overflow:hidden}
+  .attn.leeg{border-color:var(--groen-lijn);background:#F3F9F5}
+  .attnhead{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid #F0DFDB;font-size:13.5px;font-weight:700}
+  .attn.leeg .attnhead{border-bottom:none;color:var(--groen-donker)}
+  .attnhead .n{background:var(--rood);color:#fff;border-radius:99px;font-size:11.5px;padding:1px 9px;font-weight:800}
+  .attnhead .toggle{margin-left:auto;font-size:12.5px;font-weight:700;color:var(--grijs);cursor:pointer}
+  .attnlist{padding:4px 16px 12px}
+  .attnrow{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #F0DFDB}
+  .attnrow:last-child{border-bottom:none}
+  .attnrow .ai-x{flex:1;min-width:0}
+  .attnrow .at{font-size:13.5px;font-weight:600}
+  .attnrow .ar{font-size:12.5px;color:#8A4A42;margin-top:2px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .attnrow .acts{display:flex;gap:7px;flex-shrink:0}
+  .abtn{border:1px solid #C9CFC7;background:var(--wit);border-radius:9px;padding:7px 13px;font-size:12.5px;font-weight:700;color:var(--ink);white-space:nowrap}
+  .abtn:hover{border-color:var(--zwart)}
+  .abtn.dark{background:var(--nav);border-color:var(--nav);color:#fff}
+  .tag.stil{background:#FDECE8;color:var(--rood)}
+  .tag.over{background:var(--rood);color:#fff}
+  .tag.door{background:#EEF1FA;color:var(--blauw)}
+
+  .perspectief{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+  .ikben{display:inline-flex;align-items:center;gap:8px;background:var(--nav);color:#fff;border-radius:10px;padding:8px 14px;font-size:13.5px;font-weight:700}
+  .ikben select{border:none;background:none;color:#fff;font-family:inherit;font-size:13.5px;font-weight:700;outline:none;cursor:pointer}
+  .ikben select option{color:var(--ink)}
+
+
+  /* Actueel netter: taken en contact naast elkaar */
+  .duo{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+  @media (max-width:1180px){.duo{grid-template-columns:1fr}}
+  .duo .wcard{margin-bottom:0}
+  .logcard .loghead{margin:-20px -22px 16px}
+
+  /* ===== bestanden ===== */
+  .fotogrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;padding:16px 20px}
+  .foto{border:1px solid var(--lijn);border-radius:12px;overflow:hidden;background:var(--wit);cursor:pointer;transition:border-color .15s}
+  .foto:hover{border-color:var(--zwart)}
+  .fotoimg{height:104px;display:flex;align-items:flex-end;padding:9px;position:relative}
+  .fotoimg span{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;background:rgba(255,255,255,.92);color:var(--ink);border-radius:99px;padding:2px 9px}
+  .fotometa{padding:9px 11px;border-top:1px solid var(--lijn)}
+  .fotometa b{font-size:12.5px;font-weight:600;display:block}
+  .fotometa small{font-size:11.5px;color:var(--grijs)}
+  .docrow{display:flex;align-items:center;gap:12px;padding:13px 20px;border-bottom:1px solid var(--lijn-zacht);font-size:13.5px}
+  .docrow:last-child{border-bottom:none}
+  .docrow:hover{background:#FCFDFC}
+  .docico{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:10px;font-weight:800;letter-spacing:.02em}
+  .docico.pdf{background:#FBEAE7;color:#B3402F}
+  .docico.img{background:var(--groen-tint);color:var(--groen-donker)}
+  .docico.doc{background:var(--klei-tint);color:var(--klei)}
+  .docrow .dm{flex:1;min-width:0}
+  .docrow .dm b{font-size:13.5px;font-weight:600;display:block}
+  .docrow .dm small{font-size:11.5px;color:var(--grijs)}
+  .docrow .da{margin-left:auto;display:flex;gap:7px}
+  .uploadzone{margin:14px 20px 18px;border:1.5px dashed var(--lijn);border-radius:12px;padding:20px;text-align:center;color:var(--grijs);font-size:13px;cursor:pointer}
+  .uploadzone:hover{border-color:var(--groen);color:var(--groen-donker);background:#FBFDFB}
+
+
+  /* aandachtkolom links op het bord */
+  .kolom.attnkolom{background:#FDF4F2;border-color:#E8CFCB;position:sticky;left:0;z-index:3;flex:0 0 316px}
+  .kolom.attnkolom .kolomhead{background:var(--rood);border-bottom-color:var(--rood);border-radius:13px 13px 0 0}
+  .kolom.attnkolom .kolomhead b,.kolom.attnkolom .kolomhead .kn{color:#fff}
+  .kolom.attnkolom .kolomhead .kn{opacity:.85}
+  .kolom.attnkolom .kolomhead .kav{background:rgba(255,255,255,.22);color:#fff}
+  .kolom.attnkolom .kolomhead .cnt{background:#fff;border-color:#fff;color:var(--rood)}
+  .acard{background:var(--wit);border:1px solid #E8CFCB;border-left:3px solid var(--rood);border-radius:11px;padding:11px 12px;margin-bottom:9px;cursor:pointer}
+  .acard:hover{border-color:var(--rood)}
+  .acard .btitel{margin-bottom:6px}
+  .acard .reden{font-size:12px;color:#8A4A42;font-weight:600;margin-bottom:8px;display:flex;flex-direction:column;gap:3px}
+  .acard .aacts{display:flex;gap:6px}
+  .acard .aacts .abtn{padding:6px 11px;font-size:12px;flex:1}
+
+  /* kolomkop blijft staan bij scrollen */
+  .kolomhead{position:sticky;top:0;background:#F1F3F0;z-index:2;border-radius:13px 13px 0 0}
+
+  /* rustiger kaartjes: minder labels, duidelijker hiërarchie */
+  .bcard{padding:12px 13px}
+  .bklant{font-size:10.5px;font-weight:800;letter-spacing:.03em;background:#EDF0EB;color:#4A544C;margin-bottom:6px}
+  .btitel{font-size:14px;font-weight:600;line-height:1.35}
+  .bmeta{margin-top:9px;gap:5px}
+  .bmeta .tag{font-size:10.5px;padding:2px 8px}
+
+  /* bordkop */
+  .bordbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--wit);border:1px solid var(--lijn);border-radius:14px;padding:10px 12px;margin-bottom:14px}
+  .bordbar .lbl{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#93A097;margin-right:2px}
+  .bordbar .scheider{width:1px;height:26px;background:var(--lijn)}
+  .seg button{padding:7px 13px;font-size:13px}
+
+  .toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--nav);color:#fff;font-size:13px;font-weight:600;border-radius:99px;padding:10px 20px;opacity:0;transition:all .3s ease;pointer-events:none;z-index:50;box-shadow:0 8px 24px rgba(21,43,29,.3)}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  /* opnamefunctie */
+  .recrow{display:flex;align-items:center;gap:12px;margin-top:14px;padding-top:14px;border-top:1px solid var(--lijn)}
+  .btn-rec{display:inline-flex;align-items:center;gap:8px;background:var(--wit);border:1px solid var(--lijn);border-radius:9px;padding:9px 16px;font-size:13.5px;font-weight:600;color:var(--ink)}
+  .btn-rec:hover{border-color:#E5533F;color:#B3402F}
+  .btn-rec .reddot{width:9px;height:9px;border-radius:50%;background:#E5533F}
+  .recrow .ghint{margin-left:2px}
+  .recpanel{display:none;margin-top:12px;background:var(--wit);border:1px solid var(--lijn);border-radius:12px;padding:14px 16px}
+  .recpanel.visible{display:block}
+  .recnotice{display:flex;gap:10px;align-items:flex-start;background:var(--amber-bg);border:1px solid #EBDCB4;border-radius:10px;padding:11px 13px;font-size:13px;color:#4A4232;margin-bottom:12px}
+  .recnotice b{color:#8A6410}
+  .recstate{display:none;align-items:center;gap:14px}
+  .recstate.visible{display:flex}
+  .recpulse{width:12px;height:12px;border-radius:50%;background:#E5533F;animation:recpulse 1s infinite;flex-shrink:0}
+  @keyframes recpulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(229,83,63,.5)}50%{opacity:.7;box-shadow:0 0 0 7px rgba(229,83,63,0)}}
+  .rectime{font-family:var(--disp);font-weight:700;font-size:19px;color:var(--ink);font-variant-numeric:tabular-nums;min-width:56px}
+  .recwave{display:flex;align-items:center;gap:3px;height:24px;flex:1}
+  .recwave i{width:3px;border-radius:99px;background:var(--groen);height:6px;animation:wave 1s ease-in-out infinite}
+  .recwave i:nth-child(2n){animation-delay:.15s}.recwave i:nth-child(3n){animation-delay:.3s}.recwave i:nth-child(4n){animation-delay:.45s}
+  @keyframes wave{0%,100%{height:5px;opacity:.5}50%{height:20px;opacity:1}}
+  .btn-stop{display:inline-flex;align-items:center;gap:8px;background:#E5533F;border-radius:9px;padding:9px 16px;font-size:13.5px;font-weight:700;color:#fff}
+  .btn-stop:hover{filter:brightness(1.08)}
+  .recstart-actions{display:flex;gap:9px}
+  .transcribing{display:none;align-items:center;gap:10px;font-size:13px;font-weight:600;color:var(--groen-donker)}
+  .transcribing.visible{display:flex}
+  .badge-rec{font-size:10.5px;font-weight:700;letter-spacing:.02em;color:#8A4A42;background:#F8E9E6;border-radius:99px;padding:1px 8px}
+
+  /* instellingen */
+  .setrow{display:flex;gap:14px;padding:12px 20px;border-bottom:1px solid var(--lijn);font-size:13.5px}
+  .setrow:last-child{border-bottom:none}
+  .setrow .sk{width:110px;color:var(--grijs);flex-shrink:0}
+  .setrow .sv{font-weight:600}
+  .privrow{display:flex;align-items:flex-start;gap:14px;padding:16px 20px}
+  .privrow b{font-size:13.5px;display:block}
+  .privrow .desc{font-size:12px;color:var(--grijs);margin-top:2px;max-width:420px}
+  .btn-danger{margin-left:auto;background:var(--wit);border:1px solid #E8CFCB;border-radius:9px;padding:8px 14px;font-size:13px;font-weight:600;color:var(--rood);white-space:nowrap}
+  .btn-danger:hover{background:#FCF2F0}
+  .toggle-row{display:flex;align-items:flex-start;gap:13px;padding:15px 20px}
+  .toggle-row b{font-size:13.5px;font-weight:600;display:block}
+  .toggle-row .desc{font-size:12px;color:var(--grijs);margin-top:2px}
+
+  /* severity op tellers */
+  .dpill.amber{background:var(--amber-bg);color:var(--amber)}
+  .dpill.rood{background:#F8E9E6;color:var(--rood)}
+  .dpill.leeg{background:none;color:#B9C1BA;font-weight:600}
+  .ditem.active .dpill.amber{background:#FFE0A6;color:#6B4A08}
+  .ditem.active .dpill.rood{background:#FFD9D3;color:#8A2B1E}
+
+  @media (max-width:1100px){.stats{grid-template-columns:repeat(2,1fr)}}
+  @media (max-width:960px){
+    .sidebar{display:none}
+    .dgrid{grid-template-columns:1fr}
+    .dnav{position:static;display:flex;overflow-x:auto;gap:6px}
+    .dlabel{display:none}
+    .ditem{white-space:nowrap;width:auto}
+    .content{padding:20px}
+    .chead{flex-wrap:wrap}
+    .chead h1{font-size:25px}
+    .cactions{margin-left:0;width:100%}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ================= SIDEBAR ================= -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logomark"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8 6 5 9 5 12.5A5.5 5.5 0 0 0 11 18v4h2v-4a5.5 5.5 0 0 0 6-5.5C19 9 16 6 12 2z"/></svg></div>
+      <b>Top Tuinen OS</b>
+    </div>
+
+    <div class="navsection">Werk</div>
+    <nav class="snav">
+      <a href="#"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>Dashboard</a>
+      <a href="#" data-screen="mijndag"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 17l10-5 10 5"/><path d="M2 12l10-5 10 5"/></svg>Mijn dag</a>
+      <a href="#"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20c.7-3.2 2.9-5 5.5-5s4.8 1.8 5.5 5"/><path d="M17 8h5M19.5 5.5v5"/></svg>Leads<span class="pill lime">66</span></a>
+      <a href="#" class="active" data-screen="klant"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20c.7-3.2 2.9-5 5.5-5s4.8 1.8 5.5 5"/><circle cx="17" cy="9" r="2.4"/><path d="M14.5 19.5c.5-2.3 1.6-3.5 3.2-3.5 1.5 0 2.6 1.2 3.1 3.5"/></svg>Klanten<span class="pill">272</span></a>
+      <a href="#"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7h5l2 2h11v11H3z"/><path d="M3 7V5h6l2 2"/></svg>Projecten</a>
+      <a href="#"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4.5" width="18" height="17" rx="2"/><path d="M16 2.5v4M8 2.5v4M3 10h18"/></svg>Planning</a>
+      <a href="#"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="m2.5 7.5 9.5 6 9.5-6"/></svg>Concept-mails</a>
+      <a href="#"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>Uren</a>
+      <a href="#"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20V10M10 20V4M16 20v-7M21 20H3"/></svg>Rapportages</a>
+      <a href="#"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12a8 8 0 0 1-8 8H4l2-3a8 8 0 1 1 15-5z"/></svg>Chat</a>
+    </nav>
+
+    <div class="navsection later">Financieel</div>
+    <nav class="snav">
+      <a href="#"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 3H6a1.5 1.5 0 0 0-1.5 1.5v15A1.5 1.5 0 0 0 6 21h12a1.5 1.5 0 0 0 1.5-1.5V8.5z"/><path d="M14 3v5.5h5.5"/></svg>Offertes</a>
+      <a href="#"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="3.5" width="16" height="17" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>Contracten</a>
+      <a href="#"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 2.5h14V21.5l-2.3-1.6-2.3 1.6-2.4-1.6-2.4 1.6L7.3 20 5 21.5z"/><path d="M9 8h6M9 12h6"/></svg>Facturen</a>
+    </nav>
+
+    <div class="userfoot">
+      <div class="useravatar"><svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8.5" r="3.5"/><path d="M4.5 20c1-3.8 4-6 7.5-6s6.5 2.2 7.5 6z"/></svg></div>
+      <div>
+        <div class="un">Romeo Swaffelb...</div>
+        <div class="ue">hello@sais.works</div>
+      </div>
+      <div class="bell">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 9a6 6 0 1 0-12 0c0 6-2.5 7-2.5 7h17S18 15 18 9z"/><path d="M10 20a2.2 2.2 0 0 0 4 0"/></svg>
+        <i>2</i>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ================= MAIN ================= -->
+  <div class="main">
+
+    <div class="topbar">
+      <div class="crumbs">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg>
+        <span class="sep">/</span><span>Klanten</span>
+        <span class="sep">/</span><span class="cur">Alanys Rerimassie</span>
+      </div>
+      <div class="search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Zoeken</div>
+    </div>
+
+    <div class="screen active" id="screen-klant">
+    <div class="content">
+
+      <!-- client header -->
+      <div class="chead">
+        <div class="cavatar">AR</div>
+        <div>
+          <h1>Alanys Rerimassie<span class="ctag">Particulier</span></h1>
+          <div class="crow">
+            <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.9a2 2 0 0 1-.5 2.1L8.1 10a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.9.6 2.9.7a2 2 0 0 1 1.6 2z"/></svg>06 8009 5331</span>
+            <span class="dot">·</span>
+            <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>alanys_rerimassie@hotmail.com</span>
+            <span class="dot">·</span>
+            <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg>Moershei 3, Landgraaf</span>
+          </div>
+        </div>
+        <div class="cactions">
+          <span class="btn-offerte">
+            <button class="m"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>Nieuwe offerte</button>
+            <button class="c"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m6 9 6 6 6-6"/></svg></button>
+          </span>
+        </div>
+      </div>
+
+      <!-- statregel -->
+      <div class="stats">
+        <button class="stat geld" data-goto="facturen">
+          <div class="k">Openstaand</div>
+          <div class="v amber" id="statOpen">€ 0</div>
+          <div class="s" id="statOpenSub">geen open facturen</div>
+        </button>
+        <button class="stat taken" data-goto="taken">
+          <div class="k">Open taken</div>
+          <div class="v" id="statTasks">0</div>
+          <div class="s" id="statTasksSub">alles afgerond</div>
+        </button>
+        <button class="stat offerte" data-goto="offertes">
+          <div class="k">Offertes</div>
+          <div class="v" id="statOffertes">0</div>
+          <div class="s" id="statOffertesSub">nog geen offertes</div>
+        </button>
+        <button class="stat contact" data-goto="tijdlijn">
+          <div class="k">Laatste contact</div>
+          <div class="v" id="statContact">–</div>
+          <div class="s">Klant sinds 15 aug 2026</div>
+        </button>
+      </div>
+
+      <!-- dossier -->
+      <div class="dgrid">
+
+        <!-- SUBMENU -->
+        <nav class="dnav">
+          <div class="dnav-group">
+            <button class="ditem active" data-tab="actueel">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M13 2 4.5 13.5H11l-1 8.5 8.5-11.5H12z"/></svg>
+              Actueel<span class="dpill" id="cnt-actueel">0</span>
+            </button>
+          </div>
+          <div class="dnav-group">
+            <div class="dlabel">Historie</div>
+            <button class="ditem" data-tab="tijdlijn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+              Tijdlijn<span class="dpill" id="cnt-tijdlijn">0</span>
+            </button>
+            <button class="ditem" data-tab="taken">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M9 11.5 11.5 14 19 6.5"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg>
+              Taken<span class="dpill" id="cnt-taken">0</span>
+            </button>
+          </div>
+          <div class="dnav-group">
+            <div class="dlabel">Werk</div>
+            <button class="ditem" data-tab="projecten">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M3 7h5l2 2h11v11H3z"/><path d="M3 7V5h6l2 2"/></svg>
+              Aanleg<span class="dpill" id="cnt-projecten">0</span>
+            </button>
+            <button class="ditem" data-tab="onderhoud">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 22V8"/><path d="M12 8C12 5 9.5 2.5 5 3c-.5 4.5 2 7 7 5z"/><path d="M12 12c0-3 2.5-5.5 7-5 .5 4.5-2 7-7 5z"/></svg>
+              Onderhoud<span class="dpill" id="cnt-onderhoud">—</span>
+            </button>
+          </div>
+          <div class="dnav-group">
+            <div class="dlabel">Financieel</div>
+            <button class="ditem" data-tab="offertes">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M14 3H6a1.5 1.5 0 0 0-1.5 1.5v15A1.5 1.5 0 0 0 6 21h12a1.5 1.5 0 0 0 1.5-1.5V8.5z"/><path d="M14 3v5.5h5.5"/></svg>
+              Offertes<span class="dpill" id="cnt-offertes">0</span>
+            </button>
+            <button class="ditem" data-tab="facturen">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M5 2.5h14V21.5l-2.3-1.6-2.3 1.6-2.4-1.6-2.4 1.6L7.3 20 5 21.5z"/><path d="M9 8h6M9 12h6"/></svg>
+              Facturen<span class="dpill" id="cnt-facturen">0</span>
+            </button>
+          </div>
+          <div class="dnav-group">
+            <div class="dlabel">Klant</div>
+            <button class="ditem" data-tab="bestanden">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M3 7.5h6l2 2h10V19a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 19z"/><path d="M3 7.5V5.5A1.5 1.5 0 0 1 4.5 4h4l2 2"/></svg>
+              Bestanden<span class="dpill" id="cnt-bestanden">0</span>
+            </button>
+            <button class="ditem" data-tab="instellingen">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2 2 2 0 1 1-4 0 1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 15a2 2 0 1 1 0-4 1.7 1.7 0 0 0 1.4-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 10 4a2 2 0 1 1 4 0 1.7 1.7 0 0 0 2.9 1.4l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.7 1.7 0 0 0 21 11a2 2 0 1 1 0 4z"/></svg>
+              Instellingen
+            </button>
+          </div>
+        </nav>
+
+        <!-- CONTENT -->
+        <main>
+
+          <!-- ACTUEEL -->
+          <section class="panel active" id="panel-actueel">
+            <div class="logcard">
+              <div class="loghead">
+                <b>Gesprek vastleggen</b>
+                <span class="sub">taken worden automatisch herkend</span>
+              </div>
+              <div class="typerow" id="typeRow">
+                <button class="chip active" data-type="Gebeld">Gebeld</button>
+                <button class="chip" data-type="Gemaild">Gemaild</button>
+                <button class="chip" data-type="Afspraak">Afspraak</button>
+                <button class="chip" data-type="Notitie">Notitie</button>
+              </div>
+              <textarea id="logInput" placeholder="Wat is er besproken of afgesproken? Bijv: mevrouw wil een schetsontwerp zien, volgende week terugbellen en de offerte voor de vlonder sturen."></textarea>
+              <div class="gfoot">
+                <span class="ghint">Noem acties zoals terugbellen, offerte sturen of afspraak plannen, dan staan ze direct klaar als taak.</span>
+                <button class="btn-lime" id="logBtn">Vastleggen</button>
+              </div>
+
+              <div class="recrow">
+                <button class="btn-rec" id="recOpenBtn"><span class="reddot"></span>Gesprek opnemen</button>
+                <span class="ghint">Zet de klant op de luidspreker, de app neemt op en werkt het gesprek voor je uit.</span>
+              </div>
+
+              <div class="recpanel" id="recPanel">
+                <div class="recnotice">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:1px;color:#8A6410"><path d="M12 22c5.5 0 10-4.5 10-10S17.5 2 12 2 2 6.5 2 12s4.5 10 10 10z"/><path d="M12 8v5M12 16.5v.5"/></svg>
+                  <div><b>Meld de opname eerst aan de klant.</b> Bijvoorbeeld: "Ik zet je even op de luidspreker en neem het gesprek op zodat ik niks mis, is dat goed?" Zonder melding geen opname.</div>
+                </div>
+                <div class="recstart-actions" id="recStartActions">
+                  <button class="btn-lime" style="margin-left:0" id="recStartBtn">Melding gedaan, start opname</button>
+                  <button class="ghostw" id="recCancelBtn">Annuleren</button>
+                </div>
+                <div class="recstate" id="recState">
+                  <span class="recpulse"></span>
+                  <span class="rectime" id="recTime">0:00</span>
+                  <span class="recwave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+                  <button class="btn-stop" id="recStopBtn"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>Stop</button>
+                </div>
+                <div class="transcribing" id="recTranscribing"><span class="ai-dot"></span>Opname wordt uitgewerkt…</div>
+              </div>
+
+              <div class="ai" id="aiCard"></div>
+            </div>
+
+            <div class="duo">
+              <div class="wcard">
+                <div class="whead">
+                  <span class="wtitle">Openstaande taken</span>
+                  <span class="right"><button class="btn-line" data-goto="taken">Alle taken</button></span>
+                </div>
+                <div class="tasks" id="openTaskList"></div>
+              </div>
+
+              <div class="wcard">
+                <div class="whead">
+                  <span class="wtitle">Laatste contact</span>
+                  <span class="right"><button class="btn-line" data-goto="tijdlijn">Hele tijdlijn</button></span>
+                </div>
+                <div class="tl" id="recentTl"></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- TIJDLIJN -->
+          <section class="panel" id="panel-tijdlijn">
+            <div class="wcard">
+              <div class="whead"><span class="wtitle">Tijdlijn</span><span class="right sub" id="tlSub"></span></div>
+              <div class="tl" id="timelineList"></div>
+            </div>
+          </section>
+
+          <!-- TAKEN -->
+          <section class="panel" id="panel-taken">
+            <div class="wcard">
+              <div class="whead">
+                <span class="wtitle">Taken</span>
+                <span class="right"><button class="btn-line" id="newTaskBtn">+ Nieuwe taak</button></span>
+              </div>
+              <div class="tasks" id="taskList"></div>
+            </div>
+          </section>
+
+          <!-- PROJECTEN -->
+          <section class="panel" id="panel-projecten">
+            <div class="wcard">
+              <div class="whead">
+                <span class="wtitle">Aanleg</span>
+                <span class="right"><button class="btn-line">+ Nieuwe aanleg</button></span>
+              </div>
+              <table>
+                <thead><tr><th>Aanlegproject</th><th>Planning</th><th>Status</th><th style="text-align:right">Waarde</th></tr></thead>
+                <tbody id="projectRows"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <!-- ONDERHOUD -->
+          <section class="panel" id="panel-onderhoud">
+            <div class="wcard">
+              <div class="whead">
+                <span class="wtitle">Onderhoud</span>
+                <span class="right"><button class="btn-line">+ Losse beurt</button></span>
+              </div>
+              <div class="empty">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 22V8"/><path d="M12 8C12 5 9.5 2.5 5 3c-.5 4.5 2 7 7 5z"/><path d="M12 12c0-3 2.5-5.5 7-5 .5 4.5-2 7-7 5z"/></svg>
+                Nog geen onderhoud. Leg een contract vast of plan een losse beurt.
+              </div>
+            </div>
+          </section>
+
+          <!-- OFFERTES -->
+          <section class="panel" id="panel-offertes">
+            <div class="wcard">
+              <div class="whead">
+                <span class="wtitle">Offertes</span>
+                <span class="right"><button class="btn-green">+ Nieuwe offerte</button></span>
+              </div>
+              <table>
+                <thead><tr><th>Offerte</th><th>Datum</th><th>Status</th><th style="text-align:right">Bedrag</th></tr></thead>
+                <tbody id="offerteRows"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <!-- FACTUREN -->
+          <section class="panel" id="panel-facturen">
+            <div class="wcard">
+              <div class="whead">
+                <span class="wtitle">Facturen</span>
+                <span class="right filterrow" id="factuurFilters">
+                  <button class="fchip active" data-filter="alle">Alle</button>
+                  <button class="fchip" data-filter="open">Niet betaald</button>
+                  <button class="fchip" data-filter="betaald">Betaald</button>
+                </span>
+              </div>
+              <table>
+                <thead><tr><th>Factuur</th><th>Datum</th><th>Status</th><th style="text-align:right">Bedrag</th></tr></thead>
+                <tbody id="factuurRows"></tbody>
+              </table>
+              <div class="totalbar">
+                <span>Totaal gefactureerd <b id="totAll">€ 0</b></span>
+                <span class="open">Openstaand <b id="totOpen">€ 0</b></span>
+              </div>
+            </div>
+          </section>
+
+          <!-- BESTANDEN -->
+          <section class="panel" id="panel-bestanden">
+            <div class="wcard">
+              <div class="whead">
+                <span class="wtitle">Foto's</span>
+                <span class="sub">voor, tijdens en na</span>
+                <span class="right"><button class="btn-line">+ Foto's toevoegen</button></span>
+              </div>
+              <div class="fotogrid">
+                <div class="foto">
+                  <div class="fotoimg" style="background:linear-gradient(150deg,#8FA98D,#5E7A5C)"><span>Voor</span></div>
+                  <div class="fotometa"><b>Achtertuin richting schutting</b><small>15 aug · Micky</small></div>
+                </div>
+                <div class="foto">
+                  <div class="fotoimg" style="background:linear-gradient(150deg,#B79C7D,#8A6244)"><span>Voor</span></div>
+                  <div class="fotometa"><b>Schade omgewaaide schutting</b><small>15 aug · Micky</small></div>
+                </div>
+                <div class="foto">
+                  <div class="fotoimg" style="background:linear-gradient(150deg,#9FB89C,#3F5C43)"><span>Tijdens</span></div>
+                  <div class="fotometa"><b>Grondwerk fase 1</b><small>17 aug · Jan</small></div>
+                </div>
+                <div class="foto">
+                  <div class="fotoimg" style="background:linear-gradient(150deg,#C9B79E,#6E5B45)"><span>Schets</span></div>
+                  <div class="fotometa"><b>Schetsontwerp achtertuin</b><small>18 aug · Yannick</small></div>
+                </div>
+              </div>
+              <div class="uploadzone" onclick="toast('In de echte app opent hier de uploader of de camera')">
+                Sleep foto's hierheen of klik om te uploaden. Op de telefoon opent hier direct de camera.
+              </div>
+            </div>
+
+            <div class="wcard">
+              <div class="whead">
+                <span class="wtitle">Documenten</span>
+                <span class="right"><button class="btn-line">+ Document toevoegen</button></span>
+              </div>
+              <div class="docrow">
+                <div class="docico pdf">PDF</div>
+                <div class="dm"><b>Offerte heraanleg achtertuin</b><small>OF-2026-041 · 18 aug · automatisch toegevoegd</small></div>
+                <div class="da"><button class="btn-line">Openen</button></div>
+              </div>
+              <div class="docrow">
+                <div class="docico pdf">PDF</div>
+                <div class="dm"><b>Factuur aanbetaling ontwerp</b><small>F-2026-118 · 16 aug · automatisch toegevoegd</small></div>
+                <div class="da"><button class="btn-line">Openen</button></div>
+              </div>
+              <div class="docrow">
+                <div class="docico doc">DWG</div>
+                <div class="dm"><b>Tuinontwerp met maatvoering</b><small>18 aug · Yannick</small></div>
+                <div class="da"><button class="btn-line">Openen</button></div>
+              </div>
+              <div class="docrow">
+                <div class="docico img">JPG</div>
+                <div class="dm"><b>Foto bestrating ter goedkeuring</b><small>19 aug · door klant gestuurd</small></div>
+                <div class="da"><button class="btn-line">Openen</button></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- INSTELLINGEN -->
+          <section class="panel" id="panel-instellingen">
+            <div class="wcard">
+              <div class="whead"><span class="wtitle">Contactgegevens</span><span class="right"><button class="btn-line">Wijzigen</button></span></div>
+              <div class="setrow"><span class="sk">Naam</span><span class="sv">Alanys Rerimassie</span></div>
+              <div class="setrow"><span class="sk">Type</span><span class="sv">Particulier</span></div>
+              <div class="setrow"><span class="sk">Telefoon</span><span class="sv">06 8009 5331</span></div>
+              <div class="setrow"><span class="sk">E-mail</span><span class="sv">alanys_rerimassie@hotmail.com</span></div>
+              <div class="setrow"><span class="sk">Adres</span><span class="sv">Moershei 3, 6374 NR Landgraaf</span></div>
+            </div>
+            <div class="wcard">
+              <div class="whead"><span class="wtitle">Voorkeuren</span></div>
+              <div class="toggle-row">
+                <div>
+                  <b>Bevestigingsmail bij inplannen</b>
+                  <div class="desc">Zet automatisch een concept-mail klaar in Concept-mails</div>
+                </div>
+                <div class="switch" onclick="this.classList.toggle('on')"></div>
+              </div>
+              <div class="toggle-row" style="border-top:1px solid var(--lijn)">
+                <div>
+                  <b>Gesprekken mogen opgenomen worden</b>
+                  <div class="desc">Klant heeft hier mondeling toestemming voor gegeven</div>
+                </div>
+                <div class="switch on" onclick="this.classList.toggle('on')"></div>
+              </div>
+            </div>
+            <div class="wcard">
+              <div class="whead"><span class="wtitle">Privacy</span></div>
+              <div class="privrow">
+                <div>
+                  <b>GDPR-verwijderverzoek</b>
+                  <div class="desc">Verwijdert alle gegevens van deze klant, inclusief opnames en transcripties</div>
+                </div>
+                <button class="btn-danger">Verzoek starten</button>
+              </div>
+            </div>
+          </section>
+
+        </main>
+      </div>
+    </div>
+    </div>
+
+    <!-- ================= WERKBORD ================= -->
+    <div class="screen" id="screen-mijndag">
+      <div class="content">
+        <div class="daghead">
+          <div>
+            <h1>Werkbord</h1>
+            <p>De taken van vandaag. Sleep een kaartje naar iemand anders om het over te dragen.</p>
+          </div>
+        </div>
+
+        <div class="perspectief">
+          <span class="ikben">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="3.4"/><path d="M4.5 20c.8-3.6 3.4-5.5 7.5-5.5s6.7 1.9 7.5 5.5"/></svg>
+            Ik ben <select id="ikBenSel"></select>
+          </span>
+          <span class="seg" id="segView">
+            <button class="on" data-view="mij">Van mij</button>
+            <button data-view="uitgezet">Uitgezet door mij</button>
+            <button data-view="alles">Alles</button>
+          </span>
+          <span class="ctl" style="margin-left:auto"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="4.5" width="18" height="17" rx="2"/><path d="M16 2.5v4M8 2.5v4M3 10h18"/></svg>Woensdag 19 augustus</span>
+        </div>
+
+        <div class="bordbar">
+          <span class="lbl">Verdeel op</span>
+          <span class="seg" id="segGroep">
+            <button data-groep="wanneer" class="on">Wanneer</button>
+            <button data-groep="persoon">Wie</button>
+            <button data-groep="status">Status</button>
+            <button data-groep="klant">Klant</button>
+          </span>
+          <span class="scheider"></span>
+          <span class="lbl">Blijft liggen</span>
+          <span class="seg" id="segAttn">
+            <button class="on" data-attn="kolom">Als kolom</button>
+            <button data-attn="balk">Als balk</button>
+            <button data-attn="uit">Verbergen</button>
+          </span>
+          <span class="scheider"></span>
+          <span style="display:flex;gap:6px">
+            <button class="fchip active" data-dagfilter="alles">Alles</button>
+            <button class="fchip" data-dagfilter="todo">Te doen</button>
+            <button class="fchip" data-dagfilter="bezig">Bezig</button>
+            <button class="fchip" data-dagfilter="check">Wacht op check</button>
+          </span>
+        </div>
+
+        <div id="attnBlok"></div>
+
+        <div class="bord" id="bord"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- detailpaneel -->
+<div class="overlay" id="overlay" onclick="closeDrawer()"></div>
+<aside class="drawer" id="drawer">
+  <div class="dhead">
+    <div style="flex:1;min-width:0">
+      <div id="drawerKlant" class="bklant" style="margin-bottom:6px"></div>
+      <h3 id="drawerTitel"></h3>
+    </div>
+    <button class="dclose" onclick="closeDrawer()"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+  </div>
+  <div class="dbody" id="drawerBody"></div>
+</aside>
+
+<!-- logboek rechtsonder -->
+<div class="logfab">
+  <div class="logpanel" id="logPanel">
+    <div class="lphead">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" style="color:var(--groen)"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
+      <b>Wat heb ik gedaan</b>
+      <span class="tot" id="logTot">0,0 uur</span>
+    </div>
+    <div class="lplist" id="logList"></div>
+    <div class="lpform">
+      <input id="logField" placeholder="Bijv: haag geknipt bij Pietersen 1,5u" autocomplete="off">
+      <div class="lphint">Typ wat je gedaan hebt en druk op enter. Zet er een tijd bij zoals 1,5u of 45m, dan telt hij mee met je uren.</div>
+    </div>
+    <div class="lpfoot">
+      <button class="btn-line" style="flex:1" onclick="toast('In de echte app gaat dit naar Uren')">Naar urenstaat</button>
+      <button class="btn-green" style="flex:1" onclick="toast('Dag ingediend bij Yannick')">Dag indienen</button>
+    </div>
+  </div>
+  <button class="fabbtn" id="logFab">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+    Logboek <span class="u" id="fabUren">0,0u</span>
+  </button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let timeline = [
+  {type:"Gebeld", group:"Vrijdag 15 augustus", when:"14:20", text:"Eerste contact. Mevrouw wil de achtertuin opnieuw laten aanleggen, ongeveer 60 m². Wil eerst een schetsontwerp zien voordat we een offerte maken.", linkedTasks:1},
+  {type:"Systeem", group:"Vrijdag 15 augustus", when:"14:05", text:"Klant aangemaakt via websiteformulier."}
+];
+/* mensen: admins zijn net zo goed toewijsbaar als medewerkers */
+const mensen = [
+  {id:"yannick", naam:"Yannick Top",        rol:"admin"},
+  {id:"romeo",   naam:"Romeo Swaffelberg",  rol:"admin"},
+  {id:"micky",   naam:"Micky",              rol:"admin"},
+  {id:"ricardo", naam:"Ricardo Hoevenier",  rol:"medewerker"},
+  {id:"jan",     naam:"Jan",                rol:"medewerker"}
+];
+const persoon = id => mensen.find(m=>m.id===id);
+const initialen = naam => naam.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+
+let tasks = [
+  {id:1, title:"Offerte schutting en tuinonderhoud versturen", note:"Schutting is omgewaaid, klant wil ook onderhoud: onkruid weghalen, snoeien voorjaar en najaar.",
+   status:"bezig", prio:"hoog", due:"wo 20 aug", ai:true, klant:"Romeo Savelberg", door:"micky", stil:0, over:false,
+   maker:"micky", checker:"yannick",
+   subs:[{t:"Schade schutting opmeten",done:true},{t:"Prijs onderhoudscontract berekenen",done:false},{t:"Offerte in systeem zetten",done:false}],
+   comments:[{wie:"Yannick Top", wanneer:"vandaag 09:12", tekst:"Reken het onderhoud per jaar door, niet per beurt. Dan is het makkelijker vergelijken voor de klant."},
+             {wie:"Micky", wanneer:"vandaag 09:40", tekst:"Duidelijk. Schutting is 12 meter, ik zet er twee opties in."}]},
+  {id:2, title:"Afspraak inplannen voor opname schade schutting", note:"Klant is doordeweeks alleen na 16:00 thuis.", status:"todo", prio:"normaal", due:"gisteren", ai:true, klant:"Romeo Savelberg", door:"micky", stil:3, over:true,
+   maker:"ricardo", checker:"", subs:[]},
+  {id:3, title:"Welkomstmail met planning sturen", note:"", status:"klaar", prio:"laag", due:"afgerond za 16 aug", ai:false, klant:"Romeo Savelberg", door:"romeo", stil:0, over:false,
+   maker:"romeo", checker:"", subs:[]}
+];
+/* taken van andere klanten, alleen voor het Mijn dag-overzicht */
+const dagExtra = [
+  {id:11, title:"Haag knippen achterzijde", note:"Ladder meenemen, buurman heeft toegang tot achterom.", status:"todo", prio:"normaal", due:"vandaag", klant:"Fam. Pietersen", door:"yannick", stil:0, over:false, maker:"micky", checker:"", subs:[{t:"Snoeiafval afvoeren",done:false}]},
+  {id:12, title:"Beregening controleren en afstellen", note:"", status:"bezig", prio:"laag", due:"vandaag", klant:"Fam. Pietersen", door:"micky", stil:0, over:false, maker:"micky", checker:"", subs:[]},
+  {id:15, title:"Snoeiafval afvoeren naar depot", note:"Twee volle bakken, sleutel depot ligt in de bus.", status:"todo", prio:"normaal", due:"maandag", klant:"Fam. Pietersen", door:"micky", stil:4, over:false, maker:"jan", checker:"", subs:[]},
+  {id:13, title:"Offerte vlonder nakijken voor verzending", note:"Micky heeft hem gemaakt, even nalopen op maten en prijs.", status:"check", prio:"hoog", due:"vandaag", klant:"Bakker Tuin BV", door:"micky", stil:2, over:true, maker:"micky", checker:"yannick", subs:[], comments:[{wie:"Micky", wanneer:"vandaag 11:05", tekst:"Staat klaar, wil jij even naar de maten kijken voor ik hem verstuur?"}]},
+  {id:14, title:"Materiaal bestellen voor bestrating", note:"", status:"todo", prio:"hoog", due:"morgen", klant:"Bakker Tuin BV", door:"yannick", stil:0, over:false, maker:"micky", checker:"", subs:[{t:"Aantal m2 checken bij Jan",done:true},{t:"Bestelling plaatsen bij leverancier",done:false}]}
+];
+const offertes = [
+  {nr:"OF-2026-041", naam:"Heraanleg achtertuin", datum:"in voorbereiding", status:"concept", bedrag:null}
+];
+const facturen = [
+  {nr:"F-2026-118", naam:"Aanbetaling ontwerp", datum:"16 aug 2026", status:"betaald", bedrag:450},
+  {nr:"F-2026-124", naam:"Grondwerk fase 1", datum:"17 aug 2026", status:"open", bedrag:1250, dagenOpen:2}
+];
+const projecten = [
+  {naam:"Heraanleg achtertuin 60 m²", planning:"week 36 t/m 38", status:"gepland", waarde:8400}
+];
+
+const $ = id => document.getElementById(id);
+const euro = n => "€ " + n.toLocaleString("nl-NL");
+function toast(msg){ const t=$("toast"); t.textContent=msg; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),2600); }
+
+function setPill(id, value, level){
+  const el=$(id);
+  el.textContent = value;
+  el.className = "dpill" + (level?" "+level:"");
+}
+function updateActueel(){
+  const openTasks = tasks.filter(t=>t.status!=="klaar").length;
+  const openInv = facturen.filter(f=>f.status==="open").length;
+  const total = openTasks + openInv;
+  setPill("cnt-actueel", total, total ? "amber" : "leeg");
+}
+
+const icons = {
+  Gebeld:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.9a2 2 0 0 1-.5 2.1L8.1 10a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.5c.9.3 1.9.6 2.9.7a2 2 0 0 1 1.6 2z"/></svg>',
+  Gemaild:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>',
+  Afspraak:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>',
+  Notitie:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
+  Systeem:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.2 4.2l2.8 2.8M17 17l2.8 2.8M1 12h4M19 12h4M4.2 19.8 7 17M17 7l2.8-2.8"/></svg>'
+};
+
+function tlItemHtml(e){
+  return `
+        <div class="tl-item">
+          <div class="tl-icon ${e.type==="Gemaild"?"mail":e.type==="Systeem"?"sys":""}">${icons[e.type]||icons.Notitie}</div>
+          <div class="tl-body">
+            <div class="tl-top"><b>${e.type}</b>${e.rec?`<span class="badge-rec">OPNAME · ${e.rec}</span>`:""}<time>${e.when}</time></div>
+            <div class="tl-text">${e.text}</div>
+            ${e.linkedTasks?`<span class="tl-linked">✓ ${e.linkedTasks} ${e.linkedTasks===1?"taak":"taken"} aangemaakt uit dit gesprek</span>`:""}
+          </div>
+        </div>`;
+}
+
+function renderTimeline(){
+  const groups = [];
+  timeline.forEach(e=>{
+    let g = groups.find(x=>x.label===e.group);
+    if(!g){ g={label:e.group, items:[]}; groups.push(g); }
+    g.items.push(e);
+  });
+  $("timelineList").innerHTML = groups.map(g=>`
+    <div class="tl-group">
+      <div class="tl-date">${g.label}</div>
+      ${g.items.map(tlItemHtml).join("")}
+    </div>`).join("");
+
+  /* Actueel: laatste drie momenten, zonder datumkopjes */
+  $("recentTl").innerHTML = timeline.slice(0,3).map(e=>tlItemHtml({...e, when:(e.group==="Vandaag"?"":e.group+" · ")+e.when})).join("");
+
+  const n = timeline.filter(e=>e.type!=="Systeem").length;
+  $("cnt-tijdlijn").textContent = n;
+  $("tlSub").textContent = n + " contactmomenten";
+  $("statContact").textContent = timeline[0].group==="Vandaag" ? "vandaag" : "15 aug";
+}
+
+const statusLabels = {todo:["st-todo","Te doen"], bezig:["st-bezig","Bezig"], check:["st-check","Wacht op check"], klaar:["st-klaar","Klaar"]};
+const prioLabels = {hoog:"Hoog", normaal:"Normaal", laag:"Laag"};
+let openCards = new Set();
+
+function avatarsHtml(t){
+  let h = "";
+  if(t.maker) h += `<span class="av" title="Maakt: ${persoon(t.maker).naam}">${initialen(persoon(t.maker).naam)}</span>`;
+  if(t.checker) h += `<span class="av check" title="Checkt: ${persoon(t.checker).naam}">${initialen(persoon(t.checker).naam)}</span>`;
+  return h ? `<span class="avs">${h}</span>` : "";
+}
+function selectHtml(t, veld){
+  return `<select onchange="setWie(${t.id},'${veld}',this.value)">
+    <option value="">Niemand</option>
+    ${mensen.map(m=>`<option value="${m.id}" ${t[veld]===m.id?"selected":""}>${m.naam}${m.rol==="admin"?" (admin)":""}</option>`).join("")}
+  </select>`;
+}
+function taskCardHtml(t){
+  const st = statusLabels[t.status];
+  const subDone = t.subs.filter(x=>x.done).length;
+  const pct = t.subs.length ? Math.round(subDone/t.subs.length*100) : 0;
+  return `
+  <div class="tcard ${openCards.has(t.id)?"open":""} ${t.status==="klaar"?"klaar":""}">
+    <div class="thead" onclick="toggleCard(event, ${t.id})">
+      <input type="checkbox" ${t.status==="klaar"?"checked":""} onclick="event.stopPropagation()" onchange="setStatus(${t.id}, this.checked?'klaar':'todo')">
+      <div class="tmain">
+        <div class="ttitle">${t.title}</div>
+        <div class="tmeta">
+          <span class="tag ${st[0]}">${st[1]}</span>
+          <span class="tag prio-${t.prio}">${prioLabels[t.prio]}</span>
+          ${t.due?`<span class="tag ${t.status!=="klaar"?"due":""}">${t.due}</span>`:""}
+          ${t.subs.length?`<span class="tag">${subDone}/${t.subs.length} subtaken</span>`:""}
+          ${t.ai?'<span class="badge-ai">UIT GESPREK</span>':""}
+          ${avatarsHtml(t)}
+        </div>
+      </div>
+      <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 6 6 6-6 6"/></svg>
+    </div>
+    <div class="tbody">
+      <div class="tsec">Toelichting</div>
+      <div class="tnote">${t.note || "Nog geen toelichting. Klik om er een toe te voegen."}</div>
+
+      <div class="tsec">Subtaken</div>
+      ${t.subs.length?`<div class="prog"><i style="width:${pct}%"></i></div>`:""}
+      ${t.subs.map((x,i)=>`<label class="sub ${x.done?"done":""}"><input type="checkbox" ${x.done?"checked":""} onchange="toggleSub(${t.id},${i})"><span>${x.t}</span></label>`).join("")}
+      <div class="subadd" onclick="addSub(${t.id})">+ Subtaak toevoegen</div>
+
+      <div class="tsec">Wie doet wat</div>
+      <div class="rolerow">
+        <div class="rolebox">
+          <div class="rolelabel">Maakt het</div>
+          <div class="who"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" style="color:var(--groen)"><circle cx="12" cy="8" r="3.4"/><path d="M4.5 20c.8-3.6 3.4-5.5 7.5-5.5s6.7 1.9 7.5 5.5"/></svg>${selectHtml(t,"maker")}</div>
+        </div>
+        <div class="rolebox">
+          <div class="rolelabel">Checkt het voor verzending</div>
+          <div class="who"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" style="color:var(--amber)"><path d="M9 12.5 11 14.5 15.5 10"/><circle cx="12" cy="12" r="9"/></svg>${selectHtml(t,"checker")}</div>
+        </div>
+      </div>
+
+      <div class="tsec">Status</div>
+      <div class="statusrow">
+        <button class="sbtn ${t.status==="todo"?"on":""}" onclick="setStatus(${t.id},'todo')">Te doen</button>
+        <button class="sbtn ${t.status==="bezig"?"on":""}" onclick="setStatus(${t.id},'bezig')">Bezig</button>
+        <button class="sbtn warn ${t.status==="check"?"on":""}" onclick="setStatus(${t.id},'check')">Klaar, moet gecheckt${t.checker?" door "+persoon(t.checker).naam.split(" ")[0]:""}</button>
+        <button class="sbtn ${t.status==="klaar"?"on":""}" onclick="setStatus(${t.id},'klaar')">Helemaal klaar</button>
+      </div>
+
+      <div class="tsec">Prioriteit</div>
+      <div class="statusrow">
+        <button class="sbtn ${t.prio==="laag"?"on":""}" onclick="setPrio(${t.id},'laag')">Laag</button>
+        <button class="sbtn ${t.prio==="normaal"?"on":""}" onclick="setPrio(${t.id},'normaal')">Normaal</button>
+        <button class="sbtn ${t.prio==="hoog"?"on":""}" onclick="setPrio(${t.id},'hoog')">Hoog</button>
+      </div>
+
+      <div class="tfoot">
+        <button class="btn-line" onclick="toast('In de echte app opent hier de planning')">Inplannen</button>
+        <button class="btn-line" onclick="toast('In de echte app opent hier de klantkaart')">Naar klant</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function toggleCard(e, id){
+  if(e.target.tagName==="INPUT"||e.target.tagName==="SELECT") return;
+  openCards.has(id) ? openCards.delete(id) : openCards.add(id);
+  renderTasks(); renderBord(); renderAttn();
+}
+function findTask(id){ return tasks.find(t=>t.id===id) || dagExtra.find(t=>t.id===id); }
+function setStatus(id, st){ const t=findTask(id); t.status=st; t.stil=0; if(st==="klaar") toast("Taak afgerond"); if(st==="check") toast(t.checker?"Klaargezet voor "+persoon(t.checker).naam:"Klaargezet om te checken"); renderTasks(); renderBord(); renderAttn(); }
+function setPrio(id, p){ findTask(id).prio=p; renderTasks(); renderBord(); renderAttn(); }
+function setWie(id, veld, val){ const t=findTask(id); t[veld]=val; t.stil=0; if(veld==='maker') t.door=ikBenNu; renderTasks(); renderBord(); renderAttn(); toast(val?(veld==="maker"?"Toegewezen aan ":"Check bij ")+persoon(val).naam:"Toewijzing verwijderd"); }
+function toggleSub(id, i){ const t=findTask(id); t.subs[i].done=!t.subs[i].done; renderTasks(); renderBord(); renderAttn(); }
+function addSub(id){ const v=prompt("Welke subtaak?"); if(v){ findTask(id).subs.push({t:v,done:false}); renderTasks(); renderBord(); renderAttn(); } }
+
+function renderTasks(){
+  const open = tasks.filter(t=>t.status!=="klaar");
+  const done = tasks.filter(t=>t.status==="klaar");
+  let html = "";
+  if(open.length){ html += `<div class="tsection">Open (${open.length})</div>` + open.map(taskCardHtml).join(""); }
+  if(done.length){ html += `<div class="tsection">Afgerond (${done.length})</div>` + done.map(taskCardHtml).join(""); }
+  if(!tasks.length) html = '<div class="empty">Nog geen taken. Leg een gesprek vast, dan worden acties automatisch herkend.</div>';
+  $("taskList").innerHTML = html;
+
+  $("openTaskList").innerHTML = open.length
+    ? open.map(taskCardHtml).join("")
+    : '<div class="empty">Alles afgerond voor deze klant.</div>';
+
+  setPill("cnt-taken", open.length, open.length ? "amber" : "leeg");
+  $("statTasks").textContent = open.length;
+  $("statTasksSub").textContent = open.length ? "eerstvolgende: " + open[0].due : "alles afgerond";
+  updateActueel();
+}
+
+function renderOffertes(){
+  const st = {concept:["st-concept","Concept"],verzonden:["st-verzonden","Verzonden"],geaccepteerd:["st-betaald","Geaccepteerd"]};
+  $("offerteRows").innerHTML = offertes.map(o=>`
+    <tr class="row">
+      <td><b>${o.naam}</b><div class="docnr">${o.nr}</div></td>
+      <td>${o.datum}</td>
+      <td><span class="status ${st[o.status][0]}">${st[o.status][1]}</span></td>
+      <td class="amount">${o.bedrag?euro(o.bedrag):"–"}</td>
+    </tr>`).join("");
+  setPill("cnt-offertes", offertes.length ? offertes.length : "—", offertes.length?"":"leeg");
+  $("statOffertes").textContent = offertes.length;
+  $("statOffertesSub").textContent = offertes.length===1 ? "1 in concept" : offertes.length + " offertes";
+}
+
+function renderProjecten(){
+  const st = {gepland:["st-verzonden","Gepland"],uitvoering:["st-open","In uitvoering"],opgeleverd:["st-betaald","Opgeleverd"]};
+  $("projectRows").innerHTML = projecten.length ? projecten.map(p=>`
+    <tr class="row">
+      <td><b>${p.naam}</b></td>
+      <td>${p.planning}</td>
+      <td><span class="status ${st[p.status][0]}">${st[p.status][1]}</span></td>
+      <td class="amount">${euro(p.waarde)}</td>
+    </tr>`).join("") : '<tr><td colspan="4" class="empty">Nog geen aanlegwerk voor deze klant.</td></tr>';
+  setPill("cnt-projecten", projecten.length, projecten.length?"":"leeg");
+}
+
+let factuurFilter="alle";
+function renderFacturen(){
+  const st = {betaald:["st-betaald","Betaald"],open:["st-open","Open"]};
+  const rows = facturen.filter(f=>factuurFilter==="alle"||f.status===factuurFilter);
+  $("factuurRows").innerHTML = rows.length ? rows.map(f=>`
+    <tr class="row">
+      <td><b>${f.naam}</b><div class="docnr">${f.nr}</div></td>
+      <td>${f.datum}</td>
+      <td><span class="status ${st[f.status][0]}">${st[f.status][1]}</span></td>
+      <td class="amount">${euro(f.bedrag)}</td>
+    </tr>`).join("") : '<tr><td colspan="4" class="empty">Geen facturen in deze selectie.</td></tr>';
+  const openArr = facturen.filter(f=>f.status==="open");
+  const open = openArr.reduce((s,f)=>s+f.bedrag,0);
+  const all = facturen.reduce((s,f)=>s+f.bedrag,0);
+  $("totAll").textContent = euro(all);
+  $("totOpen").textContent = euro(open);
+  $("statOpen").textContent = euro(open);
+  $("statOpenSub").textContent = openArr.length ? openArr.length + " open " + (openArr.length===1?"factuur":"facturen") : "geen open facturen";
+  const teLaat = openArr.some(f=>(f.dagenOpen||0) > 30);
+  setPill("cnt-facturen", openArr.length ? openArr.length : "—", openArr.length ? (teLaat?"rood":"amber") : "leeg");
+  updateActueel();
+}
+
+function goTab(tab){
+  if(!$("panel-"+tab)) return;
+  document.querySelectorAll(".ditem").forEach(b=>b.classList.toggle("active", b.dataset.tab===tab));
+  document.querySelectorAll(".panel").forEach(p=>p.classList.remove("active"));
+  $("panel-"+tab).classList.add("active");
+  if(history.replaceState) history.replaceState(null,"","#"+tab);
+}
+document.querySelectorAll(".ditem").forEach(btn=>btn.addEventListener("click",()=>goTab(btn.dataset.tab)));
+document.querySelectorAll("[data-goto]").forEach(s=>s.addEventListener("click",()=>goTab(s.dataset.goto)));
+window.addEventListener("hashchange",()=>goTab(location.hash.replace("#","")));
+
+let logType="Gebeld";
+$("typeRow").querySelectorAll(".chip").forEach(c=>{
+  c.addEventListener("click",()=>{
+    $("typeRow").querySelectorAll(".chip").forEach(x=>x.classList.remove("active"));
+    c.classList.add("active"); logType=c.dataset.type;
+  });
+});
+
+function extractTasks(text){
+  const t = text.toLowerCase();
+  const found = [];
+  const dl = (t.match(/volgende week|morgen|maandag|dinsdag|woensdag|donderdag|vrijdag|zaterdag|eind van de week|deze week/)||[null])[0];
+
+  if(/terugbellen|bel .*terug|even bellen|contact opnemen/.test(t)) found.push({title:"Terugbellen met Alanys", due:dl||"deze week"});
+  if(/offerte/.test(t)) found.push({title:/sturen|versturen|mailen/.test(t)?"Offerte opstellen en versturen":"Offerte opstellen", due:dl||"deze week"});
+  if(/schets|ontwerp|tekening/.test(t)) found.push({title:"Schetsontwerp maken", due:dl||"volgende week"});
+  if(/afspraak|langskomen|langs komen|inplannen|opmeten|meten/.test(t)) found.push({title:/opmeten|meten/.test(t)?"Afspraak inplannen om op te meten":"Afspraak inplannen", due:dl||"deze week"});
+  if(/factuur|betaling|herinnering/.test(t)) found.push({title:"Factuur of betaalherinnering versturen", due:dl||"deze week"});
+  if(/mail|sturen|doorsturen|foto/.test(t) && !found.some(f=>/versturen|mail/i.test(f.title))) found.push({title:"Informatie nasturen per mail", due:dl||"deze week"});
+  if(!found.length) found.push({title:"Opvolgen: "+(text.length>60?text.slice(0,57)+"...":text), due:"deze week"});
+
+  const seen=new Set();
+  return found.filter(f=>!seen.has(f.title)&&seen.add(f.title)).slice(0,3);
+}
+
+let pending=[]; let pendingText=""; let pendingType=""; let pendingRec=null;
+$("logBtn").addEventListener("click",()=>{
+  const text=$("logInput").value.trim();
+  if(!text){ toast("Vul eerst in wat er besproken is"); return; }
+  pendingText=text; pendingType=logType;
+  const card=$("aiCard");
+  card.classList.add("visible");
+  card.innerHTML='<div class="ai-title"><span class="ai-dot"></span>Gesprek wordt geanalyseerd…</div>';
+  setTimeout(()=>{
+    pending=extractTasks(text);
+    card.innerHTML =
+      '<div class="ai-title">✦ '+pending.length+' voorgestelde '+(pending.length===1?'taak':'taken')+' gevonden</div>'
+      + pending.map((p,i)=>`<label class="ai-task"><input type="checkbox" checked data-i="${i}"> ${p.title}<span class="due">${p.due}</span></label>`).join("")
+      + '<div class="ai-actions"><button class="btn-lime" style="margin-left:0" onclick="confirmTasks()">Vastleggen en taken aanmaken</button><button class="ghostw" onclick="confirmTasks(true)">Alleen gesprek vastleggen</button></div>';
+  },900);
+});
+
+function confirmTasks(skip){
+  const card=$("aiCard");
+  let made=0;
+  if(!skip){
+    card.querySelectorAll(".ai-task input:checked").forEach(cb=>{
+      const p=pending[cb.dataset.i];
+      tasks.unshift({id:Date.now()+made, title:p.title, note:"", status:"todo", prio:"normaal", due:p.due, ai:true, klant:"Romeo Savelberg", door:ikBenNu, stil:0, over:false, maker:"", checker:"", subs:[]});
+      made++;
+    });
+  }
+  timeline.unshift({type:pendingType, group:"Vandaag", when:"zojuist", text:pendingText, linkedTasks:made, rec:pendingRec});
+  pendingRec=null;
+  $("logInput").value=""; card.classList.remove("visible"); card.innerHTML="";
+  renderTimeline(); renderTasks();
+  toast(made?`Gesprek vastgelegd, ${made} ${made===1?"taak":"taken"} aangemaakt`:"Gesprek vastgelegd op de tijdlijn");
+}
+
+$("newTaskBtn").addEventListener("click",()=>{
+  const naam=prompt("Wat moet er gebeuren?");
+  if(naam){ tasks.unshift({id:Date.now(), title:naam, note:"", status:"todo", prio:"normaal", due:"deze week", ai:false, klant:"Romeo Savelberg", door:ikBenNu, stil:0, over:false, maker:"", checker:"", subs:[]}); renderTasks(); toast("Taak aangemaakt"); }
+});
+
+/* ---------- opnamefunctie ---------- */
+let recTimer=null, recSeconds=0, recStream=null;
+const demoTranscript = "Goedemiddag, met Alanys. Ja over de achtertuin, ik heb met mijn man overlegd en we willen graag doorgaan met het schetsontwerp. Kunnen jullie volgende week een keer langskomen om op te meten? En zou je me de offerte voor de vlonder alvast kunnen sturen, dan kunnen we die naast elkaar leggen.";
+
+function fmtTime(s){ return Math.floor(s/60)+":"+String(s%60).padStart(2,"0"); }
+
+$("recOpenBtn").addEventListener("click",()=>{
+  $("recPanel").classList.add("visible");
+  $("recStartActions").style.display="flex";
+  $("recState").classList.remove("visible");
+  $("recTranscribing").classList.remove("visible");
+});
+$("recCancelBtn").addEventListener("click",()=>{
+  $("recPanel").classList.remove("visible");
+});
+$("recStartBtn").addEventListener("click", async ()=>{
+  try{
+    recStream = await navigator.mediaDevices.getUserMedia({audio:true});
+  }catch(e){
+    recStream = null; /* demo werkt ook zonder microfoontoegang */
+  }
+  $("recStartActions").style.display="none";
+  $("recState").classList.add("visible");
+  recSeconds=0; $("recTime").textContent="0:00";
+  recTimer=setInterval(()=>{ recSeconds++; $("recTime").textContent=fmtTime(recSeconds); },1000);
+});
+$("recStopBtn").addEventListener("click",()=>{
+  clearInterval(recTimer);
+  if(recStream){ recStream.getTracks().forEach(t=>t.stop()); recStream=null; }
+  $("recState").classList.remove("visible");
+  $("recTranscribing").classList.add("visible");
+  const dur = fmtTime(Math.max(recSeconds,1));
+  setTimeout(()=>{
+    $("recPanel").classList.remove("visible");
+    $("recTranscribing").classList.remove("visible");
+    pendingText = demoTranscript;
+    pendingType = "Gebeld";
+    pendingRec = dur;
+    const card=$("aiCard");
+    card.classList.add("visible");
+    card.innerHTML='<div class="ai-title"><span class="ai-dot"></span>Gesprek wordt geanalyseerd…</div>';
+    setTimeout(()=>{
+      pending=extractTasks(demoTranscript);
+      card.innerHTML =
+        '<div class="ai-title">✦ Opname uitgewerkt ('+dur+'), '+pending.length+' voorgestelde '+(pending.length===1?'taak':'taken')+' gevonden</div>'
+        + '<div style="font-size:12.5px;color:#414B44;background:var(--paper);border:1px solid var(--lijn);border-radius:9px;padding:10px 12px;margin-bottom:10px">'+demoTranscript+'</div>'
+        + pending.map((p,i)=>`<label class="ai-task"><input type="checkbox" checked data-i="${i}"> ${p.title}<span class="due">${p.due}</span></label>`).join("")
+        + '<div class="ai-actions"><button class="btn-lime" style="margin-left:0" onclick="confirmTasks()">Vastleggen en taken aanmaken</button><button class="ghostw" onclick="confirmTasks(true)">Alleen gesprek vastleggen</button></div>';
+    },1100);
+  },1400);
+});
+
+/* ===== WERKBORD ===== */
+let bordGroep = "wanneer";
+let attnMode = "kolom";
+let dagFilter = "alles";
+let bordView = "mij";
+let ikBenNu = "micky";
+let attnOpen = true;
+
+function alleTaken(){ return tasks.concat(dagExtra); }
+
+/* perspectief: wat wil ik zien */
+function inView(t){
+  if(bordView==="mij")      return t.maker===ikBenNu || t.checker===ikBenNu;
+  if(bordView==="uitgezet") return t.door===ikBenNu && t.maker!==ikBenNu;
+  return true;
+}
+function zichtbaar(t){
+  if(!inView(t)) return false;
+  if(attnMode==="kolom" && redenen(t).length &&
+     (t.maker===ikBenNu || t.checker===ikBenNu || t.door===ikBenNu)) return false;
+  if(t.status==="klaar" && dagFilter==="alles") return false;
+  return dagFilter==="alles" || t.status===dagFilter;
+}
+
+/* ===== signalering: wat loopt vast =====
+   Een taak vraagt aandacht als de deadline voorbij is, als hij te lang
+   stilligt bij iemand anders, of als een check te lang blijft hangen. */
+function redenen(t){
+  const r = [];
+  if(t.status==="klaar") return r;
+  if(t.over) r.push({tekst:"deadline voorbij ("+t.due+")", hard:true});
+  if(t.status==="check" && (t.stil||0) >= 2)
+    r.push({tekst:"ligt "+t.stil+" dagen te wachten op "+(t.checker?persoon(t.checker).naam.split(" ")[0]:"een check"), hard:true});
+  else if((t.stil||0) >= 3 && t.maker && t.maker!==ikBenNu)
+    r.push({tekst:t.stil+" dagen geen beweging bij "+persoon(t.maker).naam.split(" ")[0], hard:false});
+  return r;
+}
+function aandachtTaken(){
+  /* alles waar ik bij betrokken ben: zelf doen, checken of uitgezet */
+  return alleTaken()
+    .filter(t=>t.maker===ikBenNu || t.checker===ikBenNu || t.door===ikBenNu)
+    .map(t=>({t, r:redenen(t)}))
+    .filter(x=>x.r.length)
+    .sort((a,b)=>(b.r.some(x=>x.hard)?1:0)-(a.r.some(x=>x.hard)?1:0));
+}
+function renderAttn(){
+  if(attnMode!=="balk"){ $("attnBlok").innerHTML=""; return; }
+  const items = aandachtTaken();
+  if(!items.length){
+    $("attnBlok").innerHTML = `<div class="attn leeg"><div class="attnhead">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12.5 11 14.5 15.5 10"/><circle cx="12" cy="12" r="9"/></svg>
+      Niets blijft liggen. Alles loopt.</div></div>`;
+    return;
+  }
+  $("attnBlok").innerHTML = `
+    <div class="attn">
+      <div class="attnhead">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--rood)"><path d="M12 9v4.5M12 17v.5"/><path d="M10.3 3.5 2.5 17.5a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.5a2 2 0 0 0-3.4 0z"/></svg>
+        Dit blijft liggen <span class="n">${items.length}</span>
+        <span class="toggle" onclick="attnOpen=!attnOpen;renderAttn()">${attnOpen?"Verbergen":"Tonen"}</span>
+      </div>
+      ${attnOpen?`<div class="attnlist">${items.map(({t,r})=>`
+        <div class="attnrow">
+          <div class="ai-x">
+            <div class="at">${t.title}</div>
+            <div class="ar">
+              <span class="tag door">${t.klant}</span>
+              ${r.map(x=>`<span class="tag ${x.hard?"over":"stil"}">${x.tekst}</span>`).join("")}
+              ${t.maker?`<span>bij ${persoon(t.maker).naam}</span>`:"<span>niet toegewezen</span>"}
+            </div>
+          </div>
+          <div class="acts">
+            <button class="abtn" onclick="herinner(${t.id})">Herinneren</button>
+            <button class="abtn" onclick="pakTerug(${t.id})">Zelf oppakken</button>
+            <button class="abtn dark" onclick="openDrawer(${t.id})">Openen</button>
+          </div>
+        </div>`).join("")}</div>`:""}
+    </div>`;
+}
+function herinner(id){
+  const t=findTask(id);
+  const wie = t.status==="check" && t.checker ? persoon(t.checker).naam : (t.maker?persoon(t.maker).naam:"niemand");
+  if(!t.comments) t.comments=[];
+  t.comments.push({wie:persoon(ikBenNu).naam, wanneer:"zojuist", tekst:"Even een reminder, dit staat nog open en de deadline nadert."});
+  toast("Herinnering gestuurd naar "+wie);
+  renderAttn(); renderBord();
+}
+function pakTerug(id){
+  const t=findTask(id);
+  t.maker=ikBenNu; t.stil=0;
+  toast("Je hebt dit zelf opgepakt");
+  renderAttn(); renderBord(); renderTasks();
+}
+
+function boardCardHtml(t){
+  const st = statusLabels[t.status];
+  const subDone = t.subs.filter(x=>x.done).length;
+  return `
+  <div class="bcard" draggable="true" data-id="${t.id}" onclick="openDrawer(${t.id})">
+    <span class="bklant">${t.klant}</span>
+    <div class="btitel">${t.title}</div>
+    <div class="bmeta">
+      ${bordGroep!=="status"?`<span class="tag ${st[0]}">${st[1]}</span>`:""}
+      ${t.prio==="hoog"?'<span class="tag prio-hoog">Hoog</span>':""}
+      ${t.due?`<span class="tag">${t.due}</span>`:""}
+      ${t.subs.length?`<span class="tag">${subDone}/${t.subs.length}</span>`:""}
+      ${(t.comments&&t.comments.length)?`<span class="tag">💬 ${t.comments.length}</span>`:""}
+      ${t.over&&t.status!=="klaar"?'<span class="tag over">Te laat</span>':""}
+      ${(t.stil||0)>=2&&t.status!=="klaar"?`<span class="tag stil">${t.stil}d stil</span>`:""}
+      ${(t.door===ikBenNu&&t.maker!==ikBenNu)?'<span class="tag door">door jou uitgezet</span>':""}
+      ${avatarsHtml(t)}
+    </div>
+  </div>`;
+}
+
+function wanneerBucket(t){
+  const d = (t.due||"").toLowerCase();
+  if(t.over || d==="gisteren") return "vandaag";
+  if(d.includes("vandaag")) return "vandaag";
+  if(d.includes("morgen")) return "morgen";
+  if(d.includes("deze week") || d.includes("wo ") || d.includes("do ") || d.includes("vr ")) return "week";
+  return "later";
+}
+
+function kolommen(){
+  const zicht = alleTaken().filter(zichtbaar);
+  if(bordGroep==="persoon"){
+    let cols = mensen.map(m=>({
+      key:m.id, titel:m.naam + (m.id===ikBenNu?" (jij)":""), onder:m.rol==="admin"?"admin":"medewerker", av:initialen(m.naam),
+      items: zicht.filter(t=>t.maker===m.id || t.checker===m.id)
+    }));
+    if(bordView!=="alles") cols = cols.filter(c=>c.items.length || c.key===ikBenNu);
+    cols.push({key:"", titel:"Niet toegewezen", onder:"sleep hierheen om vrij te geven", av:"?", stijl:"st",
+      items: zicht.filter(t=>!t.maker && !t.checker)});
+    return cols;
+  }
+  if(bordGroep==="wanneer"){
+    return [["vandaag","Vandaag","wat er vandaag af moet"],["morgen","Morgen","alvast klaargezet"],["week","Deze week","voor vrijdag"],["later","Later","nog geen datum"]]
+      .map(([k,l,onder])=>({key:k, titel:l, onder, av:l.slice(0,2), stijl:"st",
+        items: zicht.filter(t=>wanneerBucket(t)===k)}));
+  }
+  if(bordGroep==="status"){
+    return [["todo","Te doen"],["bezig","Bezig"],["check","Wacht op check"],["klaar","Klaar"]].map(([k,l])=>({
+      key:k, titel:l, onder:"sleep hierheen om de status te zetten", av:l[0], stijl:"st",
+      items: alleTaken().filter(t=>t.status===k && (dagFilter==="alles"||t.status===dagFilter))
+    }));
+  }
+  const klanten = [...new Set(zicht.map(t=>t.klant))];
+  return klanten.map(k=>({key:k, titel:k, onder:"klant", av:initialen(k), items:zicht.filter(t=>t.klant===k)}));
+}
+
+function attnCardHtml(t, r){
+  return `
+  <div class="acard" onclick="openDrawer(${t.id})">
+    <span class="bklant">${t.klant}</span>
+    <div class="btitel">${t.title}</div>
+    <div class="reden">${r.map(x=>"· "+x.tekst).join("<br>")}</div>
+    <div class="bmeta" style="margin-top:0;margin-bottom:9px">
+      ${t.maker?`<span class="tag">bij ${persoon(t.maker).naam.split(" ")[0]}</span>`:'<span class="tag">niet toegewezen</span>'}
+      ${avatarsHtml(t)}
+    </div>
+    <div class="aacts" onclick="event.stopPropagation()">
+      <button class="abtn" onclick="herinner(${t.id})">Herinneren</button>
+      <button class="abtn dark" onclick="pakTerug(${t.id})">Zelf oppakken</button>
+    </div>
+  </div>`;
+}
+
+function renderBord(){
+  const attn = aandachtTaken();
+  const attnKolom = (attnMode==="kolom" && attn.length) ? `
+    <div class="kolom attnkolom">
+      <div class="kolomhead">
+        <div class="kav"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 9v4.5M12 17v.5"/><path d="M10.3 3.5 2.5 17.5a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.5a2 2 0 0 0-3.4 0z"/></svg></div>
+        <div><b>Dit blijft liggen</b><div class="kn">eerst dit, dan de rest</div></div>
+        <span class="cnt">${attn.length}</span>
+      </div>
+      <div class="kolombody">${attn.map(x=>attnCardHtml(x.t,x.r)).join("")}</div>
+    </div>` : "";
+
+  $("bord").innerHTML = attnKolom + kolommen().map(c=>`
+    <div class="kolom" data-key="${c.key}">
+      <div class="kolomhead">
+        <div class="kav ${c.stijl||""}">${c.av}</div>
+        <div><b>${c.titel}</b><div class="kn">${c.onder}</div></div>
+        <span class="cnt">${c.items.length}</span>
+      </div>
+      <div class="kolombody">
+        ${c.items.length ? c.items.map(boardCardHtml).join("") : '<div class="kolomleeg">Niets open</div>'}
+      </div>
+    </div>`).join("");
+
+  /* slepen */
+  document.querySelectorAll(".bcard").forEach(el=>{
+    el.addEventListener("dragstart", e=>{ e.dataTransfer.setData("text/plain", el.dataset.id); el.classList.add("dragging"); });
+    el.addEventListener("dragend", ()=>el.classList.remove("dragging"));
+  });
+  document.querySelectorAll(".kolom").forEach(col=>{
+    col.addEventListener("dragover", e=>{ e.preventDefault(); col.classList.add("over"); });
+    col.addEventListener("dragleave", ()=>col.classList.remove("over"));
+    col.addEventListener("drop", e=>{
+      e.preventDefault(); col.classList.remove("over");
+      const t = findTask(parseInt(e.dataTransfer.getData("text/plain"),10));
+      const key = col.dataset.key;
+      if(bordGroep==="wanneer"){
+        const labels={vandaag:"vandaag",morgen:"morgen",week:"deze week",later:"later"};
+        t.due = labels[key]; t.over = false; t.stil = 0;
+        toast("Ingepland: "+labels[key]);
+      } else if(bordGroep==="persoon"){
+        t.maker = key; t.door = ikBenNu; t.stil = 0;
+        toast(key ? "Overgedragen aan "+persoon(key).naam : "Taak vrijgegeven");
+      } else if(bordGroep==="status"){
+        t.status = key; t.stil = 0;
+        toast("Status: "+statusLabels[key][1]);
+      } else { return; }
+      renderAttn(); renderBord(); renderTasks();
+    });
+  });
+}
+
+/* ===== detailpaneel met reacties ===== */
+let drawerId = null;
+function openDrawer(id){
+  const t = findTask(id); if(!t) return;
+  drawerId = id;
+  if(!t.comments) t.comments = [];
+  $("drawerKlant").textContent = t.klant;
+  $("drawerTitel").textContent = t.title;
+  const subDone = t.subs.filter(x=>x.done).length;
+  const pct = t.subs.length ? Math.round(subDone/t.subs.length*100) : 0;
+  $("drawerBody").innerHTML = `
+    <div class="tsec">Toelichting</div>
+    <div class="tnote">${t.note || "Nog geen toelichting."}</div>
+
+    <div class="tsec">Subtaken</div>
+    ${t.subs.length?`<div class="prog"><i style="width:${pct}%"></i></div>`:""}
+    ${t.subs.map((x,i)=>`<label class="sub ${x.done?"done":""}"><input type="checkbox" ${x.done?"checked":""} onchange="toggleSub(${t.id},${i});openDrawer(${t.id})"><span>${x.t}</span></label>`).join("")}
+    <div class="subadd" onclick="addSub(${t.id});openDrawer(${t.id})">+ Subtaak toevoegen</div>
+
+    <div class="tsec">Wie doet wat</div>
+    <div class="rolerow">
+      <div class="rolebox">
+        <div class="rolelabel">Maakt het</div>
+        <div class="who">${selectHtml(t,"maker")}</div>
+      </div>
+      <div class="rolebox">
+        <div class="rolelabel">Checkt het</div>
+        <div class="who">${selectHtml(t,"checker")}</div>
+      </div>
+    </div>
+
+    <div class="tsec">Status</div>
+    <div class="statusrow">
+      <button class="sbtn ${t.status==="todo"?"on":""}" onclick="setStatus(${t.id},'todo');openDrawer(${t.id})">Te doen</button>
+      <button class="sbtn ${t.status==="bezig"?"on":""}" onclick="setStatus(${t.id},'bezig');openDrawer(${t.id})">Bezig</button>
+      <button class="sbtn warn ${t.status==="check"?"on":""}" onclick="setStatus(${t.id},'check');openDrawer(${t.id})">Moet gecheckt${t.checker?" door "+persoon(t.checker).naam.split(" ")[0]:""}</button>
+      <button class="sbtn ${t.status==="klaar"?"on":""}" onclick="setStatus(${t.id},'klaar');openDrawer(${t.id})">Klaar</button>
+    </div>
+
+    <div class="tsec">Prioriteit</div>
+    <div class="statusrow">
+      <button class="sbtn ${t.prio==="laag"?"on":""}" onclick="setPrio(${t.id},'laag');openDrawer(${t.id})">Laag</button>
+      <button class="sbtn ${t.prio==="normaal"?"on":""}" onclick="setPrio(${t.id},'normaal');openDrawer(${t.id})">Normaal</button>
+      <button class="sbtn ${t.prio==="hoog"?"on":""}" onclick="setPrio(${t.id},'hoog');openDrawer(${t.id})">Hoog</button>
+    </div>
+
+    <div class="tsec">Reacties</div>
+    ${t.comments.length ? t.comments.map(c=>`
+      <div class="cmt">
+        <span class="av">${initialen(c.wie)}</span>
+        <div class="cb"><div class="cw">${c.wie}<span class="ct">${c.wanneer}</span></div><div class="cx">${c.tekst}</div></div>
+      </div>`).join("") : '<div class="lphint" style="margin:0">Nog geen reacties. Stel hier een vraag aan wie de taak oppakt.</div>'}
+    <div class="cmtform">
+      <input id="cmtField" placeholder="Reageer of stel een vraag" autocomplete="off">
+      <button class="btn-green" onclick="addComment()">Plaatsen</button>
+    </div>`;
+  $("overlay").classList.add("open");
+  $("drawer").classList.add("open");
+  const f = $("cmtField");
+  if(f) f.addEventListener("keydown", e=>{ if(e.key==="Enter") addComment(); });
+}
+function closeDrawer(){ $("overlay").classList.remove("open"); $("drawer").classList.remove("open"); drawerId=null; }
+function addComment(){
+  const f=$("cmtField"); if(!f || !f.value.trim()) return;
+  const t=findTask(drawerId);
+  const nu=new Date();
+  t.comments.push({wie:persoon(ikBenNu).naam, wanneer:"vandaag "+String(nu.getHours()).padStart(2,"0")+":"+String(nu.getMinutes()).padStart(2,"0"), tekst:f.value.trim()});
+  openDrawer(drawerId); renderBord();
+}
+
+/* ===== logboek rechtsonder ===== */
+let logItems = [
+  {tijd:"08:15", tekst:"Materiaal geladen en naar Pietersen gereden", uren:0.5},
+  {tijd:"09:00", tekst:"Haag geknipt achterzijde Pietersen", uren:2}
+];
+function parseUren(txt){
+  let m = txt.match(/(\d+[.,]?\d*)\s*(u|uur|h)\b/i);
+  if(m) return parseFloat(m[1].replace(",","."));
+  m = txt.match(/(\d+)\s*(m|min|minuten)\b/i);
+  if(m) return Math.round(parseInt(m[1],10)/6)/10;
+  return 0;
+}
+function renderLog(){
+  const tot = logItems.reduce((s,i)=>s+i.uren,0);
+  const totTxt = tot.toFixed(1).replace(".",",");
+  $("logTot").textContent = totTxt+" uur";
+  $("fabUren").textContent = totTxt+"u";
+  $("logList").innerHTML = logItems.length ? logItems.map(i=>`
+    <div class="lpitem">
+      <span class="lt">${i.tijd}</span>
+      <span>${i.tekst}</span>
+      ${i.uren?`<span class="lu">${i.uren.toFixed(1).replace(".",",")}u</span>`:""}
+    </div>`).join("") : '<div class="lphint" style="padding:14px 0">Nog niets gelogd vandaag.</div>';
+}
+$("logFab").addEventListener("click", ()=>{
+  const pnl=$("logPanel"); pnl.classList.toggle("open");
+  if(pnl.classList.contains("open")) $("logField").focus();
+});
+$("logField").addEventListener("keydown", e=>{
+  if(e.key!=="Enter") return;
+  const v=e.target.value.trim(); if(!v) return;
+  const nu=new Date();
+  const uren=parseUren(v);
+  logItems.push({tijd:String(nu.getHours()).padStart(2,"0")+":"+String(nu.getMinutes()).padStart(2,"0"), tekst:v, uren});
+  e.target.value="";
+  renderLog();
+  toast(uren?`Gelogd, ${uren.toFixed(1).replace(".",",")} uur erbij`:"Gelogd");
+});
+
+/* ===== schermwissel ===== */
+function goScreen(name){
+  document.querySelectorAll(".screen").forEach(x=>x.classList.toggle("active", x.id==="screen-"+name));
+  document.querySelectorAll(".snav a[data-screen]").forEach(a=>a.classList.toggle("active", a.dataset.screen===name));
+}
+document.querySelectorAll(".snav a[data-screen]").forEach(a=>{
+  a.addEventListener("click", e=>{ e.preventDefault(); goScreen(a.dataset.screen); });
+});
+const ikSel = $("ikBenSel");
+ikSel.innerHTML = mensen.map(m=>`<option value="${m.id}" ${m.id===ikBenNu?"selected":""}>${m.naam}</option>`).join("");
+ikSel.addEventListener("change", e=>{ ikBenNu=e.target.value; renderAttn(); renderBord(); });
+
+$("segView").querySelectorAll("button").forEach(b=>{
+  b.addEventListener("click", ()=>{
+    $("segView").querySelectorAll("button").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on"); bordView=b.dataset.view; renderBord();
+  });
+});
+
+$("segAttn").querySelectorAll("button").forEach(b=>{
+  b.addEventListener("click", ()=>{
+    $("segAttn").querySelectorAll("button").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on"); attnMode=b.dataset.attn; renderAttn(); renderBord();
+  });
+});
+
+$("segGroep").querySelectorAll("button").forEach(b=>{
+  b.addEventListener("click", ()=>{
+    $("segGroep").querySelectorAll("button").forEach(x=>x.classList.remove("on"));
+    b.classList.add("on"); bordGroep=b.dataset.groep; renderBord();
+  });
+});
+document.querySelectorAll("[data-dagfilter]").forEach(b=>{
+  b.addEventListener("click",()=>{
+    document.querySelectorAll("[data-dagfilter]").forEach(x=>x.classList.remove("active"));
+    b.classList.add("active"); dagFilter=b.dataset.dagfilter; renderBord();
+  });
+});
+
+renderTimeline(); renderTasks(); renderOffertes(); renderFacturen(); renderProjecten(); renderAttn(); renderBord(); renderLog();
+setPill("cnt-onderhoud","—","leeg");
+setPill("cnt-bestanden","8","");
+if(location.hash) goTab(location.hash.replace("#",""));
+
+$("factuurFilters").querySelectorAll(".fchip").forEach(c=>{
+  c.addEventListener("click",()=>{
+    $("factuurFilters").querySelectorAll(".fchip").forEach(x=>x.classList.remove("active"));
+    c.classList.add("active"); factuurFilter=c.dataset.filter; renderFacturen();
+  });
+});
+</script>
+</body>
+</html>
