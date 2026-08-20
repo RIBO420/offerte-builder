@@ -1,146 +1,51 @@
 "use client";
 
-import { FileText, Users, Search, Package, Activity, Shovel, Trees, ArrowRight, Lightbulb, CheckCircle2, FolderKanban } from "lucide-react";
+import type { ReactNode } from "react";
+import { FileText, Users, Search, Package, Activity, FolderKanban } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import Link from "next/link";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface EmptyStateWithActionProps {
   onAction?: () => void;
 }
 
+/**
+ * Lege lijst op een overzichtspagina: één rustige meldingskaart — icoon,
+ * titel, één zin. De acties (nieuwe offerte, offertes bekijken) zitten al in
+ * de paginakop; die hier herhalen als grote klik-kaarten en tips maakt van
+ * "er is niets" het drukste scherm van de app.
+ */
+function LegeLijstKaart({
+  icoon,
+  titel,
+  omschrijving,
+}: {
+  icoon: ReactNode;
+  titel: string;
+  omschrijving: string;
+}) {
+  return (
+    <Card>
+      <CardContent className="flex flex-col items-center gap-4 px-6 py-8 text-center sm:flex-row sm:gap-6 sm:text-left">
+        <div className="flex size-14 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary [&>svg]:size-7">
+          {icoon}
+        </div>
+        <div className="min-w-0">
+          <h2 className="text-lg font-semibold tracking-tight">{titel}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{omschrijving}</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function NoOffertes(_props: EmptyStateWithActionProps) {
   return (
-    <div className="space-y-8">
-      {/* Welcome Section */}
-      <Card className="border-primary/30 bg-gradient-to-br from-primary/5 via-transparent to-transparent">
-        <CardContent className="pt-6">
-          <div className="flex flex-col md:flex-row items-center gap-6">
-            <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-primary/10">
-              <FileText className="h-10 w-10 text-primary" />
-            </div>
-            <div className="flex-1 text-center md:text-left">
-              <h2 className="text-2xl font-bold tracking-tight">
-                Welkom bij Top Tuinen OS
-              </h2>
-              <p className="mt-2 text-muted-foreground">
-                Begin met het maken van je eerste offerte. Kies tussen een aanleg- of onderhoudsofferte
-                en volg de wizard voor een snelle en complete offerte.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Quick Start Options */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card className="group cursor-pointer transition-all hover:border-primary/50 hover:shadow-md">
-          <Link href="/offertes/nieuw/aanleg" className="block">
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                  <Shovel className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <CardTitle className="text-lg group-hover:text-primary transition-colors">
-                    Aanleg Offerte
-                  </CardTitle>
-                  <CardDescription>
-                    Voor tuinaanleg projecten
-                  </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-1.5 text-sm text-muted-foreground">
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
-                  Grondwerk, bestrating, borders
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
-                  Houtwerk, verlichting, specials
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
-                  Automatische urenberekening
-                </li>
-              </ul>
-              <div className="mt-4 flex items-center text-sm font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity">
-                Start aanleg offerte
-                <ArrowRight className="ml-1 h-4 w-4" />
-              </div>
-            </CardContent>
-          </Link>
-        </Card>
-
-        <Card className="group cursor-pointer transition-all hover:border-primary/50 hover:shadow-md">
-          <Link href="/offertes/nieuw/onderhoud" className="block">
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                  <Trees className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <CardTitle className="text-lg group-hover:text-primary transition-colors">
-                    Onderhoud Offerte
-                  </CardTitle>
-                  <CardDescription>
-                    Voor tuinonderhoud contracten
-                  </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-1.5 text-sm text-muted-foreground">
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
-                  Gras, borders, heggen onderhoud
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
-                  Bomen snoei, bladruimen
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
-                  Periodieke werkzaamheden
-                </li>
-              </ul>
-              <div className="mt-4 flex items-center text-sm font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity">
-                Start onderhoud offerte
-                <ArrowRight className="ml-1 h-4 w-4" />
-              </div>
-            </CardContent>
-          </Link>
-        </Card>
-      </div>
-
-      {/* Tips Section */}
-      <Card className="bg-status-herinnering/40 border-status-herinnering-border">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Lightbulb className="h-4 w-4 text-status-herinnering-text" />
-            Tips voor je eerste offerte
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ul className="space-y-2 text-sm text-muted-foreground">
-            <li className="flex items-start gap-2">
-              <span className="text-status-herinnering-text font-bold shrink-0">1.</span>
-              <span><strong>Snelstart pakketten:</strong> Kies een vooraf ingesteld pakket voor veelvoorkomende projecten.</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-status-herinnering-text font-bold shrink-0">2.</span>
-              <span><strong>Klantgegevens:</strong> Selecteer een bestaande klant of voer nieuwe gegevens in.</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-status-herinnering-text font-bold shrink-0">3.</span>
-              <span><strong>Voorcalculatie:</strong> Na het aanmaken kun je de teamplanning en geschatte duur bepalen.</span>
-            </li>
-          </ul>
-        </CardContent>
-      </Card>
-    </div>
+    <LegeLijstKaart
+      icoon={<FileText />}
+      titel="Nog geen offertes"
+      omschrijving="Maak je eerste offerte via de knop Nieuwe offerte rechtsboven — kies aanleg of onderhoud en volg de wizard."
+    />
   );
 }
 
@@ -219,93 +124,10 @@ export function NoRecentActivity({ onAction }: EmptyStateWithActionProps) {
 
 export function NoProjecten(_props: EmptyStateWithActionProps) {
   return (
-    <div className="space-y-8">
-      {/* Welcome Section */}
-      <Card className="border-primary/30 bg-gradient-to-br from-primary/5 via-transparent to-transparent">
-        <CardContent className="pt-6">
-          <div className="flex flex-col md:flex-row items-center gap-6">
-            <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-primary/10">
-              <FolderKanban className="h-10 w-10 text-primary" />
-            </div>
-            <div className="flex-1 text-center md:text-left">
-              <h2 className="text-2xl font-bold tracking-tight">
-                Nog geen projecten
-              </h2>
-              <p className="mt-2 text-muted-foreground">
-                Projecten worden aangemaakt vanuit geaccepteerde offertes.
-                Accepteer een offerte om een project te starten met voorcalculatie, planning en nacalculatie.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Quick Start Option */}
-      <Card className="group cursor-pointer transition-all hover:border-primary/50 hover:shadow-md">
-        <Link href="/offertes?status=geaccepteerd" className="block">
-          <CardHeader className="pb-3">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                <FileText className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <CardTitle className="text-lg group-hover:text-primary transition-colors">
-                  Bekijk Geaccepteerde Offertes
-                </CardTitle>
-                <CardDescription>
-                  Start een project vanuit een geaccepteerde offerte
-                </CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-1.5 text-sm text-muted-foreground">
-              <li className="flex items-center gap-2">
-                <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
-                Voorcalculatie uit offerte wordt overgenomen
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
-                Plan taken en team
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
-                Registreer uren en maak nacalculatie
-              </li>
-            </ul>
-            <div className="mt-4 flex items-center text-sm font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity">
-              Bekijk offertes
-              <ArrowRight className="ml-1 h-4 w-4" />
-            </div>
-          </CardContent>
-        </Link>
-      </Card>
-
-      {/* Tips Section */}
-      <Card className="bg-status-gepland/40 border-status-gepland-border">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Lightbulb className="h-4 w-4 text-status-gepland-text" />
-            Workflow tip
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ul className="space-y-2 text-sm text-muted-foreground">
-            <li className="flex items-start gap-2">
-              <span className="text-status-gepland-text font-bold shrink-0">1.</span>
-              <span><strong>Offerte:</strong> Maak een offerte aan en vul de voorcalculatie in.</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-status-gepland-text font-bold shrink-0">2.</span>
-              <span><strong>Verzend:</strong> Stuur de offerte naar de klant en wacht op acceptatie.</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-status-gepland-text font-bold shrink-0">3.</span>
-              <span><strong>Project:</strong> Na acceptatie start je een project voor planning en uitvoering.</span>
-            </li>
-          </ul>
-        </CardContent>
-      </Card>
-    </div>
+    <LegeLijstKaart
+      icoon={<FolderKanban />}
+      titel="Nog geen projecten"
+      omschrijving="Projecten worden aangemaakt vanuit geaccepteerde offertes. Accepteer een offerte om een project te starten met voorcalculatie, planning en nacalculatie."
+    />
   );
 }
