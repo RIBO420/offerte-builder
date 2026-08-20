@@ -989,6 +989,36 @@ export const gdprAnonymize = mutation({
       });
     }
 
+    // Foto's en documenten van deze klant vallen ook onder het verzoek. Een
+    // geanonimiseerde klantrij met de tuin van mevrouw nog compleet in het
+    // dossier is geen verwijdering (review v13, bevinding 3).
+    //
+    // Twee soorten rijen, twee behandelingen:
+    //   - `upload`/`klant` hebben een EIGEN storage-object: bestand weg, rij weg;
+    //   - `offerte`/`factuur` zijn VERWIJZINGEN naar een document dat elders
+    //     leeft. Alleen de rij weg; het document zelf volgt het bestaande
+    //     GDPR-pad (de offerte-snapshots worden hieronder geanonimiseerd).
+    const bestanden = await ctx.db
+      .query("klantBestanden")
+      .withIndex("by_klant", (q) =>
+        q.eq("orgId", klant.orgId).eq("klantId", args.id)
+      )
+      .collect();
+
+    for (const bestand of bestanden) {
+      const eigenUpload = bestand.bron === "upload" || bestand.bron === "klant";
+      if (eigenUpload && bestand.storageId) {
+        try {
+          await ctx.storage.delete(bestand.storageId);
+        } catch (fout) {
+          // Een al opgeruimd object mag de anonimisering niet tegenhouden; de
+          // rij hieronder verwijderen is wat het dossier schoonmaakt.
+          console.warn("gdprAnonymize: bestand verwijderen mislukt", fout);
+        }
+      }
+      await ctx.db.delete(bestand._id);
+    }
+
     // Also anonymize klant data embedded in linked offertes (snapshots)
     for (const offerte of offertes) {
       await ctx.db.patch(offerte._id, {
