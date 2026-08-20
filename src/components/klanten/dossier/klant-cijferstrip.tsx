@@ -33,9 +33,9 @@ export function KlantCijferstrip({
   actief: DossierTab;
   onKies: (tab: DossierTab) => void;
 }) {
-  const openstaand = tellingen?.openFacturen.openstaandBedrag ?? 0;
-  const openFacturen = tellingen?.openFacturen.aantal ?? 0;
-  const teLaat = tellingen?.openFacturen.teLaat === true;
+  const openstaand = tellingen?.openstaandBedrag ?? 0;
+  const openFacturen = tellingen?.openFacturen ?? 0;
+  const teLaat = tellingen?.factuurTeLaat === true;
   const openTaken = tellingen?.openTaken ?? 0;
   const offertes = tellingen?.offertes ?? 0;
   const laatsteContact = tellingen?.laatsteContactTimestamp ?? null;

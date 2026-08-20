@@ -135,6 +135,8 @@ export const ORG_INDEX: Partial<Record<TableNames, string>> = {
   urenLogboek: "by_org_createdAt",
   materiaalChecks: "by_org_datum",
   klantTaken: "by_org_status",
+  dagLogboek: "by_org_user_datum",
+  klantBestanden: "by_klant", // fields: ["orgId", "klantId"]
 };
 
 export interface KindTabel {

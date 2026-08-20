@@ -48,6 +48,8 @@ import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
 
 type Prioriteit = "laag" | "normaal" | "hoog";
+/** De vier v2-statussen; fase 2 vervangt deze kaart door de gedeelde kit. */
+type TaakStatus = "todo" | "bezig" | "check" | "klaar";
 
 /** Rijtype uit de query zelf afleiden — dan kan het niet uiteenlopen. */
 type VerrijkteKlantTaak = FunctionReturnType<
@@ -223,7 +225,7 @@ export function KlantTakenCard({ klantId }: KlantTakenCardProps) {
   const openTaken = useMemo(() => {
     const nu = vandaagISO();
     return (taken ?? [])
-      .filter((t) => t.status === "open")
+      .filter((t) => t.status !== "klaar")
       .sort((a, b) => {
         const groepVerschil =
           deadlineGroep(a.deadline, nu) - deadlineGroep(b.deadline, nu);
@@ -239,7 +241,7 @@ export function KlantTakenCard({ klantId }: KlantTakenCardProps) {
   }, [taken]);
 
   const afgerondeTaken = useMemo(
-    () => (taken ?? []).filter((t) => t.status === "afgerond"),
+    () => (taken ?? []).filter((t) => t.status === "klaar"),
     [taken]
   );
 
@@ -299,12 +301,12 @@ export function KlantTakenCard({ klantId }: KlantTakenCardProps) {
 
   const handleToggle = async (
     id: Id<"klantTaken">,
-    huidigeStatus: "open" | "afgerond"
+    huidigeStatus: TaakStatus
   ) => {
     try {
       await setStatus({
-        id,
-        status: huidigeStatus === "open" ? "afgerond" : "open",
+        taakId: id,
+        status: huidigeStatus === "klaar" ? "todo" : "klaar",
       });
     } catch (error) {
       showErrorToast(
@@ -316,7 +318,7 @@ export function KlantTakenCard({ klantId }: KlantTakenCardProps) {
   const handleToewijzen = async (id: Id<"klantTaken">, waarde: string) => {
     try {
       await updateTaak({
-        id,
+        taakId: id,
         toegewezenAanId:
           waarde === NIEMAND ? null : (waarde as Id<"medewerkers">),
       });
@@ -329,7 +331,7 @@ export function KlantTakenCard({ klantId }: KlantTakenCardProps) {
 
   const handlePrioriteit = async (id: Id<"klantTaken">, waarde: string) => {
     try {
-      await updateTaak({ id, prioriteit: waarde as Prioriteit });
+      await updateTaak({ taakId: id, prioriteit: waarde as Prioriteit });
     } catch (error) {
       showErrorToast(
         error instanceof Error ? error.message : "Fout bij bijwerken taak"
@@ -339,7 +341,7 @@ export function KlantTakenCard({ klantId }: KlantTakenCardProps) {
 
   const handleVerwijderen = async (id: Id<"klantTaken">) => {
     try {
-      await removeTaak({ id });
+      await removeTaak({ taakId: id });
       showSuccessToast("Taak verwijderd");
     } catch (error) {
       showErrorToast(
@@ -715,7 +717,7 @@ interface TaakRegelProps {
   isNieuw: boolean;
   onToggle: (
     id: Id<"klantTaken">,
-    huidigeStatus: "open" | "afgerond"
+    huidigeStatus: TaakStatus
   ) => Promise<void>;
   onToewijzen: (id: Id<"klantTaken">, waarde: string) => Promise<void>;
   onPrioriteit: (id: Id<"klantTaken">, waarde: string) => Promise<void>;
@@ -736,7 +738,7 @@ function TaakRegel({
   onPrioriteit,
   onVerwijderen,
 }: TaakRegelProps) {
-  const isAfgerond = taak.status === "afgerond";
+  const isAfgerond = taak.status === "klaar";
   const isHoog = taak.prioriteit === "hoog" && !isAfgerond;
   const deadline =
     taak.deadline && !isAfgerond

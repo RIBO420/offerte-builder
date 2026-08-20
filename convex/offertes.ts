@@ -24,6 +24,7 @@ import {
   type OfferteKlant,
 } from "./lib/offerteKlant";
 import { reserveerOfferteNummer } from "./lib/offerteNummer";
+import { archiveerVerzondenDocument } from "./lib/klantBestandenArchief";
 import { Doc, Id } from "./_generated/dataModel";
 
 /**
@@ -1366,6 +1367,18 @@ export const updateStatus = mutation({
       });
     }
 
+    // Auto-archivering (klantdossier v13): een verzonden offerte verschijnt in
+    // de Bestanden-tab van het dossier. Idempotent en niet-blokkerend.
+    if (oldOfferte.klantId && args.status === "verzonden") {
+      await archiveerVerzondenDocument(ctx, {
+        klantId: oldOfferte.klantId,
+        orgId,
+        bron: "offerte",
+        nummer: oldOfferte.offerteNummer,
+        offerteId: args.id,
+      });
+    }
+
     // Create version snapshot for status change
     const offerte = await ctx.db.get(args.id);
     if (offerte) {
@@ -1757,6 +1770,15 @@ export const bulkUpdateStatus = mutation({
       if (offerte?.klantId) {
         if (args.status === "verzonden") {
           await upgradeKlantPipeline(ctx, offerte.klantId, "offerte_verzonden");
+          // Auto-archivering (v13): zelfde regel als in updateStatus — ook de
+          // bulkweg zet het document in het dossier.
+          await archiveerVerzondenDocument(ctx, {
+            klantId: offerte.klantId,
+            orgId,
+            bron: "offerte",
+            nummer: offerte.offerteNummer,
+            offerteId: id,
+          });
         } else if (args.status === "geaccepteerd") {
           await upgradeKlantPipeline(ctx, offerte.klantId, "getekend");
         }

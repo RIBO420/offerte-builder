@@ -74,17 +74,26 @@ export const DOSSIER_TAB_LABELS: Record<DossierTab, string> = {
 /** Wat `klanten.dossierTellingen` teruggeeft; `null` = geen toegang/onbekend. */
 export interface DossierTellingen {
   openTaken: number;
+  /** Eerstvolgende deadline van een openstaande taak (YYYY-MM-DD). */
+  eerstvolgendeDeadline: string | null;
   contactmomenten: number;
+  tijdlijn: number;
+  laatsteContactOp: number | null;
   laatsteContactTimestamp: number | null;
+  klantSinds: number;
   projecten: number;
   onderhoud: number;
   offertes: number;
+  offertesTotaal: number;
+  offertesConcept: number;
   facturen: number;
-  openFacturen: {
-    aantal: number;
-    openstaandBedrag: number;
-    teLaat: boolean;
-  };
+  bestanden: number;
+  openFacturen: number;
+  openstaandBedrag: number;
+  /** Vervaldatum voorbij — dezelfde definitie als de factuurlijst. */
+  factuurTeLaat: boolean;
+  /** Een open factuur staat langer dan 30 dagen open (v13 §A2: rood). */
+  factuurOuderDan30: boolean;
 }
 
 type PilToon = "leeg" | "neutraal" | "amber" | "rood";
@@ -137,8 +146,8 @@ function bouwGroepen(t: DossierTellingen | null | undefined): NavGroep[] {
   // Zonder tellingen (nog aan het laden, of geen toegang) staan alle pillen op
   // leeg. Dat is rustiger dan skeletons die één tel later wegspringen.
   const openTaken = t?.openTaken ?? 0;
-  const openFacturen = t?.openFacturen.aantal ?? 0;
-  const teLaat = t?.openFacturen.teLaat === true;
+  const openFacturen = t?.openFacturen ?? 0;
+  const teLaat = t?.factuurTeLaat === true;
   const actueel = openTaken + openFacturen;
 
   // "1 projecten" leest als een tikfout — de voorgelezen labels vervoegen mee.

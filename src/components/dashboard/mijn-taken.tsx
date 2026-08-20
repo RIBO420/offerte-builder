@@ -76,7 +76,7 @@ export function MijnTaken({
   const handleAfronden = async (id: Id<"klantTaken">) => {
     setBezigMet(id);
     try {
-      await setStatus({ id, status: "afgerond" });
+      await setStatus({ taakId: id, status: "klaar" });
     } catch (error) {
       showErrorToast(
         error instanceof Error ? error.message : "Fout bij afronden taak"

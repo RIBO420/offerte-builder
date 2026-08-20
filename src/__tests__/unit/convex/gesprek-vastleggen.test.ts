@@ -72,9 +72,13 @@ describe("legGesprekVast: entry en taken in één handeling", () => {
     for (const taak of taken) {
       expect(taak.bronTijdlijnId).toBe(uitkomst.entryId);
       expect(taak.klantId).toBe(klantId);
-      expect(taak.status).toBe("open");
+      // Taakmodel v2: een taak uit een gesprek staat op "todo" en de uitzetter
+      // is degene die het gesprek vastlegde.
+      expect(taak.status).toBe("todo");
       expect(taak.prioriteit).toBe("normaal");
       expect(taak.aangemaaktDoorId).toBe(userId);
+      expect(taak.uitgezetDoorId).toBe(userId);
+      expect(typeof taak.laatsteBewegingOp).toBe("number");
     }
 
     expect(taken[0].titel).toBe("Terugbellen over ontwerp");

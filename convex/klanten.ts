@@ -24,6 +24,7 @@ import {
 import { hoortInKlantenLijst } from "./leadsKlantenHelpers";
 import { logTijdlijnEvent } from "./tijdlijn";
 import { effectieveStatussen } from "./facturatieLogica";
+import { isOpenTaak } from "./lib/taakModel";
 
 /**
  * Tolerante tegenhanger van `getOwnedKlant`: die gooit een AuthError, terwijl
@@ -650,12 +651,32 @@ export const dossierTellingen = query({
 
     const eigenaar = orgId.toString();
 
-    // ── Taken: index by_klant staat op [klantId, status], dus alleen de open
-    //    taken komen überhaupt van de schijf.
-    const openTaken = await ctx.db
-      .query("klantTaken")
+    // ── Taken: alléén op klantId bevragen (geldige prefix van by_klant).
+    //    Sinds taakmodel v2 staat "open" niet meer als één statuswaarde in de
+    //    index — open = alles behalve "klaar" — dus filteren we in JS met
+    //    dezelfde definitie als convex/klantTaken.ts.
+    const openTaken = (
+      await ctx.db
+        .query("klantTaken")
+        .withIndex("by_klant", (q) => q.eq("klantId", args.klantId))
+        .collect()
+    )
+      .filter((t) => t.orgId?.toString() === eigenaar)
+      .filter((t) => isOpenTaak(t.status));
+
+    // Eerstvolgende deadline voor de statregel-tegel "Open taken".
+    const eerstvolgendeDeadline =
+      openTaken
+        .map((t) => t.deadline)
+        .filter((d): d is string => Boolean(d))
+        .sort()[0] ?? null;
+
+    // ── Bestanden: foto's + documenten van deze klant (inclusief de
+    //    automatisch gearchiveerde offertes/facturen).
+    const bestanden = await ctx.db
+      .query("klantBestanden")
       .withIndex("by_klant", (q) =>
-        q.eq("klantId", args.klantId).eq("status", "open")
+        q.eq("orgId", orgId).eq("klantId", args.klantId)
       )
       .collect();
 
@@ -710,9 +731,11 @@ export const dossierTellingen = query({
     ).filter((f) => f.orgId?.toString() === eigenaar);
 
     const nu = Date.now();
+    const DERTIG_DAGEN_MS = 30 * 24 * 60 * 60 * 1000;
     let openFacturenAantal = 0;
     let openstaandBedrag = 0;
     let teLaat = false;
+    let ouderDan30 = false;
     for (const factuur of facturen) {
       const { documentStatus, betaalStatus } = effectieveStatussen(factuur);
       if (documentStatus === "concept") continue;
@@ -724,21 +747,35 @@ export const dossierTellingen = query({
       // voorbij). Anders kan de pil rood staan terwijl geen enkele regel in
       // de factuurlijst eronder "Te laat" zegt.
       if (factuur.vervaldatum < nu) teLaat = true;
+      // v13 §A2: de factuurteller wordt rood zodra er een factuur langer dan
+      // 30 dagen open staat. Gerekend vanaf het moment dat hij de deur uit
+      // ging (en anders vanaf de factuurdatum) — niet vanaf de vervaldatum,
+      // want die verschilt per betaaltermijn.
+      const openSinds = factuur.verzondenAt ?? factuur.factuurdatum;
+      if (nu - openSinds > DERTIG_DAGEN_MS) ouderDan30 = true;
     }
 
     return {
       openTaken: openTaken.length,
+      eerstvolgendeDeadline,
       contactmomenten: contactEntries.length,
+      // `tijdlijn` en `laatsteContactOp` zijn de v13-namen; de twee oude
+      // sleutels blijven ernaast staan tot de dossier-UI om is (fase 3a).
+      tijdlijn: contactEntries.length,
+      laatsteContactOp: contactEntries[0]?.timestamp ?? null,
       laatsteContactTimestamp: contactEntries[0]?.timestamp ?? null,
+      klantSinds: klant.createdAt,
       projecten,
       onderhoud: contracten.length + losseBeurten,
       offertes: offertes.length,
+      offertesTotaal: offertes.length,
+      offertesConcept: offertes.filter((o) => o.status === "concept").length,
       facturen: facturen.length,
-      openFacturen: {
-        aantal: openFacturenAantal,
-        openstaandBedrag,
-        teLaat,
-      },
+      bestanden: bestanden.length,
+      openFacturen: openFacturenAantal,
+      openstaandBedrag,
+      factuurTeLaat: teLaat,
+      factuurOuderDan30: ouderDan30,
     };
   },
 });

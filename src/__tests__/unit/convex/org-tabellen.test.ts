@@ -82,6 +82,11 @@ const PERSOONLIJKE_ONTVANGER = [
   "notifications",
   "notificationDeliveryLog",
   "pushNotificationLogs",
+  // `dagLogboek` (taakmodel v2): een logregel is van één persoon — "wat heb ík
+  // vandaag gedaan". `userId` is daar de schrijver/eigenaar van de regel, niet
+  // de tenant; die staat er als verplichte `orgId` naast, en de index
+  // by_org_user_datum begint dan ook op orgId.
+  "dagLogboek",
 ] satisfies TableNames[];
 
 describe("org-gescopeerde tabellen hebben orgId + een org-index", () => {

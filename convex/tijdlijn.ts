@@ -723,12 +723,16 @@ export const legGesprekVast = mutation({
           orgId,
           klantId: args.klantId,
           titel,
-          status: "open",
+          // Taakmodel v2: een taak uit een gesprek staat op "todo" en de
+          // uitzetter ben ik — precies zoals wanneer je hem zelf intypt.
+          status: "todo",
           prioriteit: "normaal",
           deadline,
           werkitemId: args.werkitemId,
           bronTijdlijnId: entryId,
+          uitgezetDoorId: user._id,
           aangemaaktDoorId: user._id,
+          laatsteBewegingOp: now,
           createdAt: now,
           updatedAt: now,
         })

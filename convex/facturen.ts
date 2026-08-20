@@ -28,6 +28,7 @@ import {
 } from "./facturatieLogica";
 import { logTijdlijnEvent } from "./tijdlijn";
 import { voorcalculatieVanProject } from "./lib/voorcalculatieLookup";
+import { archiveerVerzondenDocument } from "./lib/klantBestandenArchief";
 
 /**
  * Validator voor klantgegevens op factuur
@@ -154,6 +155,19 @@ export async function verstuurFactuurKern(
       tekst: `Factuur ${factuur.factuurnummer} verzonden (€ ${factuur.totaalInclBtw.toFixed(2)} incl. btw)`,
       auteurId: opts.auteurId,
       auteurNaam: opts.auteurNaam,
+    });
+
+    // Auto-archivering (klantdossier v13): de verzonden factuur verschijnt in
+    // de Bestanden-tab. Idempotent en niet-blokkerend; alle verstuurpaden
+    // (verstuur, bulkVerstuur, updateStatus, facturatie-engine) lopen hier
+    // langs, dus dit is de enige plek waar het hoeft.
+    await archiveerVerzondenDocument(ctx, {
+      klantId: factuur.klantId,
+      orgId: factuur.orgId,
+      bron: "factuur",
+      nummer: factuur.factuurnummer,
+      factuurId: factuur._id,
+      geuploadDoorId: opts.auteurId,
     });
   }
 

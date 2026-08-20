@@ -131,6 +131,9 @@ export const TABEL_CLASSIFICATIE = {
   // ── wissen: klantdossier ───────────────────────────────────────────────────
   klantTijdlijn: "wissen",
   klantTaken: "wissen",
+  taakReacties: "wissen",
+  dagLogboek: "wissen",
+  klantBestanden: "wissen",
 
   // ── wissen: chat ───────────────────────────────────────────────────────────
   team_messages: "wissen",

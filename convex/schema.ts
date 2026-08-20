@@ -166,6 +166,16 @@ export default defineSchema({
     // §2.7: inplanning-bevestigingsmail per klant (default uit) — bij het
     // inplannen van een werkitem wordt dan een concept-mail klaargezet.
     inplanBevestigingsMail: v.optional(v.boolean()),
+    // ── Toestemmingsvlaggen (klantdossier v13, tab Instellingen) ────────────
+    // Mondelinge toestemming voor het opnemen van gesprekken, één keer
+    // vastgelegd. Zet NOOIT de meldplicht opzij: de meldingsstap vóór een
+    // opname blijft altijd staan (harde eis 3). Dit veld voegt alleen de
+    // notitie "Mondelinge toestemming eerder vastgelegd" toe.
+    opnameToestemming: v.optional(v.boolean()),
+    // Toggle uit de dossier-instellingen; de v13-naam naast het bestaande
+    // `inplanBevestigingsMail` (§2.7). Beide staan voor dezelfde wens; de
+    // dossier-tab schrijft naar dit veld.
+    bevestigingsmailBijInplannen: v.optional(v.boolean()),
     // Klantenportaal fields
     clerkUserId: v.optional(v.string()),
     portalEnabled: v.optional(v.boolean()),
@@ -3810,7 +3820,31 @@ export default defineSchema({
     klantId: v.id("klanten"),
     titel: v.string(),
     omschrijving: v.optional(v.string()),
-    status: v.union(v.literal("open"), v.literal("afgerond")),
+    // ── TAAKMODEL v2: STATUS ───────────────────────────────────────────────
+    // v2 kent vier statussen (todo | bezig | check | klaar). "check" is een
+    // échte status ("Wacht op check", harde klanteis 7), geen label.
+    //
+    // TIJDELIJK TOLERANT (fase 1.1 van het v13-plan): de twee legacy-waarden
+    // staan er alleen bij zodat de schema-push kan slagen op bestaande data.
+    // `convex/migrations/taakmodelV2.ts:migreer` zet ze om (open→todo,
+    // afgerond→klaar). Zodra die migratie op dev én prod gedraaid is, gaat de
+    // union terug naar de vier v2-waarden:
+    //
+    //   STRAKKE VARIANT (na de migratie — vervang de union hieronder hiermee):
+    //     status: v.union(
+    //       v.literal("todo"),
+    //       v.literal("bezig"),
+    //       v.literal("check"),
+    //       v.literal("klaar")
+    //     ),
+    status: v.union(
+      v.literal("todo"),
+      v.literal("bezig"),
+      v.literal("check"),
+      v.literal("klaar"),
+      v.literal("open"), // LEGACY — weg na migrations/taakmodelV2:migreer
+      v.literal("afgerond") // LEGACY — weg na migrations/taakmodelV2:migreer
+    ),
     prioriteit: v.union(
       v.literal("laag"),
       v.literal("normaal"),
@@ -3819,6 +3853,29 @@ export default defineSchema({
     // YYYY-MM-DD; zelfde notatie als urenSegmenten/onderhoudscontracten,
     // zodat sorteren en vergelijken zonder tijdzone-gedoe kan.
     deadline: v.optional(v.string()),
+    // ── TAAKMODEL v2: ROLLEN ───────────────────────────────────────────────
+    // Iedereen mét account is toewijsbaar (expliciete klanteis), dus verwijzen
+    // de rollen naar `users` en niet naar `medewerkers`: een projectleider of
+    // directielid heeft wél een account maar lang niet altijd een
+    // medewerkersrij, en viel daardoor buiten het oude model.
+    makerId: v.optional(v.id("users")), // "Maakt het"
+    checkerId: v.optional(v.id("users")), // "Checkt het voor verzending"
+    uitgezetDoorId: v.optional(v.id("users")), // wie de taak uitzette
+    // Losse afvinkpunten binnen één taak ("x/y" op de kaart).
+    subtaken: v.optional(
+      v.array(v.object({ titel: v.string(), klaar: v.boolean() }))
+    ),
+    // Stilstandmeter (ms). ÉLKE status-, toewijzings- of overdrachtsmutatie
+    // zet dit op Date.now(); "Dit blijft liggen" telt hierop. Bewust niet
+    // `updatedAt`: een titelcorrectie is geen beweging op de taak.
+    //
+    // OPTIONEEL tot de migratie geweest is (bestaande rijen hebben het veld
+    // niet en een verplicht veld laat de push falen). STRAKKE VARIANT na
+    // `migrations/taakmodelV2:migreer`:  laatsteBewegingOp: v.number(),
+    laatsteBewegingOp: v.optional(v.number()),
+    // DEPRECATED (v2): de oude medewerkers-toewijzing. De migratie zet hem om
+    // naar `makerId` en maakt hem leeg; het veld blijft staan zodat er geen
+    // dataverlies is en oude rijen valideren.
     toegewezenAanId: v.optional(v.id("medewerkers")),
     // Optionele koppeling met een werkitem ("over welke klus?")
     werkitemId: v.optional(v.id("projecten")),
@@ -3834,8 +3891,79 @@ export default defineSchema({
   })
     .index("by_klant", ["klantId", "status"])
     .index("by_org_status", ["orgId", "status"])
+    .index("by_org_maker", ["orgId", "makerId"])
+    // DEPRECATED samen met `toegewezenAanId` — geen enkele functie bevraagt
+    // deze index nog; blijft staan tot het veld zelf weggaat.
     .index("by_medewerker_status", ["toegewezenAanId", "status"])
     .index("by_werkitem", ["werkitemId"]),
+
+  // ─── Taakreacties (taakmodel v2) ───────────────────────────────────────────
+  // Overleg over een taak hoort bij de taak, niet in WhatsApp. Twee soorten:
+  // een gewone reactie van een mens, en een "herinnering" die de app zelf
+  // plaatst als iemand op het werkbord op Herinneren drukt. Intern dossier:
+  // klantaccounts hebben hier geen enkele functie op.
+  taakReacties: defineTable({
+    orgId: v.id("organisaties"),
+    taakId: v.id("klantTaken"),
+    auteurId: v.id("users"),
+    tekst: v.string(),
+    timestamp: v.number(),
+    soort: v.union(v.literal("reactie"), v.literal("herinnering")),
+  })
+    .index("by_taak", ["taakId", "timestamp"])
+    .index("by_org", ["orgId", "timestamp"]),
+
+  // ─── Daglogboek ("Wat heb ik gedaan") ──────────────────────────────────────
+  // BEWUST een eigen, lichte tabel naast `urenSegmenten`: dat is de
+  // gecontroleerde urenketen (goedkeuring, correcties, rapportage) en die mag
+  // niet vervuild raken met losse krabbels van het werkbord. Het logboek is
+  // persoonlijk geheugensteuntje + optioneel urengetal; wie uren echt indient,
+  // gaat via /uren.
+  dagLogboek: defineTable({
+    orgId: v.id("organisaties"),
+    userId: v.id("users"),
+    datum: v.string(), // YYYY-MM-DD, zelfde notatie als urenSegmenten
+    timestamp: v.number(),
+    tekst: v.string(),
+    // Uit de tekst geparseerd ("1,5u", "45m"); zonder tijdsaanduiding leeg.
+    uren: v.optional(v.number()),
+  }).index("by_org_user_datum", ["orgId", "userId", "datum"]),
+
+  // ─── Klantbestanden (dossier-tab "Bestanden") ──────────────────────────────
+  // Foto's (voor/tijdens/na/schets) en documenten van één klant. Verzonden
+  // offertes en facturen landen hier automatisch (bron "offerte"/"factuur")
+  // zodat het dossier compleet is zonder dat iemand iets hoeft te uploaden.
+  klantBestanden: defineTable({
+    orgId: v.id("organisaties"),
+    klantId: v.id("klanten"),
+    soort: v.union(v.literal("foto"), v.literal("document")),
+    label: v.optional(
+      v.union(
+        v.literal("voor"),
+        v.literal("tijdens"),
+        v.literal("na"),
+        v.literal("schets")
+      )
+    ),
+    titel: v.string(),
+    // Leeg bij een automatische verwijzing zonder opgeslagen PDF: dan is de
+    // rij een doorverwijzing naar de offerte/factuur zelf.
+    storageId: v.optional(v.id("_storage")),
+    bron: v.union(
+      v.literal("upload"),
+      v.literal("offerte"),
+      v.literal("factuur"),
+      v.literal("klant")
+    ),
+    offerteId: v.optional(v.id("offertes")),
+    factuurId: v.optional(v.id("facturen")),
+    nummer: v.optional(v.string()), // OF-…/F-… bij automatische rijen
+    geuploadDoorId: v.optional(v.id("users")),
+    timestamp: v.number(),
+  })
+    .index("by_klant", ["orgId", "klantId"])
+    .index("by_offerte", ["offerteId"])
+    .index("by_factuur", ["factuurId"]),
 
   // ─── Bouwstenencatalogus (PRD §2.5f + bijlage A) ───────────────────────────
   // Bedrijfsbrede catalogus (geen userId): bouwstenen beheren = records beheren

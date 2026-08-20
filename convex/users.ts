@@ -16,6 +16,10 @@ import {
 import { Doc, Id } from "./_generated/dataModel";
 import { MutationCtx } from "./_generated/server";
 import {
+  laadToewijsbarePersonen,
+  type ToewijsbaarPersoon,
+} from "./lib/taakPersonen";
+import {
   DEFAULT_NORMUREN,
   DEFAULT_PRODUCTEN,
   seedOrgDefaults,
@@ -888,6 +892,32 @@ export const getCurrentUserRole = query({
       email: user.email,
       name: user.name,
     };
+  },
+});
+
+/**
+ * Wie kun je een taak geven? (taakmodel v2)
+ *
+ * Harde klanteis uit prototype v13: **iedereen met een account is toewijsbaar,
+ * ook admins** — directie en kantoor zetten het meeste werk uit én checken het,
+ * maar hebben lang niet altijd een `medewerkers`-rij. Dat was precies de reden
+ * dat het oude, op medewerkers gebaseerde model in de praktijk vastliep.
+ *
+ * Bewust GEEN admin-only query zoals `listUsersWithDetails`: elke interne rol
+ * moet de selects "Maakt het" / "Checkt het" kunnen vullen. Klantaccounts
+ * krijgen niets — noch als lezer, noch als optie in de lijst.
+ */
+export const takenToewijsbaar = query({
+  args: {},
+  handler: async (ctx): Promise<ToewijsbaarPersoon[]> => {
+    const user = await requireAuth(ctx);
+    if (normalizeRole(user.role) === "klant") {
+      throw new ConvexError(
+        "Deze lijst is intern en niet beschikbaar voor klantaccounts"
+      );
+    }
+    const orgId = await requireOrgId(ctx);
+    return laadToewijsbarePersonen(ctx, orgId);
   },
 });
 
