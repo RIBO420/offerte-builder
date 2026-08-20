@@ -3,6 +3,7 @@ import { mutation, query, internalMutation, internalAction } from "./_generated/
 import { internal } from "./_generated/api";
 import {
   getAuthenticatedUser,
+  orgToegang,
   requireAuth,
   requireOrgContext,
   requireOrgId,
@@ -452,10 +453,29 @@ export const updateProfile = mutation({
 // `seedOrgDefaults` (idempotent). Voorheen zaaide deze mutation ze op de
 // userId van wie toevallig inlogde — dat leverde per collega een eigen
 // instellingen-rij op, mét een eigen offertenummer-teller.
+//
+// Bewust géén `requireOrgContext`: dit is een bootstrap-hulpje dat vanzelf
+// meeloopt bij het laden van een pagina, geen actie die de gebruiker vraagt.
+// Is er geen (bekende) organisatie, dan valt er ook niets te initialiseren —
+// dan is `{ overgeslagen: true }` het juiste antwoord en niet een AuthError die
+// via de achtergrond-catch alsnog in de console (en in Sentry) belandt.
 export const initializeDefaults = mutation({
   args: {},
   handler: async (ctx) => {
-    const { org, user } = await requireOrgContext(ctx);
+    const toegang = await orgToegang(ctx);
+    if (toegang.status !== "ok") {
+      return { overgeslagen: true, reden: toegang.status } as const;
+    }
+    const org = toegang.org;
+
+    const user = await getAuthenticatedUser(ctx);
+    // Een Clerk-account waarvan de users-rij nog niet gesynct is (`users.upsert`
+    // loopt gelijktijdig): niets om een rol op te zetten, volgende paginalading
+    // pakt het op.
+    if (!user) {
+      return { overgeslagen: true, reden: "geen-gebruiker" } as const;
+    }
+
     const userId = user._id;
     const orgId = org._id;
 
@@ -562,6 +582,7 @@ export const initializeDefaults = mutation({
     }
 
     return {
+      overgeslagen: false as const,
       normurenCreated,
       productenCreated,
       settingsCreated,

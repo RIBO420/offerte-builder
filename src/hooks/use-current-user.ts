@@ -3,8 +3,26 @@
 import { useUser } from "@clerk/nextjs";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { useEffect, useRef, useCallback, useMemo } from "react";
+import { useEffect, useCallback, useMemo } from "react";
 import { createBackgroundErrorHandler } from "@/lib/error-handling";
+
+/**
+ * Bootstrap-boekhouding op module-niveau, bewust niet in een `useRef`.
+ *
+ * `useCurrentUser` hangt in ~80 componenten. Met een ref per hook-instantie
+ * vuurde elke gemounte component zijn eigen `initializeDefaults` af — en bij
+ * een fout die niet vanzelf overgaat (JWT wijst naar een organisatie die
+ * Convex niet kent) kwam diezelfde storm bij elke remount terug. Eén poging
+ * per gebruiker per paginalading is genoeg; daarna stoppen we.
+ */
+const geinitialiseerdeGebruikers = new Set<string>();
+let initialisatieGestaakt = false;
+
+/** Alleen voor tests: zet de module-brede bootstrap-boekhouding terug. */
+export function _resetInitialisatieBoekhouding() {
+  geinitialiseerdeGebruikers.clear();
+  initialisatieGestaakt = false;
+}
 
 export function useCurrentUser() {
   const { user: clerkUser, isLoaded: isClerkLoaded } = useUser();
@@ -27,9 +45,6 @@ export function useCurrentUser() {
   const upsertUser = useMutation(api.users.upsert);
   const initializeDefaultsMutation = useMutation(api.users.initializeDefaults);
 
-  // Track if we've already attempted initialization
-  const hasInitialized = useRef(false);
-
   // Sync Clerk user to Convex on first load
   // The upsert mutation also creates default settings for new users
   // clerkId, e-mail en naam worden server-side uit het Clerk-token gehaald —
@@ -43,13 +58,20 @@ export function useCurrentUser() {
   // Auto-initialize defaults and run data migrations once per session
   // This applies archiving logic, status updates, and creates missing defaults
   useEffect(() => {
-    if (convexUser?._id && !hasInitialized.current) {
-      hasInitialized.current = true;
-      // initializeDefaults now also runs data migrations
-      initializeDefaultsMutation({}).catch(
-        createBackgroundErrorHandler("initializeDefaults", { userId: convexUser._id })
-      );
+    const userId = convexUser?._id;
+    if (!userId || initialisatieGestaakt || geinitialiseerdeGebruikers.has(userId)) {
+      return;
     }
+    geinitialiseerdeGebruikers.add(userId);
+    // initializeDefaults now also runs data migrations
+    initializeDefaultsMutation({}).catch((fout: unknown) => {
+      // Niet opnieuw proberen. Wat hier nog kan falen (geen bekende
+      // organisatie, geen rechten, schema-fout) gaat niet vanzelf over; een
+      // herhaallus levert alleen dezelfde melding in de console en in Sentry —
+      // per gemounte component opnieuw.
+      initialisatieGestaakt = true;
+      createBackgroundErrorHandler("initializeDefaults", { userId })(fout);
+    });
   }, [convexUser?._id, initializeDefaultsMutation]);
 
   // Manual initialization function - memoized
