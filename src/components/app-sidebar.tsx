@@ -11,7 +11,6 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -364,7 +363,10 @@ export function AppSidebar() {
                     vaste groentint en niet bg-primary — die is in dark mode
                     juist bijna wit. */}
                 <div className="flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg bg-green-700">
-                  <TopTuinenLogo variant="wit" size={22} className="size-[22px]" />
+                  {/* Boven de vouw op élke dashboardpagina: zonder `priority`
+                      meldt Next dit merkteken als LCP-element zonder
+                      voorrang. */}
+                  <TopTuinenLogo variant="wit" size={22} className="size-[22px]" priority />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   {/* Merkmoment (WS3b): het woordmerk in het displayfont — de
@@ -377,10 +379,12 @@ export function AppSidebar() {
         </SidebarMenu>
       </SidebarHeader>
 
-      <SidebarContent>
+      {/* Geen zichtbare scrollbalk in de balk: de lijst past normaal ruim,
+          en op een heel laag venster blijft scrollen met muiswiel/touch
+          werken — alleen de balk zelf tekenen we niet. */}
+      <SidebarContent className="[scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {/* Werk - daily operational items */}
         <SidebarGroup>
-          <SidebarGroupLabel>Werk</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {filteredWerkItems.map((item) => {
@@ -422,7 +426,6 @@ export function AppSidebar() {
           <>
             <SidebarSeparator />
             <SidebarGroup>
-              <SidebarGroupLabel>Financieel</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
                   {filteredFinancieelItems.map((item) => (
@@ -466,7 +469,10 @@ export function AppSidebar() {
                           width={32}
                           height={32}
                           className="size-8 rounded-full object-cover"
-                          loading="lazy"
+                          // Staat in de zijbalkvoet, dus binnen beeld zonder
+                          // scrollen: `lazy` leverde hier een LCP-waarschuwing
+                          // op zodra deze avatar het grootste element was.
+                          priority
                         />
                       ) : (
                         <div className="flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-medium">
