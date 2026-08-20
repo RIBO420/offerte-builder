@@ -28,7 +28,6 @@ export default function MijnDagPagina() {
         "medewerker",
         "onderaannemer_zzp",
         "materiaalman",
-        "admin",
       ]}
       fallbackUrl="/portaal/overzicht"
     >
