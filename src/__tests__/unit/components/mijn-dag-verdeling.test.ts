@@ -284,6 +284,30 @@ describe("indeling Wie (§B2)", () => {
     expect(sleutels).not.toContain(MIRA.toString());
   });
 
+  it("houdt een kolom voor wie op een taak staat maar buiten de toewijsbaar-lijst valt", () => {
+    // Een account dat sinds de org-stempel nog niet opnieuw inlogde, of een
+    // gedeactiveerde collega met restwerk: de taak mag niet uit beeld vallen.
+    const VREEMDE = "u_vreemde" as Id<"users">;
+    const VREEMDE_P = persoon(VREEMDE, "Sam Oudlid");
+    const restwerk = taak({ makerId: VREEMDE, maker: VREEMDE_P });
+
+    const { kolommen } = verdeelOp({
+      ...BASIS,
+      taken: [restwerk],
+      indeling: "wie",
+    });
+
+    const kolom = kolommen.find((k) => k.key === VREEMDE.toString());
+    expect(kolom?.titel).toBe("Sam Oudlid");
+    expect(kolom?.items.map((t) => t._id.toString())).toEqual([
+      restwerk._id.toString(),
+    ]);
+    // En zeker niet dubbel in de vangkolom.
+    expect(
+      kolommen.find((k) => k.key === "__niet_toegewezen__")?.items
+    ).toEqual([]);
+  });
+
   it("toont in 'Alles' iedereen, ook wie niets omhanden heeft", () => {
     const { kolommen } = verdeelOp({
       ...BASIS,

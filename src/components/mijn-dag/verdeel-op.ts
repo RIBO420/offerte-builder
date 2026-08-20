@@ -376,7 +376,21 @@ function kolommenWie<T extends BordTaak>(
   ikId: Id<"users"> | undefined,
   perspectief: Perspectief
 ): Array<BordKolom<T>> {
-  const gesorteerd = [...personen].sort((a, b) =>
+  // Kolommen ontstaan uit de toewijsbare personen PLUS iedereen die al op een
+  // taak staat. Anders verdwijnt een taak compleet uit deze indeling zodra de
+  // maker of checker (tijdelijk) buiten de toewijsbaar-lijst valt — een
+  // account dat sinds de org-stempel nog niet opnieuw inlogde, of een
+  // gedeactiveerde collega met restwerk.
+  const perId = new Map<string, ToewijsbaarPersoon>();
+  for (const persoon of personen) perId.set(persoon._id.toString(), persoon);
+  for (const taak of taken) {
+    for (const persoon of [taak.maker, taak.checker]) {
+      if (persoon && !perId.has(persoon._id.toString())) {
+        perId.set(persoon._id.toString(), persoon);
+      }
+    }
+  }
+  const gesorteerd = [...perId.values()].sort((a, b) =>
     a.naam.localeCompare(b.naam, "nl")
   );
 
