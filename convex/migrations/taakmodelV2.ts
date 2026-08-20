@@ -21,6 +21,32 @@
  *   npx convex run migrations/taakmodelV2:migreer   # herhalen tot klaar=true
  *   npx convex run migrations/taakmodelV2:voorTelling
  *
+ * ── PRODUCTIE: TWEETRAPS-DEPLOY, NIET OVERSLAAN ─────────────────────────────
+ * HEAD heeft een STRAK schema: `klantTaken.status` kent nog maar vier waarden.
+ * Duw je dat rechtstreeks op een productie-deployment waar nog rijen met `open`
+ * of `afgerond` staan, dan weigert Convex de push — en de migratie die die
+ * rijen zou opruimen staat dan nog niet in de deployment. Kip en ei.
+ *
+ * De volgorde die daar wél uit komt:
+ *
+ *   1. deploy commit 8f602cd ("Taakmodel v2: schema, migratie en backend-API").
+ *      Die heeft de status-union TIJDELIJK tolerant (zes waarden: de vier
+ *      nieuwe plus `open` en `afgerond`), dus de push slaagt op bestaande data;
+ *   2. `npx convex run migrations/taakmodelV2:voorTelling` — noteer `teDoen`;
+ *   3. `npx convex run migrations/taakmodelV2:migreer`, herhalen tot het
+ *      antwoord `klaar: true` zegt;
+ *   4. `npx convex run migrations/usersOrgBackfill:backfillUsersOrg`, ook
+ *      herhalen tot `klaar: true` — dat vult `users.orgId`, waar de
+ *      toewijsbaarheid sinds review v13 op leunt (convex/lib/taakPersonen.ts).
+ *      Zonder deze stap verdwijnen bestaande kantooraccounts uit hun eigen
+ *      toewijs-selects tot ze een keer inloggen;
+ *   5. `voorTelling` opnieuw: `teDoen` moet 0 zijn;
+ *   6. pas dán HEAD deployen, met het strakke schema.
+ *
+ * Dev mag in één keer, want daar draait `convex dev` het schema al mee.
+ * Dezelfde volgorde staat in het plan onder "Prod-deploy runbook":
+ * docs/superpowers/plans/2026-08-20-klantdossier-v13-werkbord.md
+ *
  * ── Drie keuzes die je moet kennen ──────────────────────────────────────────
  *
  * 1. GEEN zelfplanning. `naarOrganisaties` plant zichzelf opnieuw in via

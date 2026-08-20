@@ -274,6 +274,28 @@ voor deadline, `zelfOppakken`), `taakReacties`, `dagLogboek`, taken-kit
       Mobile-app raakt dit plan niet (web-only), behalve dat mobile.ts-taakqueries mee
       moeten met het nieuwe statusmodel — review-agent checkt dat compileert en klopt.
 
+## Prod-deploy runbook
+
+Het schema op HEAD is strak: `klantTaken.status` kent nog maar vier waarden. Een
+rechtstreekse push naar productie weigert zolang er rijen met `open`/`afgerond`
+staan — en de migratie die dát oplost zit dan nog niet in de deployment. Daarom
+in twee trappen:
+
+1. Deploy commit `8f602cd` ("Taakmodel v2: schema, migratie en backend-API") —
+   die heeft de status-union tijdelijk tolerant (zes waarden), dus de push
+   slaagt op bestaande data.
+2. `npx convex run migrations/taakmodelV2:voorTelling` — noteer `teDoen`.
+3. `npx convex run migrations/taakmodelV2:migreer`, herhalen tot `klaar: true`.
+4. `npx convex run migrations/usersOrgBackfill:backfillUsersOrg`, herhalen tot
+   `klaar: true`. Dit vult `users.orgId`, waar de toewijsbaarheid sinds review
+   v13 op leunt; zonder deze stap vallen bestaande kantooraccounts uit hun eigen
+   toewijs-selects tot ze een keer inloggen.
+5. `voorTelling` opnieuw: `teDoen` moet 0 zijn.
+6. Pas dán HEAD deployen, met het strakke schema.
+
+Dev mag in één keer — daar draait `convex dev` het schema al mee; de twee
+migratiecommando's moeten er wél gedraaid worden.
+
 ## Buiten scope (bewust)
 
 - "Dag indienen" vanuit de FAB (urenmodule heeft eigen indien-flow).
