@@ -12,7 +12,8 @@ export default function PortaalAuthLayout({
             het witte merkteken. Niet het oude #4ADE80: wit daarop haalt maar
             1,7:1 — de portaal-header-groen wél ruim 3:1. */}
         <div className="bg-[#1a2e1a] w-10 h-10 shrink-0 rounded-lg flex items-center justify-center">
-          <TopTuinenLogo variant="wit" size={28} className="w-7 h-7" />
+          {/* Loginscherm: dit merkteken staat boven de vouw. */}
+          <TopTuinenLogo variant="wit" size={28} className="w-7 h-7" priority />
         </div>
         <div>
           <span className="text-[#1a2e1a] font-semibold text-xl">Top Tuinen</span>
