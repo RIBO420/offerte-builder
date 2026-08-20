@@ -31,7 +31,11 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
   return (
     <CommandProvider>
       <ShortcutsProvider>
-        <SidebarProvider>
+        {/* Standaard ingeklapt: de sidebar staat als iconenrand aan de rand en
+            klapt uit zodra je er met de muis komt (zie `setHovering` in het
+            sidebar-primitief). Wie hem liever vast open heeft, pint hem met de
+            knop of Cmd+B; dan blijft de hoverlaag buiten spel. */}
+        <SidebarProvider defaultOpen={false}>
           <NavigationProgress />
           <SkipLink />
           <OfflineIndicator />
@@ -68,21 +72,20 @@ function DashboardShell({ children }: { children: React.ReactNode }) {
 function DashboardShellSkeleton() {
   return (
     <div className="flex min-h-svh w-full bg-sidebar" aria-busy="true">
-      {/* Sidebar-silhouet — alleen desktop; op mobiel is de sidebar offcanvas */}
+      {/* Sidebar-silhouet — alleen desktop; op mobiel is de sidebar offcanvas.
+          Maat van de ingeklapte balk (3rem iconenrand + de 1rem inset-marge),
+          want de echte shell start ingeklapt; een silhouet van 16rem zou bij de
+          wissel een sprong van 12rem geven. */}
       <div
-        className="hidden w-[16rem] shrink-0 flex-col gap-6 p-4 md:flex"
+        className="hidden w-[calc(3rem+1rem)] shrink-0 flex-col gap-6 p-2 md:flex"
         aria-hidden="true"
       >
-        <div className="flex items-center gap-2 px-2 pt-2">
+        <div className="flex justify-center pt-2">
           <Skeleton className="h-8 w-8 rounded-lg" />
-          <Skeleton className="h-4 w-28" />
         </div>
-        <div className="space-y-2 px-2">
+        <div className="flex flex-col items-center gap-2">
           {Array.from({ length: 9 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-2 py-1.5">
-              <Skeleton className="h-4 w-4 rounded" />
-              <Skeleton className="h-3.5 w-24" />
-            </div>
+            <Skeleton key={i} className="h-8 w-8 rounded-md" />
           ))}
         </div>
       </div>
