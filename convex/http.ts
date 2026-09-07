@@ -1,6 +1,7 @@
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 
 const http = httpRouter();
 
@@ -307,6 +308,105 @@ http.route({
 // CORS preflight handler voor /generate-upload-url
 http.route({
   path: "/generate-upload-url",
+  method: "OPTIONS",
+  handler: httpAction(async () => {
+    const allowedOrigin = getAllowedOrigin();
+    return new Response(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": allowedOrigin,
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      },
+    });
+  }),
+});
+
+/**
+ * POST /storage-urls
+ *
+ * Zet Convex Storage id's om naar downloadbare URL's, zodat de website
+ * rechtstreeks geüploade foto's als bijlage in de notificatiemail kan zetten.
+ * Beveiligd met hetzelfde shared secret als /generate-upload-url.
+ */
+http.route({
+  path: "/storage-urls",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const allowedOrigin = getAllowedOrigin();
+    const corsHeaders = {
+      "Access-Control-Allow-Origin": allowedOrigin,
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    };
+
+    // Valideer shared secret
+    const authHeader = request.headers.get("Authorization");
+    const expectedSecret = process.env.WEBSITE_WEBHOOK_SECRET;
+
+    if (!expectedSecret || authHeader !== `Bearer ${expectedSecret}`) {
+      return new Response(
+        JSON.stringify({ error: "Niet geautoriseerd" }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    try {
+      const body = await request.json();
+      const storageIds = body?.storageIds;
+
+      if (!Array.isArray(storageIds)) {
+        return new Response(
+          JSON.stringify({ error: "storageIds moet een array zijn" }),
+          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+
+      if (storageIds.length < 1 || storageIds.length > 10) {
+        return new Response(
+          JSON.stringify({ error: "storageIds moet 1 tot en met 10 items bevatten" }),
+          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+
+      const ongeldig = (storageIds as unknown[]).some(
+        (id) => typeof id !== "string" || id.trim() === ""
+      );
+      if (ongeldig) {
+        return new Response(
+          JSON.stringify({ error: "Elke storageId moet een niet-lege string zijn" }),
+          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+
+      // Onbekende of ongeldige id's leveren null op; de rest gaat gewoon door
+      const urls: Record<string, string | null> = {};
+      for (const storageId of storageIds as string[]) {
+        try {
+          urls[storageId] = await ctx.storage.getUrl(storageId as Id<"_storage">);
+        } catch (error) {
+          console.error(`Fout bij ophalen storage URL voor ${storageId}:`, error);
+          urls[storageId] = null;
+        }
+      }
+
+      return new Response(
+        JSON.stringify({ urls }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    } catch (error) {
+      console.error("Fout bij ophalen storage URLs:", error);
+      return new Response(
+        JSON.stringify({ error: "Interne serverfout" }),
+        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+  }),
+});
+
+// CORS preflight handler voor /storage-urls
+http.route({
+  path: "/storage-urls",
   method: "OPTIONS",
   handler: httpAction(async () => {
     const allowedOrigin = getAllowedOrigin();
