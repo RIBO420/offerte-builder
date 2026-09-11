@@ -256,11 +256,17 @@ function handlerVan<TArgs, TResult>(fn: unknown): Handler<TArgs, TResult> {
 // ─── Fixture: twee bedrijven met exact dezelfde vorm ─────────────────────────
 
 const NU = Date.parse("2026-08-18T10:00:00Z");
-const DEZE_MAAND = "2026-08-05";
 const VANDAAG = (() => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 })();
+/**
+ * Een urendatum die gegarandeerd in de lopende maand valt: de eerste van
+ * dezelfde maand als `VANDAAG`. Een vaste datum ("2026-08-05") liep vanaf de
+ * maandwissel buiten het maandvenster van `dashboard.getAdminDashboardData`
+ * (`datum >= monthStart`, elders ook `<= vandaag`) en liet de test omvallen.
+ */
+const DEZE_MAAND = `${VANDAAG.slice(0, 7)}-01`;
 
 let db: FakeDb;
 let identity: FakeIdentity | null;
