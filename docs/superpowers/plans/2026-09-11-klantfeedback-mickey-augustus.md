@@ -449,3 +449,118 @@ Follow-ups (kunnen wachten):
   lead zonder koppeling maakt geen werkitem.
 - Integratietests dagkaart/facturatie met een klant mét uitvoeradres.
 - Migratie-scaffolding (batch/rapport) dubbel in beide migraties.
+
+## Fase 3 (parallel): follow-ups — Task 10 t/m 14
+
+Zelfde Global Constraints als hierboven. Bestandseigendom staat per taak; commit met
+pathspec.
+
+### Task 10: Eén set gedeelde klantveld-componenten (naam, telefoon, uitvoeradres)
+
+Nu staan dezelfde veldblokken drie keer: `src/app/(dashboard)/klanten/page.tsx`
+(`klantFormJsx`), `src/components/klanten/nieuwe-klant-dialog.tsx` en
+`src/components/klanten/dossier/tab-instellingen.tsx` (`ContactgegevensFormulier`).
+Ook is `tab-instellingen.tsx` gegroeid naar ±1140 regels.
+
+- Nieuwe map `src/components/klanten/velden/` met:
+  - `naam-velden.tsx`: `NaamVelden` — bij particulier "Voornaam" + "Achternaam *"
+    naast elkaar, anders "Bedrijfsnaam *". Props: `klantType`, `waarden {naam,
+    voornaam, achternaam}`, `onChange`, `fouten?`, `idPrefix`. Zelfde labels op alle
+    drie de plekken.
+  - `telefoon-velden.tsx`: `TelefoonVelden` — "Telefoon" + "Telefoon 2" met dezelfde
+    placeholder/foutmelding.
+  - `uitvoeradres-velden.tsx`: `UitvoeradresVelden` — de `Collapsible` "Afwijkend
+    uitvoeradres" met toelichting, sub-labels "Adres (uitvoer) *", "Postcode (uitvoer)
+    *", "Plaats (uitvoer) *" (de dossier-variant is leidend), trigger met
+    `focus-visible`-ring en `aria-describedby` naar de toelichting, `aria-expanded`.
+    Props: `open`, `onOpenChange`, `waarden`, `onChange`, `fouten?`, `idPrefix`.
+  - Een pure helper `src/components/klanten/velden/klant-formulier-logica.ts` met
+    `naamVelden(...)` (naam samenstellen via `samengesteldeNaam`), `splitsVoorBewerken`
+    (prefill via `splitsNaam` als delen ontbreken) en `uitvoerAdresPayload(open, waarden)`
+    (→ object, clear-payload `{ "", "", "" }` bij update, `undefined` bij create). Deze
+    logica staat nu ook drie keer.
+- De drie formulieren gebruiken de componenten en de helper; gedrag blijft identiek
+  (bestaande tests blijven groen; `klant-contactgegevens-formulier.test.tsx` en
+  `use-table-sort.test.ts` niet verzwakken).
+- `tab-instellingen.tsx`: `BijzonderhedenPaneel` naar
+  `src/components/klanten/dossier/bijzonderheden-paneel.tsx`; `FOUTSLEUTEL` naar
+  module-scope; de test "klapt met Wijzigen om" met `within(panel)` i.p.v.
+  `getAllByRole(...)[0]`.
+- Tests: `src/__tests__/components/klant-velden.test.tsx` voor de drie componenten
+  (labels per klantType, aria op de trigger, clear-payload) en
+  `klant-formulier-logica.test.ts` voor de helper.
+
+Verificatie: typecheck, eslint, `npx vitest run src/__tests__/components src/__tests__/hooks`.
+
+### Task 11: Servicemelding-detail en portaalprofiel
+
+- `convex/servicemeldingen.ts` ±r.309: `klantAdres` in het meldingdetail via
+  `adresRegel(klantUitvoerAdres(klant))` (werkadres, consistent met
+  `promoveerNaarWerkitem`). Test in de servicemeldingen-testsuite bijwerken/toevoegen.
+- `convex/portaal.ts` `updateProfile` (±r.530-560): `telefoon` via `sanitizePhone`,
+  `adres`/`postcode`/`plaats` via dezelfde sanitizers/validators als `klanten.update`
+  (`validateRequiredPostcode` e.d.); lege string wist optionele velden zoals bij
+  `klanten.update`; ongeldige invoer → `ConvexError` met dezelfde melding als het
+  kantoorformulier. Tenancy ongewijzigd (`requireKlant` → eigen record). Tests in
+  `src/__tests__/unit/convex/portaal-fase2.test.ts` (+3: telefoon genormaliseerd,
+  ongeldig nummer geweigerd, postcode gevalideerd).
+
+Verificatie: typecheck, eslint, gerichte vitest.
+
+### Task 12: Leadkoppeling — logtype, legacy gewonnen, busy-state
+
+- Schema `leadActiviteiten.type` (convex/schema.ts) + validator in
+  `convex/leadActiviteiten.ts`: literal `klant_ontkoppeld` erbij; `ontkoppelKlant`
+  logt daarmee; UI-map van iconen/kleuren in `src/components/leads/**` (zoek op
+  `klant_gekoppeld`) krijgt een grijze variant voor ontkoppeld.
+- `koppelKlant` op een lead met status `gewonnen` zonder koppeling: weigeren met
+  ConvexError "Een gewonnen lead koppel je via Gewonnen" is te hard voor legacy
+  data; kies: koppelen én meteen het werkitem aanmaken via het bestaande
+  `promoveerLead`-pad (zodat de lead consistent gepromoveerd is). Test erbij in
+  `leads-klanten-scheiding.test.ts`.
+- `lead-detail-modal.tsx`: busy-state (`disabled` + spinner) op Ontkoppelen en op
+  Koppelen in de duplicaatbanner; sluit het modal niet bij navigeren naar het
+  dossier via de badge? Nee: laat het modal staan, maar geef de badge-`Link`
+  `onClick={onClose}` zodat terugnavigeren het bord toont zonder oud modal.
+- Testhelper `handlerVan` in `leads-klanten-scheiding.test.ts` één keer op
+  module-niveau.
+
+Verificatie: typecheck, eslint, `npx vitest run src/__tests__/unit/convex/leads-klanten-scheiding.test.ts` + leads-componenttests.
+
+### Task 13: Integratietests uitvoeradres in dagkaart en facturatie
+
+Alleen tests, geen productiecode (als een test een echte bug vindt: rapporteren, niet
+fixen).
+- `src/__tests__/unit/convex/dagkaart.test.ts`: klant mét `uitvoerAdres` → stop-adres,
+  reistijdsleutel en Maps-route gebruiken het uitvoeradres; klant zonder → hoofdadres.
+- Facturatie: `facturatieEngine`/`facturen`-tests: klant mét `uitvoerAdres` → factuur-
+  snapshot bevat het hoofdadres, nooit het uitvoeradres. Offerte-snapshot idem
+  (`offerte-klant-optioneel.test.ts` of de dichtstbijzijnde suite).
+- Werkitems: `werkitem-adres.test.ts` bestaat; voeg `adresKeuze: "hoofd"` bij klant mét
+  uitvoeradres toe als die ontbreekt.
+- `servicemeldingen`: promoveren naar werkitem met uitvoeradres (bestaat sinds de
+  fixwave; controleren, anders toevoegen).
+
+Verificatie: gerichte vitest-runs, geen productiebestanden in de diff.
+
+### Task 14: Migratie-scaffolding delen
+
+- Nieuw `convex/migrations/_batch.ts` met de gedeelde constanten/typen en twee
+  helpers: `verzamelVoorbeelden(max)` (accumulator voor max N voorbeelden) en
+  `leesAlleOfBatch(ctx, tabel, { dryRun, cursor, batchGrootte })` die bij dryRun
+  `collect()` doet en anders precies één `paginate` (Convex-regel: één paginate per
+  functie — in commentaar). `splitsKlantNaam.ts` en `telefoon2UitNotities.ts` gebruiken
+  ze; rapportvorm en gedrag ongewijzigd (`migraties-klantvelden.test.ts` blijft groen,
+  inclusief de paginate-guard). `saneerLeadsKlanten.ts` e.a. niet aanraken.
+- `bepaalNaamSplitsing` in `splitsKlantNaam.ts`: de dubbele klanttype/woordentelling
+  laten leunen op `naamDelenVoorNieuweKlant`, met behoud van de aparte `reden`-waarden.
+
+Verificatie: typecheck, eslint, `npx vitest run src/__tests__/unit/convex/migraties-klantvelden.test.ts`, daarna `npx convex dev --once` en beide dry runs op dev opnieuw (moeten identiek rapporteren aan de vorige run: 274 bekeken).
+
+| Fase | Task | Eigen bestanden |
+|---|---|---|
+| 3 | 10 | klanten/page.tsx, nieuwe-klant-dialog.tsx, tab-instellingen.tsx, src/components/klanten/velden/**, dossier/bijzonderheden-paneel.tsx, componenttests |
+| 3 | 11 | convex/servicemeldingen.ts, convex/portaal.ts, hun tests |
+| 3 | 12 | convex/schema.ts (leadActiviteiten-union), convex/leadActiviteiten.ts, convex/configuratorAanvragen.ts, src/components/leads/**, leads-tests |
+| 3 | 13 | alleen testbestanden onder src/__tests__/ |
+| 3 | 14 | convex/migrations/_batch.ts, splitsKlantNaam.ts, telefoon2UitNotities.ts, migraties-klantvelden.test.ts |
