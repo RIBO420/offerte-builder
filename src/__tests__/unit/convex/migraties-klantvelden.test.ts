@@ -14,11 +14,14 @@
  * bestaande klanten heen loopt — inclusief de belangrijkste eis: een tweede
  * run verandert niets meer.
  *
- * De `start`-mutations zelf draaien hieronder tegen een nep-ctx met een échte
- * cursor, omdat het rapport dat de operator leest hun tweede belofte is: een
- * dry run toont ALLE klanten (niet de eerste 100), een echte run schrijft
- * 100 per transactie. `convex-test` is in dit project niet geïnstalleerd; de
- * handler zit op `_handler` van de geregistreerde mutation, vandaar de cast.
+ * De `start`-mutations zelf draaien hieronder tegen een nep-ctx, omdat het
+ * rapport dat de operator leest hun tweede belofte is: een dry run toont ALLE
+ * klanten (niet de eerste 100), een echte run schrijft 100 per transactie.
+ * Die nep-ctx houdt zich aan de regel van Convex waar de eerste versie van deze
+ * migraties op stukliep: één `paginate` per functie-aanroep, een tweede gooit
+ * dezelfde fout als de echte runtime. `convex-test` is in dit project niet
+ * geïnstalleerd; de handler zit op `_handler` van de geregistreerde mutation,
+ * vandaar de cast.
  */
 
 import { describe, it, expect } from "vitest";
@@ -289,6 +292,7 @@ type FakeKlant = {
 type FakeCtx = {
   db: {
     query: (tabel: string) => {
+      collect: () => Promise<FakeKlant[]>;
       paginate: (opts: { cursor: string | null; numItems: number }) => Promise<{
         page: FakeKlant[];
         continueCursor: string;
@@ -299,6 +303,11 @@ type FakeCtx = {
   };
 };
 
+/** Woordelijk de fout die Convex gooit bij een tweede gepagineerde query. */
+const CONVEX_PAGINATE_FOUT =
+  "This query or mutation function ran multiple paginated queries. " +
+  "Convex only supports a single paginated query in each function.";
+
 type StartArgs = { cursor?: string | null; dryRun?: boolean };
 type StartHandler<R> = (ctx: FakeCtx, args: StartArgs) => Promise<R>;
 const handlerVan = <R,>(fn: unknown): StartHandler<R> =>
@@ -308,16 +317,27 @@ const handlerVan = <R,>(fn: unknown): StartHandler<R> =>
  * Nep-ctx met een cursor die daadwerkelijk verder telt — de gedeelde mock in
  * `src/__tests__/helpers/convex-mock.ts` geeft altijd een lege cursor terug en
  * zou de bug (alleen de eerste pagina) dus niet kunnen laten zien.
+ *
+ * En, belangrijker: deze ctx gooit bij een tweede `paginate` exact de fout van
+ * de echte runtime. De eerste versie van deze migraties lustte in de dry run
+ * over `paginate` heen; omdat de oude nep-ctx onbeperkt pagineerde, was dat
+ * hier groen en in de dev-deployment stuk. Eén ctx = één handler-aanroep.
  */
 function nepCtx(klanten: FakeKlant[]) {
   const patches: Array<{ id: string; velden: Record<string, unknown> }> = [];
   let paginas = 0;
+  let collects = 0;
 
   const ctx: FakeCtx = {
     db: {
       query: () => ({
+        collect: async () => {
+          collects++;
+          return klanten;
+        },
         paginate: async ({ cursor, numItems }) => {
           paginas++;
+          if (paginas > 1) throw new Error(CONVEX_PAGINATE_FOUT);
           const vanaf = cursor === null ? 0 : Number(cursor);
           const page = klanten.slice(vanaf, vanaf + numItems);
           const tot = vanaf + page.length;
@@ -330,7 +350,7 @@ function nepCtx(klanten: FakeKlant[]) {
     },
   };
 
-  return { ctx, patches, paginas: () => paginas };
+  return { ctx, patches, paginas: () => paginas, collects: () => collects };
 }
 
 /** 250 klanten = drie pagina's van 100: even splitsbaar, oneven twijfel. */
@@ -366,7 +386,7 @@ describe("splitsKlantNaam:start", () => {
   }>(startSplitsKlantNaam);
 
   it("telt in een dry run ALLE klanten, niet alleen de eerste batch", async () => {
-    const { ctx, patches, paginas } = nepCtx(naamKlanten());
+    const { ctx, patches } = nepCtx(naamKlanten());
 
     const rapport = await start(ctx, { dryRun: true });
 
@@ -375,8 +395,18 @@ describe("splitsKlantNaam:start", () => {
     expect(rapport.twijfel).toBe(125);
     expect(rapport.isDone).toBe(true);
     expect(rapport.continueCursor).toBeNull();
-    expect(paginas()).toBe(3);
     expect(patches).toHaveLength(0);
+  });
+
+  it("leest de dry run in één keer, zonder paginate", async () => {
+    // Convex staat één gepagineerde query per functie-aanroep toe; lussen met
+    // `paginate` liet de migratie in de dev-deployment crashen.
+    const { ctx, paginas, collects } = nepCtx(naamKlanten());
+
+    await start(ctx, { dryRun: true });
+
+    expect(paginas()).toBe(0);
+    expect(collects()).toBe(1);
   });
 
   it("houdt de voorbeeldlijst ook over meerdere pagina's op 50", async () => {
@@ -388,7 +418,7 @@ describe("splitsKlantNaam:start", () => {
   });
 
   it("schrijft per batch van 100 en geeft een cursor terug", async () => {
-    const { ctx, patches, paginas } = nepCtx(naamKlanten());
+    const { ctx, patches, paginas, collects } = nepCtx(naamKlanten());
 
     const rapport = await start(ctx, { dryRun: false });
 
@@ -396,6 +426,7 @@ describe("splitsKlantNaam:start", () => {
     expect(rapport.isDone).toBe(false);
     expect(rapport.continueCursor).toBe("100");
     expect(paginas()).toBe(1);
+    expect(collects()).toBe(0);
     expect(patches).toHaveLength(50);
     expect(patches[0]).toEqual({
       id: "klant_0",
@@ -427,7 +458,7 @@ describe("telefoon2UitNotities:start", () => {
   }>(startTelefoon2UitNotities);
 
   it("telt in een dry run ALLE klanten, niet alleen de eerste batch", async () => {
-    const { ctx, patches, paginas } = nepCtx(telefoonKlanten());
+    const { ctx, patches } = nepCtx(telefoonKlanten());
 
     const rapport = await start(ctx, { dryRun: true });
 
@@ -437,8 +468,16 @@ describe("telefoon2UitNotities:start", () => {
     expect(rapport.ongeldigeVoorbeelden).toHaveLength(50);
     expect(rapport.isDone).toBe(true);
     expect(rapport.continueCursor).toBeNull();
-    expect(paginas()).toBe(3);
     expect(patches).toHaveLength(0);
+  });
+
+  it("leest de dry run in één keer, zonder paginate", async () => {
+    const { ctx, paginas, collects } = nepCtx(telefoonKlanten());
+
+    await start(ctx, { dryRun: true });
+
+    expect(paginas()).toBe(0);
+    expect(collects()).toBe(1);
   });
 
   it("schrijft per batch van 100 en geeft een cursor terug", async () => {

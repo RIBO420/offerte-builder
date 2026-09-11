@@ -21,10 +21,11 @@
  * argumenten schrijft dus niets.
  *
  * Twee snelheden, met opzet:
- * - `dryRun: true` loopt in één aanroep over ÁLLE klanten en levert het
- *   complete rapport (`isDone: true`, geen cursor). Alleen lezen, dus die ene
- *   transactie kan dat bij deze tabelgrootte prima aan — en kantoor beoordeelt
- *   zo alle twijfelgevallen vóór er iets geschreven wordt, niet de eerste 100.
+ * - `dryRun: true` leest de hele tabel in één `collect` en levert het complete
+ *   rapport (`isDone: true`, geen cursor). Kantoor beoordeelt zo álle
+ *   twijfelgevallen vóór er iets geschreven wordt, niet de eerste 100. Geen
+ *   `paginate`: Convex staat één gepagineerde query per functie-aanroep toe,
+ *   dus doorlussen over pagina's kan niet.
  * - `dryRun: false` schrijft 100 klanten per transactie en geeft een
  *   `continueCursor` terug; daarmee start de operator de volgende batch.
  *
@@ -125,71 +126,93 @@ export const start = internalMutation({
     let twijfel = 0;
     const twijfelVoorbeelden: Voorbeeld[] = [];
 
-    let cursor: string | null = args.cursor ?? null;
+    /** Telt één klant mee in het rapport; schrijven gebeurt alleen buiten een dry run. */
+    const verwerk = async (klant: Doc<"klanten">) => {
+      bekeken++;
+      const besluit = bepaalNaamSplitsing(klant);
 
-    // Eén batch bij een echte run; bij een dry run loopt deze lus door tot de
-    // laatste pagina, zodat het rapport compleet is.
-    for (;;) {
-      const page = await ctx.db
-        .query("klanten")
-        .paginate({ cursor, numItems: BATCH_SIZE });
-
-      bekeken += page.page.length;
-
-      for (const klant of page.page) {
-        const besluit = bepaalNaamSplitsing(klant);
-
-        if (besluit.actie === "overslaan") {
-          if (besluit.reden === "al_gesplitst") {
-            alGesplitst++;
-            continue;
-          }
-          twijfel++;
-          if (twijfelVoorbeelden.length < MAX_VOORBEELDEN) {
-            // Bewust alleen id + naam: genoeg om na te lopen, geen dossier.
-            twijfelVoorbeelden.push({
-              klantId: klant._id,
-              naam: klant.naam,
-              reden: besluit.reden,
-            });
-          }
-          continue;
+      if (besluit.actie === "overslaan") {
+        if (besluit.reden === "al_gesplitst") {
+          alGesplitst++;
+          return;
         }
-
-        gesplitst++;
-        if (!dryRun) {
-          await ctx.db.patch(klant._id, {
-            voornaam: besluit.voornaam,
-            achternaam: besluit.achternaam,
+        twijfel++;
+        if (twijfelVoorbeelden.length < MAX_VOORBEELDEN) {
+          // Bewust alleen id + naam: genoeg om na te lopen, geen dossier.
+          twijfelVoorbeelden.push({
+            klantId: klant._id,
+            naam: klant.naam,
+            reden: besluit.reden,
           });
         }
+        return;
       }
 
-      if (dryRun && !page.isDone) {
-        cursor = page.continueCursor;
-        continue;
+      gesplitst++;
+      if (!dryRun) {
+        await ctx.db.patch(klant._id, {
+          voornaam: besluit.voornaam,
+          achternaam: besluit.achternaam,
+        });
+      }
+    };
+
+    const logRegel = (isDone: boolean) => {
+      console.log(
+        `[Migratie splitsKlantNaam] ${dryRun ? "Dry run over alle klanten" : "Batch verwerkt"}: ` +
+          `${bekeken} bekeken, ${gesplitst} gesplitst, ${alGesplitst} al gesplitst, ` +
+          `${twijfel} twijfel` +
+          (isDone ? " — KLAAR" : " — herhalen met continueCursor")
+      );
+    };
+
+    if (dryRun) {
+      // Eén leesquery over de hele tabel, geen `paginate`: Convex staat maar
+      // één gepagineerde query per functie-aanroep toe. Met ~460 klanten blijft
+      // dit ver onder de leeslimiet van een Convex-transactie, en omdat een dry
+      // run niets schrijft, kost het alleen leeswerk.
+      const klanten = await ctx.db.query("klanten").collect();
+
+      for (const klant of klanten) {
+        await verwerk(klant);
       }
 
-      const rapport = {
+      logRegel(true);
+
+      return {
         dryRun,
         bekeken,
         gesplitst,
         alGesplitst,
         twijfel,
         twijfelVoorbeelden,
-        isDone: page.isDone,
-        continueCursor: page.isDone ? null : page.continueCursor,
+        isDone: true,
+        continueCursor: null,
       };
-
-      console.log(
-        `[Migratie splitsKlantNaam] ${dryRun ? "Dry run over alle klanten" : "Batch verwerkt"}: ` +
-          `${bekeken} bekeken, ${gesplitst} gesplitst, ${alGesplitst} al gesplitst, ` +
-          `${twijfel} twijfel` +
-          (page.isDone ? " — KLAAR" : " — herhalen met continueCursor")
-      );
-
-      return rapport;
     }
+
+    // Echte run: precies één gepagineerde query per aanroep. De operator start
+    // de volgende batch met de teruggegeven `continueCursor`.
+    const page = await ctx.db
+      .query("klanten")
+      .paginate({ cursor: args.cursor ?? null, numItems: BATCH_SIZE });
+
+    for (const klant of page.page) {
+      await verwerk(klant);
+    }
+
+    logRegel(page.isDone);
+
+    return {
+      dryRun,
+      bekeken,
+      gesplitst,
+      alGesplitst,
+      twijfel,
+      twijfelVoorbeelden,
+      isDone: page.isDone,
+      continueCursor: page.isDone ? null : page.continueCursor,
+    };
   },
 });
 

@@ -29,10 +29,11 @@
  * en `dryRun` staat standaard AAN — een run zonder argumenten schrijft niets.
  *
  * Twee snelheden, met opzet:
- * - `dryRun: true` loopt in één aanroep over ÁLLE klanten en levert het
- *   complete rapport (`isDone: true`, geen cursor). Alleen lezen, dus die ene
- *   transactie kan dat bij deze tabelgrootte prima aan — en kantoor beoordeelt
- *   zo alle ongeldige gevallen vóór er iets geschreven wordt, niet de eerste 100.
+ * - `dryRun: true` leest de hele tabel in één `collect` en levert het complete
+ *   rapport (`isDone: true`, geen cursor). Kantoor beoordeelt zo álle ongeldige
+ *   gevallen vóór er iets geschreven wordt, niet de eerste 100. Geen
+ *   `paginate`: Convex staat één gepagineerde query per functie-aanroep toe,
+ *   dus doorlussen over pagina's kan niet.
  * - `dryRun: false` schrijft 100 klanten per transactie en geeft een
  *   `continueCursor` terug; daarmee start de operator de volgende batch.
  *
@@ -51,7 +52,7 @@
 
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "../_generated/server";
-import type { Id } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
 import { normaliseerImportTelefoon } from "../validators";
 
 const BATCH_SIZE = 100;
@@ -168,49 +169,57 @@ export const start = internalMutation({
     let regelsBlijvenStaan = 0;
     const ongeldigeVoorbeelden: Voorbeeld[] = [];
 
-    let cursor: string | null = args.cursor ?? null;
+    /** Telt één klant mee in het rapport; schrijven gebeurt alleen buiten een dry run. */
+    const verwerk = async (klant: Doc<"klanten">) => {
+      bekeken++;
+      const besluit = bepaalTelefoon2Migratie(klant);
 
-    // Eén batch bij een echte run; bij een dry run loopt deze lus door tot de
-    // laatste pagina, zodat het rapport compleet is.
-    for (;;) {
-      const page = await ctx.db
-        .query("klanten")
-        .paginate({ cursor, numItems: BATCH_SIZE });
-
-      bekeken += page.page.length;
-
-      for (const klant of page.page) {
-        const besluit = bepaalTelefoon2Migratie(klant);
-
-        if (besluit.actie === "overslaan") {
-          if (besluit.reden === "geen_regel") geenRegel++;
-          else if (besluit.reden === "al_telefoon2") alTelefoon2++;
-          else {
-            ongeldig++;
-            if (ongeldigeVoorbeelden.length < MAX_VOORBEELDEN) {
-              // Bewust alleen id + naam: genoeg om na te lopen, geen dossier.
-              ongeldigeVoorbeelden.push({ klantId: klant._id, naam: klant.naam });
-            }
+      if (besluit.actie === "overslaan") {
+        if (besluit.reden === "geen_regel") geenRegel++;
+        else if (besluit.reden === "al_telefoon2") alTelefoon2++;
+        else {
+          ongeldig++;
+          if (ongeldigeVoorbeelden.length < MAX_VOORBEELDEN) {
+            // Bewust alleen id + naam: genoeg om na te lopen, geen dossier.
+            ongeldigeVoorbeelden.push({ klantId: klant._id, naam: klant.naam });
           }
-          continue;
         }
-
-        verplaatst++;
-        regelsBlijvenStaan += besluit.resterendeRegels;
-        if (!dryRun) {
-          await ctx.db.patch(klant._id, {
-            telefoon2: besluit.telefoon2,
-            notities: besluit.notities,
-          });
-        }
+        return;
       }
 
-      if (dryRun && !page.isDone) {
-        cursor = page.continueCursor;
-        continue;
+      verplaatst++;
+      regelsBlijvenStaan += besluit.resterendeRegels;
+      if (!dryRun) {
+        await ctx.db.patch(klant._id, {
+          telefoon2: besluit.telefoon2,
+          notities: besluit.notities,
+        });
+      }
+    };
+
+    const logRegel = (isDone: boolean) => {
+      console.log(
+        `[Migratie telefoon2UitNotities] ${dryRun ? "Dry run over alle klanten" : "Batch verwerkt"}: ` +
+          `${bekeken} bekeken, ${verplaatst} verplaatst, ${alTelefoon2} had al een telefoon2, ` +
+          `${ongeldig} ongeldig, ${geenRegel} zonder regel` +
+          (isDone ? " — KLAAR" : " — herhalen met continueCursor")
+      );
+    };
+
+    if (dryRun) {
+      // Eén leesquery over de hele tabel, geen `paginate`: Convex staat maar
+      // één gepagineerde query per functie-aanroep toe. Met ~460 klanten blijft
+      // dit ver onder de leeslimiet van een Convex-transactie, en omdat een dry
+      // run niets schrijft, kost het alleen leeswerk.
+      const klanten = await ctx.db.query("klanten").collect();
+
+      for (const klant of klanten) {
+        await verwerk(klant);
       }
 
-      const rapport = {
+      logRegel(true);
+
+      return {
         dryRun,
         bekeken,
         verplaatst,
@@ -219,19 +228,35 @@ export const start = internalMutation({
         ongeldig,
         ongeldigeVoorbeelden,
         regelsBlijvenStaan,
-        isDone: page.isDone,
-        continueCursor: page.isDone ? null : page.continueCursor,
+        isDone: true,
+        continueCursor: null,
       };
-
-      console.log(
-        `[Migratie telefoon2UitNotities] ${dryRun ? "Dry run over alle klanten" : "Batch verwerkt"}: ` +
-          `${bekeken} bekeken, ${verplaatst} verplaatst, ${alTelefoon2} had al een telefoon2, ` +
-          `${ongeldig} ongeldig, ${geenRegel} zonder regel` +
-          (page.isDone ? " — KLAAR" : " — herhalen met continueCursor")
-      );
-
-      return rapport;
     }
+
+    // Echte run: precies één gepagineerde query per aanroep. De operator start
+    // de volgende batch met de teruggegeven `continueCursor`.
+    const page = await ctx.db
+      .query("klanten")
+      .paginate({ cursor: args.cursor ?? null, numItems: BATCH_SIZE });
+
+    for (const klant of page.page) {
+      await verwerk(klant);
+    }
+
+    logRegel(page.isDone);
+
+    return {
+      dryRun,
+      bekeken,
+      verplaatst,
+      geenRegel,
+      alTelefoon2,
+      ongeldig,
+      ongeldigeVoorbeelden,
+      regelsBlijvenStaan,
+      isDone: page.isDone,
+      continueCursor: page.isDone ? null : page.continueCursor,
+    };
   },
 });
 
