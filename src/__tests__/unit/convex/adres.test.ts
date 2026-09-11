@@ -14,6 +14,7 @@
 import { describe, it, expect } from "vitest";
 import {
   adresRegel,
+  adresRegelOfNull,
   googleMapsZoekUrl,
   googleMapsRouteUrl,
   heeftUitvoerAdres,
@@ -55,6 +56,29 @@ describe("adresRegel", () => {
       adresRegel({ adres: "  ", postcode: "  1234 AB ", plaats: " Meppel " })
     ).toBe("1234 AB Meppel");
     expect(adresRegel({ adres: " ", postcode: " ", plaats: " " })).toBe("");
+  });
+});
+
+/**
+ * Dezelfde regel, maar `null` waar niets in te vullen valt. Het planbord, de
+ * dagkaart en de materiaallijst bewaren "geen adres" als `null`; zonder deze
+ * variant stond `|| null` op elke aanroepplek los herhaald — en op één plek
+ * (`urenSegmenten`) stond hij er níet, waardoor daar een lege string het veld
+ * in ging.
+ */
+describe("adresRegelOfNull", () => {
+  it("geeft dezelfde regel als adresRegel bij een gevuld adres", () => {
+    const velden = { adres: "Straat 1", postcode: "1234 AB", plaats: "Plaats" };
+    expect(adresRegelOfNull(velden)).toBe(adresRegel(velden));
+  });
+
+  it("geeft null bij een leeg adres, niet een lege string", () => {
+    expect(adresRegelOfNull({})).toBeNull();
+    expect(adresRegelOfNull({ adres: "  ", postcode: null, plaats: "" })).toBeNull();
+  });
+
+  it("blijft null-vrij zodra één deel gevuld is", () => {
+    expect(adresRegelOfNull({ plaats: "Meppel" })).toBe("Meppel");
   });
 });
 

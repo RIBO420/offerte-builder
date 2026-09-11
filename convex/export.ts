@@ -18,6 +18,7 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
 import { requireOrgId } from "./auth";
+import { adresRegel } from "./lib/adres";
 import { klantVeld } from "./lib/offerteKlant";
 import { requireAdmin, requireKantoor } from "./roles";
 import { voorcalculatieVanProject, voorcalculatieVanOfferte } from "./lib/voorcalculatieLookup";
@@ -152,10 +153,9 @@ export const exportKlanten = query({
       adres: klant.adres,
       postcode: klant.postcode,
       plaats: klant.plaats,
-      // Eén kolom: een uitvoeradres is alles of niets en leest zo als adres.
-      uitvoerAdres: klant.uitvoerAdres
-        ? `${klant.uitvoerAdres.adres}, ${klant.uitvoerAdres.postcode} ${klant.uitvoerAdres.plaats}`.trim()
-        : "",
+      // Eén kolom, in het adresformaat van de rest van de app
+      // (convex/lib/adres.ts) in plaats van een eigen samenstelling.
+      uitvoerAdres: klant.uitvoerAdres ? adresRegel(klant.uitvoerAdres) : "",
       email: klant.email ?? "",
       telefoon: klant.telefoon ?? "",
       telefoon2: klant.telefoon2 ?? "",
