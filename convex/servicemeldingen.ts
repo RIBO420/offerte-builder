@@ -306,7 +306,11 @@ export const getById = query({
     return {
       ...melding,
       klantNaam: klant?.naam ?? (melding.klantId ? "Onbekend" : "Intern"),
-      klantAdres: klant ? adresRegel(klant) : "",
+      // Het meldingdetail is een werkscherm: het adres dat erbij staat is
+      // het adres waar de ploeg naartoe gaat. Zelfde ruling (sep 2026) als
+      // `promoveerNaarWerkitem` verderop — uitvoeradres wint, hoofdadres is
+      // de terugval. De rekening blijft op het hoofdadres staan.
+      klantAdres: klant ? adresRegel(klantUitvoerAdres(klant)) : "",
       klantEmail: klant?.email ?? "",
       klantTelefoon: klant?.telefoon ?? "",
       projectNaam: project?.naam ?? null,

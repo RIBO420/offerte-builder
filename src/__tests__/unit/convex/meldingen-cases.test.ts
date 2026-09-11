@@ -617,6 +617,81 @@ describe("@tag → veldtaak (case-test §8.6)", () => {
   });
 });
 
+// ─── 5b. Meldingdetail: welk adres staat erbij? ────────────────────
+
+/**
+ * Het detailscherm van een melding is een werkscherm: wie het openslaat wil
+ * weten waar de ploeg naartoe moet. Dezelfde ruling als bij
+ * `promoveerNaarWerkitem` (sep 2026) geldt hier dus ook — werk gaat naar het
+ * uitvoeradres, de rekening naar het hoofdadres. Voorheen toonde het detail
+ * stilzwijgend het hoofdadres, terwijl de promotieknop eronder het werkitem
+ * op het uitvoeradres zette.
+ */
+describe("getById — klantAdres is het uitvoeradres", () => {
+  it("toont het uitvoeradres als de klant er een heeft", async () => {
+    const { ctx, store, userId, orgId } = ctxMetRol("directie");
+    const klantId = store.insert(
+      "klanten",
+      createMockKlant(userId, {
+        orgId,
+        adres: "Hoofdweg 1",
+        postcode: "1234 AB",
+        plaats: "Meppel",
+        uitvoerAdres: {
+          adres: "Tuinlaan 9",
+          postcode: "7941 CD",
+          plaats: "Staphorst",
+        },
+      })
+    );
+    const meldingId = insertMelding(store, userId, orgId, klantId);
+
+    const detail = (await handler(getById)(ctx, { id: meldingId })) as {
+      klantAdres: string;
+    };
+    expect(detail.klantAdres).toBe("Tuinlaan 9, 7941 CD Staphorst");
+  });
+
+  it("valt terug op het hoofdadres als er geen uitvoeradres is", async () => {
+    const { ctx, store, userId, orgId } = ctxMetRol("directie");
+    const klantId = store.insert(
+      "klanten",
+      createMockKlant(userId, {
+        orgId,
+        adres: "Hoofdweg 1",
+        postcode: "1234 AB",
+        plaats: "Meppel",
+      })
+    );
+    const meldingId = insertMelding(store, userId, orgId, klantId);
+
+    const detail = (await handler(getById)(ctx, { id: meldingId })) as {
+      klantAdres: string;
+    };
+    expect(detail.klantAdres).toBe("Hoofdweg 1, 1234 AB Meppel");
+  });
+
+  it("geeft een lege regel bij een interne melding zonder klant", async () => {
+    const { ctx, store, userId, orgId } = ctxMetRol("directie");
+    const meldingId = store.insert("servicemeldingen", {
+      orgId,
+      userId,
+      beschrijving: "Interne melding",
+      isGarantie: false,
+      status: "nieuw",
+      prioriteit: "normaal",
+      kosten: 0,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    const detail = (await handler(getById)(ctx, { id: meldingId })) as {
+      klantAdres: string;
+    };
+    expect(detail.klantAdres).toBe("");
+  });
+});
+
 // ─── 6. Promotie melding → werkitem ──────────────────────────────────────────
 
 describe("promoveerNaarWerkitem (§2.4)", () => {
