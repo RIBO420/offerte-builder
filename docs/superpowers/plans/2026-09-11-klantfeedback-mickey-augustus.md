@@ -426,3 +426,26 @@ met pathspec.
   omdraaien.
 - Werk op `main` in de gedeelde working tree met pathspec-commits, conform de
   vaste werkwijze in dit project (geen worktree). Niet pushen.
+
+## Uitkomst (11 sep 2026)
+
+Gebouwd in 27 commits (6740cf0..857e3b1), 9 taken elk apart gereviewd, eindreview +
+fixwave, poort groen (typecheck, lint, 4218 tests). Dry runs van beide migraties op
+dev geverifieerd. Niet gepusht, Convex prod niet gedeployed.
+
+Uitrolvolgorde: `npx convex deploy --yes` → `git push origin main` →
+`npx convex run migrations/splitsKlantNaam:start '{"dryRun":true}'` (rapport lezen,
+twijfelgevallen bekijken) → `'{"dryRun":false}'` herhalen met `cursor` tot `isDone` →
+`migrations/splitsKlantNaam:verifieer` → zelfde voor `migrations/telefoon2UitNotities`.
+
+Follow-ups (kunnen wachten):
+- Eén `NaamVelden`-component voor lijstformulier, aanmaakdialoog en dossier (nu drie
+  kopieën) + labelpariteit sub-labels uitvoeradres.
+- `tab-instellingen.tsx` splitsen (BijzonderhedenPaneel, uitvoeradres-Collapsible).
+- Collapsible-trigger klantformulier: focus-visible ring + aria-describedby.
+- `servicemeldingen.ts` meldingdetail toont hoofdadres; `portaal.updateProfile`
+  sanitiseert telefoon/adres/postcode/plaats niet (pre-existing).
+- `ontkoppelKlant` logt als `klant_gekoppeld`; `koppelKlant` op een legacy gewonnen
+  lead zonder koppeling maakt geen werkitem.
+- Integratietests dagkaart/facturatie met een klant mét uitvoeradres.
+- Migratie-scaffolding (batch/rapport) dubbel in beide migraties.
