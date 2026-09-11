@@ -1046,12 +1046,11 @@ export const ontkoppelKlant = mutation({
 
     await ctx.db.insert("leadActiviteiten", {
       leadId: lead._id,
-      type: "klant_gekoppeld",
+      type: "klant_ontkoppeld",
       beschrijving: "Klantkoppeling verwijderd",
       gebruikerId: currentUser._id,
       metadata: {
         ontkoppeldKlantId: gekoppeldKlantId,
-        ontkoppeld: true,
       },
       createdAt: now,
     });

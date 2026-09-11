@@ -55,7 +55,8 @@ export const create = mutation({
       v.literal("toewijzing"),
       v.literal("offerte_gekoppeld"),
       v.literal("aangemaakt"),
-      v.literal("klant_gekoppeld")
+      v.literal("klant_gekoppeld"),
+      v.literal("klant_ontkoppeld")
     ),
     beschrijving: v.string(),
     metadata: v.optional(v.record(v.string(), v.union(v.string(), v.number(), v.boolean(), v.null()))),

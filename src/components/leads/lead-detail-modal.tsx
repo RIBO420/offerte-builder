@@ -147,6 +147,8 @@ const activityDotColors: Record<string, string> = {
   toewijzing: "bg-purple-500",
   offerte_gekoppeld: "bg-indigo-500",
   klant_gekoppeld: "bg-teal-500",
+  // Grijs: een koppeling die er niet meer is, geen gebeurtenis om op te vallen.
+  klant_ontkoppeld: "bg-muted-foreground/60",
   aangemaakt: "bg-green-500",
 };
 

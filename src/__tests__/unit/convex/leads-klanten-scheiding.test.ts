@@ -626,7 +626,12 @@ describe("Klant koppelen vanuit een open lead", () => {
     await ontkoppelKlantH(ctx, { id: leadId });
 
     expect(getLead(store, leadId).gekoppeldKlantId).toBeUndefined();
-    expect(store.getAll("leadActiviteiten")).toHaveLength(1);
+    // Eigen logtype: in de historie is "ontkoppeld" dan niet te verwarren met
+    // "gekoppeld" (zelfde kleur/label zou de tijdlijn onleesbaar maken).
+    const activiteiten = store.getAll("leadActiviteiten");
+    expect(activiteiten).toHaveLength(1);
+    expect(activiteiten[0].type).toBe("klant_ontkoppeld");
+    expect((activiteiten[0].metadata as Record<string, unknown>).ontkoppeldKlantId).toBe(klantId);
     // Het klantrecord zelf blijft bestaan
     expect(store.getAll("klanten")).toHaveLength(1);
   });

@@ -3038,7 +3038,8 @@ export default defineSchema({
       // Koppeling met een klantrecord gelegd of losgemaakt zonder dat de lead
       // van het bord verdwijnt (klantfeedback aug: een offerte versturen moet
       // al in het klantdossier kunnen landen, vóór "gewonnen").
-      v.literal("klant_gekoppeld")
+      v.literal("klant_gekoppeld"),
+      v.literal("klant_ontkoppeld")
     ),
     beschrijving: v.string(),
     gebruikerId: v.optional(v.id("users")),
