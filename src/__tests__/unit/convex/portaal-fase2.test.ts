@@ -922,3 +922,86 @@ describe("portaal.updateProfile — naamregel", () => {
     );
   });
 });
+
+// ─── Profiel: contactgegevens langs dezelfde sanitizers als kantoor ──────────
+
+/**
+ * `updateProfile` schreef telefoon, adres, postcode en plaats rauw door,
+ * terwijl `klanten.update` ze sanitiseert en valideert. Een klant kon zo een
+ * postcode "abc" of een telefoonnummer met letters in zijn eigen dossier
+ * zetten — velden waar kantoor, de dagkaart en de reistijdcache op draaien.
+ * Dezelfde helpers, dezelfde foutmeldingen. (Tenancy blijft ongemoeid:
+ * requireKlant levert het eigen record, er komt nooit een id uit args.)
+ */
+describe("portaal.updateProfile — sanitizers van het kantoorformulier", () => {
+  it("normaliseert het telefoonnummer net als klanten.update", async () => {
+    const { store, ctx, klantAId } = portaalSetup();
+
+    await handler(updateProfile)(ctx, { telefoon: " 06-12 34 56 78 " });
+
+    expect(store.get(klantAId)!.telefoon).toBe("0612345678");
+  });
+
+  it("weigert een telefoonnummer dat geen Nederlands nummer is", async () => {
+    const { store, ctx, klantAId } = portaalSetup();
+    store.patch(klantAId, { telefoon: "0612345678" });
+
+    await expect(
+      handler(updateProfile)(ctx, { telefoon: "bel me maar" })
+    ).rejects.toBeInstanceOf(ConvexError);
+    expect(store.get(klantAId)!.telefoon).toBe("0612345678");
+  });
+
+  it("wist het telefoonnummer bij een lege string (optioneel veld)", async () => {
+    const { store, ctx, klantAId } = portaalSetup();
+    store.patch(klantAId, { telefoon: "0612345678" });
+
+    await handler(updateProfile)(ctx, { telefoon: "   " });
+
+    expect(store.get(klantAId)!.telefoon).toBeUndefined();
+  });
+
+  it("normaliseert een geldige postcode naar 1234 AB", async () => {
+    const { store, ctx, klantAId } = portaalSetup();
+
+    await handler(updateProfile)(ctx, { postcode: "1234ab" });
+
+    expect(store.get(klantAId)!.postcode).toBe("1234 AB");
+  });
+
+  it("weigert een onzinnige postcode", async () => {
+    const { ctx } = portaalSetup();
+
+    await expect(
+      handler(updateProfile)(ctx, { postcode: "abc" })
+    ).rejects.toBeInstanceOf(ConvexError);
+  });
+
+  it("trimt adres en plaats en weigert ze leeg, net als het kantoorformulier", async () => {
+    const { store, ctx, klantAId } = portaalSetup();
+
+    await handler(updateProfile)(ctx, {
+      adres: "  Tuinlaan 9  ",
+      plaats: "  Staphorst  ",
+    });
+    expect(store.get(klantAId)!.adres).toBe("Tuinlaan 9");
+    expect(store.get(klantAId)!.plaats).toBe("Staphorst");
+
+    await expect(
+      handler(updateProfile)(ctx, { adres: "   " })
+    ).rejects.toBeInstanceOf(ConvexError);
+    await expect(
+      handler(updateProfile)(ctx, { plaats: "   " })
+    ).rejects.toBeInstanceOf(ConvexError);
+  });
+
+  it("raakt alleen het eigen record, nooit dat van een andere klant", async () => {
+    const { store, ctx, klantAId, klantBId } = portaalSetup();
+    const voorB = { ...store.get(klantBId)! };
+
+    await handler(updateProfile)(ctx, { telefoon: "0612345678" });
+
+    expect(store.get(klantAId)!.telefoon).toBe("0612345678");
+    expect(store.get(klantBId)!.telefoon).toBe(voorB.telefoon);
+  });
+});

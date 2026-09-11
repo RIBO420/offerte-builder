@@ -33,6 +33,7 @@ import {
 import { zetTriggerMailKlaar } from "./mailTriggers";
 import { eigenaarVanOrg } from "./lib/orgEigenaar";
 import { naamPatchVoor } from "./lib/klantNaam";
+import { sanitizePhone, validateRequiredPostcode } from "./validators";
 
 /**
  * Klant-zichtbaarheid van een factuur (portaal-regel 3): uitsluitend
@@ -556,10 +557,36 @@ export const updateProfile = mutation({
       }
       Object.assign(updates, naamPatchVoor(klant, { naam }));
     }
-    if (args.telefoon !== undefined) updates.telefoon = args.telefoon;
-    if (args.adres !== undefined) updates.adres = args.adres;
-    if (args.postcode !== undefined) updates.postcode = args.postcode;
-    if (args.plaats !== undefined) updates.plaats = args.plaats;
+    /**
+     * Contactgegevens lopen langs exact dezelfde sanitizers en validators als
+     * `klanten.update`, met dezelfde foutmeldingen. Deze velden zijn geen
+     * portaal-decoratie: kantoor belt erop, de dagkaart rijdt erop en de
+     * reistijdcache is op de adresregel gesleuteld. Rauw doorschrijven liet
+     * een klant "abc" als postcode of letters als telefoonnummer opslaan.
+     *
+     * Leeg betekent hier wat het bij het kantoorformulier betekent: telefoon
+     * is optioneel en wordt door een lege waarde gewist, adres/postcode/plaats
+     * zijn verplicht en weigeren leeg (het portaalformulier stuurt een leeg
+     * veld sowieso niet mee — het maakt er `undefined` van).
+     */
+    if (args.telefoon !== undefined) {
+      updates.telefoon = sanitizePhone(args.telefoon);
+    }
+    if (args.adres !== undefined) {
+      if (!args.adres.trim()) {
+        throw new ConvexError("Adres is verplicht");
+      }
+      updates.adres = args.adres.trim();
+    }
+    if (args.postcode !== undefined) {
+      updates.postcode = validateRequiredPostcode(args.postcode);
+    }
+    if (args.plaats !== undefined) {
+      if (!args.plaats.trim()) {
+        throw new ConvexError("Plaats is verplicht");
+      }
+      updates.plaats = args.plaats.trim();
+    }
 
     if (Object.keys(updates).length > 0) {
       await ctx.db.patch(klant._id, { ...updates, updatedAt: Date.now() });
