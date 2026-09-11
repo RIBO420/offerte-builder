@@ -44,7 +44,7 @@ import {
 import { kiesReistijdProvider } from "./reistijdLogica";
 import { checkReistijdRateLimit } from "./security";
 import { getType, type WerkItem } from "./werkitems";
-import { adresRegel } from "./lib/adres";
+import { adresRegel, klantUitvoerAdres } from "./lib/adres";
 
 /**
  * Maximaal aantal betaalde Google Maps-calls per aanroep van
@@ -322,7 +322,9 @@ export const getDagkaart = query({
 
     for (const item of items) {
       const klant = item.klantId ? await haalKlant(item.klantId) : null;
-      const adres = item.adres ?? (klant ? adresRegel(klant) || null : null);
+      const adres =
+        item.adres ??
+        (klant ? adresRegel(klantUitvoerAdres(klant)) || null : null);
 
       // Taken: eigen bouwsteenregels, anders de contractwerkzaamheid als taak
       let regels = item.bouwsteenRegels ?? [];
@@ -433,7 +435,7 @@ async function adresVanWerkitem(
     klantCache.set(key, await db.get(item.klantId));
   }
   const klant = klantCache.get(key) ?? null;
-  return klant ? adresRegel(klant) || null : null;
+  return klant ? adresRegel(klantUitvoerAdres(klant)) || null : null;
 }
 
 /**
@@ -827,7 +829,7 @@ export const getOntbrekendeAdresParen = internalQuery({
         klantCache.set(item.klantId, await ctx.db.get(item.klantId));
       }
       const klant = klantCache.get(item.klantId) ?? null;
-      adressen.push(klant ? adresRegel(klant) || null : null);
+      adressen.push(klant ? adresRegel(klantUitvoerAdres(klant)) || null : null);
     }
     const paren = adresParenVoorDag(config.loodsAdres, adressen);
 

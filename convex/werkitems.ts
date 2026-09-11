@@ -27,7 +27,7 @@ import {
 import { logTijdlijnEvent } from "./tijdlijn";
 import { zetTriggerMailKlaar } from "./mailTriggers";
 import { formatDatumNl } from "./conceptMails";
-import { adresRegel } from "./lib/adres";
+import { adresRegel, klantFactuurAdres, klantUitvoerAdres } from "./lib/adres";
 
 // ============================================
 // Types
@@ -126,7 +126,8 @@ export function assertVeldenVoorType(
 
 /**
  * Adres van een werkitem: eigen adres wint, anders het klantadres (PRD §1.1:
- * default = klantadres, overschrijfbaar).
+ * default = klantadres, overschrijfbaar). Werk gaat naar het UITVOERadres van
+ * de klant als dat er is — het hoofdadres is het factuuradres.
  */
 /**
  * Wil deze klant een bevestigingsmail bij het inplannen? Het v13-dossierveld
@@ -149,11 +150,14 @@ export function wilInplanBevestigingsmail(
 
 export function resolveAdres(
   werkitem: Pick<WerkItem, "adres">,
-  klant: Pick<Doc<"klanten">, "adres" | "postcode" | "plaats"> | null
+  klant: Pick<
+    Doc<"klanten">,
+    "adres" | "postcode" | "plaats" | "uitvoerAdres"
+  > | null
 ): string | null {
   if (werkitem.adres) return werkitem.adres;
   if (!klant) return null;
-  return adresRegel(klant) || null;
+  return adresRegel(klantUitvoerAdres(klant)) || null;
 }
 
 /** Interne helper: werkitem ophalen + org-eigenaarschap verifiëren. */
@@ -284,6 +288,14 @@ export const createWerkitem = mutation({
     teamId: v.optional(v.id("teams")),
     geschatteUren: v.optional(v.number()),
     adres: v.optional(v.string()),
+    /**
+     * Welk klantadres het werkitem krijgt als er geen eigen `adres` wordt
+     * meegegeven. "uitvoer" (de default-logica) pakt het uitvoeradres met
+     * terugval op het hoofdadres, "hoofd" dwingt het hoofdadres af. Zonder
+     * keuze én zonder `adres` blijft het veld leeg en lost `resolveAdres` het
+     * bij het lezen op — dezelfde uitvoer-logica, maar dan levend.
+     */
+    adresKeuze: v.optional(v.union(v.literal("uitvoer"), v.literal("hoofd"))),
     // Grondverzet (alleen type "project")
     ontgravenVolumeM3: v.optional(v.number()),
     mbaStatus: v.optional(v.string()),
@@ -316,6 +328,19 @@ export const createWerkitem = mutation({
       }
     }
 
+    // Adres: een expliciet meegegeven `adres` wint altijd (vrij tekstveld).
+    // Anders bepaalt `adresKeuze` welk klantadres wordt vastgelegd; zonder
+    // keuze blijft het veld leeg en gaat `resolveAdres` het bij het lezen
+    // ophalen (uitvoeradres, met terugval op het hoofdadres).
+    let adres = args.adres;
+    if (!adres && args.adresKeuze) {
+      const gekozen =
+        args.adresKeuze === "hoofd"
+          ? klantFactuurAdres(klant)
+          : klantUitvoerAdres(klant);
+      adres = adresRegel(gekozen) || undefined;
+    }
+
     const now = Date.now();
     return await ctx.db.insert("projecten", {
       orgId: org._id,
@@ -330,7 +355,7 @@ export const createWerkitem = mutation({
       geplandeEind: args.geplandeEind,
       teamId: args.teamId,
       geschatteUren: args.geschatteUren,
-      adres: args.adres,
+      adres,
       ontgravenVolumeM3: args.ontgravenVolumeM3,
       mbaStatus: args.mbaStatus,
       dsoReferentie: args.dsoReferentie,

@@ -88,3 +88,58 @@ export function googleMapsRouteUrl(adres: AdresVelden | string): string {
   if (!regel) return "";
   return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(regel)}`;
 }
+
+// ============================================
+// Uitvoeradres vs. factuuradres
+// ============================================
+
+/**
+ * Een klant heeft er sinds sep 2026 twee: de losse `adres`/`postcode`/`plaats`
+ * zijn het hoofd-/factuuradres, `uitvoerAdres` is de plek waar het werk
+ * gebeurt als die daarvan afwijkt.
+ */
+export type KlantAdresVelden = AdresVelden & {
+  uitvoerAdres?: {
+    adres?: string | null;
+    postcode?: string | null;
+    plaats?: string | null;
+  } | null;
+};
+
+/** Staat er iets bruikbaars in het uitvoeradres? Alleen-lege-velden telt niet. */
+export function heeftUitvoerAdres(klant: KlantAdresVelden): boolean {
+  return klant.uitvoerAdres ? adresRegel(klant.uitvoerAdres) !== "" : false;
+}
+
+/**
+ * Het adres waar het WERK naartoe gaat: werkitems, planbord, dagkaart,
+ * route-/reistijdberekening, contractlocatie en de veld-app. Het uitvoeradres
+ * wint; is dat er niet (of leeg), dan het hoofdadres.
+ */
+export function klantUitvoerAdres(klant: KlantAdresVelden): AdresVelden {
+  if (heeftUitvoerAdres(klant)) {
+    const uitvoer = klant.uitvoerAdres!;
+    return {
+      adres: uitvoer.adres,
+      postcode: uitvoer.postcode,
+      plaats: uitvoer.plaats,
+    };
+  }
+  return klantFactuurAdres(klant);
+}
+
+/**
+ * Het adres waar de REKENING naartoe gaat: offertes en facturen. Altijd het
+ * hoofdadres — een uitvoeradres verandert daar niets aan. Deze helper legt
+ * die keuze vast op de plekken waar tot nu toe stilzwijgend `klant.adres`
+ * stond; het gedrag blijft gelijk.
+ */
+export function klantFactuurAdres<T extends KlantAdresVelden>(
+  klant: T
+): { adres: T["adres"]; postcode: T["postcode"]; plaats: T["plaats"] } {
+  return {
+    adres: klant.adres,
+    postcode: klant.postcode,
+    plaats: klant.plaats,
+  };
+}

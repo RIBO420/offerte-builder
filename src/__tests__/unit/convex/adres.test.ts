@@ -16,6 +16,9 @@ import {
   adresRegel,
   googleMapsZoekUrl,
   googleMapsRouteUrl,
+  heeftUitvoerAdres,
+  klantFactuurAdres,
+  klantUitvoerAdres,
 } from "../../../../convex/lib/adres";
 
 describe("adresRegel", () => {
@@ -101,5 +104,114 @@ describe("googleMapsRouteUrl", () => {
 
   it("geeft een lege string bij een leeg adres", () => {
     expect(googleMapsRouteUrl({})).toBe("");
+  });
+});
+
+/**
+ * Uitvoeradres vs. factuuradres (11 sep 2026, wens Mickey).
+ *
+ * Een klant kan op het ene adres wonen en op het andere een tuin hebben. De
+ * ruling: wérk (werkitems, planbord, dagkaart, routes, contracten, veld-app)
+ * gaat naar het uitvoeradres als dat er is; offertes en facturen gaan altijd
+ * naar het hoofdadres. Deze twee helpers zijn de enige plek waar die keuze
+ * valt.
+ */
+describe("klantUitvoerAdres", () => {
+  const hoofd = { adres: "Hoofdweg 1", postcode: "1234 AB", plaats: "Meppel" };
+
+  it("geeft het uitvoeradres als de klant er een heeft", () => {
+    expect(
+      adresRegel(
+        klantUitvoerAdres({
+          ...hoofd,
+          uitvoerAdres: {
+            adres: "Tuinlaan 9",
+            postcode: "7941 CD",
+            plaats: "Staphorst",
+          },
+        })
+      )
+    ).toBe("Tuinlaan 9, 7941 CD Staphorst");
+  });
+
+  it("valt terug op het hoofdadres zonder uitvoeradres", () => {
+    expect(adresRegel(klantUitvoerAdres(hoofd))).toBe(
+      "Hoofdweg 1, 1234 AB Meppel"
+    );
+    expect(adresRegel(klantUitvoerAdres({ ...hoofd, uitvoerAdres: null }))).toBe(
+      "Hoofdweg 1, 1234 AB Meppel"
+    );
+  });
+
+  it("negeert een uitvoeradres dat alleen uit lege velden bestaat", () => {
+    expect(
+      adresRegel(
+        klantUitvoerAdres({
+          ...hoofd,
+          uitvoerAdres: { adres: " ", postcode: "", plaats: "  " },
+        })
+      )
+    ).toBe("Hoofdweg 1, 1234 AB Meppel");
+  });
+
+  it("accepteert een half gevuld uitvoeradres (alleen plaats)", () => {
+    expect(
+      adresRegel(
+        klantUitvoerAdres({
+          ...hoofd,
+          uitvoerAdres: { adres: "", postcode: "", plaats: "Zwolle" },
+        })
+      )
+    ).toBe("Zwolle");
+  });
+});
+
+describe("klantFactuurAdres", () => {
+  it("geeft altijd het hoofdadres, ook met een uitvoeradres", () => {
+    expect(
+      adresRegel(
+        klantFactuurAdres({
+          adres: "Hoofdweg 1",
+          postcode: "1234 AB",
+          plaats: "Meppel",
+          uitvoerAdres: {
+            adres: "Tuinlaan 9",
+            postcode: "7941 CD",
+            plaats: "Staphorst",
+          },
+        })
+      )
+    ).toBe("Hoofdweg 1, 1234 AB Meppel");
+  });
+
+  it("laat het uitvoeradres niet in de losse velden lekken", () => {
+    expect(
+      klantFactuurAdres({
+        adres: "Hoofdweg 1",
+        postcode: "1234 AB",
+        plaats: "Meppel",
+        uitvoerAdres: { adres: "Tuinlaan 9", postcode: "7941 CD", plaats: "Staphorst" },
+      })
+    ).toEqual({ adres: "Hoofdweg 1", postcode: "1234 AB", plaats: "Meppel" });
+  });
+});
+
+describe("heeftUitvoerAdres", () => {
+  it("is waar zodra er iets in het uitvoeradres staat", () => {
+    expect(
+      heeftUitvoerAdres({
+        uitvoerAdres: { adres: "Tuinlaan 9", postcode: "", plaats: "" },
+      })
+    ).toBe(true);
+  });
+
+  it("is onwaar zonder of met een leeg uitvoeradres", () => {
+    expect(heeftUitvoerAdres({})).toBe(false);
+    expect(heeftUitvoerAdres({ uitvoerAdres: null })).toBe(false);
+    expect(
+      heeftUitvoerAdres({
+        uitvoerAdres: { adres: " ", postcode: " ", plaats: " " },
+      })
+    ).toBe(false);
   });
 });

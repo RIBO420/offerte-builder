@@ -36,6 +36,7 @@ import { toast } from "sonner";
 import { logger } from "@/lib/logger";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Id } from "../../../../../convex/_generated/dataModel";
+import { klantUitvoerAdres } from "@convex/lib/adres";
 
 // Types
 type Facturatiemodus =
@@ -286,13 +287,16 @@ function NieuwContractContent() {
     (klantId: string) => {
       setFormData((prev) => {
         const klant = klanten?.find((k) => k._id === klantId);
+        // De locatie van een contract is een WERKadres: het uitvoeradres wint,
+        // met terugval op het hoofdadres (convex/lib/adres.ts).
+        const locatie = klant ? klantUitvoerAdres(klant) : null;
         return {
           ...prev,
           klantId,
           // Pre-fill locatie from klant
-          locatieAdres: klant?.adres ?? prev.locatieAdres,
-          locatiePostcode: klant?.postcode ?? prev.locatiePostcode,
-          locatiePlaats: klant?.plaats ?? prev.locatiePlaats,
+          locatieAdres: locatie?.adres ?? prev.locatieAdres,
+          locatiePostcode: locatie?.postcode ?? prev.locatiePostcode,
+          locatiePlaats: locatie?.plaats ?? prev.locatiePlaats,
           naam: klant
             ? `Jaaronderhoud ${klant.naam}`
             : prev.naam,

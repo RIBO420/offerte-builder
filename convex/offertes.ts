@@ -25,6 +25,7 @@ import {
 } from "./lib/offerteKlant";
 import { reserveerOfferteNummer } from "./lib/offerteNummer";
 import { archiveerVerzondenDocument } from "./lib/klantBestandenArchief";
+import { klantFactuurAdres } from "./lib/adres";
 import { Doc, Id } from "./_generated/dataModel";
 
 /**
@@ -35,9 +36,9 @@ import { Doc, Id } from "./_generated/dataModel";
 function klantSnapshot(klant: Doc<"klanten">): OfferteKlant {
   return {
     naam: klant.naam,
-    adres: klant.adres,
-    postcode: klant.postcode,
-    plaats: klant.plaats,
+    // Een offerte gaat naar het factuuradres; een afwijkend uitvoeradres
+    // bepaalt alleen waar het werk gebeurt (werkitem/planbord/veld).
+    ...klantFactuurAdres(klant),
     email: klant.email,
     telefoon: klant.telefoon,
   };

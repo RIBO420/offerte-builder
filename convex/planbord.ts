@@ -42,7 +42,7 @@ import {
   type MiddelStatus,
 } from "./machineparkLogica";
 import { getType, seizoensvensterVoorWerkitem, type WerkItem } from "./werkitems";
-import { adresRegelOfNull } from "./lib/adres";
+import { adresRegelOfNull, klantUitvoerAdres } from "./lib/adres";
 
 // ============================================
 // Queries
@@ -263,7 +263,9 @@ export const getWachtrij = query({
         naam: item.naam,
         type: getType(item),
         klantNaam: klant?.naam ?? null,
-        adres: item.adres ?? (klant ? adresRegelOfNull(klant) : null),
+        adres:
+          item.adres ??
+          (klant ? adresRegelOfNull(klantUitvoerAdres(klant)) : null),
         geschatteUren: item.geschatteUren ?? null,
         voorzieneDatum: item.voorzieneDatum ?? null,
         voorkeursTeamId: voorkeuren.voorkeursTeamId ?? null,

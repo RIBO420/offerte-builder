@@ -29,6 +29,7 @@ import {
 import { logTijdlijnEvent } from "./tijdlijn";
 import { voorcalculatieVanProject } from "./lib/voorcalculatieLookup";
 import { archiveerVerzondenDocument } from "./lib/klantBestandenArchief";
+import { klantFactuurAdres } from "./lib/adres";
 
 /**
  * Validator voor klantgegevens op factuur
@@ -370,9 +371,8 @@ export const generate = mutation({
       klantId: project.klantId,
       klant: {
         naam: offerteKlant.naam,
-        adres: offerteKlant.adres,
-        postcode: offerteKlant.postcode,
-        plaats: offerteKlant.plaats,
+        // Factuuradres, niet het uitvoeradres (zie convex/lib/adres.ts).
+        ...klantFactuurAdres(offerteKlant),
         email: offerteKlant.email,
         telefoon: offerteKlant.telefoon,
       },
@@ -923,9 +923,8 @@ export const createVrij = mutation({
       bron: "handmatig",
       klant: {
         naam: klant.naam,
-        adres: klant.adres,
-        postcode: klant.postcode,
-        plaats: klant.plaats,
+        // Factuuradres, niet het uitvoeradres (zie convex/lib/adres.ts).
+        ...klantFactuurAdres(klant),
         email: klant.email,
         telefoon: klant.telefoon,
       },

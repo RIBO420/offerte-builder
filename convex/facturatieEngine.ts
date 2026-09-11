@@ -53,6 +53,7 @@ import {
   type TaakPrijsbron,
 } from "./facturatieLogica";
 import { verstuurFactuurKern } from "./facturen";
+import { klantFactuurAdres } from "./lib/adres";
 
 const ENGINE_AUTEUR = "Facturatie-engine";
 
@@ -93,12 +94,15 @@ async function volgendFactuurnummer(
   };
 }
 
+/**
+ * De klantgegevens zoals ze op de factuur worden vastgelegd. Een factuur gaat
+ * ALTIJD naar het hoofd-/factuuradres — een afwijkend uitvoeradres verandert
+ * alleen waar het werk gebeurt, niet waar de rekening heen gaat.
+ */
 function klantSnapshot(klant: Doc<"klanten">) {
   return {
     naam: klant.naam,
-    adres: klant.adres,
-    postcode: klant.postcode,
-    plaats: klant.plaats,
+    ...klantFactuurAdres(klant),
     email: klant.email,
     telefoon: klant.telefoon,
   };

@@ -31,7 +31,11 @@ import {
 } from "./veldLogica";
 import { bepaalEffectieveBus, type BusBron } from "./machineparkLogica";
 import { laadDocsMap } from "./lib/batchLoad";
-import { adresRegelOfNull, googleMapsRouteUrl } from "./lib/adres";
+import {
+  adresRegelOfNull,
+  googleMapsRouteUrl,
+  klantUitvoerAdres,
+} from "./lib/adres";
 
 const DATUM_PATROON = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -194,7 +198,7 @@ export const getDeltaChecklist = query({
     let adres = werkitem.adres ?? null;
     if (!adres && werkitem.klantId) {
       const klant = await ctx.db.get(werkitem.klantId);
-      if (klant) adres = adresRegelOfNull(klant);
+      if (klant) adres = adresRegelOfNull(klantUitvoerAdres(klant));
     }
     const mapsUrl = adres ? googleMapsRouteUrl(adres) : null;
 
