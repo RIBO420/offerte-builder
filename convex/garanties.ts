@@ -11,6 +11,7 @@ import { mutation, query } from "./_generated/server";
 import { requireOrg, requireOrgId, verifyOrgOwnership } from "./auth";
 import { requireNotViewer } from "./roles";
 import { laadDocsMap } from "./lib/batchLoad";
+import { adresRegel } from "./lib/adres";
 
 // ============================================
 // QUERIES
@@ -94,7 +95,7 @@ export const getById = query({
     return {
       ...garantie,
       klantNaam: klant?.naam ?? "Onbekend",
-      klantAdres: klant ? `${klant.adres}, ${klant.postcode} ${klant.plaats}` : "",
+      klantAdres: klant ? adresRegel(klant) : "",
       klantEmail: klant?.email ?? "",
       klantTelefoon: klant?.telefoon ?? "",
       projectNaam: project?.naam ?? "Onbekend",

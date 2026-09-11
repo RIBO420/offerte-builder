@@ -28,6 +28,7 @@ import { Doc } from "./_generated/dataModel";
 import { requireKantoor } from "./roles";
 import { requireOrgId } from "./auth";
 import { logTijdlijnEvent } from "./tijdlijn";
+import { adresRegel } from "./lib/adres";
 
 // ─── Constanten ──────────────────────────────────────────────────────────────
 
@@ -222,7 +223,7 @@ export async function genereerBeurtenVoorContract(
   );
 
   const now = Date.now();
-  const adres = `${contract.locatie.adres}, ${contract.locatie.postcode} ${contract.locatie.plaats}`;
+  const adres = adresRegel(contract.locatie);
   let aangemaakt = 0;
 
   for (const regel of werkzaamheden) {

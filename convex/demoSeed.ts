@@ -44,6 +44,7 @@ import { ConvexError } from "convex/values";
 import { internalMutation, internalQuery } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
 import type { DataModel, Doc, Id, TableNames } from "./_generated/dataModel";
+import { adresRegel } from "./lib/adres";
 
 // ============================================================
 // 1. Productie-guard
@@ -1641,7 +1642,7 @@ export const vullen = internalMutation({
               geplandeEindTijd: "16:00",
             }),
         geschatteUren: p.geschatteUren,
-        adres: `${k.adres}, ${k.postcode} ${k.plaats}`,
+        adres: adresRegel(k),
         toegewezenMedewerkerIds: TEAMS[p.team].ledenIndex.map((n) => medewerkerIds[n]),
         ...(p.status === "afgerond" ||
         p.status === "nacalculatie_compleet" ||

@@ -58,6 +58,7 @@ import {
   type VeldRol,
 } from "./veldLogica";
 import { logTijdlijnEvent } from "./tijdlijn";
+import { adresRegel } from "./lib/adres";
 
 // ============================================
 // Gedeelde helpers
@@ -273,8 +274,7 @@ export async function dagkaartVoorstellen(
       }
       klant = klantCache.get(item.klantId) ?? null;
     }
-    const adres =
-      item.adres ?? (klant ? `${klant.adres}, ${klant.plaats}` : null);
+    const adres = item.adres ?? (klant ? adresRegel(klant) : null);
 
     // Taken: eigen bouwsteenregels, anders de contractwerkzaamheid als taak
     let regels = item.bouwsteenRegels ?? [];

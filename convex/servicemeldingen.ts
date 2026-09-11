@@ -24,6 +24,7 @@ import { requireOrgId, verifyOrgOwnership } from "./auth";
 import { isKantoorRol, normalizeRole, requireKantoor } from "./roles";
 import { logTijdlijnEvent, requireInterneRol } from "./tijdlijn";
 import { laadDocsMap } from "./lib/batchLoad";
+import { adresRegel } from "./lib/adres";
 import { Doc, Id } from "./_generated/dataModel";
 
 // Status validator — PRD-statussen + legacy (ingepland/afgehandeld, MOD-010)
@@ -305,9 +306,7 @@ export const getById = query({
     return {
       ...melding,
       klantNaam: klant?.naam ?? (melding.klantId ? "Onbekend" : "Intern"),
-      klantAdres: klant
-        ? `${klant.adres}, ${klant.postcode} ${klant.plaats}`
-        : "",
+      klantAdres: klant ? adresRegel(klant) : "",
       klantEmail: klant?.email ?? "",
       klantTelefoon: klant?.telefoon ?? "",
       projectNaam: project?.naam ?? null,
@@ -821,7 +820,7 @@ export const promoveerNaarWerkitem = mutation({
       // Ongepland: geen geplandeStart/teamId — landt in de wachtrij (§2.2)
       bouwsteenRegels: [{ omschrijving: naam }],
       geschatteUren: args.geschatteUren,
-      adres: `${klant.adres}, ${klant.plaats}`,
+      adres: adresRegel(klant),
       meldingId: args.id,
       createdAt: now,
       updatedAt: now,
