@@ -221,6 +221,8 @@ export function RelatieImportDialog({
           ? await importKlanten({
               klanten: eigenEntries.map((e) => ({
                 naam: e.naam,
+                voornaam: e.voornaam,
+                achternaam: e.achternaam,
                 email: e.email,
                 telefoon: e.telefoon,
                 adres: e.adres,
