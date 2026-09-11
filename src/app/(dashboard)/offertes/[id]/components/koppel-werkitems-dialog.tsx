@@ -7,7 +7,7 @@ import {
   klantUitvoerAdres,
 } from "@convex/lib/adres";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { FolderKanban, Leaf, FileText, Plus, Trash2, Link2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -89,8 +89,19 @@ export function KoppelWerkitemsDialog({
     api.klanten.get,
     open && offerte.klantId ? { id: offerte.klantId } : "skip"
   );
+  /**
+   * Zolang het dossier nog onderweg is, weten we niet of deze klant een
+   * uitvoeradres heeft — koppelen zou dan stilzwijgend op het snapshot-adres
+   * (het factuuradres) landen. Even wachten dus; het is een enkele query.
+   */
+  const klantLaadt = Boolean(offerte.klantId) && klant === undefined;
   const toonWerkadresKeuze = klant ? heeftUitvoerAdres(klant) : false;
   const [werkadres, setWerkadres] = useState<"uitvoer" | "hoofd">("uitvoer");
+
+  // Dicht = schoon: anders opent de volgende offerte met de vorige keuze.
+  useEffect(() => {
+    if (!open) setWerkadres("uitvoer");
+  }, [open]);
 
   const [toewijzingen, setToewijzingen] = useState<Toewijzing[]>([]);
   const [nieuwType, setNieuwType] = useState<ToewijzingType>("project");
@@ -143,6 +154,7 @@ export function KoppelWerkitemsDialog({
   const kanKoppelen =
     toewijzingen.length > 0 &&
     toewijzingen.every(contractToewijzingCompleet) &&
+    !klantLaadt &&
     !bezig;
 
   const koppelEnAccepteer = async () => {
@@ -514,7 +526,7 @@ export function KoppelWerkitemsDialog({
             Annuleren
           </Button>
           <Button type="button" onClick={koppelEnAccepteer} disabled={!kanKoppelen}>
-            {bezig ? (
+            {bezig || klantLaadt ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
               <Link2 className="mr-2 h-4 w-4" />
