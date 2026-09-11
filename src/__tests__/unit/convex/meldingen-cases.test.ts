@@ -643,6 +643,58 @@ describe("promoveerNaarWerkitem (§2.4)", () => {
     expect(store.getAll("klantTijdlijn")).toHaveLength(1);
     expect(store.getAll("meldingComments")).toHaveLength(1);
   });
+
+  /**
+   * Ruling sep 2026: wérk gaat naar het uitvoeradres, de rekening naar het
+   * hoofdadres. Een herstelbeurt uit een melding is werk — de ploeg hoort dus
+   * niet op het factuuradres te staan.
+   */
+  it("legt het uitvoeradres vast, niet het factuuradres", async () => {
+    const { ctx, store, userId, orgId } = ctxMetRol("directie");
+    const klantId = store.insert(
+      "klanten",
+      createMockKlant(userId, {
+        orgId,
+        adres: "Hoofdweg 1",
+        postcode: "1234 AB",
+        plaats: "Meppel",
+        uitvoerAdres: {
+          adres: "Tuinlaan 9",
+          postcode: "7941 CD",
+          plaats: "Staphorst",
+        },
+      })
+    );
+    const meldingId = insertMelding(store, userId, orgId, klantId, {
+      beschrijving: "Heg staat scheef",
+    });
+
+    const werkitemId = (await handler(promoveerNaarWerkitem)(ctx, {
+      id: meldingId,
+    })) as string;
+
+    expect(store.get(werkitemId)!.adres).toBe("Tuinlaan 9, 7941 CD Staphorst");
+  });
+
+  it("valt terug op het hoofdadres als er geen uitvoeradres is", async () => {
+    const { ctx, store, userId, orgId } = ctxMetRol("directie");
+    const klantId = store.insert(
+      "klanten",
+      createMockKlant(userId, {
+        orgId,
+        adres: "Hoofdweg 1",
+        postcode: "1234 AB",
+        plaats: "Meppel",
+      })
+    );
+    const meldingId = insertMelding(store, userId, orgId, klantId);
+
+    const werkitemId = (await handler(promoveerNaarWerkitem)(ctx, {
+      id: meldingId,
+    })) as string;
+
+    expect(store.get(werkitemId)!.adres).toBe("Hoofdweg 1, 1234 AB Meppel");
+  });
 });
 
 // ─── 7. Attenderingstest §8.12: cron, idempotentie, vrijgeven ────────────────

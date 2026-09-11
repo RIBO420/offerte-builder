@@ -24,7 +24,7 @@ import { requireOrgId, verifyOrgOwnership } from "./auth";
 import { isKantoorRol, normalizeRole, requireKantoor } from "./roles";
 import { logTijdlijnEvent, requireInterneRol } from "./tijdlijn";
 import { laadDocsMap } from "./lib/batchLoad";
-import { adresRegel } from "./lib/adres";
+import { adresRegel, klantUitvoerAdres } from "./lib/adres";
 import { Doc, Id } from "./_generated/dataModel";
 
 // Status validator — PRD-statussen + legacy (ingepland/afgehandeld, MOD-010)
@@ -820,7 +820,10 @@ export const promoveerNaarWerkitem = mutation({
       // Ongepland: geen geplandeStart/teamId — landt in de wachtrij (§2.2)
       bouwsteenRegels: [{ omschrijving: naam }],
       geschatteUren: args.geschatteUren,
-      adres: adresRegel(klant),
+      // Wérk gaat naar het uitvoeradres (ruling sep 2026); alleen de rekening
+      // volgt het hoofdadres. Leeg adres niet vastleggen: dan lost
+      // `resolveAdres` het levend op uit het dossier.
+      adres: adresRegel(klantUitvoerAdres(klant)) || undefined,
       meldingId: args.id,
       createdAt: now,
       updatedAt: now,
