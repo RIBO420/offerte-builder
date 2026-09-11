@@ -128,6 +128,93 @@ export function vindKlantMatch<K extends { isArchived?: boolean; email?: string 
   );
 }
 
+// ─── Klantrecord bij een lead (gedeeld door promotie en handmatig koppelen) ──
+
+/**
+ * De velden van een lead die nodig zijn om er een klant bij te zoeken of van
+ * te maken. Bewust smaller dan `Doc<"configuratorAanvragen">` zodat de helpers
+ * ook met een fixture of een deelselectie te gebruiken zijn.
+ */
+export type LeadKlantGegevens = {
+  klantNaam: string;
+  klantEmail?: string;
+  klantTelefoon?: string;
+  klantAdres?: string;
+  klantPostcode?: string;
+  klantPlaats?: string;
+};
+
+/**
+ * Zoek binnen de eigen organisatie een bestaande klant bij een lead, op
+ * genormaliseerd e-mailadres (case-insensitief, via de by_email-index).
+ *
+ * Geeft `undefined` als de lead geen e-mailadres heeft of er geen match is.
+ * Kijkt bewust NIET naar `gekoppeldKlantId`: dat is een beslissing van de
+ * aanroeper (promoveerLead respecteert een bestaande koppeling, de handmatige
+ * flow gebruikt deze helper juist om er een te leggen).
+ */
+export async function vindKlantVoorLead(
+  ctx: GenericMutationCtx<DataModel>,
+  lead: LeadKlantGegevens,
+  orgId: Id<"organisaties">
+): Promise<Id<"klanten"> | undefined> {
+  const emailGenormaliseerd = normaliseerEmail(lead.klantEmail);
+  if (!emailGenormaliseerd) return undefined;
+
+  // by_email is een bedrijfsoverstijgende index: de org-filter hieronder
+  // voorkomt dat een lead aan de klant van een andere tenant wordt gekoppeld.
+  const kandidaten = (
+    await ctx.db
+      .query("klanten")
+      .withIndex("by_email", (q) => q.eq("email", emailGenormaliseerd))
+      .collect()
+  ).filter((k) => k.orgId?.toString() === orgId.toString());
+  const match = vindKlantMatch(kandidaten, emailGenormaliseerd)?._id;
+  if (match) return match;
+
+  // Legacy-vangnet: rijen die vóór de e-mailnormalisatie zijn aangemaakt
+  // kunnen het adres nog met hoofdletters opgeslagen hebben; die staan op
+  // een andere index-sleutel. Eén extra indexquery op het ruwe adres dekt
+  // dit af tot migrations/saneerLeadsKlanten gedraaid is.
+  const ruweEmail = lead.klantEmail?.trim();
+  if (!ruweEmail || ruweEmail === emailGenormaliseerd) return undefined;
+
+  const legacyKandidaten = (
+    await ctx.db
+      .query("klanten")
+      .withIndex("by_email", (q) => q.eq("email", ruweEmail))
+      .collect()
+  ).filter((k) => k.orgId?.toString() === orgId.toString());
+  return vindKlantMatch(legacyKandidaten, emailGenormaliseerd)?._id;
+}
+
+/**
+ * Maak een klantrecord uit de lead-gegevens (géén deprecated "lead"-stadium,
+ * zie de saneringskeuze bovenaan dit bestand). Tenancy = de organisatie van de
+ * ingelogde kantoor-gebruiker, zoals klanten.create.
+ *
+ * Legt zelf GEEN koppeling en logt niets: dat doet de aanroeper, die ook weet
+ * of het om een promotie of om een handmatige koppeling gaat.
+ */
+export async function maakKlantUitLead(
+  ctx: GenericMutationCtx<DataModel>,
+  lead: LeadKlantGegevens,
+  orgId: Id<"organisaties">
+): Promise<Id<"klanten">> {
+  const now = Date.now();
+  return await ctx.db.insert("klanten", {
+    orgId,
+    naam: lead.klantNaam.trim(),
+    adres: lead.klantAdres?.trim() ?? "",
+    postcode: lead.klantPostcode?.trim() ?? "",
+    plaats: lead.klantPlaats?.trim() ?? "",
+    email: normaliseerEmail(lead.klantEmail),
+    telefoon: lead.klantTelefoon?.trim() || undefined,
+    createdAt: now,
+    updatedAt: now,
+  });
+}
+
 // ─── Promotie Lead → Klant (kern van markGewonnen) ───────────────────────────
 
 export type PromotieResultaat = {
@@ -171,53 +258,15 @@ export async function promoveerLead(
   }
 
   const now = Date.now();
-  const emailGenormaliseerd = normaliseerEmail(lead.klantEmail);
 
   // 1. Bestaande klant zoeken: eerst de al gelegde koppeling, anders
   //    case-insensitief op e-mail via de by_email-index.
-  let klantId = lead.gekoppeldKlantId;
+  let klantId = lead.gekoppeldKlantId ?? (await vindKlantVoorLead(ctx, lead, orgId));
   let nieuweKlant = false;
-
-  if (!klantId && emailGenormaliseerd) {
-    // by_email is een bedrijfsoverstijgende index: de org-filter hieronder
-    // voorkomt dat een lead aan de klant van een andere tenant wordt gekoppeld.
-    const kandidaten = (
-      await ctx.db
-        .query("klanten")
-        .withIndex("by_email", (q) => q.eq("email", emailGenormaliseerd))
-        .collect()
-    ).filter((k) => k.orgId?.toString() === orgId.toString());
-    klantId = vindKlantMatch(kandidaten, emailGenormaliseerd)?._id;
-
-    // Legacy-vangnet: rijen die vóór de e-mailnormalisatie zijn aangemaakt
-    // kunnen het adres nog met hoofdletters opgeslagen hebben; die staan op
-    // een andere index-sleutel. Eén extra indexquery op het ruwe adres dekt
-    // dit af tot migrations/saneerLeadsKlanten gedraaid is.
-    const ruweEmail = lead.klantEmail?.trim();
-    if (!klantId && ruweEmail && ruweEmail !== emailGenormaliseerd) {
-      const legacyKandidaten = (
-        await ctx.db
-          .query("klanten")
-          .withIndex("by_email", (q) => q.eq("email", ruweEmail))
-          .collect()
-      ).filter((k) => k.orgId?.toString() === orgId.toString());
-      klantId = vindKlantMatch(legacyKandidaten, emailGenormaliseerd)?._id;
-    }
-  }
 
   // 2. Geen match → de lead wórdt de klant (géén "lead"-stadium, zie sanering).
   if (!klantId) {
-    klantId = await ctx.db.insert("klanten", {
-      orgId,
-      naam: lead.klantNaam.trim(),
-      adres: lead.klantAdres?.trim() ?? "",
-      postcode: lead.klantPostcode?.trim() ?? "",
-      plaats: lead.klantPlaats?.trim() ?? "",
-      email: emailGenormaliseerd,
-      telefoon: lead.klantTelefoon?.trim() || undefined,
-      createdAt: now,
-      updatedAt: now,
-    });
+    klantId = await maakKlantUitLead(ctx, lead, orgId);
     nieuweKlant = true;
   }
 

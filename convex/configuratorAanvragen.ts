@@ -5,11 +5,17 @@ import { requireNotViewer } from "./roles";
 import { Doc } from "./_generated/dataModel";
 import {
   mapOldStatus,
+  effectieveLeadStatus,
   isActieveLead,
   isGepromoveerdeLead,
   promoveerLead,
+  vindKlantVoorLead,
+  // Alias: de mutation hieronder heet óók maakKlantUitLead (dat is de naam die
+  // de UI aanroept); de helper maakt alleen het klantrecord.
+  maakKlantUitLead as maakKlantRecordUitLead,
   type LeadPipelineStatus,
 } from "./leadsKlantenHelpers";
+import { logTijdlijnEvent } from "./tijdlijn";
 import { zetTriggerMailKlaar } from "./mailTriggers";
 import {
   checkConfiguratorEmailRateLimit,
@@ -849,6 +855,208 @@ export const markGewonnen = mutation({
 
     const resultaat = await promoveerLead(ctx, lead, currentUser, orgId);
     return resultaat;
+  },
+});
+
+// ============================================
+// Klantkoppeling zonder promotie (klantfeedback augustus)
+// ============================================
+
+/**
+ * Een offerte versturen naar een lead moet in het klantdossier kunnen landen —
+ * ook vóórdat de lead gewonnen is. Daarom kan een lead een klantrecord krijgen
+ * zonder te promoveren: `isGepromoveerdeLead` eist gewonnen ÉN een koppeling,
+ * dus een gekoppelde lead met status "offerte_verstuurd" blijft gewoon op het
+ * bord staan (listByPipeline).
+ */
+
+/**
+ * De klant achter een klantId, mits die van de eigen organisatie is en niet
+ * gearchiveerd.
+ *
+ * Eén generieke melding voor alle gevallen (bestaat niet / andere tenant /
+ * gearchiveerd): het verschil tussen "bestaat niet" en "bestaat, maar bij de
+ * buurman" is precies de informatie die we niet willen lekken.
+ */
+async function klantVanEigenOrg(
+  ctx: MutationCtx,
+  klantId: Id<"klanten">,
+  orgId: Id<"organisaties">
+): Promise<Doc<"klanten">> {
+  const klant = await ctx.db.get(klantId);
+  if (!klant || klant.orgId?.toString() !== orgId.toString() || klant.isArchived) {
+    throw new ConvexError("Klant niet gevonden");
+  }
+  return klant;
+}
+
+/**
+ * Leg de koppeling vast: alleen `gekoppeldKlantId` (+ `updatedAt`), nooit de
+ * pipelinestatus. Logt de activiteit op de lead en het event op de
+ * klanttijdlijn, zodat het klantdossier vanaf nu alles van deze lead toont.
+ *
+ * Tijdlijn-eventType: bewust "handmatig" — "lead_gewonnen" zou in het dossier
+ * een winst suggereren die er nog niet is, en een nieuw eventType toevoegen is
+ * voor deze ene handeling niet nodig.
+ */
+async function legKlantKoppelingVast(
+  ctx: MutationCtx,
+  lead: Doc<"configuratorAanvragen">,
+  klantId: Id<"klanten">,
+  currentUser: Doc<"users">,
+  orgId: Id<"organisaties">,
+  nieuweKlant: boolean
+): Promise<void> {
+  const now = Date.now();
+
+  await ctx.db.patch(lead._id, {
+    gekoppeldKlantId: klantId,
+    updatedAt: now,
+  });
+
+  await ctx.db.insert("leadActiviteiten", {
+    leadId: lead._id,
+    type: "klant_gekoppeld",
+    beschrijving: nieuweKlant
+      ? "Klant aangemaakt vanuit deze lead en gekoppeld"
+      : "Gekoppeld aan bestaande klant",
+    gebruikerId: currentUser._id,
+    metadata: {
+      gekoppeldKlantId: klantId,
+      nieuweKlant,
+    },
+    createdAt: now,
+  });
+
+  await logTijdlijnEvent(ctx, {
+    orgId,
+    klantId,
+    eventType: "handmatig",
+    auteurId: currentUser._id,
+    auteurNaam: currentUser.name,
+    tekst: nieuweKlant
+      ? `Klantdossier aangemaakt vanuit lead ${lead.referentie}`
+      : `Gekoppeld aan lead ${lead.referentie}`,
+  });
+}
+
+/**
+ * Koppel een bestaande klant aan een lead (authenticated).
+ *
+ * De lead blijft open: alleen `gekoppeldKlantId` wordt gezet, de
+ * pipelinestatus blijft staan.
+ */
+export const koppelKlant = mutation({
+  args: {
+    id: v.id("configuratorAanvragen"),
+    klantId: v.id("klanten"),
+  },
+  handler: async (ctx, args) => {
+    const currentUser = await requireNotViewer(ctx);
+    const orgId = await requireOrgId(ctx);
+
+    const lead = await verifyOrgOwnership(ctx, await ctx.db.get(args.id), "lead");
+
+    // Idempotent: dezelfde klant nogmaals koppelen logt niets dubbel.
+    if (lead.gekoppeldKlantId?.toString() === args.klantId.toString()) {
+      return { klantId: args.klantId, alGekoppeld: true };
+    }
+
+    // Bij een gewonnen lead ís de klant de lead (PRD §1.3): omhangen zou het
+    // dossier van de promotie loskoppelen.
+    if (lead.gekoppeldKlantId && effectieveLeadStatus(lead) === "gewonnen") {
+      throw new ConvexError(
+        "Een gewonnen lead kan niet aan een andere klant worden gekoppeld"
+      );
+    }
+
+    await klantVanEigenOrg(ctx, args.klantId, orgId);
+    await legKlantKoppelingVast(ctx, lead, args.klantId, currentUser, orgId, false);
+
+    return { klantId: args.klantId, alGekoppeld: false };
+  },
+});
+
+/**
+ * Maak een klantrecord uit de lead-gegevens en koppel dat (authenticated).
+ *
+ * Volgorde: bestaande koppeling → e-mail-dedup binnen de eigen organisatie →
+ * anders een nieuw klantrecord. Er wordt géén werkitem aangemaakt en de lead
+ * wordt niet gepromoveerd: dat blijft voorbehouden aan markGewonnen.
+ */
+export const maakKlantUitLead = mutation({
+  args: {
+    id: v.id("configuratorAanvragen"),
+  },
+  handler: async (ctx, args) => {
+    const currentUser = await requireNotViewer(ctx);
+    const orgId = await requireOrgId(ctx);
+
+    const lead = await verifyOrgOwnership(ctx, await ctx.db.get(args.id), "lead");
+
+    if (lead.gekoppeldKlantId) {
+      return { klantId: lead.gekoppeldKlantId, nieuweKlant: false };
+    }
+
+    if (!lead.klantNaam?.trim()) {
+      throw new ConvexError("Klantnaam is verplicht om een klant aan te maken");
+    }
+
+    const bestaandeKlantId = await vindKlantVoorLead(ctx, lead, orgId);
+    const nieuweKlant = bestaandeKlantId === undefined;
+    const klantId =
+      bestaandeKlantId ?? (await maakKlantRecordUitLead(ctx, lead, orgId));
+
+    await legKlantKoppelingVast(ctx, lead, klantId, currentUser, orgId, nieuweKlant);
+
+    return { klantId, nieuweKlant };
+  },
+});
+
+/**
+ * Maak de klantkoppeling van een lead los (authenticated).
+ *
+ * Alleen zolang de lead niet gewonnen is: bij een gewonnen lead ís de lead de
+ * klant, en ontkoppelen zou hem uit het niets weer op het bord zetten. Het
+ * klantrecord zelf blijft altijd bestaan.
+ */
+export const ontkoppelKlant = mutation({
+  args: {
+    id: v.id("configuratorAanvragen"),
+  },
+  handler: async (ctx, args) => {
+    const currentUser = await requireNotViewer(ctx);
+
+    const lead = await verifyOrgOwnership(ctx, await ctx.db.get(args.id), "lead");
+
+    if (effectieveLeadStatus(lead) === "gewonnen") {
+      throw new ConvexError(
+        "Een gewonnen lead kan niet worden ontkoppeld — de lead ís de klant"
+      );
+    }
+
+    const gekoppeldKlantId = lead.gekoppeldKlantId;
+    if (!gekoppeldKlantId) return null;
+
+    const now = Date.now();
+    await ctx.db.patch(lead._id, {
+      gekoppeldKlantId: undefined,
+      updatedAt: now,
+    });
+
+    await ctx.db.insert("leadActiviteiten", {
+      leadId: lead._id,
+      type: "klant_gekoppeld",
+      beschrijving: "Klantkoppeling verwijderd",
+      gebruikerId: currentUser._id,
+      metadata: {
+        ontkoppeldKlantId: gekoppeldKlantId,
+        ontkoppeld: true,
+      },
+      createdAt: now,
+    });
+
+    return null;
   },
 });
 

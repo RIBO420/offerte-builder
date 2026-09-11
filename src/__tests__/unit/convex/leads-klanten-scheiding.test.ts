@@ -36,6 +36,9 @@ import {
 import {
   getById as getLeadById,
   listByPipeline,
+  koppelKlant,
+  maakKlantUitLead,
+  ontkoppelKlant,
 } from "../../../../convex/configuratorAanvragen";
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
@@ -426,5 +429,182 @@ describe("Leads zijn org-gescoopt", () => {
 
     expect(referenties).toContain("CFG-EIGEN");
     expect(referenties).not.toContain("CFG-VREEMD");
+  });
+});
+
+// ─── 6. Klant koppelen vanuit een OPEN lead (klantfeedback augustus) ─────────
+
+/**
+ * Mickey stuurde een offerte naar een lead en wilde dat in het klantdossier
+ * loggen — maar dat dossier bestond nog niet: een klant ontstond pas bij
+ * "gewonnen". Sindsdien kan een lead al eerder een klantrecord krijgen
+ * (koppelKlant/maakKlantUitLead) zonder dat hij van het bord verdwijnt:
+ * `isGepromoveerdeLead` eist gewonnen ÉN een koppeling.
+ */
+describe("Klant koppelen vanuit een open lead", () => {
+  function handlerVan<A, R>(fn: unknown) {
+    return (fn as { _handler: (ctx: unknown, args: A) => Promise<R> })._handler;
+  }
+
+  const koppelKlantH = handlerVan<Record<string, unknown>, unknown>(koppelKlant);
+  const maakKlantUitLeadH = handlerVan<Record<string, unknown>, {
+    klantId: string;
+    nieuweKlant: boolean;
+  }>(maakKlantUitLead);
+  const ontkoppelKlantH = handlerVan<Record<string, unknown>, unknown>(ontkoppelKlant);
+
+  /** Vangt de fout van een handler, zodat we de melding kunnen lezen. */
+  async function vangFout(belofte: Promise<unknown>): Promise<{ data?: string; message: string }> {
+    const fout = await belofte.then(
+      () => null,
+      (e: unknown) => e as { data?: string; message: string }
+    );
+    if (!fout) throw new Error("Verwachtte een fout, maar de handler slaagde");
+    return fout;
+  }
+
+  function maakKoppelContext() {
+    const basis = maakPromotieContext();
+    const seedLead = (overrides: Partial<LeadFixture> = {}) => {
+      const id = basis.store.insert("configuratorAanvragen", maakLead(overrides));
+      basis.store.patch(id, { orgId: basis.orgId });
+      return id;
+    };
+    return { ...basis, seedLead };
+  }
+
+  it("laat een gekoppelde lead met status contact_gehad gewoon op het bord staan", async () => {
+    const { store, ctx, orgId, seedLead } = maakKoppelContext();
+    const klantId = store.insert("klanten", maakKlant({ orgId }));
+    seedLead({
+      referentie: "CFG-OPEN",
+      pipelineStatus: "contact_gehad",
+      gekoppeldKlantId: klantId as Id<"klanten">,
+    });
+
+    const bord = (await handlerVan<Record<string, never>, Record<string, Array<{ referentie: string }>>>(
+      listByPipeline
+    )(ctx, {})) as Record<string, Array<{ referentie: string }>>;
+
+    expect(bord.contact_gehad.map((l) => l.referentie)).toContain("CFG-OPEN");
+  });
+
+  it("koppelKlant legt de koppeling zonder de pipelinestatus aan te raken", async () => {
+    const { store, ctx, orgId, seedLead } = maakKoppelContext();
+    const klantId = store.insert("klanten", maakKlant({ orgId }));
+    const leadId = seedLead({ pipelineStatus: "offerte_verstuurd" });
+
+    await koppelKlantH(ctx, { id: leadId, klantId });
+
+    const lead = getLead(store, leadId);
+    expect(lead.gekoppeldKlantId).toBe(klantId);
+    expect(lead.pipelineStatus).toBe("offerte_verstuurd");
+    // De lead blijft dus zichtbaar op het bord
+    expect(
+      isGepromoveerdeLead(lead as { status: string; gekoppeldKlantId?: Id<"klanten"> })
+    ).toBe(false);
+
+    const activiteiten = store.getAll("leadActiviteiten");
+    expect(activiteiten).toHaveLength(1);
+    expect(activiteiten[0].type).toBe("klant_gekoppeld");
+    expect((activiteiten[0].metadata as Record<string, unknown>).gekoppeldKlantId).toBe(klantId);
+    // Zichtbaar in het klantdossier (tijdlijn)
+    const tijdlijn = store.getAll("klantTijdlijn");
+    expect(tijdlijn).toHaveLength(1);
+    expect(tijdlijn[0].klantId).toBe(klantId);
+  });
+
+  it("koppelKlant weigert een klant van een andere organisatie (generieke melding)", async () => {
+    const { store, ctx, seedLead } = maakKoppelContext();
+    const vreemdeKlantId = store.insert(
+      "klanten",
+      maakKlant({ orgId: "organisaties:andere", email: "buurman@groenenco.nl" })
+    );
+    const leadId = seedLead();
+
+    const fout = await vangFout(koppelKlantH(ctx, { id: leadId, klantId: vreemdeKlantId }));
+    expect(fout.data ?? fout.message).toContain("Klant niet gevonden");
+    expect(getLead(store, leadId).gekoppeldKlantId).toBeUndefined();
+  });
+
+  it("koppelKlant weigert een gearchiveerde klant van de eigen organisatie", async () => {
+    const { store, ctx, orgId, seedLead } = maakKoppelContext();
+    const klantId = store.insert("klanten", maakKlant({ orgId, isArchived: true }));
+    const leadId = seedLead();
+
+    const fout = await vangFout(koppelKlantH(ctx, { id: leadId, klantId }));
+    expect(fout.data ?? fout.message).toContain("Klant niet gevonden");
+  });
+
+  it("maakKlantUitLead dedupt case-insensitief op e-mail — geen dubbel klantrecord", async () => {
+    const { store, ctx, orgId, seedLead } = maakKoppelContext();
+    const bestaandeKlantId = store.insert("klanten", maakKlant({ orgId, email: "jan@devries.nl" }));
+    const leadId = seedLead({ klantEmail: "Jan@DeVries.NL", pipelineStatus: "contact_gehad" });
+
+    const resultaat = await maakKlantUitLeadH(ctx, { id: leadId });
+
+    expect(resultaat.klantId).toBe(bestaandeKlantId);
+    expect(resultaat.nieuweKlant).toBe(false);
+    expect(store.getAll("klanten")).toHaveLength(1);
+    // Lead blijft open: geen promotie, geen werkitem
+    expect(getLead(store, leadId).pipelineStatus).toBe("contact_gehad");
+    expect(store.getAll("projecten")).toHaveLength(0);
+  });
+
+  it("maakKlantUitLead maakt een klantrecord als er geen match is en koppelt dat", async () => {
+    const { store, ctx, orgId, seedLead } = maakKoppelContext();
+    const leadId = seedLead({ pipelineStatus: "nieuw" });
+
+    const resultaat = await maakKlantUitLeadH(ctx, { id: leadId });
+
+    const klanten = store.getAll("klanten");
+    expect(klanten).toHaveLength(1);
+    expect(resultaat.nieuweKlant).toBe(true);
+    expect(klanten[0].orgId).toBe(orgId);
+    expect(klanten[0].email).toBe("jan@devries.nl");
+    expect(getLead(store, leadId).gekoppeldKlantId).toBe(resultaat.klantId);
+    expect(getLead(store, leadId).pipelineStatus).toBe("nieuw");
+  });
+
+  it("maakKlantUitLead is idempotent: een al gekoppelde lead geeft dezelfde klant terug", async () => {
+    const { store, ctx, orgId, seedLead } = maakKoppelContext();
+    const klantId = store.insert("klanten", maakKlant({ orgId, email: "ander@adres.nl" }));
+    const leadId = seedLead({ gekoppeldKlantId: klantId as Id<"klanten"> });
+
+    const resultaat = await maakKlantUitLeadH(ctx, { id: leadId });
+
+    expect(resultaat.klantId).toBe(klantId);
+    expect(resultaat.nieuweKlant).toBe(false);
+    expect(store.getAll("klanten")).toHaveLength(1);
+    expect(store.getAll("leadActiviteiten")).toHaveLength(0);
+  });
+
+  it("ontkoppelKlant wist de koppeling van een open lead", async () => {
+    const { store, ctx, orgId, seedLead } = maakKoppelContext();
+    const klantId = store.insert("klanten", maakKlant({ orgId }));
+    const leadId = seedLead({
+      gekoppeldKlantId: klantId as Id<"klanten">,
+      pipelineStatus: "offerte_verstuurd",
+    });
+
+    await ontkoppelKlantH(ctx, { id: leadId });
+
+    expect(getLead(store, leadId).gekoppeldKlantId).toBeUndefined();
+    expect(store.getAll("leadActiviteiten")).toHaveLength(1);
+    // Het klantrecord zelf blijft bestaan
+    expect(store.getAll("klanten")).toHaveLength(1);
+  });
+
+  it("ontkoppelKlant weigert bij een gewonnen lead (de lead ís de klant)", async () => {
+    const { store, ctx, orgId, seedLead } = maakKoppelContext();
+    const klantId = store.insert("klanten", maakKlant({ orgId }));
+    const leadId = seedLead({
+      gekoppeldKlantId: klantId as Id<"klanten">,
+      pipelineStatus: "gewonnen",
+    });
+
+    const fout = await vangFout(ontkoppelKlantH(ctx, { id: leadId }));
+    expect(fout.data ?? fout.message).toContain("gewonnen");
+    expect(getLead(store, leadId).gekoppeldKlantId).toBe(klantId);
   });
 });
