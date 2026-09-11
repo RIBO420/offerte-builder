@@ -1,5 +1,11 @@
 "use client";
 import { klantNaam, klantVeld } from "@convex/lib/offerteKlant";
+import {
+  adresRegel,
+  heeftUitvoerAdres,
+  klantFactuurAdres,
+  klantUitvoerAdres,
+} from "@convex/lib/adres";
 
 import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
@@ -17,6 +23,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { NumberInput } from "@/components/ui/number-input";
 import {
   Select,
@@ -72,6 +80,17 @@ export function KoppelWerkitemsDialog({
     () => (bouwstenen ?? []).filter((b) => b.actief),
     [bouwstenen]
   );
+
+  // Het klantdossier (org-gescopete bestaande query) — alleen nodig om te zien
+  // of deze klant een afwijkend uitvoeradres heeft. Zonder uitvoeradres is er
+  // niets te kiezen en verandert er niets aan het scherm (wens Mickey: "als er
+  // maar 1 adres is dan gaat het automatisch").
+  const klant = useQuery(
+    api.klanten.get,
+    open && offerte.klantId ? { id: offerte.klantId } : "skip"
+  );
+  const toonWerkadresKeuze = klant ? heeftUitvoerAdres(klant) : false;
+  const [werkadres, setWerkadres] = useState<"uitvoer" | "hoofd">("uitvoer");
 
   const [toewijzingen, setToewijzingen] = useState<Toewijzing[]>([]);
   const [nieuwType, setNieuwType] = useState<ToewijzingType>("project");
@@ -172,7 +191,12 @@ export function KoppelWerkitemsDialog({
           naam: t.naam,
           offerteId: offerte._id,
           offerteRegelIds: t.regelIds,
-          adres: klantVeld(offerte.klant, "adres"),
+          // Mét uitvoeradres beslist de keuze en lost de server het adres op
+          // uit het dossier; zonder uitvoeradres blijft de offerte-snapshot
+          // leidend, precies zoals voorheen.
+          ...(toonWerkadresKeuze
+            ? { adresKeuze: werkadres }
+            : { adres: klantVeld(offerte.klant, "adres") }),
         });
       }
 
@@ -420,6 +444,63 @@ export function KoppelWerkitemsDialog({
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Werkadres — alleen zichtbaar als er écht iets te kiezen valt */}
+        {toonWerkadresKeuze && klant && (
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Werkadres</p>
+            <p className="text-xs text-muted-foreground">
+              Deze klant heeft een afwijkend uitvoeradres. De factuur gaat
+              hoe dan ook naar het hoofdadres.
+            </p>
+            <RadioGroup
+              value={werkadres}
+              onValueChange={(waarde) =>
+                setWerkadres(waarde as "uitvoer" | "hoofd")
+              }
+              className="gap-2"
+            >
+              {(
+                [
+                  {
+                    waarde: "uitvoer" as const,
+                    label: "Uitvoeradres",
+                    regel: adresRegel(klantUitvoerAdres(klant)),
+                  },
+                  {
+                    waarde: "hoofd" as const,
+                    label: "Hoofdadres",
+                    regel: adresRegel(klantFactuurAdres(klant)),
+                  },
+                ]
+              ).map((optie) => (
+                <div
+                  key={optie.waarde}
+                  className={`flex items-center gap-2 rounded-md border p-2 ${
+                    werkadres === optie.waarde ? "border-primary" : ""
+                  }`}
+                >
+                  <RadioGroupItem
+                    value={optie.waarde}
+                    id={`werkadres-${optie.waarde}`}
+                  />
+                  <Label
+                    htmlFor={`werkadres-${optie.waarde}`}
+                    className="min-w-0 flex-1 text-sm font-normal"
+                  >
+                    <span className="font-medium">{optie.label}</span>
+                    {optie.regel && (
+                      <span className="text-muted-foreground">
+                        {" "}
+                        — <span className="break-words">{optie.regel}</span>
+                      </span>
+                    )}
+                  </Label>
+                </div>
+              ))}
+            </RadioGroup>
           </div>
         )}
 
