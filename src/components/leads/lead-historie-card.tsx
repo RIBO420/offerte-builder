@@ -53,7 +53,7 @@ export function LeadHistorieCard({ klantId }: { klantId: Id<"klanten"> }) {
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-sm text-muted-foreground">
-          Deze klant is ontstaan uit lead{" "}
+          Gekoppeld aan lead{" "}
           <span className="font-medium text-foreground">{leadHistorie.referentie}</span>
           {leadHistorie.bron ? ` via ${BRON_LABELS[leadHistorie.bron] ?? leadHistorie.bron}` : ""}
           {" op "}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
+import Link from "next/link";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
@@ -13,6 +14,12 @@ import {
   Mail,
   Phone,
   MapPin,
+  UserPlus,
+  Link2,
+  Unlink,
+  ExternalLink,
+  MoreHorizontal,
+  TriangleAlert,
   ArrowRight,
   RotateCcw,
   FilePlus,
@@ -60,6 +67,30 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  NieuweKlantDialog,
+  type AangemaakteKlant,
+} from "@/components/klanten/nieuwe-klant-dialog";
 import type { Lead } from "./lead-card";
 
 // ============================================
@@ -115,7 +146,16 @@ const activityDotColors: Record<string, string> = {
   notitie: "bg-blue-500",
   toewijzing: "bg-purple-500",
   offerte_gekoppeld: "bg-indigo-500",
+  klant_gekoppeld: "bg-teal-500",
   aangemaakt: "bg-green-500",
+};
+
+// Waarop de duplicaatcheck (klanten.checkDuplicates) heeft gematcht — in
+// gewoon Nederlands, zodat de waarschuwing leesbaar is zonder uitleg.
+const duplicaatLabels: Record<string, string> = {
+  email: "e-mailadres",
+  telefoon: "telefoonnummer",
+  naam_postcode: "naam en postcode",
 };
 
 // Price formatter
@@ -369,6 +409,12 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
   const [isSavingNote, setIsSavingNote] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  // Klantkoppeling (klantfeedback aug): een lead mag al een klantdossier
+  // krijgen vóór "gewonnen", zodat een verstuurde offerte ergens kan landen.
+  const [klantZoekOpen, setKlantZoekOpen] = useState(false);
+  const [klantZoekterm, setKlantZoekterm] = useState("");
+  const [nieuweKlantOpen, setNieuweKlantOpen] = useState(false);
+  const [isKoppelen, setIsKoppelen] = useState(false);
 
   // Mutations
   const updatePipelineStatus = useMutation(
@@ -380,6 +426,11 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
   const toewijzen = useMutation(api.configuratorAanvragen.toewijzen);
   const createActiviteit = useMutation(api.leadActiviteiten.create);
   const updatePrijzen = useMutation(api.configuratorAanvragen.updatePrijzen);
+  const koppelKlant = useMutation(api.configuratorAanvragen.koppelKlant);
+  const maakKlantUitLead = useMutation(
+    api.configuratorAanvragen.maakKlantUitLead
+  );
+  const ontkoppelKlant = useMutation(api.configuratorAanvragen.ontkoppelKlant);
 
   // Queries (only run when modal is open and lead is set)
   const activiteiten = useQuery(
@@ -391,6 +442,28 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
     api.fotoStorage.getUrls,
     lead && lead.fotoIds && lead.fotoIds.length > 0
       ? { storageIds: lead.fotoIds }
+      : "skip"
+  );
+  // De gekoppelde klant (voor het label op de badge naar het dossier).
+  const gekoppeldeKlant = useQuery(
+    api.klanten.getVoorSelector,
+    lead?.gekoppeldKlantId ? { id: lead.gekoppeldKlantId } : "skip"
+  );
+  // Zoeken doen we pas als de popover openstaat: een lijst die niemand ziet
+  // hoeft niet live te staan.
+  const klantZoekresultaten = useQuery(
+    api.klanten.search,
+    klantZoekOpen ? { searchTerm: klantZoekterm } : "skip"
+  );
+  // Waarschuw vóór het aanmaken: bestaat er al een klant met dit e-mailadres
+  // of telefoonnummer, dan is koppelen bijna altijd de bedoeling.
+  const duplicaten = useQuery(
+    api.klanten.checkDuplicates,
+    lead && !lead.gekoppeldKlantId && (lead.klantEmail || lead.klantTelefoon)
+      ? {
+          email: lead.klantEmail || undefined,
+          telefoon: lead.klantTelefoon || undefined,
+        }
       : "skip"
   );
 
@@ -488,6 +561,66 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
     }
   }
 
+  async function handleKoppelKlant(klantId: Id<"klanten">) {
+    if (!lead) return;
+
+    setIsKoppelen(true);
+    try {
+      await koppelKlant({ id: lead._id, klantId });
+      setKlantZoekOpen(false);
+      setKlantZoekterm("");
+      showSuccessToast("Klant gekoppeld aan deze lead");
+    } catch (error) {
+      showErrorToast(
+        error instanceof Error
+          ? error.message
+          : "Er ging iets mis bij het koppelen"
+      );
+    } finally {
+      setIsKoppelen(false);
+    }
+  }
+
+  /** Eén klik: klantrecord uit de leadgegevens, met e-mail-dedup. */
+  async function handleMaakKlantUitLead() {
+    if (!lead) return;
+
+    setIsKoppelen(true);
+    try {
+      const { nieuweKlant } = await maakKlantUitLead({ id: lead._id });
+      setKlantZoekOpen(false);
+      setKlantZoekterm("");
+      showSuccessToast(
+        nieuweKlant
+          ? "Klant aangemaakt en gekoppeld"
+          : "Gekoppeld aan de bestaande klant met dit e-mailadres"
+      );
+    } catch (error) {
+      showErrorToast(
+        error instanceof Error
+          ? error.message
+          : "Er ging iets mis bij het aanmaken van de klant"
+      );
+    } finally {
+      setIsKoppelen(false);
+    }
+  }
+
+  async function handleOntkoppelKlant() {
+    if (!lead) return;
+
+    try {
+      await ontkoppelKlant({ id: lead._id });
+      showSuccessToast("Klantkoppeling verwijderd");
+    } catch (error) {
+      showErrorToast(
+        error instanceof Error
+          ? error.message
+          : "Er ging iets mis bij het ontkoppelen"
+      );
+    }
+  }
+
   // Build Google Maps link — klantAdres (straat + huisnummer) heeft de
   // voorkeur; anders alleen huisnummer als losse fallback.
   const adresString = adresRegel({
@@ -540,7 +673,126 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
             >
               {typeConfig.label}
             </Badge>
+            {lead.gekoppeldKlantId && (
+              <Link
+                href={`/klanten/${lead.gekoppeldKlantId}`}
+                className="inline-flex"
+              >
+                <Badge
+                  variant="secondary"
+                  className="gap-1 hover:bg-secondary/70 transition-colors"
+                >
+                  <User className="size-3" />
+                  {gekoppeldeKlant?.naam ?? "Klant"}
+                  <ExternalLink className="size-3 opacity-60" />
+                </Badge>
+              </Link>
+            )}
             <div className="ml-auto flex items-center gap-1.5">
+              {!lead.gekoppeldKlantId ? (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setNieuweKlantOpen(true)}
+                    disabled={isKoppelen}
+                  >
+                    <UserPlus className="size-3.5 mr-1.5" />
+                    Klant aanmaken
+                  </Button>
+                  <Popover open={klantZoekOpen} onOpenChange={setKlantZoekOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-muted-foreground"
+                        aria-label="Bestaande klant koppelen"
+                        title="Bestaande klant koppelen"
+                        disabled={isKoppelen}
+                      >
+                        <Link2 className="size-4" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[22rem] p-0" align="end">
+                      <Command shouldFilter={false}>
+                        <CommandInput
+                          placeholder="Zoek klant op naam…"
+                          value={klantZoekterm}
+                          onValueChange={setKlantZoekterm}
+                        />
+                        <CommandList>
+                          <CommandEmpty>
+                            <p className="py-4 text-center text-sm text-muted-foreground">
+                              Geen klant gevonden
+                            </p>
+                          </CommandEmpty>
+                          <CommandGroup>
+                            <CommandItem
+                              value="klant-uit-leadgegevens"
+                              onSelect={handleMaakKlantUitLead}
+                              className="text-primary"
+                            >
+                              <UserPlus className="mr-2 size-4" />
+                              Klant maken van de leadgegevens
+                            </CommandItem>
+                          </CommandGroup>
+                          {klantZoekresultaten &&
+                            klantZoekresultaten.length > 0 && (
+                              <CommandGroup heading="Bestaande klanten">
+                                {klantZoekresultaten.map((klant) => (
+                                  <CommandItem
+                                    key={klant._id}
+                                    value={klant._id}
+                                    onSelect={() => handleKoppelKlant(klant._id)}
+                                  >
+                                    <span className="min-w-0">
+                                      <span className="block truncate font-medium">
+                                        {klant.naam}
+                                      </span>
+                                      <span className="block truncate text-xs text-muted-foreground">
+                                        {klant.plaats}
+                                      </span>
+                                    </span>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            )}
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </>
+              ) : (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-muted-foreground"
+                      aria-label="Klantacties"
+                    >
+                      <MoreHorizontal className="size-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem asChild>
+                      <Link href={`/klanten/${lead.gekoppeldKlantId}`}>
+                        <ExternalLink className="size-4" />
+                        Klantdossier openen
+                      </Link>
+                    </DropdownMenuItem>
+                    {pipelineStatus !== "gewonnen" && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onSelect={handleOntkoppelKlant}>
+                          <Unlink className="size-4" />
+                          Ontkoppelen
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
               {quickAction && (
                 <Button
                   size="sm"
@@ -587,6 +839,31 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
               </AlertDialog>
             </div>
           </div>
+          {!lead.gekoppeldKlantId && duplicaten && duplicaten.length > 0 && (
+            <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
+              <TriangleAlert className="size-4 shrink-0 text-amber-600" />
+              <span className="min-w-0">
+                Er bestaat al een klant met dit{" "}
+                {duplicaatLabels[duplicaten[0].matchType] ??
+                  duplicaten[0].matchType}
+                :{" "}
+                <span className="font-medium">{duplicaten[0].naam}</span> —
+                koppelen?
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                className="ml-auto"
+                disabled={isKoppelen}
+                onClick={() =>
+                  handleKoppelKlant(duplicaten[0]._id as Id<"klanten">)
+                }
+              >
+                <Link2 className="size-3.5 mr-1.5" />
+                Koppelen
+              </Button>
+            </div>
+          )}
           <DialogDescription className="sr-only">
             Details en activiteiten voor lead {lead.klantNaam}
           </DialogDescription>
@@ -864,7 +1141,11 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
               </p>
               <Button variant="outline" size="sm" asChild>
                 <a
-                  href={`/offertes/nieuw/aanleg?leadId=${lead._id}`}
+                  href={`/offertes/nieuw/aanleg?leadId=${lead._id}${
+                    lead.gekoppeldKlantId
+                      ? `&klantId=${lead.gekoppeldKlantId}`
+                      : ""
+                  }`}
                 >
                   <FilePlus className="size-3.5 mr-1.5" />
                   Offerte aanmaken
@@ -972,6 +1253,25 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
             </div>
           </div>
         </div>
+
+        {/* Klant aanmaken zónder de lead te verlaten; de gegevens van de lead
+            staan al ingevuld en de nieuwe klant wordt direct gekoppeld. */}
+        <NieuweKlantDialog
+          open={nieuweKlantOpen}
+          onOpenChange={setNieuweKlantOpen}
+          initialValues={{
+            naam: lead.klantNaam,
+            adres: lead.klantAdres || lead.klantHuisnummer || "",
+            postcode: lead.klantPostcode ?? "",
+            plaats: lead.klantPlaats ?? "",
+            email: lead.klantEmail ?? "",
+            telefoon: lead.klantTelefoon ?? "",
+          }}
+          onCreated={(klant: AangemaakteKlant) => {
+            setNieuweKlantOpen(false);
+            void handleKoppelKlant(klant._id);
+          }}
+        />
       </DialogContent>
     </Dialog>
   );
