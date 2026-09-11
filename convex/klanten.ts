@@ -25,7 +25,7 @@ import { hoortInKlantenLijst } from "./leadsKlantenHelpers";
 import { logTijdlijnEvent } from "./tijdlijn";
 import { effectieveStatussen } from "./facturatieLogica";
 import { isOpenTaak } from "./lib/taakModel";
-import { samengesteldeNaam } from "./lib/klantNaam";
+import { naamPatchVoor, samengesteldeNaam } from "./lib/klantNaam";
 
 /**
  * Tolerante tegenhanger van `getOwnedKlant`: die gooit een AuthError, terwijl
@@ -344,61 +344,30 @@ export const update = mutation({
     const filteredUpdates: Record<string, unknown> = {};
 
     // Validate and sanitize each field if provided
-    if (args.naam !== undefined) {
-      if (!args.naam.trim()) {
-        throw new ConvexError("Naam is verplicht");
-      }
-      filteredUpdates.naam = args.naam.trim();
+    if (args.naam !== undefined && !args.naam.trim()) {
+      throw new ConvexError("Naam is verplicht");
     }
 
-    // Voor- en achternaam: additief naast `naam`. Zodra een van beide gevuld
-    // is (nu meegestuurd óf al opgeslagen) wordt `naam` eruit afgeleid, zodat
-    // lijst, pdf, portaal en mobiel dezelfde weergavenaam blijven zien.
-    // Allebei leeggemaakt → de velden verdwijnen en `naam` blijft staan zoals
-    // hij was; dat is dezelfde wisconventie als bij `email`/`telefoon`.
-    const voornaamGegeven = args.voornaam !== undefined;
-    const achternaamGegeven = args.achternaam !== undefined;
-    if (voornaamGegeven || achternaamGegeven) {
-      const voornaam = voornaamGegeven
-        ? schoonNaamdeel(args.voornaam, "Voornaam")
-        : bestaand.voornaam;
-      const achternaam = achternaamGegeven
-        ? schoonNaamdeel(args.achternaam, "Achternaam")
-        : bestaand.achternaam;
-
-      if (voornaamGegeven) filteredUpdates.voornaam = voornaam;
-      if (achternaamGegeven) filteredUpdates.achternaam = achternaam;
-
-      if (voornaam || achternaam) {
-        const basisNaam =
-          typeof filteredUpdates.naam === "string"
-            ? filteredUpdates.naam
-            : bestaand.naam;
-        filteredUpdates.naam = samengesteldeNaam({ voornaam, achternaam, naam: basisNaam });
-      }
-    } else if (typeof filteredUpdates.naam === "string") {
-      /**
-       * Alleen `naam` meegestuurd terwijl er naamdelen opgeslagen staan. Volgt
-       * de nieuwe naam niet meer uit die delen, dan zijn ze achterhaald en
-       * gaan ze mee weg. Laten staan zou `sorteerNaam` en de zoekindex op een
-       * achternaam laten draaien die nergens meer op het scherm staat — een
-       * klant die je onder de oude naam blijft terugvinden, en onder de nieuwe
-       * niet. Volgt de naam er wél uit (bewerkformulier dat de samengestelde
-       * naam ongewijzigd terugstuurt), dan blijft alles staan.
-       */
-      const opgeslagenDelen = samengesteldeNaam({
-        voornaam: bestaand.voornaam,
-        achternaam: bestaand.achternaam,
-        naam: bestaand.naam,
-      });
-      if (
-        (bestaand.voornaam || bestaand.achternaam) &&
-        opgeslagenDelen !== filteredUpdates.naam
-      ) {
-        filteredUpdates.voornaam = undefined;
-        filteredUpdates.achternaam = undefined;
-      }
-    }
+    /**
+     * Naam en naamdelen horen bij elkaar; de regel staat in
+     * `naamPatchVoor` (convex/lib/klantNaam.ts) en wordt gedeeld met het
+     * portaal, zodat een klant die zichzelf hernoemt niet achterblijft met
+     * een achternaam die nergens meer op het scherm staat. Sleutel-
+     * aanwezigheid is de taal van die helper: alleen wat hier meegestuurd is,
+     * zetten we erin — een waarde die `undefined` wordt, is leeggemaakt.
+     */
+    Object.assign(
+      filteredUpdates,
+      naamPatchVoor(bestaand, {
+        ...(args.naam !== undefined ? { naam: args.naam.trim() } : {}),
+        ...(args.voornaam !== undefined
+          ? { voornaam: schoonNaamdeel(args.voornaam, "Voornaam") }
+          : {}),
+        ...(args.achternaam !== undefined
+          ? { achternaam: schoonNaamdeel(args.achternaam, "Achternaam") }
+          : {}),
+      })
+    );
 
     if (args.adres !== undefined) {
       if (!args.adres.trim()) {

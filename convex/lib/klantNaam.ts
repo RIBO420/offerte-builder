@@ -10,11 +10,13 @@
  * `naam` blijft leidend en verplicht — hij wordt alleen afgeleid zodra een van
  * beide gevuld is.
  *
- * Vier functies, vier vragen:
+ * Functies, en de vraag die ze beantwoorden:
  *   - `samengesteldeNaam` — welke weergavenaam hoort bij deze velden?
  *   - `splitsNaam` — hoe valt een bestaande naam uiteen in voor en achter?
  *   - `sorteerNaam` — waar staat deze klant in een alfabetische lijst?
  *   - `lijktBedrijfsnaam` — is dit überhaupt een persoonsnaam?
+ *   - `naamPatchVoor` — wat moet er bij een bewerking op naam en naamdelen
+ *     veranderen? (kantoorformulier én portaal, één regel)
  *
  * Pure functies zonder Convex-afhankelijkheden, zodat `src/` ze net zo goed
  * kan importeren als de backend (zelfde opzet als `convex/lib/normuren.ts`).
@@ -149,4 +151,85 @@ export function lijktBedrijfsnaam(naam: string): boolean {
     const kaal = woord.toLowerCase().replace(/[.,]/g, "");
     return BEDRIJFSTOKENS.has(kaal);
   });
+}
+
+/** De velden zoals ze in de database staan voordat er bewerkt wordt. */
+export type NaamBestaand = {
+  naam: string;
+  voornaam?: string;
+  achternaam?: string;
+};
+
+/**
+ * Wat een bewerking meestuurt. SLEUTEL-AANWEZIGHEID telt, niet de waarde:
+ * een ontbrekende sleutel is "niet meegestuurd", een sleutel met `undefined`
+ * is "leeggemaakt" (zo komt een lege invoer uit de sanitizers terug). Dat is
+ * dezelfde conventie als de patch die eruit komt.
+ */
+export type NaamInvoer = {
+  naam?: string;
+  voornaam?: string;
+  achternaam?: string;
+};
+
+/**
+ * De naamvelden van een bewerking, in één regel voor kantoor én portaal.
+ *
+ * Twee gevallen, en ze sluiten elkaar uit:
+ *
+ * 1. **Naamdelen meegestuurd** (een van beide is genoeg): `naam` wordt eruit
+ *    afgeleid, zodat lijst, pdf, portaal en mobiel dezelfde weergavenaam
+ *    zien. Allebei leeggemaakt → de velden verdwijnen en `naam` blijft staan
+ *    zoals hij was; dezelfde wisconventie als bij `email`/`telefoon`.
+ * 2. **Alleen `naam` meegestuurd** terwijl er naamdelen opgeslagen staan.
+ *    Volgt de nieuwe naam niet meer uit die delen, dan zijn ze achterhaald en
+ *    gaan ze mee weg. Laten staan zou `sorteerNaam` en de zoekindex op een
+ *    achternaam laten draaien die nergens meer op het scherm staat — een
+ *    klant die je onder de oude naam blijft terugvinden, en onder de nieuwe
+ *    niet. Volgt de naam er wél uit (bewerkformulier dat de samengestelde
+ *    naam ongewijzigd terugstuurt), dan blijft alles staan.
+ *
+ * De functie is puur en sanitiseert niet: de aanroeper trimt en begrenst
+ * eerst (kantoor via `schoonNaamdeel`, portaal via dezelfde naam-trim), zodat
+ * de foutmeldingen bij het formulier blijven horen.
+ */
+export function naamPatchVoor(
+  bestaand: NaamBestaand,
+  invoer: NaamInvoer
+): NaamInvoer {
+  const patch: NaamInvoer = {};
+
+  const naamGegeven = "naam" in invoer;
+  if (naamGegeven) patch.naam = invoer.naam;
+
+  const voornaamGegeven = "voornaam" in invoer;
+  const achternaamGegeven = "achternaam" in invoer;
+
+  if (voornaamGegeven || achternaamGegeven) {
+    const voornaam = voornaamGegeven ? invoer.voornaam : bestaand.voornaam;
+    const achternaam = achternaamGegeven ? invoer.achternaam : bestaand.achternaam;
+
+    if (voornaamGegeven) patch.voornaam = voornaam;
+    if (achternaamGegeven) patch.achternaam = achternaam;
+
+    if (voornaam || achternaam) {
+      const basisNaam =
+        typeof patch.naam === "string" ? patch.naam : bestaand.naam;
+      patch.naam = samengesteldeNaam({ voornaam, achternaam, naam: basisNaam });
+    }
+    return patch;
+  }
+
+  if (typeof patch.naam === "string") {
+    const opgeslagenDelen = samengesteldeNaam(bestaand);
+    if (
+      (bestaand.voornaam || bestaand.achternaam) &&
+      opgeslagenDelen !== patch.naam
+    ) {
+      patch.voornaam = undefined;
+      patch.achternaam = undefined;
+    }
+  }
+
+  return patch;
 }

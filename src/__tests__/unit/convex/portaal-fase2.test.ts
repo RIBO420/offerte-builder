@@ -41,6 +41,7 @@ import {
   getThreadVoorContext,
   openThreadVoorWerkitem,
   openThreadVoorMelding,
+  updateProfile,
 } from "../../../../convex/portaal";
 import {
   getThread,
@@ -869,5 +870,55 @@ describe("teller-badge kantoor — portaal-melding telt mee", () => {
 
     s.store.patch(meldingId, { status: "opgelost" });
     expect(await handler(telOpenMeldingen)(s.ctx, {})).toBe(0);
+  });
+});
+
+// ─── Profiel: naam en naamdelen blijven bij elkaar ───────────────────────────
+
+/**
+ * Het portaal patchte `klanten.naam` rechtstreeks. Bij een klant met een
+ * opgeslagen voor- en achternaam bleef kantoor daardoor met achterhaalde
+ * naamdelen zitten: de lijst sorteert op `achternaam`, dus de hernoemde klant
+ * bleef onder zijn oude naam staan. De regel van `klanten.update` geldt nu
+ * ook hier (convex/lib/klantNaam.ts).
+ */
+describe("portaal.updateProfile — naamregel", () => {
+  it("wist achterhaalde naamdelen als de klant zichzelf hernoemt", async () => {
+    const { store, ctx, klantAId } = portaalSetup();
+    store.patch(klantAId, {
+      naam: "Jan de Vries",
+      voornaam: "Jan",
+      achternaam: "de Vries",
+    });
+
+    await handler(updateProfile)(ctx, { naam: "Jan Jansen" });
+
+    const klant = store.get(klantAId)!;
+    expect(klant.naam).toBe("Jan Jansen");
+    expect(klant.voornaam).toBeUndefined();
+    expect(klant.achternaam).toBeUndefined();
+  });
+
+  it("laat de naamdelen staan als de naam er nog uit volgt", async () => {
+    const { store, ctx, klantAId } = portaalSetup();
+    store.patch(klantAId, {
+      naam: "Jan de Vries",
+      voornaam: "Jan",
+      achternaam: "de Vries",
+    });
+
+    await handler(updateProfile)(ctx, { naam: "  Jan de Vries  " });
+
+    const klant = store.get(klantAId)!;
+    expect(klant.naam).toBe("Jan de Vries");
+    expect(klant.voornaam).toBe("Jan");
+    expect(klant.achternaam).toBe("de Vries");
+  });
+
+  it("weigert een lege naam, net als het kantoorformulier", async () => {
+    const { ctx } = portaalSetup();
+    await expect(handler(updateProfile)(ctx, { naam: "   " })).rejects.toBeInstanceOf(
+      ConvexError
+    );
   });
 });

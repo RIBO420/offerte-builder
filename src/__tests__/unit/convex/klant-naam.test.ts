@@ -16,6 +16,7 @@ import { describe, it, expect } from "vitest";
 import {
   TUSSENVOEGSELS,
   lijktBedrijfsnaam,
+  naamPatchVoor,
   samengesteldeNaam,
   sorteerNaam,
   splitsNaam,
@@ -181,5 +182,62 @@ describe("lijktBedrijfsnaam", () => {
     expect(lijktBedrijfsnaam("Bea Beheerder")).toBe(false);
     expect(lijktBedrijfsnaam("Nico Stichter")).toBe(false);
     expect(lijktBedrijfsnaam("")).toBe(false);
+  });
+});
+
+/**
+ * `naamPatchVoor` is de bewerkregel, gedeeld door het kantoorformulier
+ * (`klanten.update`) en het portaal (`portaal.updateProfile`). Het portaal
+ * stuurde eerst alleen `naam` en liet daarmee achterhaalde naamdelen staan:
+ * een klant die zichzelf hernoemde, bleef in de kantoorlijst onder zijn oude
+ * achternaam staan. Deze suite bewaakt de drie gevallen die dat verschil
+ * maken.
+ */
+describe("naamPatchVoor", () => {
+  const jan = { naam: "Jan de Vries", voornaam: "Jan", achternaam: "de Vries" };
+
+  it("leidt naam af zodra er naamdelen meegaan", () => {
+    expect(naamPatchVoor(jan, { achternaam: "Jansen" })).toEqual({
+      achternaam: "Jansen",
+      naam: "Jan Jansen",
+    });
+  });
+
+  it("combineert meegestuurde naamdelen met een meegestuurde naam", () => {
+    expect(
+      naamPatchVoor(jan, { naam: "Onzin", voornaam: "Piet", achternaam: "Bakker" })
+    ).toEqual({ naam: "Piet Bakker", voornaam: "Piet", achternaam: "Bakker" });
+  });
+
+  it("laat naam staan als beide naamdelen worden gewist", () => {
+    const patch = naamPatchVoor(jan, { voornaam: undefined, achternaam: undefined });
+    expect(patch.voornaam).toBeUndefined();
+    expect(patch.achternaam).toBeUndefined();
+    expect("naam" in patch).toBe(false);
+  });
+
+  it("laat de naamdelen staan als de naam er nog uit volgt", () => {
+    expect(naamPatchVoor(jan, { naam: "Jan de Vries" })).toEqual({
+      naam: "Jan de Vries",
+    });
+  });
+
+  it("wist achterhaalde naamdelen als alleen een afwijkende naam meegaat", () => {
+    const patch = naamPatchVoor(jan, { naam: "Jan Jansen" });
+    expect(patch.naam).toBe("Jan Jansen");
+    expect("voornaam" in patch).toBe(true);
+    expect(patch.voornaam).toBeUndefined();
+    expect("achternaam" in patch).toBe(true);
+    expect(patch.achternaam).toBeUndefined();
+  });
+
+  it("raakt niets aan bij een klant zonder opgeslagen naamdelen", () => {
+    expect(
+      naamPatchVoor({ naam: "Groenveld B.V." }, { naam: "Groenveld Holding B.V." })
+    ).toEqual({ naam: "Groenveld Holding B.V." });
+  });
+
+  it("geeft een lege patch als er niets meegestuurd wordt", () => {
+    expect(naamPatchVoor(jan, {})).toEqual({});
   });
 });

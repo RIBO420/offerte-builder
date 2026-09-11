@@ -32,6 +32,7 @@ import {
 } from "./servicemeldingen";
 import { zetTriggerMailKlaar } from "./mailTriggers";
 import { eigenaarVanOrg } from "./lib/orgEigenaar";
+import { naamPatchVoor } from "./lib/klantNaam";
 
 /**
  * Klant-zichtbaarheid van een factuur (portaal-regel 3): uitsluitend
@@ -538,8 +539,23 @@ export const updateProfile = mutation({
   handler: async (ctx, args) => {
     const { klant } = await requireKlant(ctx);
 
-    const updates: Record<string, string> = {};
-    if (args.naam !== undefined) updates.naam = args.naam;
+    const updates: Record<string, string | undefined> = {};
+
+    /**
+     * De naam loopt langs dezelfde regel als het kantoorformulier
+     * (`klanten.update`): trimmen, niet leeg, en achterhaalde naamdelen
+     * opruimen. Zonder dat laatste bleef een klant die zichzelf hernoemde in
+     * de kantoorlijst onder zijn oude achternaam staan — `sorteerNaam` en de
+     * zoekindex draaien immers op `achternaam`. Voor- en achternaam zelf zijn
+     * kantoorvelden; het portaal stuurt ze niet mee.
+     */
+    if (args.naam !== undefined) {
+      const naam = args.naam.trim();
+      if (!naam) {
+        throw new ConvexError("Naam is verplicht");
+      }
+      Object.assign(updates, naamPatchVoor(klant, { naam }));
+    }
     if (args.telefoon !== undefined) updates.telefoon = args.telefoon;
     if (args.adres !== undefined) updates.adres = args.adres;
     if (args.postcode !== undefined) updates.postcode = args.postcode;
