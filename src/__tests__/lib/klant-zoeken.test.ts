@@ -69,6 +69,40 @@ describe("klant zoeken", () => {
     expect(zoek(BEDRIJF, "roermond")).toBe(false);
   });
 
+  it("vindt op de losse voor- en achternaam", () => {
+    const gesplitst = {
+      naam: "Jan van der Berg",
+      voornaam: "Jan",
+      achternaam: "van der Berg",
+      plaats: "Echt",
+    };
+    expect(zoek(gesplitst, "berg")).toBe(true);
+    expect(zoek(gesplitst, "van der berg echt")).toBe(true);
+  });
+
+  it("vindt op het tweede telefoonnummer, met en zonder scheidingstekens", () => {
+    const twee = { naam: "Piet Houtermann", telefoon2: "046-443 39 18" };
+    expect(zoek(twee, "0464433918")).toBe(true);
+    expect(zoek(twee, "046-443")).toBe(true);
+  });
+
+  it("vindt op het afwijkende uitvoeradres", () => {
+    const metUitvoer = {
+      naam: "Jan de Vries",
+      adres: "Dorpsstraat 24A",
+      postcode: "6041 MA",
+      plaats: "Roermond",
+      uitvoerAdres: {
+        adres: "Beukenlaan 3",
+        postcode: "6121 JG",
+        plaats: "Born",
+      },
+    };
+    expect(zoek(metUitvoer, "beukenlaan")).toBe(true);
+    expect(zoek(metUitvoer, "born")).toBe(true);
+    expect(zoek(metUitvoer, "6121jg")).toBe(true);
+  });
+
   it("gaat om met ontbrekende velden", () => {
     expect(zoek({ naam: "Losse klant" }, "losse")).toBe(true);
     expect(zoek({}, "wat dan ook")).toBe(false);

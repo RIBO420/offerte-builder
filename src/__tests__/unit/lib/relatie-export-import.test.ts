@@ -74,6 +74,20 @@ describe("relatie-export inlezen", () => {
     expect(piet.extraTelefoon).toBe("06 21276398");
   });
 
+  it("bewaart voor- en achternaam van een persoonsrij apart", () => {
+    const anja = zoek("1004");
+    expect(anja.naam).toBe("Anja Loijens");
+    expect(anja.voornaam).toBe("Anja");
+    expect(anja.achternaam).toBe("Loijens");
+  });
+
+  it("laat voor- en achternaam leeg bij een bedrijfsrij", () => {
+    const amagard = zoek("1123");
+    expect(amagard.voornaam).toBeUndefined();
+    expect(amagard.achternaam).toBeUndefined();
+    expect(amagard.contactpersoon).toBe("Jan Bakker");
+  });
+
   it("splitst het samengestelde adres uit de kolom Plaats", () => {
     const anja = zoek("1004");
     expect(anja.adres).toBe("Cannerweg 125");

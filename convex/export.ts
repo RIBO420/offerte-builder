@@ -147,11 +147,19 @@ export const exportKlanten = query({
 
     return klanten.map((klant) => ({
       naam: klant.naam,
+      voornaam: klant.voornaam ?? "",
+      achternaam: klant.achternaam ?? "",
       adres: klant.adres,
       postcode: klant.postcode,
       plaats: klant.plaats,
+      // Eén kolom: een uitvoeradres is alles of niets en leest zo als adres.
+      uitvoerAdres: klant.uitvoerAdres
+        ? `${klant.uitvoerAdres.adres}, ${klant.uitvoerAdres.postcode} ${klant.uitvoerAdres.plaats}`.trim()
+        : "",
       email: klant.email ?? "",
       telefoon: klant.telefoon ?? "",
+      telefoon2: klant.telefoon2 ?? "",
+      bijzonderheden: klant.bijzonderheden ?? "",
       notities: klant.notities ?? "",
       aantalOffertes: offerteCountByKlant.get(klant._id.toString()) ?? 0,
       totaleOmzet: totalValueByKlant.get(klant._id.toString()) ?? 0,

@@ -10,12 +10,20 @@
 
 export type ZoekbareKlant = {
   naam?: string;
+  voornaam?: string;
+  achternaam?: string;
   contactpersoon?: string;
   email?: string;
   telefoon?: string;
+  telefoon2?: string;
   adres?: string;
   postcode?: string;
   plaats?: string;
+  uitvoerAdres?: {
+    adres?: string;
+    postcode?: string;
+    plaats?: string;
+  };
   kvkNummer?: string;
 };
 
@@ -29,16 +37,29 @@ export type ZoekbareKlant = {
 export function zoekbareTekst(klant: ZoekbareKlant): string {
   const velden = [
     klant.naam,
+    klant.voornaam,
+    klant.achternaam,
     klant.contactpersoon,
     klant.email,
     klant.telefoon,
+    klant.telefoon2,
     klant.adres,
     klant.postcode,
     klant.plaats,
+    // Het uitvoeradres hoort er net zo goed bij: kantoor zoekt de klant
+    // geregeld op de straat waar het werk ligt, niet op het factuuradres.
+    klant.uitvoerAdres?.adres,
+    klant.uitvoerAdres?.postcode,
+    klant.uitvoerAdres?.plaats,
     klant.kvkNummer,
   ].filter((v): v is string => Boolean(v));
 
-  const kaal = [klant.telefoon, klant.postcode]
+  const kaal = [
+    klant.telefoon,
+    klant.telefoon2,
+    klant.postcode,
+    klant.uitvoerAdres?.postcode,
+  ]
     .filter((v): v is string => Boolean(v))
     .map((v) => v.replace(/[\s\-.()]/g, ""));
 

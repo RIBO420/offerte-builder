@@ -122,8 +122,38 @@ export default defineSchema({
     adres: v.string(),
     postcode: v.string(),
     plaats: v.string(),
+    // Klantfeedback Mickey (sep 2026): voor- en achternaam apart, zodat je op
+    // achternaam kunt sorteren en zoeken. Additief — `naam` blijft de
+    // weergavenaam die de rest van de app (offerte, pdf, factuur, planbord,
+    // portaal, mobiel) leest, en wordt afgeleid met
+    // `convex/lib/klantNaam.ts:samengesteldeNaam` zodra een van beide is
+    // ingevuld. Alleen betekenisvol bij klantType "particulier" (of een oud
+    // record zonder type); bij zakelijk/vve/gemeente/overig blijven ze leeg en
+    // is `naam` de bedrijfs- of VvE-naam (de persoon staat in `contactpersoon`).
+    voornaam: v.optional(v.string()),
+    achternaam: v.optional(v.string()),
     email: v.optional(v.string()),
     telefoon: v.optional(v.string()),
+    // Tweede nummer (vast én mobiel). Stond tot sep 2026 als losse regel
+    // "Tweede telefoonnummer: …" in `notities` — de relatie-import schrijft
+    // hem nu naar dit veld (migratie: migrations/telefoon2UitNotities.ts).
+    telefoon2: v.optional(v.string()),
+    // Vast klantkenmerk dat bij elke klus geldt: "sleutel onder de pot",
+    // "hond los in de tuin", "altijd vrijdag maaien". Bewust NIET het
+    // deprecated `notities`-veld hieronder: dat was een vrij dagboek en is
+    // gemigreerd naar klantTijdlijn. Dit is een blijvend kenmerk, geen
+    // gebeurtenis.
+    bijzonderheden: v.optional(v.string()),
+    // Afwijkend uitvoeradres (de tuin ligt elders dan het postadres). Het
+    // bestaande `adres`/`postcode`/`plaats` blijft het hoofd- én factuuradres;
+    // werk (planbord, dagkaart, route) gebruikt dit adres als het er staat.
+    uitvoerAdres: v.optional(
+      v.object({
+        adres: v.string(),
+        postcode: v.string(),
+        plaats: v.string(),
+      })
+    ),
     // DEPRECATED (PRD §2.3): het vrije Notities-veld is uitgefaseerd ten
     // gunste van de klanttijdlijn (tabel klantTijdlijn, "één waarheid").
     // Bestaande inhoud is gemigreerd via tijdlijnMigratie:migreerNotities

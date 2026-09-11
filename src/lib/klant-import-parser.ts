@@ -23,6 +23,14 @@ export type RelatieSoort = "klant" | "leverancier";
 
 export interface ParsedKlantEntry {
   naam: string;
+  /**
+   * Voor- en achternaam apart, maar alléén als de rij een persoon ís: bij een
+   * bedrijfsrij is `naam` de bedrijfsnaam en belandt de persoonsnaam in
+   * `contactpersoon`. Zo blijft de afspraak overeind dat `voornaam` en
+   * `achternaam` samen de `naam` vormen (convex/lib/klantNaam.ts).
+   */
+  voornaam?: string;
+  achternaam?: string;
   email?: string;
   telefoon?: string;
   /** Contactpersoon bij een bedrijf (voornaam + achternaam naast de bedrijfsnaam). */
@@ -33,9 +41,9 @@ export interface ParsedKlantEntry {
   klantType: KlantType;
   soort: RelatieSoort;
   /**
-   * Tweede nummer als de export er twee heeft (vast én mobiel). Belandt in de
-   * notities; het schema kent één telefoonveld en dat blijft het nummer waar
-   * je op belt.
+   * Tweede nummer als de export er twee heeft (vast én mobiel). Belandt in
+   * `klanten.telefoon2`; `telefoon` blijft het nummer waar je als eerste op
+   * belt.
    */
   extraTelefoon?: string;
   website?: string;
@@ -433,6 +441,11 @@ export function processKlantImportData(
     // Bij een bedrijf is de persoonsnaam de contactpersoon.
     const contactpersoon = bedrijfsnaam && persoonsnaam ? persoonsnaam : undefined;
 
+    // Zonder bedrijfsnaam ís de persoonsnaam de klantnaam; dan gaan voor- en
+    // achternaam ook apart mee, zodat kantoor op achternaam kan sorteren
+    // zonder de naam later alsnog te moeten splitsen.
+    const isPersoonsrij = !bedrijfsnaam && Boolean(persoonsnaam);
+
     // ── Adres ─────────────────────────────────────────────────────────────
     let adres = "";
     let postcode = "";
@@ -532,6 +545,8 @@ export function processKlantImportData(
 
     entries.push({
       naam,
+      voornaam: isPersoonsrij ? voornaam || undefined : undefined,
+      achternaam: isPersoonsrij ? achternaam || undefined : undefined,
       email,
       telefoon,
       contactpersoon,

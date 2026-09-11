@@ -560,6 +560,13 @@ describe("processKlantImportData", () => {
       expect(result.entries[0].klantType).toBe("particulier");
     });
 
+    it("houdt voornaam en achternaam apart naast de samengestelde naam", () => {
+      const result = processKlantImportData([exportRij("Dijk 24A, 6127 AG Grevenbicht")]);
+
+      expect(result.entries[0].voornaam).toBe("Annemiek");
+      expect(result.entries[0].achternaam).toBe("van der Sanden");
+    });
+
     it("gebruikt de bedrijfsnaam en zet de persoon als contactpersoon", () => {
       const result = processKlantImportData([
         exportRij("Lissabonlaan 2, 6135 LE Sittard", {
@@ -573,6 +580,10 @@ describe("processKlantImportData", () => {
       expect(result.entries[0].naam).toBe("Bruls Prefab Beton");
       expect(result.entries[0].contactpersoon).toBe("B. Bruls");
       expect(result.entries[0].klantType).toBe("zakelijk");
+      // De persoon achter een bedrijfsnaam is de contactpersoon, niet de
+      // voor-/achternaam van de klant zelf.
+      expect(result.entries[0].voornaam).toBeUndefined();
+      expect(result.entries[0].achternaam).toBeUndefined();
     });
 
     it("herkent een VvE aan de bedrijfsnaam", () => {

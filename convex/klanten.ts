@@ -25,6 +25,7 @@ import { hoortInKlantenLijst } from "./leadsKlantenHelpers";
 import { logTijdlijnEvent } from "./tijdlijn";
 import { effectieveStatussen } from "./facturatieLogica";
 import { isOpenTaak } from "./lib/taakModel";
+import { samengesteldeNaam } from "./lib/klantNaam";
 
 /**
  * Tolerante tegenhanger van `getOwnedKlant`: die gooit een AuthError, terwijl
@@ -164,15 +165,82 @@ const klantTypeValidator = v.optional(v.union(
   v.literal("overig"),
 ));
 
+// ── Nieuwe klantvelden (klantfeedback Mickey, sep 2026) ─────────────────────
+// `naam` blijft de weergavenaam; voor- en achternaam zijn een aanvulling
+// waaruit hij wordt afgeleid (convex/lib/klantNaam.ts).
+
+const MAX_NAAMDEEL = 100;
+const MAX_BIJZONDERHEDEN = 2000;
+
+/** Afwijkend uitvoeradres; het hoofdadres blijft het factuuradres. */
+const uitvoerAdresValidator = v.optional(
+  v.object({
+    adres: v.string(),
+    postcode: v.string(),
+    plaats: v.string(),
+  })
+);
+
+function schoonNaamdeel(
+  waarde: string | undefined,
+  veld: string
+): string | undefined {
+  const schoon = sanitizeOptionalString(waarde);
+  if (schoon && schoon.length > MAX_NAAMDEEL) {
+    throw new ConvexError(`${veld} mag maximaal ${MAX_NAAMDEEL} tekens zijn`);
+  }
+  return schoon;
+}
+
+function schoonBijzonderheden(waarde: string | undefined): string | undefined {
+  const schoon = sanitizeOptionalString(waarde);
+  if (schoon && schoon.length > MAX_BIJZONDERHEDEN) {
+    throw new ConvexError(
+      `Bijzonderheden mag maximaal ${MAX_BIJZONDERHEDEN} tekens zijn`
+    );
+  }
+  return schoon;
+}
+
+/**
+ * Uitvoeradres opschonen. Een object met alleen lege velden betekent "wissen"
+ * — dezelfde conventie als bij `email`/`telefoon`, waar een lege string het
+ * veld leegmaakt. Staat er wél iets in, dan moeten alle drie de velden kloppen:
+ * een half uitvoeradres stuurt de ploeg de verkeerde kant op.
+ */
+function schoonUitvoerAdres(
+  waarde: { adres: string; postcode: string; plaats: string } | undefined
+): { adres: string; postcode: string; plaats: string } | undefined {
+  if (waarde === undefined) return undefined;
+
+  const adres = waarde.adres.trim();
+  const postcode = waarde.postcode.trim();
+  const plaats = waarde.plaats.trim();
+
+  if (!adres && !postcode && !plaats) return undefined;
+
+  if (!adres) throw new ConvexError("Uitvoeradres: adres is verplicht");
+  if (!plaats) throw new ConvexError("Uitvoeradres: plaats is verplicht");
+
+  return { adres, postcode: validateRequiredPostcode(postcode), plaats };
+}
+
 // Create a new klant
 export const create = mutation({
   args: {
     naam: v.string(),
+    // Optioneel en additief: is een van beide gevuld, dan wordt `naam` eruit
+    // afgeleid (samengesteldeNaam). Zo blijft `naam` overal de weergavenaam.
+    voornaam: v.optional(v.string()),
+    achternaam: v.optional(v.string()),
     adres: v.string(),
     postcode: v.string(),
     plaats: v.string(),
+    uitvoerAdres: uitvoerAdresValidator,
     email: v.optional(v.string()),
     telefoon: v.optional(v.string()),
+    telefoon2: v.optional(v.string()),
+    bijzonderheden: v.optional(v.string()),
     notities: v.optional(v.string()),
     klantType: klantTypeValidator,
     tags: v.optional(v.array(v.string())),
@@ -201,7 +269,13 @@ export const create = mutation({
     const postcode = validateRequiredPostcode(args.postcode);
     const email = sanitizeEmail(args.email);
     const telefoon = sanitizePhone(args.telefoon);
+    // Tweede nummer langs dezelfde regel als het eerste (sanitizePhone).
+    const telefoon2 = sanitizePhone(args.telefoon2);
     const notities = sanitizeOptionalString(args.notities);
+    const voornaam = schoonNaamdeel(args.voornaam, "Voornaam");
+    const achternaam = schoonNaamdeel(args.achternaam, "Achternaam");
+    const bijzonderheden = schoonBijzonderheden(args.bijzonderheden);
+    const uitvoerAdres = schoonUitvoerAdres(args.uitvoerAdres);
 
     // Sanitize tags: trim, lowercase, remove empties, deduplicate
     const sanitizedTags = args.tags
@@ -210,12 +284,18 @@ export const create = mutation({
 
     return await ctx.db.insert("klanten", {
       orgId: org._id,
-      naam: args.naam.trim(),
+      // Is voor- of achternaam ingevuld, dan is dát de weergavenaam.
+      naam: samengesteldeNaam({ voornaam, achternaam, naam: args.naam }),
+      voornaam,
+      achternaam,
       adres: args.adres.trim(),
       postcode,
       plaats: args.plaats.trim(),
+      uitvoerAdres,
       email,
       telefoon,
+      telefoon2,
+      bijzonderheden,
       notities,
       // PRD §1.3: geen "lead"-default meer — een rij in klanten ís een klant;
       // het lifecycle-stadium volgt uit echte events (upgradeKlantPipeline).
@@ -235,11 +315,16 @@ export const update = mutation({
   args: {
     id: v.id("klanten"),
     naam: v.optional(v.string()),
+    voornaam: v.optional(v.string()),
+    achternaam: v.optional(v.string()),
     adres: v.optional(v.string()),
     postcode: v.optional(v.string()),
     plaats: v.optional(v.string()),
+    uitvoerAdres: uitvoerAdresValidator,
     email: v.optional(v.string()),
     telefoon: v.optional(v.string()),
+    telefoon2: v.optional(v.string()),
+    bijzonderheden: v.optional(v.string()),
     notities: v.optional(v.string()),
     klantType: klantTypeValidator,
     tags: v.optional(v.array(v.string())),
@@ -254,7 +339,7 @@ export const update = mutation({
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
     // Verify ownership
-    await getOwnedKlant(ctx, args.id);
+    const bestaand = await getOwnedKlant(ctx, args.id);
 
     const filteredUpdates: Record<string, unknown> = {};
 
@@ -264,6 +349,33 @@ export const update = mutation({
         throw new ConvexError("Naam is verplicht");
       }
       filteredUpdates.naam = args.naam.trim();
+    }
+
+    // Voor- en achternaam: additief naast `naam`. Zodra een van beide gevuld
+    // is (nu meegestuurd óf al opgeslagen) wordt `naam` eruit afgeleid, zodat
+    // lijst, pdf, portaal en mobiel dezelfde weergavenaam blijven zien.
+    // Allebei leeggemaakt → de velden verdwijnen en `naam` blijft staan zoals
+    // hij was; dat is dezelfde wisconventie als bij `email`/`telefoon`.
+    const voornaamGegeven = args.voornaam !== undefined;
+    const achternaamGegeven = args.achternaam !== undefined;
+    if (voornaamGegeven || achternaamGegeven) {
+      const voornaam = voornaamGegeven
+        ? schoonNaamdeel(args.voornaam, "Voornaam")
+        : bestaand.voornaam;
+      const achternaam = achternaamGegeven
+        ? schoonNaamdeel(args.achternaam, "Achternaam")
+        : bestaand.achternaam;
+
+      if (voornaamGegeven) filteredUpdates.voornaam = voornaam;
+      if (achternaamGegeven) filteredUpdates.achternaam = achternaam;
+
+      if (voornaam || achternaam) {
+        const basisNaam =
+          typeof filteredUpdates.naam === "string"
+            ? filteredUpdates.naam
+            : bestaand.naam;
+        filteredUpdates.naam = samengesteldeNaam({ voornaam, achternaam, naam: basisNaam });
+      }
     }
 
     if (args.adres !== undefined) {
@@ -290,6 +402,19 @@ export const update = mutation({
 
     if (args.telefoon !== undefined) {
       filteredUpdates.telefoon = sanitizePhone(args.telefoon);
+    }
+
+    if (args.telefoon2 !== undefined) {
+      filteredUpdates.telefoon2 = sanitizePhone(args.telefoon2);
+    }
+
+    if (args.uitvoerAdres !== undefined) {
+      // Drie lege velden = uitvoeradres wissen; het hoofdadres blijft.
+      filteredUpdates.uitvoerAdres = schoonUitvoerAdres(args.uitvoerAdres);
+    }
+
+    if (args.bijzonderheden !== undefined) {
+      filteredUpdates.bijzonderheden = schoonBijzonderheden(args.bijzonderheden);
     }
 
     if (args.notities !== undefined) {
@@ -550,6 +675,7 @@ export const checkDuplicates = query({
   args: {
     email: v.optional(v.string()),
     telefoon: v.optional(v.string()),
+    telefoon2: v.optional(v.string()),
     naam: v.optional(v.string()),
     postcode: v.optional(v.string()),
     excludeId: v.optional(v.id("klanten")),
@@ -568,6 +694,15 @@ export const checkDuplicates = query({
     }> = [];
     const seen = new Set<string>();
 
+    // Een klant kan twee nummers hebben en het ingevoerde nummer kan het
+    // tweede zijn: matchen gebeurt daarom kruislings. Zonder dat zou de
+    // dubbelcheck een klant missen die je al kent, alleen omdat je zijn
+    // mobiele nummer intypt terwijl dat bij hem in `telefoon2` staat.
+    const kaalNummer = (nummer: string) => nummer.replace(/[\s\-]/g, "");
+    const gezochteNummers = [args.telefoon, args.telefoon2]
+      .filter((n): n is string => Boolean(n && n.trim()))
+      .map(kaalNummer);
+
     for (const klant of klanten) {
       if (args.excludeId && klant._id === args.excludeId) continue;
 
@@ -583,12 +718,11 @@ export const checkDuplicates = query({
         }
       }
 
-      // Check telefoon match
-      if (
-        args.telefoon &&
-        klant.telefoon &&
-        args.telefoon.replace(/[\s\-]/g, "") === klant.telefoon.replace(/[\s\-]/g, "")
-      ) {
+      // Check telefoon match (beide nummers, beide kanten)
+      const klantNummers = [klant.telefoon, klant.telefoon2]
+        .filter((n): n is string => Boolean(n))
+        .map(kaalNummer);
+      if (gezochteNummers.some((nummer) => klantNummers.includes(nummer))) {
         if (!seen.has(klant._id)) {
           duplicates.push({ _id: klant._id, naam: klant.naam, matchType: "telefoon" });
           seen.add(klant._id);
@@ -951,11 +1085,16 @@ export const gdprAnonymize = mutation({
     const now = Date.now();
     await ctx.db.patch(args.id, {
       naam: "Geanonimiseerd",
+      voornaam: undefined,
+      achternaam: undefined,
       email: undefined,
       telefoon: undefined,
+      telefoon2: undefined,
       adres: "Geanonimiseerd",
       postcode: "0000AA",
       plaats: "Geanonimiseerd",
+      uitvoerAdres: undefined,
+      bijzonderheden: undefined,
       notities: undefined,
       tags: undefined,
       gdprAnonymized: true,
@@ -1049,6 +1188,10 @@ export const importKlanten = mutation({
     klanten: v.array(
       v.object({
         naam: v.string(),
+        // Alleen gevuld als de rij een persoon ís (geen bedrijfsnaam); bij een
+        // bedrijfsrij blijft de persoonsnaam de `contactpersoon`.
+        voornaam: v.optional(v.string()),
+        achternaam: v.optional(v.string()),
         email: v.optional(v.string()),
         telefoon: v.optional(v.string()),
         // Adresvelden zijn optioneel bij import: een onvolledig adres is geen
@@ -1058,7 +1201,7 @@ export const importKlanten = mutation({
         plaats: v.optional(v.string()),
         // TT-002: bij een bedrijfsrij is dit de persoon achter de bedrijfsnaam
         contactpersoon: v.optional(v.string()),
-        /** Tweede nummer uit de export (vast én mobiel); gaat naar notities. */
+        /** Tweede nummer uit de export (vast én mobiel); gaat naar `telefoon2`. */
         extraTelefoon: v.optional(v.string()),
         website: v.optional(v.string()),
         klantnummer: v.optional(v.string()),
@@ -1167,20 +1310,15 @@ export const importKlanten = mutation({
 
           vulAan("email", email);
           vulAan("telefoon", telefoon);
+          vulAan("telefoon2", normaliseerImportTelefoon(klant.extraTelefoon));
+          vulAan("voornaam", sanitizeOptionalString(klant.voornaam));
+          vulAan("achternaam", sanitizeOptionalString(klant.achternaam));
           vulAan("adres", adres);
           vulAan("postcode", postcode);
           vulAan("plaats", plaats);
           vulAan("contactpersoon", sanitizeOptionalString(klant.contactpersoon));
           vulAan("website", sanitizeOptionalString(klant.website));
           vulAan("klantnummer", sanitizeOptionalString(klant.klantnummer));
-
-          const tweede = normaliseerImportTelefoon(klant.extraTelefoon);
-          if (tweede && !(bestaand.notities ?? "").includes(tweede)) {
-            const regel = `Tweede telefoonnummer: ${tweede}`;
-            patch.notities = bestaand.notities
-              ? `${bestaand.notities}\n${regel}`
-              : regel;
-          }
 
           if (Object.keys(patch).length > 0) {
             await ctx.db.patch(bestaand._id, { ...patch, updatedAt: now });
@@ -1192,10 +1330,10 @@ export const importKlanten = mutation({
           continue;
         }
 
-        const tweedeNummer = normaliseerImportTelefoon(klant.extraTelefoon);
-        const notities = tweedeNummer
-          ? `Tweede telefoonnummer: ${tweedeNummer}`
-          : undefined;
+        // Het tweede nummer heeft sinds sep 2026 een eigen veld; daarvóór
+        // schreef de import er de regel "Tweede telefoonnummer: …" voor in
+        // `notities` (migratie: migrations/telefoon2UitNotities.ts).
+        const telefoon2 = normaliseerImportTelefoon(klant.extraTelefoon);
 
         // `contactpersoon` stond hier eerder alleen in de cache-regel hieronder
         // en niet in de insert zelf, waardoor hij bij import stilzwijgend
@@ -1204,15 +1342,17 @@ export const importKlanten = mutation({
           orgId: org._id,
           userId: user._id,
           naam: klant.naam.trim(),
+          voornaam: sanitizeOptionalString(klant.voornaam),
+          achternaam: sanitizeOptionalString(klant.achternaam),
           adres,
           postcode,
           plaats,
           email,
           telefoon,
+          telefoon2,
           contactpersoon: sanitizeOptionalString(klant.contactpersoon),
           website: sanitizeOptionalString(klant.website),
           klantnummer: sanitizeOptionalString(klant.klantnummer),
-          notities,
           // PRD §1.3: geen "lead"-default meer (zie leadsKlantenHelpers.ts)
           klantType: klant.klantType ?? "particulier",
           createdAt: now,

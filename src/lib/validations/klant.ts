@@ -26,19 +26,50 @@ const optionalPhone = z
     message: "Ongeldig telefoonnummer. Gebruik formaat: 0612345678 of +31612345678",
   });
 
-export const klantSchema = z.object({
-  naam: z.string().min(1, "Naam is verplicht"),
-  adres: z.string().min(1, "Adres is verplicht"),
-  postcode: z
+// Postcodeveld — hergebruikt door het hoofdadres en het uitvoeradres.
+const verplichtePostcode = z
+  .string()
+  .min(1, "Postcode is verplicht")
+  .transform((val) => val.toUpperCase().replace(/^(\d{4})\s?([A-Z]{2})$/, "$1 $2"))
+  .refine((val) => POSTCODE_PATTERN.test(val), {
+    message: "Ongeldige postcode (bijv. 1234 AB)",
+  });
+
+// Optioneel vrij tekstveld met een maximum; leeg telt als niet ingevuld.
+const optioneleTekst = (max: number, label: string) =>
+  z
     .string()
-    .min(1, "Postcode is verplicht")
-    .transform((val) => val.toUpperCase().replace(/^(\d{4})\s?([A-Z]{2})$/, "$1 $2"))
-    .refine((val) => POSTCODE_PATTERN.test(val), {
-      message: "Ongeldige postcode (bijv. 1234 AB)",
-    }),
+    .optional()
+    .transform((val) => (val?.trim() === "" ? undefined : val?.trim()))
+    .refine((val) => !val || val.length <= max, {
+      message: `${label} mag maximaal ${max} tekens zijn`,
+    });
+
+/**
+ * Afwijkend uitvoeradres. Optioneel als geheel, maar gaat het mee, dan moeten
+ * alle drie de velden kloppen — een half uitvoeradres stuurt de ploeg de
+ * verkeerde kant op. Het hoofdadres hierboven blijft het factuuradres.
+ */
+export const uitvoerAdresSchema = z.object({
+  adres: z.string().min(1, "Adres is verplicht"),
+  postcode: verplichtePostcode,
   plaats: z.string().min(1, "Plaats is verplicht"),
+});
+
+export const klantSchema = z.object({
+  // `naam` blijft verplicht en is de weergavenaam; formulieren berekenen hem
+  // met `samengesteldeNaam` uit voor- en achternaam vóór submit.
+  naam: z.string().min(1, "Naam is verplicht"),
+  voornaam: optioneleTekst(100, "Voornaam"),
+  achternaam: optioneleTekst(100, "Achternaam"),
+  adres: z.string().min(1, "Adres is verplicht"),
+  postcode: verplichtePostcode,
+  plaats: z.string().min(1, "Plaats is verplicht"),
+  uitvoerAdres: uitvoerAdresSchema.optional(),
   email: optionalEmail,
   telefoon: optionalPhone,
+  telefoon2: optionalPhone,
+  bijzonderheden: optioneleTekst(2000, "Bijzonderheden"),
 });
 
 export type KlantFormData = z.infer<typeof klantSchema>;

@@ -46,11 +46,17 @@ export function useKlanten() {
   const create = useCallback(
     async (klantData: {
       naam: string;
+      // Optioneel; is een van beide gevuld, dan leidt de backend `naam` eruit af.
+      voornaam?: string;
+      achternaam?: string;
       adres: string;
       postcode: string;
       plaats: string;
+      uitvoerAdres?: { adres: string; postcode: string; plaats: string };
       email?: string;
       telefoon?: string;
+      telefoon2?: string;
+      bijzonderheden?: string;
       notities?: string;
       klantType?: "particulier" | "zakelijk" | "vve" | "gemeente" | "overig";
       tags?: string[];
@@ -66,11 +72,17 @@ export function useKlanten() {
       id: Id<"klanten">,
       klantData: {
         naam?: string;
+        voornaam?: string;
+        achternaam?: string;
         adres?: string;
         postcode?: string;
         plaats?: string;
+        // Drie lege velden wissen het uitvoeradres (zoals "" bij e-mail).
+        uitvoerAdres?: { adres: string; postcode: string; plaats: string };
         email?: string;
         telefoon?: string;
+        telefoon2?: string;
+        bijzonderheden?: string;
         notities?: string;
         klantType?: "particulier" | "zakelijk" | "vve" | "gemeente" | "overig";
         tags?: string[];
