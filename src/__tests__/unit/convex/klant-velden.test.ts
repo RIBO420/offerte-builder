@@ -23,6 +23,7 @@ import { ConvexError } from "convex/values";
 import {
   checkDuplicates,
   create as klantCreate,
+  createFromOfferte,
   importKlanten,
   update as klantUpdate,
 } from "../../../../convex/klanten";
@@ -477,6 +478,41 @@ describe("klanten.importKlanten — naamdelen", () => {
 
     const klant = lees(wereld.store, wereld.klantId);
     expect(klant.naam).toBe("Hoveniersbedrijf Groenveld B.V.");
+    expect(klant.voornaam).toBeUndefined();
+    expect(klant.achternaam).toBeUndefined();
+  });
+});
+
+/**
+ * Een klant die uit een offerte ontstaat, kreeg alleen een `naam` — terwijl
+ * kantoor op `achternaam` sorteert en zoekt. Zelfde splitsregel als bij een
+ * lead en bij de migratie (convex/lib/klantNaam.ts).
+ */
+describe("klanten.createFromOfferte — naamdelen", () => {
+  it("vult voor- en achternaam bij een persoonsnaam", async () => {
+    const wereld = bouwWereld();
+
+    const id = (await handler(createFromOfferte)(wereld.ctx, {
+      ...BASIS,
+      naam: "Ellen Kuipers",
+    })) as string;
+
+    const klant = lees(wereld.store, id);
+    expect(klant.naam).toBe("Ellen Kuipers");
+    expect(klant.voornaam).toBe("Ellen");
+    expect(klant.achternaam).toBe("Kuipers");
+  });
+
+  it("laat een bedrijfsnaam ongesplitst", async () => {
+    const wereld = bouwWereld();
+
+    const id = (await handler(createFromOfferte)(wereld.ctx, {
+      ...BASIS,
+      naam: "Dreessen Advocaten BV",
+    })) as string;
+
+    const klant = lees(wereld.store, id);
+    expect(klant.naam).toBe("Dreessen Advocaten BV");
     expect(klant.voornaam).toBeUndefined();
     expect(klant.achternaam).toBeUndefined();
   });

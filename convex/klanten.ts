@@ -25,7 +25,11 @@ import { hoortInKlantenLijst } from "./leadsKlantenHelpers";
 import { logTijdlijnEvent } from "./tijdlijn";
 import { effectieveStatussen } from "./facturatieLogica";
 import { isOpenTaak } from "./lib/taakModel";
-import { naamPatchVoor, samengesteldeNaam } from "./lib/klantNaam";
+import {
+  naamDelenVoorNieuweKlant,
+  naamPatchVoor,
+  samengesteldeNaam,
+} from "./lib/klantNaam";
 
 /**
  * Tolerante tegenhanger van `getOwnedKlant`: die gooit een AuthError, terwijl
@@ -785,9 +789,13 @@ export const createFromOfferte = mutation({
 
     // Create new klant
     const now = Date.now();
+    const naam = args.naam.trim();
     return await ctx.db.insert("klanten", {
       orgId: org._id,
-      naam: args.naam.trim(),
+      naam,
+      // Ook een klant die uit een offerte ontstaat krijgt naamdelen — zelfde
+      // regel als bij een lead en bij de migratie (lib/klantNaam.ts).
+      ...naamDelenVoorNieuweKlant(naam),
       adres: args.adres.trim(),
       postcode,
       plaats: args.plaats.trim(),

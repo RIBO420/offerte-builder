@@ -16,6 +16,7 @@ import { describe, it, expect } from "vitest";
 import {
   TUSSENVOEGSELS,
   lijktBedrijfsnaam,
+  naamDelenVoorNieuweKlant,
   naamPatchVoor,
   samengesteldeNaam,
   sorteerNaam,
@@ -239,5 +240,50 @@ describe("naamPatchVoor", () => {
 
   it("geeft een lege patch als er niets meegestuurd wordt", () => {
     expect(naamPatchVoor(jan, {})).toEqual({});
+  });
+});
+
+/**
+ * `naamDelenVoorNieuweKlant` is de splitsregel voor een NIEUW klantrecord —
+ * gedeeld door de lead-promotie, `klanten.createFromOfferte` en de migratie
+ * `splitsKlantNaam`. Bij twijfel geen naamdelen: een lege achternaam is te
+ * herstellen, een verkeerd geknipte bedrijfsnaam kost kantoor handwerk.
+ */
+describe("naamDelenVoorNieuweKlant", () => {
+  it("splitst een gewone persoonsnaam", () => {
+    expect(naamDelenVoorNieuweKlant("Ellen Kuipers")).toEqual({
+      voornaam: "Ellen",
+      achternaam: "Kuipers",
+    });
+  });
+
+  it("houdt tussenvoegsels bij de achternaam", () => {
+    expect(naamDelenVoorNieuweKlant("Jan van der Berg")).toEqual({
+      voornaam: "Jan",
+      achternaam: "van der Berg",
+    });
+  });
+
+  it("schrijft geen lege voornaam bij een naam die met een tussenvoegsel begint", () => {
+    expect(naamDelenVoorNieuweKlant("van der Berg")).toEqual({
+      voornaam: undefined,
+      achternaam: "van der Berg",
+    });
+  });
+
+  it("splitst een bedrijfsnaam niet", () => {
+    expect(naamDelenVoorNieuweKlant("Dreessen Advocaten BV")).toEqual({});
+  });
+
+  it("splitst een naam van één woord niet", () => {
+    expect(naamDelenVoorNieuweKlant("Vries")).toEqual({});
+  });
+
+  it("laat een ander klanttype dan particulier ongemoeid", () => {
+    expect(naamDelenVoorNieuweKlant("Ellen Kuipers", "zakelijk")).toEqual({});
+    expect(naamDelenVoorNieuweKlant("Ellen Kuipers", "particulier")).toEqual({
+      voornaam: "Ellen",
+      achternaam: "Kuipers",
+    });
   });
 });

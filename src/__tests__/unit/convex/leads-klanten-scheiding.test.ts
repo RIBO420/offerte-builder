@@ -566,6 +566,42 @@ describe("Klant koppelen vanuit een open lead", () => {
     expect(getLead(store, leadId).pipelineStatus).toBe("nieuw");
   });
 
+  /**
+   * Een klant uit een lead kreeg alleen een `naam`, terwijl kantoor sorteert
+   * en zoekt op `achternaam`: zo'n klant stond in de lijst onder zijn
+   * voornaam. De splitsregel van lib/klantNaam.ts geldt nu ook hier — en
+   * blijft af van namen die naar een organisatie ruiken.
+   */
+  it("maakKlantUitLead vult voor- en achternaam bij een persoonsnaam", async () => {
+    const { store, ctx, seedLead } = maakKoppelContext();
+    const leadId = seedLead({
+      klantNaam: "Ellen Kuipers",
+      klantEmail: "ellen@kuipers.nl",
+    });
+
+    await maakKlantUitLeadH(ctx, { id: leadId });
+
+    const klant = store.getAll("klanten")[0];
+    expect(klant.naam).toBe("Ellen Kuipers");
+    expect(klant.voornaam).toBe("Ellen");
+    expect(klant.achternaam).toBe("Kuipers");
+  });
+
+  it("maakKlantUitLead laat een bedrijfsnaam ongesplitst", async () => {
+    const { store, ctx, seedLead } = maakKoppelContext();
+    const leadId = seedLead({
+      klantNaam: "Dreessen Advocaten BV",
+      klantEmail: "info@dreessen.nl",
+    });
+
+    await maakKlantUitLeadH(ctx, { id: leadId });
+
+    const klant = store.getAll("klanten")[0];
+    expect(klant.naam).toBe("Dreessen Advocaten BV");
+    expect(klant.voornaam).toBeUndefined();
+    expect(klant.achternaam).toBeUndefined();
+  });
+
   it("maakKlantUitLead is idempotent: een al gekoppelde lead geeft dezelfde klant terug", async () => {
     const { store, ctx, orgId, seedLead } = maakKoppelContext();
     const klantId = store.insert("klanten", maakKlant({ orgId, email: "ander@adres.nl" }));

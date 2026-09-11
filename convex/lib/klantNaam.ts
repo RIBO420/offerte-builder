@@ -17,6 +17,8 @@
  *   - `lijktBedrijfsnaam` — is dit überhaupt een persoonsnaam?
  *   - `naamPatchVoor` — wat moet er bij een bewerking op naam en naamdelen
  *     veranderen? (kantoorformulier én portaal, één regel)
+ *   - `naamDelenVoorNieuweKlant` — welke naamdelen hoort een nieuw
+ *     klantrecord te krijgen? (lead-promotie, offerte, migratie)
  *
  * Pure functies zonder Convex-afhankelijkheden, zodat `src/` ze net zo goed
  * kan importeren als de backend (zelfde opzet als `convex/lib/normuren.ts`).
@@ -151,6 +153,37 @@ export function lijktBedrijfsnaam(naam: string): boolean {
     const kaal = woord.toLowerCase().replace(/[.,]/g, "");
     return BEDRIJFSTOKENS.has(kaal);
   });
+}
+
+
+/**
+ * De naamdelen die een NIEUW klantrecord krijgt bij alleen een weergavenaam.
+ *
+ * Een klant die uit een lead of een offerte ontstaat, kreeg tot sep 2026
+ * alleen een `naam` — daardoor stond hij in de lijst onder de voornaam en gaf
+ * het dossier lege naamvelden, terwijl handmatig aangemaakte klanten wél
+ * gesplitst zijn. Dit is dezelfde regel als de migratie `splitsKlantNaam`
+ * (die hem via `bepaalNaamSplitsing` gebruikt), zodat er één waarheid is:
+ *
+ * - een ander klanttype dan `particulier` is een organisatie → niet splitsen;
+ * - minder dan twee woorden ("Vries") → niets te splitsen;
+ * - een bedrijfsachtige naam ("Dreessen Advocaten BV") → niet splitsen;
+ * - anders `splitsNaam`, waarbij een lege voornaam ("van der Berg") het veld
+ *   niet schrijft in plaats van er een lege string in te zetten.
+ *
+ * Bij twijfel dus géén naamdelen: een lege achternaam is te herstellen, een
+ * verkeerd geknipte bedrijfsnaam kost kantoor handwerk.
+ */
+export function naamDelenVoorNieuweKlant(
+  naam: string,
+  klantType?: KlantType
+): { voornaam?: string; achternaam?: string } {
+  if (klantType !== undefined && klantType !== "particulier") return {};
+  if (woorden(naam).length < 2) return {};
+  if (lijktBedrijfsnaam(naam)) return {};
+
+  const { voornaam, achternaam } = splitsNaam(naam);
+  return { voornaam: voornaam || undefined, achternaam };
 }
 
 /** De velden zoals ze in de database staan voordat er bewerkt wordt. */

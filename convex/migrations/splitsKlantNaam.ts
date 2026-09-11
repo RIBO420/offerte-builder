@@ -45,7 +45,7 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
-import { lijktBedrijfsnaam, splitsNaam, woorden } from "../lib/klantNaam";
+import { naamDelenVoorNieuweKlant, woorden } from "../lib/klantNaam";
 
 const BATCH_SIZE = 100;
 
@@ -97,14 +97,20 @@ export function bepaalNaamSplitsing(klant: NaamKandidaat): NaamBesluit {
     return { actie: "overslaan", reden: "te_weinig_woorden" };
   }
 
-  if (lijktBedrijfsnaam(klant.naam)) {
+  // Vanaf hier is het dezelfde regel als voor een nieuw klantrecord uit een
+  // lead of een offerte (`naamDelenVoorNieuweKlant`): één waarheid over wat
+  // wel en niet gesplitst wordt. Geen achternaam terug = bedrijfsnaam.
+  const { voornaam, achternaam } = naamDelenVoorNieuweKlant(
+    klant.naam,
+    klant.klantType
+  );
+  if (!achternaam) {
     return { actie: "overslaan", reden: "bedrijfsnaam" };
   }
 
-  const { voornaam, achternaam } = splitsNaam(klant.naam);
   // "van der Berg" levert geen voornaam op — dan schrijven we het veld niet,
   // in plaats van er een lege string in te zetten.
-  return { actie: "splitsen", voornaam: voornaam || undefined, achternaam };
+  return { actie: "splitsen", voornaam, achternaam };
 }
 
 type Voorbeeld = { klantId: Id<"klanten">; naam: string; reden: NaamOverslagReden };

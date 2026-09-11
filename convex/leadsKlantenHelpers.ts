@@ -27,6 +27,7 @@
 import { GenericMutationCtx } from "convex/server";
 import { DataModel, Doc, Id } from "./_generated/dataModel";
 import { logTijdlijnEvent } from "./tijdlijn";
+import { naamDelenVoorNieuweKlant } from "./lib/klantNaam";
 
 // ─── Lead-funnel status (configuratorAanvragen) ──────────────────────────────
 
@@ -202,9 +203,14 @@ export async function maakKlantUitLead(
   orgId: Id<"organisaties">
 ): Promise<Id<"klanten">> {
   const now = Date.now();
+  const naam = lead.klantNaam.trim();
   return await ctx.db.insert("klanten", {
     orgId,
-    naam: lead.klantNaam.trim(),
+    naam,
+    // Een klant uit een lead hoort dezelfde naamvelden te krijgen als een
+    // klant die kantoor zelf invoert: anders staat hij in de lijst onder zijn
+    // voornaam en blijft het dossier leeg. Zelfde regel als de migratie.
+    ...naamDelenVoorNieuweKlant(naam),
     adres: lead.klantAdres?.trim() ?? "",
     postcode: lead.klantPostcode?.trim() ?? "",
     plaats: lead.klantPlaats?.trim() ?? "",
