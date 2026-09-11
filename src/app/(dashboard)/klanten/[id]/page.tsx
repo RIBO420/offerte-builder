@@ -8,7 +8,15 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/page-header";
 
-import { User, ArrowLeft, Mail, MapPin, Phone, ShieldAlert } from "lucide-react";
+import {
+  User,
+  ArrowLeft,
+  Mail,
+  MapPin,
+  Navigation,
+  Phone,
+  ShieldAlert,
+} from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { useKlantWithOffertes } from "@/hooks/use-klanten";
@@ -84,9 +92,33 @@ function formatDate(timestamp: number): string {
   });
 }
 
-/** Twee letters volstaan als monogram; de volle naam staat er direct naast. */
-function initialen(naam: string): string {
-  const delen = naam.trim().split(/\s+/).filter(Boolean);
+/** Eerste letter van het laatste woord — "van der Berg" wordt dus een B. */
+function laatsteLetter(waarde: string): string {
+  const delen = waarde.trim().split(/\s+/).filter(Boolean);
+  return delen.length > 0 ? delen[delen.length - 1][0] : "";
+}
+
+/**
+ * Twee letters volstaan als monogram; de volle naam staat er direct naast.
+ *
+ * Zijn voor- en achternaam los bekend (sinds sep 2026), dan tellen die — dat
+ * is preciezer dan de naam opnieuw splitsen, want "Jan van der Berg" hoort JB
+ * te geven en niet JV.
+ */
+function initialen(klant: {
+  naam: string;
+  voornaam?: string;
+  achternaam?: string;
+}): string {
+  const voornaam = klant.voornaam?.trim() ?? "";
+  const achternaam = klant.achternaam?.trim() ?? "";
+  if (voornaam || achternaam) {
+    const letters = (voornaam.slice(0, 1) + laatsteLetter(achternaam))
+      .trim()
+      .toUpperCase();
+    if (letters) return letters;
+  }
+  const delen = klant.naam.trim().split(/\s+/).filter(Boolean);
   if (delen.length === 0) return "?";
   if (delen.length === 1) return delen[0].slice(0, 2).toUpperCase();
   return (delen[0][0] + delen[delen.length - 1][0]).toUpperCase();
@@ -180,6 +212,9 @@ export default function KlantDetailPage({
   });
 
   const adresregel = adresRegel(klant);
+  // Het tweede adres is er zelden, en als het er is telt het: daar staat de
+  // ploeg 's ochtends, niet op het factuuradres.
+  const uitvoerregel = klant.uitvoerAdres ? adresRegel(klant.uitvoerAdres) : "";
 
   return (
     <>
@@ -213,7 +248,7 @@ export default function KlantDetailPage({
               aria-hidden
               className="mt-1 flex size-12 shrink-0 select-none items-center justify-center rounded-full border border-primary/15 bg-primary/10 font-display text-lg font-semibold tracking-wide text-primary"
             >
-              {initialen(klant.naam)}
+              {initialen(klant)}
             </span>
 
             <div className="min-w-0 space-y-1.5 pl-1">
@@ -270,6 +305,23 @@ export default function KlantDetailPage({
                     </button>
                   )
                 )}
+                {/* Tweede nummer krijgt een eigen chip: kantoor belt eerst
+                    het ene en dan het andere, en dat moet niet achter een
+                    tooltip of een tab zitten. */}
+                {klant.telefoon2 && (
+                  <ContactChip
+                    icoon={<Phone />}
+                    href={`tel:${klant.telefoon2}`}
+                    kopieer={klant.telefoon2}
+                    kopieerLabel="Kopieer tweede telefoonnummer"
+                    titel={`Tweede telefoonnummer: ${klant.telefoon2}`}
+                    className="text-muted-foreground"
+                  >
+                    <span className="truncate text-sm tabular-nums">
+                      {klant.telefoon2}
+                    </span>
+                  </ContactChip>
+                )}
                 {klant.email ? (
                   <ContactChip
                     icoon={<Mail />}
@@ -306,6 +358,21 @@ export default function KlantDetailPage({
                     className="text-muted-foreground"
                   >
                     <span className="truncate text-sm">{adresregel}</span>
+                  </ContactChip>
+                )}
+                {uitvoerregel && (
+                  <ContactChip
+                    icoon={<Navigation />}
+                    href={googleMapsZoekUrl(uitvoerregel)}
+                    extern
+                    kopieer={uitvoerregel}
+                    kopieerLabel="Kopieer uitvoeradres"
+                    titel={`Werk wordt uitgevoerd op ${uitvoerregel} — route in Google Maps`}
+                    className="text-muted-foreground"
+                  >
+                    <span className="truncate text-sm">
+                      Uitvoer: {uitvoerregel}
+                    </span>
                   </ContactChip>
                 )}
                 {klant.contactpersoon && (
@@ -392,6 +459,9 @@ export default function KlantDetailPage({
                   (klant as { opnameToestemming?: boolean }).opnameToestemming ===
                   true
                 }
+                // Alleen intern: deze tekst hoort nergens in het portaal, een
+                // PDF of een mail te belanden.
+                bijzonderheden={klant.bijzonderheden}
               />
             )}
             {actieveTab === "tijdlijn" && (
