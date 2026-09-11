@@ -13,14 +13,24 @@
  * `convex/tijdlijnMigratie.ts`). Wat hier groen staat, is wat er over ±460
  * bestaande klanten heen loopt — inclusief de belangrijkste eis: een tweede
  * run verandert niets meer.
+ *
+ * De `start`-mutations zelf draaien hieronder tegen een nep-ctx met een échte
+ * cursor, omdat het rapport dat de operator leest hun tweede belofte is: een
+ * dry run toont ALLE klanten (niet de eerste 100), een echte run schrijft
+ * 100 per transactie. `convex-test` is in dit project niet geïnstalleerd; de
+ * handler zit op `_handler` van de geregistreerde mutation, vandaar de cast.
  */
 
 import { describe, it, expect } from "vitest";
 import { samengesteldeNaam } from "../../../../convex/lib/klantNaam";
-import { bepaalNaamSplitsing } from "../../../../convex/migrations/splitsKlantNaam";
+import {
+  bepaalNaamSplitsing,
+  start as startSplitsKlantNaam,
+} from "../../../../convex/migrations/splitsKlantNaam";
 import {
   TELEFOON2_NOTITIE_PREFIX,
   bepaalTelefoon2Migratie,
+  start as startTelefoon2UitNotities,
 } from "../../../../convex/migrations/telefoon2UitNotities";
 
 describe("bepaalNaamSplitsing", () => {
@@ -179,15 +189,28 @@ describe("bepaalTelefoon2Migratie", () => {
     });
   });
 
-  it("laat toelichting achter het nummer geen nummer worden", () => {
+  it("laat een regel met toelichting achter het nummer staan", () => {
+    // De import schreef één kaal nummer; staat er tekst achter, dan heeft
+    // iemand de regel met de hand aangepast en weten we niet meer welk stuk
+    // het nummer is. Dan blijft de notitie staan en wordt de klant gemeld.
     expect(
       bepaalTelefoon2Migratie({ notities: "Tweede telefoonnummer: 0612345678 (werk)" })
-    ).toEqual({
-      actie: "verplaatsen",
-      telefoon2: "0612345678",
-      notities: undefined,
-      resterendeRegels: 0,
-    });
+    ).toEqual({ actie: "overslaan", reden: "ongeldig_nummer" });
+  });
+
+  it("plakt twee nummers op één regel niet aan elkaar", () => {
+    // Zonder deze bescherming werd "0612345678 of 0687654321" één nummer van
+    // 20 cijfers én verdween de regel uit de notities.
+    expect(
+      bepaalTelefoon2Migratie({
+        notities: "Tweede telefoonnummer: 0612345678 of 0687654321",
+      })
+    ).toEqual({ actie: "overslaan", reden: "ongeldig_nummer" });
+    expect(
+      bepaalTelefoon2Migratie({
+        notities: "Tweede telefoonnummer: 0612345678 / 0687654321",
+      })
+    ).toEqual({ actie: "overslaan", reden: "ongeldig_nummer" });
   });
 
   it("slaat een onbruikbaar nummer over en laat de notitie staan", () => {
@@ -248,5 +271,188 @@ describe("bepaalTelefoon2Migratie", () => {
         telefoon2: eerste.telefoon2,
       })
     ).toEqual({ actie: "overslaan", reden: "geen_regel" });
+  });
+});
+
+// ─── De start-mutations: dry run ziet alles, echte run blijft gebatcht ───────
+
+type FakeKlant = {
+  _id: string;
+  naam: string;
+  voornaam?: string;
+  achternaam?: string;
+  klantType?: "particulier" | "zakelijk" | "vve" | "gemeente" | "overig";
+  notities?: string;
+  telefoon2?: string;
+};
+
+type FakeCtx = {
+  db: {
+    query: (tabel: string) => {
+      paginate: (opts: { cursor: string | null; numItems: number }) => Promise<{
+        page: FakeKlant[];
+        continueCursor: string;
+        isDone: boolean;
+      }>;
+    };
+    patch: (id: string, velden: Record<string, unknown>) => Promise<void>;
+  };
+};
+
+type StartArgs = { cursor?: string | null; dryRun?: boolean };
+type StartHandler<R> = (ctx: FakeCtx, args: StartArgs) => Promise<R>;
+const handlerVan = <R,>(fn: unknown): StartHandler<R> =>
+  (fn as { _handler: StartHandler<R> })._handler;
+
+/**
+ * Nep-ctx met een cursor die daadwerkelijk verder telt — de gedeelde mock in
+ * `src/__tests__/helpers/convex-mock.ts` geeft altijd een lege cursor terug en
+ * zou de bug (alleen de eerste pagina) dus niet kunnen laten zien.
+ */
+function nepCtx(klanten: FakeKlant[]) {
+  const patches: Array<{ id: string; velden: Record<string, unknown> }> = [];
+  let paginas = 0;
+
+  const ctx: FakeCtx = {
+    db: {
+      query: () => ({
+        paginate: async ({ cursor, numItems }) => {
+          paginas++;
+          const vanaf = cursor === null ? 0 : Number(cursor);
+          const page = klanten.slice(vanaf, vanaf + numItems);
+          const tot = vanaf + page.length;
+          return { page, continueCursor: String(tot), isDone: tot >= klanten.length };
+        },
+      }),
+      patch: async (id, velden) => {
+        patches.push({ id, velden });
+      },
+    },
+  };
+
+  return { ctx, patches, paginas: () => paginas };
+}
+
+/** 250 klanten = drie pagina's van 100: even splitsbaar, oneven twijfel. */
+function naamKlanten(): FakeKlant[] {
+  return Array.from({ length: 250 }, (_, i) => ({
+    _id: `klant_${i}`,
+    naam: i % 2 === 0 ? `Jan${i} Jansen` : `Jansen${i}`,
+  }));
+}
+
+/** 250 klanten: even een bruikbaar geparkeerd nummer, oneven een onbruikbaar. */
+function telefoonKlanten(): FakeKlant[] {
+  return Array.from({ length: 250 }, (_, i) => ({
+    _id: `klant_${i}`,
+    naam: `Klant ${i}`,
+    notities:
+      i % 2 === 0
+        ? "Tweede telefoonnummer: 0612345678"
+        : "Tweede telefoonnummer: onbekend",
+  }));
+}
+
+describe("splitsKlantNaam:start", () => {
+  const start = handlerVan<{
+    dryRun: boolean;
+    bekeken: number;
+    gesplitst: number;
+    alGesplitst: number;
+    twijfel: number;
+    twijfelVoorbeelden: unknown[];
+    isDone: boolean;
+    continueCursor: string | null;
+  }>(startSplitsKlantNaam);
+
+  it("telt in een dry run ALLE klanten, niet alleen de eerste batch", async () => {
+    const { ctx, patches, paginas } = nepCtx(naamKlanten());
+
+    const rapport = await start(ctx, { dryRun: true });
+
+    expect(rapport.bekeken).toBe(250);
+    expect(rapport.gesplitst).toBe(125);
+    expect(rapport.twijfel).toBe(125);
+    expect(rapport.isDone).toBe(true);
+    expect(rapport.continueCursor).toBeNull();
+    expect(paginas()).toBe(3);
+    expect(patches).toHaveLength(0);
+  });
+
+  it("houdt de voorbeeldlijst ook over meerdere pagina's op 50", async () => {
+    const { ctx } = nepCtx(naamKlanten());
+
+    const rapport = await start(ctx, { dryRun: true });
+
+    expect(rapport.twijfelVoorbeelden).toHaveLength(50);
+  });
+
+  it("schrijft per batch van 100 en geeft een cursor terug", async () => {
+    const { ctx, patches, paginas } = nepCtx(naamKlanten());
+
+    const rapport = await start(ctx, { dryRun: false });
+
+    expect(rapport.bekeken).toBe(100);
+    expect(rapport.isDone).toBe(false);
+    expect(rapport.continueCursor).toBe("100");
+    expect(paginas()).toBe(1);
+    expect(patches).toHaveLength(50);
+    expect(patches[0]).toEqual({
+      id: "klant_0",
+      velden: { voornaam: "Jan0", achternaam: "Jansen" },
+    });
+  });
+
+  it("loopt met de cursor door tot de laatste batch", async () => {
+    const { ctx, patches } = nepCtx(naamKlanten());
+
+    const laatste = await start(ctx, { dryRun: false, cursor: "200" });
+
+    expect(laatste.bekeken).toBe(50);
+    expect(laatste.isDone).toBe(true);
+    expect(laatste.continueCursor).toBeNull();
+    expect(patches).toHaveLength(25);
+  });
+});
+
+describe("telefoon2UitNotities:start", () => {
+  const start = handlerVan<{
+    dryRun: boolean;
+    bekeken: number;
+    verplaatst: number;
+    ongeldig: number;
+    ongeldigeVoorbeelden: unknown[];
+    isDone: boolean;
+    continueCursor: string | null;
+  }>(startTelefoon2UitNotities);
+
+  it("telt in een dry run ALLE klanten, niet alleen de eerste batch", async () => {
+    const { ctx, patches, paginas } = nepCtx(telefoonKlanten());
+
+    const rapport = await start(ctx, { dryRun: true });
+
+    expect(rapport.bekeken).toBe(250);
+    expect(rapport.verplaatst).toBe(125);
+    expect(rapport.ongeldig).toBe(125);
+    expect(rapport.ongeldigeVoorbeelden).toHaveLength(50);
+    expect(rapport.isDone).toBe(true);
+    expect(rapport.continueCursor).toBeNull();
+    expect(paginas()).toBe(3);
+    expect(patches).toHaveLength(0);
+  });
+
+  it("schrijft per batch van 100 en geeft een cursor terug", async () => {
+    const { ctx, patches } = nepCtx(telefoonKlanten());
+
+    const rapport = await start(ctx, { dryRun: false });
+
+    expect(rapport.bekeken).toBe(100);
+    expect(rapport.isDone).toBe(false);
+    expect(rapport.continueCursor).toBe("100");
+    expect(patches).toHaveLength(50);
+    expect(patches[0]).toEqual({
+      id: "klant_0",
+      velden: { telefoon2: "0612345678", notities: undefined },
+    });
   });
 });

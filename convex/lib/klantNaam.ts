@@ -71,7 +71,7 @@ const BEDRIJFSTOKENS = new Set([
 ]);
 
 /** Losse woorden uit een naam; dubbele spaties en randen verdwijnen. */
-function woorden(naam: string): string[] {
+export function woorden(naam: string): string[] {
   return naam.trim().split(/\s+/).filter(Boolean);
 }
 

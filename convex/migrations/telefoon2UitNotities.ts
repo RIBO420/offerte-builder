@@ -18,16 +18,29 @@
  *   dat kantoor zelf invulde wint van een regel uit een oude import.
  * - Levert de regel geen bruikbaar nummer op ("Tweede telefoonnummer: onbekend"),
  *   dan blijft de notitie staan en komt de klant in het rapport.
+ * - Staat er méér dan één nummer achter de prefix, of staat er tekst bij
+ *   ("0612345678 of 0687654321", "0612345678 (werk)"), dan is de regel met de
+ *   hand bijgewerkt en is niet te zeggen wat `telefoon2` moet worden. Ook dan
+ *   blijft de notitie staan en wordt de klant gemeld.
  * - Staan er meerdere van deze regels, dan verhuist alleen de eerste bruikbare;
  *   de rest blijft leesbaar in de notities staan en wordt geteld.
  *
- * Eigenschappen: gebatcht (100 per transactie), idempotent (na de verhuizing is
- * er geen regel meer te vinden) en `dryRun` staat standaard AAN — een run zonder
- * argumenten schrijft dus niets.
+ * Eigenschappen: idempotent (na de verhuizing is er geen regel meer te vinden)
+ * en `dryRun` staat standaard AAN — een run zonder argumenten schrijft niets.
+ *
+ * Twee snelheden, met opzet:
+ * - `dryRun: true` loopt in één aanroep over ÁLLE klanten en levert het
+ *   complete rapport (`isDone: true`, geen cursor). Alleen lezen, dus die ene
+ *   transactie kan dat bij deze tabelgrootte prima aan — en kantoor beoordeelt
+ *   zo alle ongeldige gevallen vóór er iets geschreven wordt, niet de eerste 100.
+ * - `dryRun: false` schrijft 100 klanten per transactie en geeft een
+ *   `continueCursor` terug; daarmee start de operator de volgende batch.
  *
  * Draaien (in deze volgorde):
  *   1. npx convex run migrations/telefoon2UitNotities:start '{"dryRun":true}'
+ *      (één aanroep = alle klanten; `isDone` is altijd true)
  *   2. rapport lezen: klopt `verplaatst`, en zijn de `ongeldigeVoorbeelden` terecht?
+ *      `ongeldigeVoorbeelden` toont er maximaal 50; `ongeldig` is het echte aantal.
  *   3. npx convex run migrations/telefoon2UitNotities:start '{"dryRun":false}'
  *   4. Zolang `isDone` false is, de volgende batch starten met de teruggegeven
  *      cursor (elke batch een eigen transactie):
@@ -75,9 +88,27 @@ function nummerTekst(regel: string): string | undefined {
 }
 
 /**
+ * Is dit één nummer en verder niets?
+ *
+ * De import schreef exact één kaal nummer achter de prefix, maar kantoor heeft
+ * regels met de hand bijgewerkt. `normaliseerImportTelefoon` gooit alle
+ * niet-cijfers weg, dus zonder deze poort wordt
+ * "0612345678 of 0687654321" één nummer van 20 cijfers — én verdwijnt de regel
+ * uit de notities. Letters of twee nummerachtige cijferreeksen: afblijven.
+ */
+function isEenduidigNummer(tekst: string): boolean {
+  if (/[a-z]/i.test(tekst)) return false;
+  // Losse groepjes ("06-12 34 56 78") zijn prima; twee reeksen van 6+ cijfers
+  // zijn twee nummers.
+  return (tekst.match(/\d{6,}/g) ?? []).length <= 1;
+}
+
+/**
  * Kern van de migratie voor één klant. Exporteerbaar voor tests.
  */
 export function bepaalTelefoon2Migratie(klant: Telefoon2Kandidaat): Telefoon2Besluit {
+  // Splitsen op \r\n én \n, terugplakken met \n: CRLF-notities worden bewust
+  // genormaliseerd naar LF — dat is de vorm waarin de app ze schrijft.
   const regels = (klant.notities ?? "").split(/\r?\n/);
   const kandidaten = regels
     .map((regel, index) => ({ index, tekst: nummerTekst(regel) }))
@@ -95,7 +126,9 @@ export function bepaalTelefoon2Migratie(klant: Telefoon2Kandidaat): Telefoon2Bes
   const bruikbaar = kandidaten
     .map((kandidaat) => ({
       index: kandidaat.index,
-      nummer: normaliseerImportTelefoon(kandidaat.tekst),
+      nummer: isEenduidigNummer(kandidaat.tekst)
+        ? normaliseerImportTelefoon(kandidaat.tekst)
+        : undefined,
     }))
     .find((kandidaat): kandidaat is { index: number; nummer: string } =>
       kandidaat.nummer !== undefined
@@ -127,10 +160,7 @@ export const start = internalMutation({
   handler: async (ctx, args) => {
     const dryRun = args.dryRun ?? true;
 
-    const page = await ctx.db
-      .query("klanten")
-      .paginate({ cursor: args.cursor ?? null, numItems: BATCH_SIZE });
-
+    let bekeken = 0;
     let verplaatst = 0;
     let geenRegel = 0;
     let alTelefoon2 = 0;
@@ -138,53 +168,70 @@ export const start = internalMutation({
     let regelsBlijvenStaan = 0;
     const ongeldigeVoorbeelden: Voorbeeld[] = [];
 
-    for (const klant of page.page) {
-      const besluit = bepaalTelefoon2Migratie(klant);
+    let cursor: string | null = args.cursor ?? null;
 
-      if (besluit.actie === "overslaan") {
-        if (besluit.reden === "geen_regel") geenRegel++;
-        else if (besluit.reden === "al_telefoon2") alTelefoon2++;
-        else {
-          ongeldig++;
-          if (ongeldigeVoorbeelden.length < MAX_VOORBEELDEN) {
-            // Bewust alleen id + naam: genoeg om na te lopen, geen dossier.
-            ongeldigeVoorbeelden.push({ klantId: klant._id, naam: klant.naam });
+    // Eén batch bij een echte run; bij een dry run loopt deze lus door tot de
+    // laatste pagina, zodat het rapport compleet is.
+    for (;;) {
+      const page = await ctx.db
+        .query("klanten")
+        .paginate({ cursor, numItems: BATCH_SIZE });
+
+      bekeken += page.page.length;
+
+      for (const klant of page.page) {
+        const besluit = bepaalTelefoon2Migratie(klant);
+
+        if (besluit.actie === "overslaan") {
+          if (besluit.reden === "geen_regel") geenRegel++;
+          else if (besluit.reden === "al_telefoon2") alTelefoon2++;
+          else {
+            ongeldig++;
+            if (ongeldigeVoorbeelden.length < MAX_VOORBEELDEN) {
+              // Bewust alleen id + naam: genoeg om na te lopen, geen dossier.
+              ongeldigeVoorbeelden.push({ klantId: klant._id, naam: klant.naam });
+            }
           }
+          continue;
         }
+
+        verplaatst++;
+        regelsBlijvenStaan += besluit.resterendeRegels;
+        if (!dryRun) {
+          await ctx.db.patch(klant._id, {
+            telefoon2: besluit.telefoon2,
+            notities: besluit.notities,
+          });
+        }
+      }
+
+      if (dryRun && !page.isDone) {
+        cursor = page.continueCursor;
         continue;
       }
 
-      verplaatst++;
-      regelsBlijvenStaan += besluit.resterendeRegels;
-      if (!dryRun) {
-        await ctx.db.patch(klant._id, {
-          telefoon2: besluit.telefoon2,
-          notities: besluit.notities,
-        });
-      }
+      const rapport = {
+        dryRun,
+        bekeken,
+        verplaatst,
+        geenRegel,
+        alTelefoon2,
+        ongeldig,
+        ongeldigeVoorbeelden,
+        regelsBlijvenStaan,
+        isDone: page.isDone,
+        continueCursor: page.isDone ? null : page.continueCursor,
+      };
+
+      console.log(
+        `[Migratie telefoon2UitNotities] ${dryRun ? "Dry run over alle klanten" : "Batch verwerkt"}: ` +
+          `${bekeken} bekeken, ${verplaatst} verplaatst, ${alTelefoon2} had al een telefoon2, ` +
+          `${ongeldig} ongeldig, ${geenRegel} zonder regel` +
+          (page.isDone ? " — KLAAR" : " — herhalen met continueCursor")
+      );
+
+      return rapport;
     }
-
-    const rapport = {
-      dryRun,
-      batchGrootte: page.page.length,
-      verplaatst,
-      geenRegel,
-      alTelefoon2,
-      ongeldig,
-      ongeldigeVoorbeelden,
-      regelsBlijvenStaan,
-      isDone: page.isDone,
-      continueCursor: page.isDone ? null : page.continueCursor,
-    };
-
-    console.log(
-      `[Migratie telefoon2UitNotities] Batch verwerkt${dryRun ? " (dry run)" : ""}: ` +
-        `${verplaatst} verplaatst, ${alTelefoon2} had al een telefoon2, ${ongeldig} ongeldig, ` +
-        `${geenRegel} zonder regel` +
-        (page.isDone ? " — KLAAR" : " — herhalen met continueCursor")
-    );
-
-    return rapport;
   },
 });
 

@@ -16,13 +16,23 @@
  *   `particulier` blijft ongemoeid en komt als `twijfel` in het rapport, zodat
  *   kantoor die handmatig kan nalopen.
  *
- * Eigenschappen: gebatcht (100 per transactie), idempotent (een klant die al
- * een voor- of achternaam heeft wordt overgeslagen) en `dryRun` staat standaard
- * AAN — een run zonder argumenten schrijft dus niets.
+ * Eigenschappen: idempotent (een klant die al een voor- of achternaam heeft
+ * wordt overgeslagen) en `dryRun` staat standaard AAN — een run zonder
+ * argumenten schrijft dus niets.
+ *
+ * Twee snelheden, met opzet:
+ * - `dryRun: true` loopt in één aanroep over ÁLLE klanten en levert het
+ *   complete rapport (`isDone: true`, geen cursor). Alleen lezen, dus die ene
+ *   transactie kan dat bij deze tabelgrootte prima aan — en kantoor beoordeelt
+ *   zo alle twijfelgevallen vóór er iets geschreven wordt, niet de eerste 100.
+ * - `dryRun: false` schrijft 100 klanten per transactie en geeft een
+ *   `continueCursor` terug; daarmee start de operator de volgende batch.
  *
  * Draaien (in deze volgorde):
  *   1. npx convex run migrations/splitsKlantNaam:start '{"dryRun":true}'
+ *      (één aanroep = alle klanten; `isDone` is altijd true)
  *   2. rapport lezen: klopt `gesplitst`, en zijn de `twijfelVoorbeelden` terecht?
+ *      `twijfelVoorbeelden` toont er maximaal 50; `twijfel` is het echte aantal.
  *   3. npx convex run migrations/splitsKlantNaam:start '{"dryRun":false}'
  *   4. Zolang `isDone` false is, de volgende batch starten met de teruggegeven
  *      cursor (elke batch een eigen transactie):
@@ -34,7 +44,7 @@
 import { v } from "convex/values";
 import { internalMutation, internalQuery } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
-import { lijktBedrijfsnaam, splitsNaam } from "../lib/klantNaam";
+import { lijktBedrijfsnaam, splitsNaam, woorden } from "../lib/klantNaam";
 
 const BATCH_SIZE = 100;
 
@@ -82,7 +92,7 @@ export function bepaalNaamSplitsing(klant: NaamKandidaat): NaamBesluit {
     return { actie: "overslaan", reden: "ander_klanttype" };
   }
 
-  if (klant.naam.trim().split(/\s+/).filter(Boolean).length < 2) {
+  if (woorden(klant.naam).length < 2) {
     return { actie: "overslaan", reden: "te_weinig_woorden" };
   }
 
@@ -109,62 +119,77 @@ export const start = internalMutation({
   handler: async (ctx, args) => {
     const dryRun = args.dryRun ?? true;
 
-    const page = await ctx.db
-      .query("klanten")
-      .paginate({ cursor: args.cursor ?? null, numItems: BATCH_SIZE });
-
+    let bekeken = 0;
     let gesplitst = 0;
     let alGesplitst = 0;
     let twijfel = 0;
     const twijfelVoorbeelden: Voorbeeld[] = [];
 
-    for (const klant of page.page) {
-      const besluit = bepaalNaamSplitsing(klant);
+    let cursor: string | null = args.cursor ?? null;
 
-      if (besluit.actie === "overslaan") {
-        if (besluit.reden === "al_gesplitst") {
-          alGesplitst++;
+    // Eén batch bij een echte run; bij een dry run loopt deze lus door tot de
+    // laatste pagina, zodat het rapport compleet is.
+    for (;;) {
+      const page = await ctx.db
+        .query("klanten")
+        .paginate({ cursor, numItems: BATCH_SIZE });
+
+      bekeken += page.page.length;
+
+      for (const klant of page.page) {
+        const besluit = bepaalNaamSplitsing(klant);
+
+        if (besluit.actie === "overslaan") {
+          if (besluit.reden === "al_gesplitst") {
+            alGesplitst++;
+            continue;
+          }
+          twijfel++;
+          if (twijfelVoorbeelden.length < MAX_VOORBEELDEN) {
+            // Bewust alleen id + naam: genoeg om na te lopen, geen dossier.
+            twijfelVoorbeelden.push({
+              klantId: klant._id,
+              naam: klant.naam,
+              reden: besluit.reden,
+            });
+          }
           continue;
         }
-        twijfel++;
-        if (twijfelVoorbeelden.length < MAX_VOORBEELDEN) {
-          // Bewust alleen id + naam: genoeg om na te lopen, geen dossier.
-          twijfelVoorbeelden.push({
-            klantId: klant._id,
-            naam: klant.naam,
-            reden: besluit.reden,
+
+        gesplitst++;
+        if (!dryRun) {
+          await ctx.db.patch(klant._id, {
+            voornaam: besluit.voornaam,
+            achternaam: besluit.achternaam,
           });
         }
+      }
+
+      if (dryRun && !page.isDone) {
+        cursor = page.continueCursor;
         continue;
       }
 
-      gesplitst++;
-      if (!dryRun) {
-        await ctx.db.patch(klant._id, {
-          voornaam: besluit.voornaam,
-          achternaam: besluit.achternaam,
-        });
-      }
+      const rapport = {
+        dryRun,
+        bekeken,
+        gesplitst,
+        alGesplitst,
+        twijfel,
+        twijfelVoorbeelden,
+        isDone: page.isDone,
+        continueCursor: page.isDone ? null : page.continueCursor,
+      };
+
+      console.log(
+        `[Migratie splitsKlantNaam] ${dryRun ? "Dry run over alle klanten" : "Batch verwerkt"}: ` +
+          `${bekeken} bekeken, ${gesplitst} gesplitst, ${alGesplitst} al gesplitst, ` +
+          `${twijfel} twijfel` +
+          (page.isDone ? " — KLAAR" : " — herhalen met continueCursor")
+      );
+
+      return rapport;
     }
-
-    const rapport = {
-      dryRun,
-      batchGrootte: page.page.length,
-      gesplitst,
-      alGesplitst,
-      twijfel,
-      twijfelVoorbeelden,
-      isDone: page.isDone,
-      continueCursor: page.isDone ? null : page.continueCursor,
-    };
-
-    console.log(
-      `[Migratie splitsKlantNaam] Batch verwerkt${dryRun ? " (dry run)" : ""}: ` +
-        `${gesplitst} gesplitst, ${alGesplitst} al gesplitst, ${twijfel} twijfel` +
-        (page.isDone ? " — KLAAR" : " — herhalen met continueCursor")
-    );
-
-    return rapport;
   },
 });
 
