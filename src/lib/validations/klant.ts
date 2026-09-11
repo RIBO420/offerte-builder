@@ -65,6 +65,10 @@ export const klantSchema = z.object({
   adres: z.string().min(1, "Adres is verplicht"),
   postcode: verplichtePostcode,
   plaats: z.string().min(1, "Plaats is verplicht"),
+  // Wissen kan dit schema niet uitdrukken: `undefined` laat het veld bij
+  // `klanten.update` ongemoeid. Het wissignaal van de backend is
+  // `{ adres: "", postcode: "", plaats: "" }`; formulieren bouwen die payload
+  // ná validatie, wanneer de gebruiker het uitvoeradres heeft leeggemaakt.
   uitvoerAdres: uitvoerAdresSchema.optional(),
   email: optionalEmail,
   telefoon: optionalPhone,

@@ -376,6 +376,28 @@ export const update = mutation({
             : bestaand.naam;
         filteredUpdates.naam = samengesteldeNaam({ voornaam, achternaam, naam: basisNaam });
       }
+    } else if (typeof filteredUpdates.naam === "string") {
+      /**
+       * Alleen `naam` meegestuurd terwijl er naamdelen opgeslagen staan. Volgt
+       * de nieuwe naam niet meer uit die delen, dan zijn ze achterhaald en
+       * gaan ze mee weg. Laten staan zou `sorteerNaam` en de zoekindex op een
+       * achternaam laten draaien die nergens meer op het scherm staat — een
+       * klant die je onder de oude naam blijft terugvinden, en onder de nieuwe
+       * niet. Volgt de naam er wél uit (bewerkformulier dat de samengestelde
+       * naam ongewijzigd terugstuurt), dan blijft alles staan.
+       */
+      const opgeslagenDelen = samengesteldeNaam({
+        voornaam: bestaand.voornaam,
+        achternaam: bestaand.achternaam,
+        naam: bestaand.naam,
+      });
+      if (
+        (bestaand.voornaam || bestaand.achternaam) &&
+        opgeslagenDelen !== filteredUpdates.naam
+      ) {
+        filteredUpdates.voornaam = undefined;
+        filteredUpdates.achternaam = undefined;
+      }
     }
 
     if (args.adres !== undefined) {
@@ -698,13 +720,20 @@ export const checkDuplicates = query({
     // tweede zijn: matchen gebeurt daarom kruislings. Zonder dat zou de
     // dubbelcheck een klant missen die je al kent, alleen omdat je zijn
     // mobiele nummer intypt terwijl dat bij hem in `telefoon2` staat.
-    const kaalNummer = (nummer: string) => nummer.replace(/[\s\-]/g, "");
+    // Zelfde tekenset als `sanitizePhone`: opgeslagen nummers hebben de
+    // haakjes er al uit, dus een ingetypte "(046) 443 3918" moet ze hier ook
+    // kwijtraken — anders mist de dubbelcheck precies de klant die je zoekt.
+    const kaalNummer = (nummer: string) => nummer.replace(/[\s\-\(\)]/g, "");
     const gezochteNummers = [args.telefoon, args.telefoon2]
       .filter((n): n is string => Boolean(n && n.trim()))
       .map(kaalNummer);
 
     for (const klant of klanten) {
       if (args.excludeId && klant._id === args.excludeId) continue;
+      // Gearchiveerde klanten tellen niet als dubbel: de dubbelbanner zou ze
+      // aanbieden om aan te koppelen, terwijl koppelen op een gearchiveerde
+      // klant niet mag. Dan bied je een uitweg die doodloopt.
+      if (klant.isArchived) continue;
 
       // Check email match
       if (
@@ -1254,6 +1283,10 @@ export const importKlanten = mutation({
         // Sanitize fields
         const email = sanitizeEmail(klant.email);
         const telefoon = normaliseerImportTelefoon(klant.telefoon);
+        // Dezelfde begrenzing als in `create`/`update`: een exportkolom met een
+        // half adres erin mag niet als naamdeel de database in glijden.
+        const voornaam = schoonNaamdeel(klant.voornaam, "Voornaam");
+        const achternaam = schoonNaamdeel(klant.achternaam, "Achternaam");
 
         /**
          * Bestaande klant zoeken.
@@ -1311,8 +1344,21 @@ export const importKlanten = mutation({
           vulAan("email", email);
           vulAan("telefoon", telefoon);
           vulAan("telefoon2", normaliseerImportTelefoon(klant.extraTelefoon));
-          vulAan("voornaam", sanitizeOptionalString(klant.voornaam));
-          vulAan("achternaam", sanitizeOptionalString(klant.achternaam));
+          /**
+           * Naamdelen alleen aanvullen als ze samen precies de opgeslagen
+           * `naam` vormen. De import vult aan en overschrijft nooit, dus `naam`
+           * blijft staan zoals hij is; zouden de delen daar niet bij passen,
+           * dan stond er straks "Hoveniersbedrijf Groenveld B.V." met
+           * achternaam "Houtermann" eronder — en sorteert en zoekt de app op een
+           * naam die nergens te zien is.
+           */
+          if (
+            samengesteldeNaam({ voornaam, achternaam, naam: bestaand.naam }) ===
+            bestaand.naam.trim()
+          ) {
+            vulAan("voornaam", voornaam);
+            vulAan("achternaam", achternaam);
+          }
           vulAan("adres", adres);
           vulAan("postcode", postcode);
           vulAan("plaats", plaats);
@@ -1341,9 +1387,17 @@ export const importKlanten = mutation({
         const nieuweVelden = {
           orgId: org._id,
           userId: user._id,
-          naam: klant.naam.trim(),
-          voornaam: sanitizeOptionalString(klant.voornaam),
-          achternaam: sanitizeOptionalString(klant.achternaam),
+          // `naam` is ook hier de afgeleide weergavenaam: staan béide delen in
+          // de export, dan winnen die van de naamkolom (die "Houtermann, Piet"
+          // kan bevatten). Eén los deel is te weinig om de naam op te bouwen —
+          // dan zou de rest van de naam verdwijnen — dus dan blijft de
+          // naamkolom staan, net als bij een rij zonder naamdelen.
+          naam:
+            voornaam && achternaam
+              ? samengesteldeNaam({ voornaam, achternaam, naam: klant.naam })
+              : klant.naam.trim(),
+          voornaam,
+          achternaam,
           adres,
           postcode,
           plaats,

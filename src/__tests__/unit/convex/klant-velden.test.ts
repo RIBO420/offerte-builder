@@ -337,3 +337,147 @@ describe("klanten.importKlanten — tweede nummer en naamdelen", () => {
     expect(klant.notities).toBeUndefined();
   });
 });
+
+/**
+ * `naam` en de naamdelen mogen niet uit elkaar lopen. Zodra dat wél gebeurt
+ * sorteert en zoekt de app op een achternaam die niemand meer ziet staan.
+ */
+describe("klanten.update — naam en naamdelen blijven bij elkaar", () => {
+  it("wist de opgeslagen naamdelen als alleen een afwijkende naam meegaat", async () => {
+    const wereld = bouwWereld({
+      naam: "Jan van der Berg",
+      voornaam: "Jan",
+      achternaam: "van der Berg",
+    });
+
+    await handler(klantUpdate)(wereld.ctx, {
+      id: wereld.klantId,
+      naam: "Hoveniersbedrijf Groenveld B.V.",
+    });
+
+    const klant = lees(wereld.store, wereld.klantId);
+    expect(klant.naam).toBe("Hoveniersbedrijf Groenveld B.V.");
+    expect(klant.voornaam).toBeUndefined();
+    expect(klant.achternaam).toBeUndefined();
+  });
+
+  it("laat de naamdelen staan als de meegestuurde naam er nog uit volgt", async () => {
+    const wereld = bouwWereld({
+      naam: "Jan van der Berg",
+      voornaam: "Jan",
+      achternaam: "van der Berg",
+    });
+
+    await handler(klantUpdate)(wereld.ctx, {
+      id: wereld.klantId,
+      naam: "  Jan van der Berg  ",
+    });
+
+    const klant = lees(wereld.store, wereld.klantId);
+    expect(klant.naam).toBe("Jan van der Berg");
+    expect(klant.voornaam).toBe("Jan");
+    expect(klant.achternaam).toBe("van der Berg");
+  });
+
+  it("herberekent naam als de naamdelen naast een naam meegaan", async () => {
+    const wereld = bouwWereld({
+      naam: "Jan van der Berg",
+      voornaam: "Jan",
+      achternaam: "van der Berg",
+    });
+
+    await handler(klantUpdate)(wereld.ctx, {
+      id: wereld.klantId,
+      naam: "wordt overschreven",
+      voornaam: "Piet",
+      achternaam: "Houtermann",
+    });
+
+    const klant = lees(wereld.store, wereld.klantId);
+    expect(klant.naam).toBe("Piet Houtermann");
+    expect(klant.voornaam).toBe("Piet");
+    expect(klant.achternaam).toBe("Houtermann");
+  });
+});
+
+describe("klanten.checkDuplicates — schoonmaak en archief", () => {
+  it("matcht een nummer met haakjes, zoals sanitizePhone het opslaat", async () => {
+    const wereld = bouwWereld({ telefoon: "0464433918" });
+
+    const treffers = (await handler(checkDuplicates)(wereld.ctx, {
+      telefoon: "(046) 443 3918",
+    })) as unknown[];
+
+    expect(treffers).toHaveLength(1);
+  });
+
+  it("laat een gearchiveerde klant buiten de dubbelcheck", async () => {
+    const wereld = bouwWereld({ telefoon: "0464433918", isArchived: true });
+
+    const treffers = (await handler(checkDuplicates)(wereld.ctx, {
+      telefoon: "0464433918",
+    })) as unknown[];
+
+    expect(treffers).toHaveLength(0);
+  });
+});
+
+describe("klanten.importKlanten — naamdelen", () => {
+  it("leidt naam af uit de naamdelen en begrenst ze op 100 tekens", async () => {
+    const store = new MockConvexStore();
+    const orgId = seedMockOrganisatie(store);
+    store.insert("users", createMockUser({ orgId }));
+    const ctx = createMockCtx(store);
+
+    const uitkomst = (await handler(importKlanten)(ctx, {
+      klanten: [
+        {
+          naam: "Houtermann, Piet",
+          voornaam: "  Piet  ",
+          achternaam: "Houtermann",
+          postcode: "6121 AB",
+        },
+        {
+          naam: "Te lange voornaam",
+          voornaam: "x".repeat(101),
+          postcode: "6121 AB",
+        },
+      ],
+    })) as { imported: number; errors: string[] };
+
+    expect(uitkomst.imported).toBe(1);
+    expect(uitkomst.errors).toHaveLength(1);
+    expect(uitkomst.errors[0]).toContain("Voornaam");
+
+    const klant = store
+      .getAll("klanten")
+      .find((k) => (k as unknown as { voornaam?: string }).voornaam === "Piet") as
+      unknown as Record<string, unknown>;
+    expect(klant.naam).toBe("Piet Houtermann");
+  });
+
+  it("vult naamdelen alleen aan als ze samen de opgeslagen naam vormen", async () => {
+    const wereld = bouwWereld({
+      naam: "Hoveniersbedrijf Groenveld B.V.",
+      postcode: "6121 AB",
+      voornaam: undefined,
+      achternaam: undefined,
+    });
+
+    await handler(importKlanten)(wereld.ctx, {
+      klanten: [
+        {
+          naam: "Hoveniersbedrijf Groenveld B.V.",
+          voornaam: "Piet",
+          achternaam: "Houtermann",
+          postcode: "6121 AB",
+        },
+      ],
+    });
+
+    const klant = lees(wereld.store, wereld.klantId);
+    expect(klant.naam).toBe("Hoveniersbedrijf Groenveld B.V.");
+    expect(klant.voornaam).toBeUndefined();
+    expect(klant.achternaam).toBeUndefined();
+  });
+});
