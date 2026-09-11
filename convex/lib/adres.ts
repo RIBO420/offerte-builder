@@ -4,7 +4,7 @@
  *
  * ## Waarom dit bestand er is
  *
- * Tot 11 sep 2026 bouwde elk scherm zijn eigen regel, en er waren er twee:
+ * Vroeger bouwde elk scherm zijn eigen regel, en er waren er twee:
  *
  * - mét postcode (`"Straat 1, 1234 AB Meppel"`) in het klantdossier, de
  *   klantenlijst, de klantkoppeling van de werkbank en `werkitems.ts`;
@@ -53,6 +53,16 @@ export function adresRegel(velden: AdresVelden): string {
     .filter(Boolean)
     .join(" ");
   return [schoon(velden.adres), postcodePlaats].filter(Boolean).join(", ");
+}
+
+/**
+ * Dezelfde regel, maar `null` in plaats van `""` als er niets in te vullen
+ * valt. Voor velden die "geen adres" als `null` opslaan of doorgeven
+ * (planbord, dagkaart, materiaallijst) — zo staat `|| null` niet op elke
+ * aanroepplek los herhaald.
+ */
+export function adresRegelOfNull(velden: AdresVelden): string | null {
+  return adresRegel(velden) || null;
 }
 
 /** Een al opgebouwde regel mag er ook in (bijv. het eigen adres van een werkitem). */
