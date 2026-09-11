@@ -367,6 +367,31 @@ Sjabloon: `convex/migrations/saneerLeadsKlanten.ts` (gepagineerd 100/batch,
 
 Verificatie: `npm run typecheck`, `npx vitest run src/__tests__/unit/convex/migraties-klantvelden.test.ts`.
 
+### Task 9: Restpunten uit fase 1 (kleine batch)
+
+Allemaal kleine, onafhankelijke wijzigingen; één agent, één commit per onderdeel.
+
+1. Resterende handgebouwde adresregels op `adresRegel` uit `convex/lib/adres.ts`
+   zetten: `convex/servicemeldingen.ts`, `convex/urenSegmenten.ts` (±r.277),
+   `convex/garanties.ts`, `convex/beurtgenerator.ts`, `convex/demoSeed.ts`. Zoek
+   in elk bestand op `postcode` en `plaats` in string-concatenaties/`join`. Niet
+   `convex/dagkaart.ts` (dat is van Task 7).
+2. `src/components/import/relatie-import-dialog.tsx` (±r.221): `voornaam` en
+   `achternaam` uit de parser-entries meesturen naar `api.klanten.importKlanten`
+   (de mutatie accepteert ze al sinds Task 1).
+3. `src/__tests__/unit/convex/analytics-rapportage-org.test.ts`: de fixture
+   `DEZE_MAAND = "2026-08-05"` faalt sinds september (kalenderrot). Maak de test
+   klok-onafhankelijk: `vi.useFakeTimers()` + `vi.setSystemTime(...)` op een
+   datum in de fixture-maand, of leid de fixture-datum af van `new Date()`. Kies
+   wat het bestand al doet voor andere datums.
+4. `convex/lib/adres.ts`: voeg `adresRegelOfNull(a)` toe (`adresRegel(a) || null`)
+   en gebruik die op de vijf plekken die nu `adresRegel(...) || null` schrijven
+   (`convex/planbord.ts`, `convex/materiaalDelta.ts`; `convex/dagkaart.ts` NIET —
+   Task 7 doet dagkaart). Verwijder de datum "Tot 11 sep 2026" uit het
+   doc-commentaar (r.7).
+
+Verificatie: `npm run typecheck`, eslint op geraakte bestanden, `npx vitest run src/__tests__/unit/convex/adres.test.ts src/__tests__/unit/convex/analytics-rapportage-org.test.ts` plus tests van de geraakte convex-bestanden.
+
 ## Bestandseigendom
 
 | Fase | Task | Eigen bestanden |
@@ -379,6 +404,7 @@ Verificatie: `npm run typecheck`, `npx vitest run src/__tests__/unit/convex/migr
 | 2 | 6 | tab-instellingen.tsx, klanten/[id]/page.tsx, tab-actueel.tsx (+tests) |
 | 2 | 7 | convex/lib/adres.ts, werkitems.ts, planbord.ts, dagkaart.ts, materiaalDelta.ts, facturatieEngine.ts, facturen.ts, offertes.ts (snapshot), planbord/dialogen.tsx, koppel-werkitems-dialog.tsx, contracten/nieuw/page.tsx, planbord/dagkaart.tsx, veld/klantblok-kaart.tsx, convex/mobile.ts, convex/veldLogica.ts, mobile/** |
 | 2 | 8 | convex/migrations/splitsKlantNaam.ts, convex/migrations/telefoon2UitNotities.ts (+test) |
+| 2 | 9 | servicemeldingen.ts, urenSegmenten.ts, garanties.ts, beurtgenerator.ts, demoSeed.ts, relatie-import-dialog.tsx, analytics-rapportage-org.test.ts, convex/lib/adres.ts (adresRegelOfNull), planbord.ts, materiaalDelta.ts |
 
 Task 3 en Task 4 raken beide `lead-detail-modal.tsx`: Task 4 raakt alleen de
 Maps-URL-regels en commit die apart; Task 3 rebased er niet op maar werkt in
