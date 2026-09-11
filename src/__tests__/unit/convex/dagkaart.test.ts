@@ -40,6 +40,14 @@ import {
   type ReistijdFetch,
 } from "../../../../convex/reistijdLogica";
 import { magPlanbordMuteren } from "../../../../convex/planbordLogica";
+import { getDagkaart } from "../../../../convex/dagkaart";
+import {
+  MockConvexStore,
+  createMockCtx,
+  createMockKlant,
+  createMockUser,
+  seedMockOrganisatie,
+} from "../../helpers/convex-mock";
 
 // ─── Test-hulpjes ────────────────────────────────────────────────────────────
 
@@ -459,5 +467,79 @@ describe("rolchecks dagkaart", () => {
     expect(magPlanbordMuteren("medewerker")).toBe(false);
     expect(magPlanbordMuteren("klant")).toBe(false);
     expect(magPlanbordMuteren(undefined)).toBe(false);
+  });
+});
+
+/**
+ * Ruling sep 2026: op de kaart van de ploeg staat uitsluitend het eigen veld
+ * `bijzonderheden`. Het deprecated `notities` is gemigreerd naar de
+ * klanttijdlijn en is losse dossierhistorie — dat ongevraagd als vast
+ * klantkenmerk tonen zet oude gespreksnotities op het scherm van de hovenier.
+ */
+describe("getDagkaart — bijzonderheden", () => {
+  const DATUM = "2026-07-20";
+
+  function dagkaartWereld(klantVelden: Record<string, unknown>) {
+    const store = new MockConvexStore();
+    const orgId = seedMockOrganisatie(store);
+    const userId = store.insert("users", createMockUser({ role: "directie" }));
+    const teamId = store.insert("teams", {
+      orgId,
+      userId,
+      naam: "Team A",
+      leden: [],
+      isActief: true,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    const klantId = store.insert(
+      "klanten",
+      createMockKlant(userId, { orgId, ...klantVelden })
+    );
+    store.insert("projecten", {
+      orgId,
+      userId,
+      type: "onderhoudsbeurt",
+      klantId,
+      naam: "Snoeibeurt",
+      status: "gepland",
+      teamId,
+      geplandeStart: DATUM,
+      geplandeEind: DATUM,
+      volgordeBinnenDag: 1,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    return { ctx: createMockCtx(store), teamId };
+  }
+
+  async function eersteStop(klantVelden: Record<string, unknown>) {
+    const { ctx, teamId } = dagkaartWereld(klantVelden);
+    const kaart = (await (
+      getDagkaart as unknown as {
+        _handler: (
+          ctx: unknown,
+          args: { teamId: string; datum: string }
+        ) => Promise<{ stops: { bijzonderheden: string | null }[] }>;
+      }
+    )._handler(ctx, { teamId, datum: DATUM })) as {
+      stops: { bijzonderheden: string | null }[];
+    };
+    expect(kaart.stops).toHaveLength(1);
+    return kaart.stops[0];
+  }
+
+  it("toont het eigen veld bijzonderheden", async () => {
+    const stop = await eersteStop({
+      bijzonderheden: "Sleutel onder de pot",
+    });
+    expect(stop.bijzonderheden).toBe("Sleutel onder de pot");
+  });
+
+  it("valt niet terug op het deprecated notities-veld", async () => {
+    const stop = await eersteStop({
+      notities: "Gebeld over de heg, 3 juni",
+    });
+    expect(stop.bijzonderheden).toBeNull();
   });
 });

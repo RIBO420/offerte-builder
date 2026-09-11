@@ -214,8 +214,7 @@ export const getProjectDetailsForMedewerker = query({
              * bevroren offerteregel. Alleen voor de hovenier — nooit in
              * portaal, PDF of mail.
              */
-            bijzonderheden:
-              klantVanOrg?.bijzonderheden ?? klantVanOrg?.notities ?? null,
+            bijzonderheden: klantVanOrg?.bijzonderheden ?? null,
           },
           algemeenParams: offerte.algemeenParams,
           scopes: offerte.scopes,
@@ -279,8 +278,7 @@ export const getProjectDetailsForMedewerker = query({
         ? {
             naam: klantVanOrg.naam,
             werkadres: adresRegel(klantUitvoerAdres(klantVanOrg)) || null,
-            bijzonderheden:
-              klantVanOrg.bijzonderheden ?? klantVanOrg.notities ?? null,
+            bijzonderheden: klantVanOrg.bijzonderheden ?? null,
           }
         : null,
       voorcalculatie: voorcalculatieInfo,

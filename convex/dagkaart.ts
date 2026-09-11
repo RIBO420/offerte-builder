@@ -365,9 +365,10 @@ export const getDagkaart = query({
         type: getType(item),
         klantNaam: klant?.naam ?? null,
         // Vast klantkenmerk ("sleutel onder de pot", "hond los in de tuin").
-        // Het deprecated `notities` blijft de terugval zolang er dossiers zijn
-        // die nog niet naar het eigen veld zijn overgezet.
-        bijzonderheden: klant?.bijzonderheden ?? klant?.notities ?? null,
+        // Uitsluitend het eigen veld: `notities` is deprecated en gemigreerd
+        // naar de klanttijdlijn — losse gespreksnotities horen niet ongevraagd
+        // op de kaart van de ploeg te belanden.
+        bijzonderheden: klant?.bijzonderheden ?? null,
         taken,
         veldtaken: item.klantId
           ? (veldtakenPerKlant.get(item.klantId.toString()) ?? [])

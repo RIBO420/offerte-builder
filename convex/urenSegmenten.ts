@@ -325,7 +325,7 @@ export async function dagkaartVoorstellen(
       klantId: item.klantId ?? null,
       klantNaam: klant?.naam ?? null,
       adres,
-      bijzonderheden: klant?.bijzonderheden ?? klant?.notities ?? null,
+      bijzonderheden: klant?.bijzonderheden ?? null,
       geplandeMinuten: stopDuurMinuten(item),
       taken,
       taakAfronding: item.taakAfronding ?? null,
