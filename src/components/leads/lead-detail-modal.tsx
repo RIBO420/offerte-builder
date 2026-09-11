@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
+import { adresRegel, googleMapsZoekUrl } from "@convex/lib/adres";
 import { LEAD_STATUS_CONFIG, statusClasses } from "@/lib/constants/statuses";
 import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 import { formatDistanceToNow } from "date-fns";
@@ -489,15 +490,12 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
 
   // Build Google Maps link — klantAdres (straat + huisnummer) heeft de
   // voorkeur; anders alleen huisnummer als losse fallback.
-  const adresParts = [
-    lead.klantAdres || lead.klantHuisnummer,
-    lead.klantPostcode,
-    lead.klantPlaats,
-  ].filter(Boolean);
-  const adresString = adresParts.join(", ");
-  const mapsUrl = adresString
-    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(adresString)}`
-    : null;
+  const adresString = adresRegel({
+    adres: lead.klantAdres || lead.klantHuisnummer,
+    postcode: lead.klantPostcode,
+    plaats: lead.klantPlaats,
+  });
+  const mapsUrl = adresString ? googleMapsZoekUrl(adresString) : null;
 
   // Specificaties rendering
   const specs = lead.specificaties as Record<string, unknown> | undefined;

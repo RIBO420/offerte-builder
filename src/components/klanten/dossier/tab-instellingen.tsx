@@ -46,6 +46,7 @@ import { klantSchema } from "@/lib/validations/klant";
 import { showErrorToast, showSuccessToast } from "@/lib/toast-utils";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { adresRegel } from "@convex/lib/adres";
 
 /**
  * Instellingen — alles wat je zelden aanraakt maar wél moet kunnen vinden:
@@ -91,13 +92,6 @@ function typeLabel(type: KlantType): string {
     KLANT_TYPE_OPTIONS.find((optie) => optie.value === type)?.label ??
     "Particulier"
   );
-}
-
-/** Adres, postcode en plaats als één leesbare regel. */
-function adresRegel(klant: KlantInstellingenGegevens): string {
-  return [klant.adres, [klant.postcode, klant.plaats].filter(Boolean).join(" ")]
-    .filter(Boolean)
-    .join(", ");
 }
 
 /* ── Weergave ─────────────────────────────────────────────────────────────── */

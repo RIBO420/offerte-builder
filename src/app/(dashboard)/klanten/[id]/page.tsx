@@ -35,6 +35,7 @@ import { TabInstellingen } from "@/components/klanten/dossier/tab-instellingen";
 import { KlantReminderBanner } from "@/components/klant-reminder-banner";
 import { KLANT_PIPELINE_CONFIG, statusClasses } from "@/lib/constants/statuses";
 import { LaadIndicator } from "@/components/ui/laad-indicator";
+import { adresRegel, googleMapsZoekUrl } from "@convex/lib/adres";
 
 // CRM-002: Pipeline status labels and colors
 type PipelineStatus = "lead" | "offerte_verzonden" | "getekend" | "in_uitvoering" | "opgeleverd" | "onderhoud";
@@ -178,12 +179,7 @@ export default function KlantDetailPage({
     return true;
   });
 
-  const adresregel = [
-    klant.adres,
-    [klant.postcode, klant.plaats].filter(Boolean).join(" "),
-  ]
-    .filter(Boolean)
-    .join(", ");
+  const adresregel = adresRegel(klant);
 
   return (
     <>
@@ -302,7 +298,7 @@ export default function KlantDetailPage({
                 {adresregel && (
                   <ContactChip
                     icoon={<MapPin />}
-                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(adresregel)}`}
+                    href={googleMapsZoekUrl(adresregel)}
                     extern
                     kopieer={adresregel}
                     kopieerLabel="Kopieer adres"

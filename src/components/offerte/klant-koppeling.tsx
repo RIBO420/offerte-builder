@@ -64,6 +64,7 @@ import { getMutationErrorMessage } from "@/lib/error-handling";
 import { cn } from "@/lib/utils";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
+import { adresRegel } from "@convex/lib/adres";
 
 /** Klantgegevens zoals ze op een offerte staan (de momentopname). */
 export interface KlantVelden {
@@ -599,12 +600,7 @@ export function KlantKoppeling({
     />
   );
 
-  const adresregel = [
-    velden.adres,
-    [velden.postcode, velden.plaats].filter(Boolean).join(" "),
-  ]
-    .filter(Boolean)
-    .join(", ");
+  const adresregel = adresRegel(velden);
 
   if (weergave === "sectie") {
     const toonKiezer = open || !heeftKlant;

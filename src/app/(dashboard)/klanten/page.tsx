@@ -90,6 +90,7 @@ import {
   klantenExportColumns,
 } from "@/components/export-dropdown";
 import { KLANT_PIPELINE_CONFIG, statusClasses } from "@/lib/constants/statuses";
+import { adresRegel } from "@convex/lib/adres";
 
 type PipelineStatus = "lead" | "offerte_verzonden" | "getekend" | "in_uitvoering" | "opgeleverd" | "onderhoud";
 
@@ -707,14 +708,9 @@ function KlantenPageContent() {
         sortKey: "plaats",
         width: "w-[30%]",
         render: (klant) => {
-          // Na een import kunnen adresvelden leeg zijn; zonder deze opbouw
-          // toont de rij een losse komma in plaats van een leesbaar adres.
-          const adresregel = [
-            klant.adres,
-            [klant.postcode, klant.plaats].filter(Boolean).join(" "),
-          ]
-            .filter(Boolean)
-            .join(", ");
+          // Na een import kunnen adresvelden leeg zijn; `adresRegel` slaat
+          // lege delen over, zodat de rij geen losse komma toont.
+          const adresregel = adresRegel(klant);
 
           if (!adresregel) {
             return (

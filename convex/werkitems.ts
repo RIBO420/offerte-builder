@@ -27,6 +27,7 @@ import {
 import { logTijdlijnEvent } from "./tijdlijn";
 import { zetTriggerMailKlaar } from "./mailTriggers";
 import { formatDatumNl } from "./conceptMails";
+import { adresRegel } from "./lib/adres";
 
 // ============================================
 // Types
@@ -152,7 +153,7 @@ export function resolveAdres(
 ): string | null {
   if (werkitem.adres) return werkitem.adres;
   if (!klant) return null;
-  return `${klant.adres}, ${klant.postcode} ${klant.plaats}`;
+  return adresRegel(klant) || null;
 }
 
 /** Interne helper: werkitem ophalen + org-eigenaarschap verifiëren. */
