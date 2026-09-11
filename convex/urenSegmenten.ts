@@ -58,7 +58,7 @@ import {
   type VeldRol,
 } from "./veldLogica";
 import { logTijdlijnEvent } from "./tijdlijn";
-import { adresRegel } from "./lib/adres";
+import { adresRegel, klantUitvoerAdres } from "./lib/adres";
 
 // ============================================
 // Gedeelde helpers
@@ -233,6 +233,8 @@ export interface VeldStop {
   klantId: Id<"klanten"> | null;
   klantNaam: string | null;
   adres: string | null;
+  /** Vast klantkenmerk voor de hovenier ("hond los in de tuin"). */
+  bijzonderheden: string | null;
   geplandeMinuten: number;
   taken: {
     omschrijving: string;
@@ -274,7 +276,8 @@ export async function dagkaartVoorstellen(
       }
       klant = klantCache.get(item.klantId) ?? null;
     }
-    const adres = item.adres ?? (klant ? adresRegel(klant) : null);
+    const adres =
+      item.adres ?? (klant ? adresRegel(klantUitvoerAdres(klant)) : null);
 
     // Taken: eigen bouwsteenregels, anders de contractwerkzaamheid als taak
     let regels = item.bouwsteenRegels ?? [];
@@ -322,6 +325,7 @@ export async function dagkaartVoorstellen(
       klantId: item.klantId ?? null,
       klantNaam: klant?.naam ?? null,
       adres,
+      bijzonderheden: klant?.bijzonderheden ?? klant?.notities ?? null,
       geplandeMinuten: stopDuurMinuten(item),
       taken,
       taakAfronding: item.taakAfronding ?? null,

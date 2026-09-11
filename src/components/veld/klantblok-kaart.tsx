@@ -98,6 +98,16 @@ export function KlantblokKaart({
         {stop.adres && (
           <p className="text-sm text-muted-foreground">{stop.adres}</p>
         )}
+        {/* Vast klantkenmerk ("sleutel onder de pot"). Alleen als het gevuld
+            is, en hooguit drie regels — de rest staat in het dossier. */}
+        {stop.bijzonderheden && (
+          <p
+            className="line-clamp-3 text-sm text-amber-700 dark:text-amber-400"
+            title={stop.bijzonderheden}
+          >
+            {stop.bijzonderheden}
+          </p>
+        )}
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {/* Takenlijst: bouwstenen met code + normtijd (§8.8) */}

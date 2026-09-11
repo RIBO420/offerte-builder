@@ -116,6 +116,22 @@ export function KlantblokKaart({
               {stop.adres}
             </Text>
           )}
+          {/* Vast klantkenmerk ("hond los in de tuin"). Alleen als het gevuld
+              is, en kort: het dossier mag 2000 tekens bevatten, hier passen er
+              drie regels — de rest leest kantoor voor. */}
+          {stop.bijzonderheden ? (
+            <Text
+              style={{
+                color: kleuren.cardForeground,
+                fontSize: 13,
+                fontWeight: '500',
+                marginTop: 4,
+              }}
+              numberOfLines={3}
+            >
+              {stop.bijzonderheden}
+            </Text>
+          ) : null}
         </View>
         <View style={{ alignItems: 'flex-end', gap: 4 }}>
           <Badge variant={isAfgerond ? 'secondary' : 'outline'}>

@@ -47,6 +47,8 @@ export interface VeldStop {
   klantId: string | null;
   klantNaam: string | null;
   adres: string | null;
+  /** Vast klantkenmerk voor de hovenier ("hond los in de tuin"). */
+  bijzonderheden: string | null;
   geplandeMinuten: number;
   taken: VeldTaak[];
   taakAfronding: unknown;

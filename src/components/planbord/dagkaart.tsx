@@ -151,7 +151,13 @@ const KlantBlok = memo(function KlantBlok({
             </p>
           )}
           {stop.bijzonderheden && (
-            <p className="text-xs text-amber-700 dark:text-amber-400">
+            /* Vast klantkenmerk. Bewust kort: het dossier mag 2000 tekens
+               bevatten, de dagkaart toont er hooguit twee regels van (regel 1:
+               nooit horizontaal scrollen). `title` geeft de rest. */
+            <p
+              className="line-clamp-2 text-xs text-amber-700 dark:text-amber-400"
+              title={stop.bijzonderheden}
+            >
               {stop.bijzonderheden}
             </p>
           )}

@@ -18,6 +18,7 @@ import {
 } from "./roles";
 import type { Doc } from "./_generated/dataModel";
 import { klantNaam, klantVeld } from "./lib/offerteKlant";
+import { adresRegel, klantUitvoerAdres } from "./lib/adres";
 import type { QueryCtx, MutationCtx } from "./_generated/server";
 import { voorcalculatieVanProject, voorcalculatieVanOfferte } from "./lib/voorcalculatieLookup";
 
@@ -185,6 +186,13 @@ export const getProjectDetailsForMedewerker = query({
       throw new ConvexError("Je bent niet toegewezen aan dit project");
     }
 
+    // Klantdossier: nodig voor het werkadres (uitvoeradres wint) en de vaste
+    // bijzonderheden die de hovenier moet weten. Het project is hierboven al
+    // op org getoetst; de klant hangt aan datzelfde project.
+    const klant = project.klantId ? await ctx.db.get(project.klantId) : null;
+    const klantVanOrg =
+      klant && klant.orgId?.toString() === org._id.toString() ? klant : null;
+
     // Get offerte info (klant data only, no prices) — offerteId kan ontbreken bij losse werkitems
     const offerte = project.offerteId
       ? await ctx.db.get(project.offerteId)
@@ -200,6 +208,14 @@ export const getProjectDetailsForMedewerker = query({
             postcode: klantVeld(offerte.klant, "postcode"),
             plaats: klantVeld(offerte.klant, "plaats"),
             telefoon: offerte.klant?.telefoon,
+            /**
+             * Vast klantkenmerk uit het dossier ("sleutel onder de pot"), niet
+             * uit de offerte-snapshot: het is een levend kenmerk, geen
+             * bevroren offerteregel. Alleen voor de hovenier — nooit in
+             * portaal, PDF of mail.
+             */
+            bijzonderheden:
+              klantVanOrg?.bijzonderheden ?? klantVanOrg?.notities ?? null,
           },
           algemeenParams: offerte.algemeenParams,
           scopes: offerte.scopes,
@@ -257,6 +273,16 @@ export const getProjectDetailsForMedewerker = query({
         isArchived: project.isArchived,
       },
       offerte: offerteInfo,
+      // Ook zonder offerte (losse beurt) moet de hovenier het werkadres en de
+      // bijzonderheden zien.
+      klant: klantVanOrg
+        ? {
+            naam: klantVanOrg.naam,
+            werkadres: adresRegel(klantUitvoerAdres(klantVanOrg)) || null,
+            bijzonderheden:
+              klantVanOrg.bijzonderheden ?? klantVanOrg.notities ?? null,
+          }
+        : null,
       voorcalculatie: voorcalculatieInfo,
       planningTaken: sortedTaken.map((t) => ({
         _id: t._id,

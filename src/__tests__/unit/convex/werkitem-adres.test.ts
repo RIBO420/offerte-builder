@@ -12,7 +12,15 @@
 
 import { describe, it, expect } from "vitest";
 
-import { resolveAdres } from "../../../../convex/werkitems";
+import {
+  MockConvexStore,
+  createMockCtx,
+  createMockKlant,
+  createMockUser,
+  seedMockOrganisatie,
+} from "../../helpers/convex-mock";
+import type { MutationCtx } from "../../../../convex/_generated/server";
+import { createWerkitem, resolveAdres } from "../../../../convex/werkitems";
 
 const hoofdadres = {
   adres: "Hoofdweg 1",
@@ -62,5 +70,92 @@ describe("resolveAdres", () => {
         }
       )
     ).toBeNull();
+  });
+});
+
+// ─── createWerkitem: welk adres wordt vastgelegd ─────────────────────────────
+
+type CreateArgs = {
+  type: "project" | "onderhoudsbeurt";
+  klantId: string;
+  naam: string;
+  adres?: string;
+  adresKeuze?: "uitvoer" | "hoofd";
+};
+
+const createHandler = (
+  createWerkitem as unknown as {
+    _handler: (ctx: MutationCtx, args: CreateArgs) => Promise<string>;
+  }
+)._handler;
+
+function maakCtx(klantVelden: Record<string, unknown>) {
+  const store = new MockConvexStore();
+  const orgId = seedMockOrganisatie(store);
+  const userId = store.insert("users", createMockUser({ role: "directie" }));
+  const klantId = store.insert(
+    "klanten",
+    createMockKlant(userId, { orgId, ...klantVelden })
+  );
+  const ctx = createMockCtx(store) as unknown as MutationCtx;
+  return { ctx, store, klantId };
+}
+
+describe("createWerkitem — adresKeuze", () => {
+  const metUitvoerAdres = { ...hoofdadres, uitvoerAdres };
+
+  it("legt het uitvoeradres vast bij keuze \"uitvoer\"", async () => {
+    const { ctx, store, klantId } = maakCtx(metUitvoerAdres);
+    const id = await createHandler(ctx, {
+      type: "project",
+      klantId,
+      naam: "Tuin achter",
+      adresKeuze: "uitvoer",
+    });
+    expect(store.get(id)?.adres).toBe("Tuinlaan 9, 7941 CD Staphorst");
+  });
+
+  it("legt het hoofdadres vast bij keuze \"hoofd\"", async () => {
+    const { ctx, store, klantId } = maakCtx(metUitvoerAdres);
+    const id = await createHandler(ctx, {
+      type: "project",
+      klantId,
+      naam: "Tuin voor",
+      adresKeuze: "hoofd",
+    });
+    expect(store.get(id)?.adres).toBe("Hoofdweg 1, 1234 AB Meppel");
+  });
+
+  it("laat het adres leeg zonder keuze — resolveAdres lost het levend op", async () => {
+    const { ctx, store, klantId } = maakCtx(metUitvoerAdres);
+    const id = await createHandler(ctx, {
+      type: "onderhoudsbeurt",
+      klantId,
+      naam: "Snoeibeurt",
+    });
+    expect(store.get(id)?.adres).toBeUndefined();
+  });
+
+  it("laat een expliciet meegegeven adres altijd winnen", async () => {
+    const { ctx, store, klantId } = maakCtx(metUitvoerAdres);
+    const id = await createHandler(ctx, {
+      type: "project",
+      klantId,
+      naam: "Tuin zijkant",
+      adres: "Achterom, poort naast nr. 12",
+      adresKeuze: "uitvoer",
+    });
+    expect(store.get(id)?.adres).toBe("Achterom, poort naast nr. 12");
+  });
+
+  it("valt bij keuze \"uitvoer\" terug op het hoofdadres zonder uitvoeradres", async () => {
+    const { ctx, store, klantId } = maakCtx(hoofdadres);
+    const id = await createHandler(ctx, {
+      type: "project",
+      klantId,
+      naam: "Tuin",
+      adresKeuze: "uitvoer",
+    });
+    expect(store.get(id)?.adres).toBe("Hoofdweg 1, 1234 AB Meppel");
   });
 });
