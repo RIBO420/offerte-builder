@@ -57,6 +57,7 @@ import {
   GlobeLock,
   ListTodo,
   MoreHorizontal,
+  ChevronDown,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -72,6 +73,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { TagInput } from "@/components/ui/tag-input";
 import { toast } from "sonner";
 import { useKlanten } from "@/hooks/use-klanten";
@@ -91,6 +97,11 @@ import {
 } from "@/components/export-dropdown";
 import { KLANT_PIPELINE_CONFIG, statusClasses } from "@/lib/constants/statuses";
 import { adresRegel } from "@convex/lib/adres";
+import {
+  samengesteldeNaam,
+  sorteerNaam,
+  splitsNaam,
+} from "@convex/lib/klantNaam";
 
 type PipelineStatus = "lead" | "offerte_verzonden" | "getekend" | "in_uitvoering" | "opgeleverd" | "onderhoud";
 
@@ -99,11 +110,19 @@ type KlantType = "particulier" | "zakelijk" | "vve" | "gemeente" | "overig";
 type Klant = {
   _id: Id<"klanten">;
   naam: string;
+  // Naamdelen zijn optioneel en additief: `naam` blijft de weergavenaam,
+  // voor-/achternaam bepalen alleen waar de klant in de lijst staat.
+  voornaam?: string;
+  achternaam?: string;
   adres: string;
   postcode: string;
   plaats: string;
+  // Afwijkend uitvoeradres: daar staat het werk, `adres` blijft het factuuradres.
+  uitvoerAdres?: { adres: string; postcode: string; plaats: string };
   email?: string;
   telefoon?: string;
+  telefoon2?: string;
+  bijzonderheden?: string;
   notities?: string;
   pipelineStatus?: PipelineStatus;
   klantType?: KlantType;
@@ -155,6 +174,60 @@ function zakelijkeVelden(form: {
     btwNummer: zakelijk ? form.btwNummer.trim() : "",
   };
 }
+
+/**
+ * De naamvelden zoals ze naar de backend gaan. Bij een particulier is `naam`
+ * afgeleid van voor- en achternaam (`samengesteldeNaam`); bij elk ander type
+ * ís `naam` de bedrijfs-/VvE-naam en gaan de naamdelen leeg mee — net als de
+ * zakelijke velden hierboven wist een lege string ze, zodat een achtergebleven
+ * achternaam na het omzetten van het type niet stilletjes de bedrijfsnaam
+ * overschrijft (de backend leidt `naam` af zodra er een naamdeel staat).
+ */
+function naamVelden(form: {
+  klantType: KlantType;
+  naam: string;
+  voornaam: string;
+  achternaam: string;
+}) {
+  const particulier = form.klantType === "particulier";
+  const voornaam = particulier ? form.voornaam.trim() : "";
+  const achternaam = particulier ? form.achternaam.trim() : "";
+
+  return {
+    naam: particulier
+      ? samengesteldeNaam({ voornaam, achternaam, naam: "" })
+      : form.naam.trim(),
+    voornaam,
+    achternaam,
+  };
+}
+
+/**
+ * Het afwijkende uitvoeradres zoals het naar de backend gaat. Staat de sectie
+ * dicht, dan gaan er drie lege velden mee: dat is de wisconventie van
+ * `klanten.update` (zoals een lege string bij e-mail). Bij `create` sturen we
+ * hem in dat geval helemaal niet mee.
+ */
+function uitvoerAdresVelden(form: {
+  heeftUitvoerAdres: boolean;
+  uitvoerAdres: string;
+  uitvoerPostcode: string;
+  uitvoerPlaats: string;
+}) {
+  if (!form.heeftUitvoerAdres) return { adres: "", postcode: "", plaats: "" };
+  return {
+    adres: form.uitvoerAdres.trim(),
+    postcode: form.uitvoerPostcode.trim(),
+    plaats: form.uitvoerPlaats.trim(),
+  };
+}
+
+/**
+ * Sorteren op achternaam terwijl de cel de weergavenaam toont — "Jan van der
+ * Berg" hoort onder de V. Module-constante (geen object per render), anders
+ * sorteert `useTableSort` elke render opnieuw.
+ */
+const KLANT_SORT_ACCESSORS = { naam: sorteerNaam };
 
 const PIPELINE_LABELS: Record<PipelineStatus, string> = {
   lead: "Lead",
@@ -236,17 +309,26 @@ function KlantenPageContent() {
 
   const [formData, setFormData] = useState({
     naam: "",
+    // Alleen bij een particulier ingevuld; `naam` volgt eruit bij submit.
+    voornaam: "",
+    achternaam: "",
     adres: "",
     postcode: "",
     plaats: "",
     email: "",
     telefoon: "",
+    telefoon2: "",
     klantType: "particulier" as KlantType,
     tags: [] as string[],
     // TT-002: alleen gebruikt bij een niet-particuliere klant
     contactpersoon: "",
     kvkNummer: "",
     btwNummer: "",
+    // Afwijkend uitvoeradres: dicht = wissen, open = alle drie verplicht.
+    heeftUitvoerAdres: false,
+    uitvoerAdres: "",
+    uitvoerPostcode: "",
+    uitvoerPlaats: "",
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -359,16 +441,20 @@ function KlantenPageContent() {
   // CRM-007: Debounced duplicate check for form fields
   const debouncedEmail = useDebounce(formData.email, 500);
   const debouncedTelefoon = useDebounce(formData.telefoon, 500);
-  const debouncedNaam = useDebounce(formData.naam, 500);
+  const debouncedTelefoon2 = useDebounce(formData.telefoon2, 500);
+  // Bij een particulier is er geen los naamveld meer: de duplicaatcheck kijkt
+  // naar de samengestelde naam, anders zoekt hij op een lege string.
+  const debouncedNaam = useDebounce(naamVelden(formData).naam, 500);
   const debouncedPostcode = useDebounce(formData.postcode, 500);
 
-  const hasDuplicateCheckInput = !!(debouncedEmail || debouncedTelefoon || (debouncedNaam && debouncedPostcode));
+  const hasDuplicateCheckInput = !!(debouncedEmail || debouncedTelefoon || debouncedTelefoon2 || (debouncedNaam && debouncedPostcode));
   const duplicates = useQuery(
     api.klanten.checkDuplicates,
     hasDuplicateCheckInput && user?._id
       ? {
           email: debouncedEmail || undefined,
           telefoon: debouncedTelefoon || undefined,
+          telefoon2: debouncedTelefoon2 || undefined,
           naam: debouncedNaam || undefined,
           postcode: debouncedPostcode || undefined,
           excludeId: selectedKlant?._id,
@@ -434,42 +520,73 @@ function KlantenPageContent() {
   }, [debouncedSearchTerm, zoekIndex, klantenWithOptimisticUpdates, pipelineFilter, klantTypeFilter]);
 
   // Apply sorting to klanten
+  // Default op de naamkolom, maar gesorteerd op achternaam (WS-klantfeedback):
+  // de kop blijft "Naam", de pijl blijft werken.
   const { sortedData: sortedKlanten, sortConfig, toggleSort } = useTableSort<Klant>(
     filteredKlanten,
-    "naam"
+    "naam",
+    KLANT_SORT_ACCESSORS
   );
 
   const resetForm = useCallback(() => {
     setFormData({
       naam: "",
+      voornaam: "",
+      achternaam: "",
       adres: "",
       postcode: "",
       plaats: "",
       email: "",
       telefoon: "",
+      telefoon2: "",
       klantType: "particulier",
       tags: [],
       contactpersoon: "",
       kvkNummer: "",
       btwNummer: "",
+      heeftUitvoerAdres: false,
+      uitvoerAdres: "",
+      uitvoerPostcode: "",
+      uitvoerPlaats: "",
     });
   }, []);
 
   const handleAdd = useCallback(async () => {
-    if (!formData.naam || !formData.adres || !formData.postcode || !formData.plaats) {
+    const namen = naamVelden(formData);
+    const uitvoer = uitvoerAdresVelden(formData);
+
+    if (!namen.naam) {
+      toast.error(
+        formData.klantType === "particulier"
+          ? "Achternaam is verplicht"
+          : "Bedrijfsnaam is verplicht"
+      );
+      return;
+    }
+    if (!formData.adres || !formData.postcode || !formData.plaats) {
       toast.error("Vul alle verplichte velden in");
+      return;
+    }
+    // Half uitvoeradres stuurt de ploeg de verkeerde kant op: alles of niets.
+    if (
+      formData.heeftUitvoerAdres &&
+      (!uitvoer.adres || !uitvoer.postcode || !uitvoer.plaats)
+    ) {
+      toast.error("Vul het uitvoeradres volledig in of klap het dicht");
       return;
     }
 
     setIsSubmitting(true);
     try {
       await create({
-        naam: formData.naam,
+        ...namen,
         adres: formData.adres,
         postcode: formData.postcode,
         plaats: formData.plaats,
+        uitvoerAdres: formData.heeftUitvoerAdres ? uitvoer : undefined,
         email: formData.email || undefined,
         telefoon: formData.telefoon || undefined,
+        telefoon2: formData.telefoon2 || undefined,
         // notities bewust niet meegestuurd (deprecated, PRD §2.3)
         klantType: formData.klantType,
         tags: formData.tags.length > 0 ? formData.tags : undefined,
@@ -487,19 +604,42 @@ function KlantenPageContent() {
 
   const handleEdit = useCallback((klant: Klant | null) => {
     if (!klant) return;
+
+    /**
+     * Een particulier van vóór de naamsplitsing heeft alleen `naam`. Die
+     * splitsen we hier alvast voor, zodat opslaan de splitsing meteen
+     * vastlegt en de klant daarna op achternaam sorteert.
+     */
+    const particulier = (klant.klantType ?? "particulier") === "particulier";
+    const delen =
+      particulier && !klant.voornaam && !klant.achternaam
+        ? splitsNaam(klant.naam)
+        : {
+            voornaam: klant.voornaam ?? "",
+            achternaam: klant.achternaam ?? "",
+          };
+
     setSelectedKlant(klant);
     setFormData({
       naam: klant.naam,
+      voornaam: delen.voornaam,
+      achternaam: delen.achternaam,
       adres: klant.adres,
       postcode: klant.postcode,
       plaats: klant.plaats,
       email: klant.email || "",
       telefoon: klant.telefoon || "",
+      telefoon2: klant.telefoon2 || "",
       klantType: klant.klantType ?? "particulier",
       tags: klant.tags ?? [],
       contactpersoon: klant.contactpersoon ?? "",
       kvkNummer: klant.kvkNummer ?? "",
       btwNummer: klant.btwNummer ?? "",
+      // Heeft de klant een uitvoeradres, dan staat de sectie meteen open.
+      heeftUitvoerAdres: Boolean(klant.uitvoerAdres),
+      uitvoerAdres: klant.uitvoerAdres?.adres ?? "",
+      uitvoerPostcode: klant.uitvoerAdres?.postcode ?? "",
+      uitvoerPlaats: klant.uitvoerAdres?.plaats ?? "",
     });
     setShowEditDialog(true);
   }, []);
@@ -507,13 +647,35 @@ function KlantenPageContent() {
   const handleUpdate = useCallback(async () => {
     if (!selectedKlant) return;
 
+    const namen = naamVelden(formData);
+    const uitvoer = uitvoerAdresVelden(formData);
+
+    if (!namen.naam) {
+      toast.error(
+        formData.klantType === "particulier"
+          ? "Achternaam is verplicht"
+          : "Bedrijfsnaam is verplicht"
+      );
+      return;
+    }
+    if (
+      formData.heeftUitvoerAdres &&
+      (!uitvoer.adres || !uitvoer.postcode || !uitvoer.plaats)
+    ) {
+      toast.error("Vul het uitvoeradres volledig in of klap het dicht");
+      return;
+    }
+
     const updatedData = {
-      naam: formData.naam,
+      ...namen,
       adres: formData.adres,
       postcode: formData.postcode,
       plaats: formData.plaats,
+      // Dicht = drie lege velden: zo wist de backend het uitvoeradres.
+      uitvoerAdres: uitvoer,
       email: formData.email || undefined,
       telefoon: formData.telefoon || undefined,
+      telefoon2: formData.telefoon2 || undefined,
       // notities bewust niet meegestuurd: het veld is deprecated (PRD §2.3)
       // en een update mag bestaande (gemigreerde) inhoud niet wissen
       klantType: formData.klantType,
@@ -720,14 +882,31 @@ function KlantenPageContent() {
             );
           }
 
+          // Werkt de ploeg ergens anders dan waar de factuur heen gaat, dan
+          // is dát het adres dat ertoe doet — tweede regel, geen extra kolom
+          // (CLAUDE.md regel 1: nooit zijwaarts scrollen).
+          const uitvoerregel = klant.uitvoerAdres
+            ? adresRegel(klant.uitvoerAdres)
+            : "";
+
           // Geen celicoon: de kolomkop zegt al dat dit het adres is (WS6)
           return (
-            <span
-              className="block truncate text-sm text-muted-foreground"
-              title={adresregel}
-            >
-              {adresregel}
-            </span>
+            <div className="flex flex-col">
+              <span
+                className="block truncate text-sm text-muted-foreground"
+                title={adresregel}
+              >
+                {adresregel}
+              </span>
+              {uitvoerregel && (
+                <span
+                  className="block truncate text-xs text-muted-foreground"
+                  title={`Uitvoeradres: ${uitvoerregel}`}
+                >
+                  Uitvoer: {uitvoerregel}
+                </span>
+              )}
+            </div>
           );
         },
       },
@@ -739,12 +918,31 @@ function KlantenPageContent() {
         sortable: true,
         sortKey: "telefoon",
         width: "w-[12%]",
-        render: (klant) =>
-          klant.telefoon ? (
-            <span className="text-sm">{klant.telefoon}</span>
-          ) : (
-            <span className="text-muted-foreground">-</span>
-          ),
+        render: (klant) => {
+          if (!klant.telefoon && !klant.telefoon2) {
+            return <span className="text-muted-foreground">-</span>;
+          }
+
+          // Tweede nummer onder het eerste in dezelfde cel: een extra kolom
+          // zou de tabel zijwaarts duwen (CLAUDE.md regel 1).
+          return (
+            <div className="flex flex-col">
+              {klant.telefoon && (
+                <span className="block truncate text-sm" title={klant.telefoon}>
+                  {klant.telefoon}
+                </span>
+              )}
+              {klant.telefoon2 && (
+                <span
+                  className="block truncate text-xs text-muted-foreground"
+                  title={`Tweede nummer: ${klant.telefoon2}`}
+                >
+                  {klant.telefoon2}
+                </span>
+              )}
+            </div>
+          );
+        },
       },
       {
         key: "email",
@@ -903,30 +1101,59 @@ function KlantenPageContent() {
         </Select>
       </div>
 
+      {/* Particulier: voor- en achternaam apart, zodat de lijst op achternaam
+          sorteert. Andere typen houden één bedrijfsnaam + contactpersoon. */}
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-2">
-          <Label htmlFor="naam">
-            {isZakelijkeKlant ? "Bedrijfsnaam *" : "Naam *"}
-          </Label>
-          <Input
-            id="naam"
-            placeholder={isZakelijkeKlant ? "De Groene Tuin B.V." : "Jan Jansen"}
-            value={formData.naam}
-            onChange={(e) => setFormData({ ...formData, naam: e.target.value })}
-          />
-        </div>
-        {isZakelijkeKlant && (
-          <div className="space-y-2">
-            <Label htmlFor="contactpersoon">Contactpersoon</Label>
-            <Input
-              id="contactpersoon"
-              placeholder="Jan Jansen"
-              value={formData.contactpersoon}
-              onChange={(e) =>
-                setFormData({ ...formData, contactpersoon: e.target.value })
-              }
-            />
-          </div>
+        {isZakelijkeKlant ? (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="naam">Bedrijfsnaam *</Label>
+              <Input
+                id="naam"
+                placeholder="De Groene Tuin B.V."
+                value={formData.naam}
+                onChange={(e) =>
+                  setFormData({ ...formData, naam: e.target.value })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="contactpersoon">Contactpersoon</Label>
+              <Input
+                id="contactpersoon"
+                placeholder="Jan Jansen"
+                value={formData.contactpersoon}
+                onChange={(e) =>
+                  setFormData({ ...formData, contactpersoon: e.target.value })
+                }
+              />
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="voornaam">Voornaam</Label>
+              <Input
+                id="voornaam"
+                placeholder="Jan"
+                value={formData.voornaam}
+                onChange={(e) =>
+                  setFormData({ ...formData, voornaam: e.target.value })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="achternaam">Achternaam *</Label>
+              <Input
+                id="achternaam"
+                placeholder="van der Berg"
+                value={formData.achternaam}
+                onChange={(e) =>
+                  setFormData({ ...formData, achternaam: e.target.value })
+                }
+              />
+            </div>
+          </>
         )}
       </div>
 
@@ -958,6 +1185,8 @@ function KlantenPageContent() {
         </div>
       )}
 
+      {/* Twee nummers naast elkaar (vast + mobiel, of partner); e-mail eronder
+          over de volle breedte, want die is het langst. */}
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="telefoon">Telefoon</Label>
@@ -971,15 +1200,27 @@ function KlantenPageContent() {
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="email">E-mail</Label>
+          <Label htmlFor="telefoon2">Telefoon 2</Label>
           <Input
-            id="email"
-            type="email"
-            placeholder="jan@voorbeeld.nl"
-            value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            id="telefoon2"
+            placeholder="0522-123456"
+            value={formData.telefoon2}
+            onChange={(e) =>
+              setFormData({ ...formData, telefoon2: e.target.value })
+            }
           />
         </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="email">E-mail</Label>
+        <Input
+          id="email"
+          type="email"
+          placeholder="jan@voorbeeld.nl"
+          value={formData.email}
+          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+        />
       </div>
 
       <div className="space-y-2">
@@ -1023,6 +1264,77 @@ function KlantenPageContent() {
           />
         </div>
       </div>
+
+      {/* Het adres hierboven is het factuuradres. Werkt de ploeg ergens anders,
+          dan komt dat hier — dicht is de normale stand, want de meeste klanten
+          hebben er geen. Dichtklappen wist het adres bij opslaan. */}
+      <Collapsible
+        open={formData.heeftUitvoerAdres}
+        onOpenChange={(open) =>
+          setFormData((prev) => ({ ...prev, heeftUitvoerAdres: open }))
+        }
+      >
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="flex w-full items-center gap-2 rounded-md text-sm font-medium text-foreground"
+          >
+            <ChevronDown
+              className={`h-4 w-4 text-muted-foreground transition-transform ${
+                formData.heeftUitvoerAdres ? "" : "-rotate-90"
+              }`}
+            />
+            Afwijkend uitvoeradres
+          </button>
+        </CollapsibleTrigger>
+        <p className="mt-1 pl-6 text-xs text-muted-foreground">
+          Alleen invullen als het werk ergens anders is dan het factuuradres.
+        </p>
+        <CollapsibleContent className="mt-3 grid gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="uitvoerAdres">Adres *</Label>
+            <AdresVeld
+              id="uitvoerAdres"
+              waarde={formData.uitvoerAdres}
+              onChange={(waarde) =>
+                setFormData((prev) => ({ ...prev, uitvoerAdres: waarde }))
+              }
+              onAdresGekozen={(adres) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  uitvoerAdres: adres.adres,
+                  uitvoerPostcode: adres.postcode || prev.uitvoerPostcode,
+                  uitvoerPlaats: adres.plaats || prev.uitvoerPlaats,
+                }))
+              }
+            />
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="space-y-2">
+              <Label htmlFor="uitvoerPostcode">Postcode *</Label>
+              <Input
+                id="uitvoerPostcode"
+                placeholder="1234 AB"
+                value={formData.uitvoerPostcode}
+                onChange={(e) =>
+                  setFormData({ ...formData, uitvoerPostcode: e.target.value })
+                }
+              />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="uitvoerPlaats">Plaats *</Label>
+              <Input
+                id="uitvoerPlaats"
+                placeholder="Amsterdam"
+                value={formData.uitvoerPlaats}
+                onChange={(e) =>
+                  setFormData({ ...formData, uitvoerPlaats: e.target.value })
+                }
+              />
+            </div>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
 
       <div className="space-y-2">
         <Label>Tags</Label>

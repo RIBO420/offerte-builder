@@ -226,11 +226,20 @@ export const offerteExportColumns: ExportColumn<Record<string, unknown>>[] = [
  */
 export const klantenExportColumns: ExportColumn<Record<string, unknown>>[] = [
   { key: "naam", header: "Naam" },
+  // Naamdelen naast de weergavenaam: kantoor sorteert in Excel op achternaam,
+  // net als in de klantenlijst. `exportKlanten` levert ze als lege string als
+  // een klant (nog) niet gesplitst is.
+  { key: "voornaam", header: "Voornaam" },
+  { key: "achternaam", header: "Achternaam" },
   { key: "adres", header: "Adres" },
   { key: "postcode", header: "Postcode" },
   { key: "plaats", header: "Plaats" },
+  // Eén kolom: het uitvoeradres komt als kant-en-klare adresregel binnen.
+  { key: "uitvoerAdres", header: "Uitvoeradres" },
   { key: "email", header: "E-mail" },
   { key: "telefoon", header: "Telefoon" },
+  { key: "telefoon2", header: "Telefoon 2" },
+  { key: "bijzonderheden", header: "Bijzonderheden" },
   { key: "notities", header: "Notities" },
   { key: "aantalOffertes", header: "Aantal Offertes" },
   {

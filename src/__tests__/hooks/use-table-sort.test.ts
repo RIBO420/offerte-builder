@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import { useTableSort } from "@/hooks/use-table-sort";
+import { sorteerNaam } from "@convex/lib/klantNaam";
 
 interface TestItem {
   name: string;
@@ -171,5 +172,95 @@ describe("useTableSort", () => {
 
     const names = result.current.sortedData.map((d) => d.name);
     expect(names).toEqual(["Aad", "Zara"]);
+  });
+});
+
+/**
+ * Sorteren op een afgeleide waarde (`accessors`). De klantenlijst sorteert de
+ * kolom "Naam" op achternaam — "Jan van der Berg" hoort onder de V — terwijl
+ * de cel gewoon `naam` blijft tonen. De accessor-map is daarvoor de enige
+ * ingang; zonder map blijft de hook zich exact gedragen als voorheen.
+ */
+describe("useTableSort met accessors", () => {
+  interface KlantRij {
+    naam: string;
+    voornaam?: string;
+    achternaam?: string;
+    klantType?: "particulier" | "zakelijk";
+    plaats: string;
+  }
+
+  const klanten: KlantRij[] = [
+    { naam: "Jan van der Berg", voornaam: "Jan", achternaam: "van der Berg", klantType: "particulier", plaats: "Meppel" },
+    { naam: "Anna Zwart", voornaam: "Anna", achternaam: "Zwart", klantType: "particulier", plaats: "Assen" },
+    { naam: "Piet Aalders", voornaam: "Piet", achternaam: "Aalders", klantType: "particulier", plaats: "Zwolle" },
+    { naam: "De Groene Tuin B.V.", klantType: "zakelijk", plaats: "Meppel" },
+  ];
+
+  const accessors = { naam: sorteerNaam };
+
+  it("sorts on the derived value instead of the raw field", () => {
+    const { result } = renderHook(() => useTableSort(klanten, "naam", accessors));
+
+    // aalders piet | de groene tuin b.v. (bedrijf sorteert op `naam`) |
+    // van der berg jan (tussenvoegsel telt mee, dus onder de V) | zwart anna
+    expect(result.current.sortedData.map((k) => k.naam)).toEqual([
+      "Piet Aalders",
+      "De Groene Tuin B.V.",
+      "Jan van der Berg",
+      "Anna Zwart",
+    ]);
+  });
+
+  it("keeps the arrow working: toggling reverses the derived order", () => {
+    const { result } = renderHook(() => useTableSort(klanten, "naam", accessors));
+
+    act(() => result.current.toggleSort("naam"));
+    expect(result.current.sortConfig).toEqual({ key: "naam", direction: "desc" });
+    expect(result.current.sortedData.map((k) => k.naam)).toEqual([
+      "Anna Zwart",
+      "Jan van der Berg",
+      "De Groene Tuin B.V.",
+      "Piet Aalders",
+    ]);
+  });
+
+  it("falls back to the raw field for keys without an accessor", () => {
+    const { result } = renderHook(() => useTableSort(klanten, "naam", accessors));
+
+    act(() => result.current.toggleSort("plaats"));
+    expect(result.current.sortedData.map((k) => k.plaats)).toEqual([
+      "Assen",
+      "Meppel",
+      "Meppel",
+      "Zwolle",
+    ]);
+  });
+
+  it("sorts identically to the plain hook when no accessors are given", () => {
+    const zonder = renderHook(() => useTableSort(testData, "name"));
+    const metLegeMap = renderHook(() => useTableSort(testData, "name", {}));
+
+    expect(metLegeMap.result.current.sortedData).toEqual(
+      zonder.result.current.sortedData
+    );
+  });
+
+  it("pushes empty accessor values to the end in ascending order", () => {
+    const rijen = [
+      { naam: "Bakker", sleutel: "bakker" },
+      { naam: "Onbekend", sleutel: null },
+      { naam: "Alberts", sleutel: "alberts" },
+    ];
+
+    const { result } = renderHook(() =>
+      useTableSort(rijen, "naam", { naam: (rij) => rij.sleutel })
+    );
+
+    expect(result.current.sortedData.map((r) => r.naam)).toEqual([
+      "Alberts",
+      "Bakker",
+      "Onbekend",
+    ]);
   });
 });

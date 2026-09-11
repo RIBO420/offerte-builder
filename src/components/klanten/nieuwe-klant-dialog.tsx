@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { klantSchema } from "@/lib/validations/klant";
+import { samengesteldeNaam, splitsNaam } from "@convex/lib/klantNaam";
 import { BedrijfZoeken } from "@/components/klanten/bedrijf-zoeken";
 import { AdresVeld } from "@/components/klanten/adres-veld";
 import { showErrorToast, showSuccessToast } from "@/lib/toast-utils";
@@ -57,11 +58,18 @@ export interface AangemaakteKlant {
 
 export interface NieuweKlantWaarden {
   naam?: string;
+  /**
+   * Naamdelen van een particulier. Optioneel: geeft een aanroeper alleen
+   * `naam` mee (offerte-wizard, lead), dan splitst de dialog die zelf.
+   */
+  voornaam?: string;
+  achternaam?: string;
   adres?: string;
   postcode?: string;
   plaats?: string;
   email?: string;
   telefoon?: string;
+  telefoon2?: string;
 }
 
 interface NieuweKlantDialogProps {
@@ -80,11 +88,14 @@ type VeldFouten = Partial<Record<keyof NieuweKlantWaarden, string>>;
 
 const LEEG = {
   naam: "",
+  voornaam: "",
+  achternaam: "",
   adres: "",
   postcode: "",
   plaats: "",
   email: "",
   telefoon: "",
+  telefoon2: "",
   contactpersoon: "",
   kvkNummer: "",
   btwNummer: "",
@@ -117,13 +128,31 @@ export function NieuweKlantDialog({
   // de gegevens van de vorige overneemt.
   useEffect(() => {
     if (!open) return;
+
+    /**
+     * De dialog opent altijd als particulier, en daar zijn voor- en achternaam
+     * de velden op het scherm. Krijgen we alleen een samengestelde `naam` mee
+     * (offerte-wizard, lead), dan splitsen we die hier, zodat de voorvulling
+     * niet in een onzichtbaar veld verdwijnt.
+     */
+    const gesplitst =
+      initialValues?.voornaam || initialValues?.achternaam
+        ? {
+            voornaam: initialValues.voornaam ?? "",
+            achternaam: initialValues.achternaam ?? "",
+          }
+        : splitsNaam(initialValues?.naam ?? "");
+
     setForm({
       naam: initialValues?.naam ?? "",
+      voornaam: gesplitst.voornaam,
+      achternaam: gesplitst.achternaam,
       adres: initialValues?.adres ?? "",
       postcode: initialValues?.postcode ?? "",
       plaats: initialValues?.plaats ?? "",
       email: initialValues?.email ?? "",
       telefoon: initialValues?.telefoon ?? "",
+      telefoon2: initialValues?.telefoon2 ?? "",
       contactpersoon: "",
       kvkNummer: "",
       btwNummer: "",
@@ -139,15 +168,36 @@ export function NieuweKlantDialog({
   };
 
   const handleSubmit = async () => {
+    const particulier = !isZakelijk(klantType);
+
+    /**
+     * `naam` blijft de weergavenaam en is bij een particulier afgeleid van de
+     * twee velden op het scherm. Bewust met een lege `naam` als basis: heeft
+     * de gebruiker beide velden leeggemaakt, dan moet de melding "verplicht"
+     * verschijnen en niet stilletjes de voorgevulde naam terugkomen.
+     */
+    const naam = particulier
+      ? samengesteldeNaam({
+          voornaam: form.voornaam,
+          achternaam: form.achternaam,
+          naam: "",
+        })
+      : form.naam;
+
     // Dezelfde zod-validatie als de klantenpagina — één waarheid over wat een
     // geldige klant is (postcode-formaat, e-mail, telefoon).
     const { contactpersoon, kvkNummer, btwNummer, ...adresVelden } = form;
-    const resultaat = klantSchema.safeParse(adresVelden);
+    const resultaat = klantSchema.safeParse({ ...adresVelden, naam });
     if (!resultaat.success) {
       const nieuweFouten: VeldFouten = {};
       for (const issue of resultaat.error.issues) {
         const veld = issue.path[0] as keyof NieuweKlantWaarden | undefined;
         if (veld && !nieuweFouten[veld]) nieuweFouten[veld] = issue.message;
+      }
+      // Een particulier ziet geen naamveld: de melding hoort bij achternaam.
+      if (particulier && nieuweFouten.naam) {
+        nieuweFouten.achternaam ??= "Achternaam is verplicht";
+        delete nieuweFouten.naam;
       }
       setFouten(nieuweFouten);
       return;
@@ -158,11 +208,16 @@ export function NieuweKlantDialog({
     try {
       const id = await createKlant({
         naam: data.naam,
+        // Alleen bij een particulier: bij een bedrijf zou de backend `naam`
+        // uit de naamdelen afleiden en zo de bedrijfsnaam overschrijven.
+        voornaam: particulier ? data.voornaam : undefined,
+        achternaam: particulier ? data.achternaam : undefined,
         adres: data.adres,
         postcode: data.postcode,
         plaats: data.plaats,
         email: data.email,
         telefoon: data.telefoon,
+        telefoon2: data.telefoon2,
         klantType,
         // Alleen meesturen als ze bij dit klanttype horen, zodat een
         // achtergebleven waarde na wisselen van type niet stilletjes meegaat.
@@ -246,34 +301,65 @@ export function NieuweKlantDialog({
             </Select>
           </div>
 
+          {/* Particulier: voor- en achternaam apart — de klantenlijst sorteert
+              op achternaam. Andere typen houden bedrijfsnaam + contactpersoon. */}
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="nk-naam">
-                {isZakelijk(klantType) ? "Bedrijfsnaam *" : "Naam *"}
-              </Label>
-              <Input
-                id="nk-naam"
-                placeholder={
-                  isZakelijk(klantType) ? "De Groene Tuin B.V." : "Jan Jansen"
-                }
-                value={form.naam}
-                onChange={(e) => setVeld("naam", e.target.value)}
-                aria-invalid={Boolean(fouten.naam)}
-              />
-              {fouten.naam && (
-                <p className="text-xs text-destructive">{fouten.naam}</p>
-              )}
-            </div>
-            {isZakelijk(klantType) && (
-              <div className="space-y-1.5">
-                <Label htmlFor="nk-contactpersoon">Contactpersoon</Label>
-                <Input
-                  id="nk-contactpersoon"
-                  placeholder="Jan Jansen"
-                  value={form.contactpersoon}
-                  onChange={(e) => setVeld("contactpersoon", e.target.value)}
-                />
-              </div>
+            {isZakelijk(klantType) ? (
+              <>
+                <div className="space-y-1.5">
+                  <Label htmlFor="nk-naam">Bedrijfsnaam *</Label>
+                  <Input
+                    id="nk-naam"
+                    placeholder="De Groene Tuin B.V."
+                    value={form.naam}
+                    onChange={(e) => setVeld("naam", e.target.value)}
+                    aria-invalid={Boolean(fouten.naam)}
+                  />
+                  {fouten.naam && (
+                    <p className="text-xs text-destructive">{fouten.naam}</p>
+                  )}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="nk-contactpersoon">Contactpersoon</Label>
+                  <Input
+                    id="nk-contactpersoon"
+                    placeholder="Jan Jansen"
+                    value={form.contactpersoon}
+                    onChange={(e) => setVeld("contactpersoon", e.target.value)}
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="space-y-1.5">
+                  <Label htmlFor="nk-voornaam">Voornaam</Label>
+                  <Input
+                    id="nk-voornaam"
+                    placeholder="Jan"
+                    value={form.voornaam}
+                    onChange={(e) => setVeld("voornaam", e.target.value)}
+                    aria-invalid={Boolean(fouten.voornaam)}
+                  />
+                  {fouten.voornaam && (
+                    <p className="text-xs text-destructive">{fouten.voornaam}</p>
+                  )}
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="nk-achternaam">Achternaam *</Label>
+                  <Input
+                    id="nk-achternaam"
+                    placeholder="van der Berg"
+                    value={form.achternaam}
+                    onChange={(e) => setVeld("achternaam", e.target.value)}
+                    aria-invalid={Boolean(fouten.achternaam)}
+                  />
+                  {fouten.achternaam && (
+                    <p className="text-xs text-destructive">
+                      {fouten.achternaam}
+                    </p>
+                  )}
+                </div>
+              </>
             )}
           </div>
 
@@ -356,21 +442,10 @@ export function NieuweKlantDialog({
             </div>
           </div>
 
+          {/* Twee nummers naast elkaar (vast naast mobiel, of dat van de
+              partner) — zelfde validatie en melding. E-mail eronder over de
+              volle breedte, want die is het langst. */}
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="nk-email">E-mail</Label>
-              <Input
-                id="nk-email"
-                type="email"
-                placeholder="jan@voorbeeld.nl"
-                value={form.email}
-                onChange={(e) => setVeld("email", e.target.value)}
-                aria-invalid={Boolean(fouten.email)}
-              />
-              {fouten.email && (
-                <p className="text-xs text-destructive">{fouten.email}</p>
-              )}
-            </div>
             <div className="space-y-1.5">
               <Label htmlFor="nk-telefoon">Telefoon</Label>
               <Input
@@ -384,6 +459,34 @@ export function NieuweKlantDialog({
                 <p className="text-xs text-destructive">{fouten.telefoon}</p>
               )}
             </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="nk-telefoon2">Telefoon 2</Label>
+              <Input
+                id="nk-telefoon2"
+                placeholder="0522-123456"
+                value={form.telefoon2}
+                onChange={(e) => setVeld("telefoon2", e.target.value)}
+                aria-invalid={Boolean(fouten.telefoon2)}
+              />
+              {fouten.telefoon2 && (
+                <p className="text-xs text-destructive">{fouten.telefoon2}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="nk-email">E-mail</Label>
+            <Input
+              id="nk-email"
+              type="email"
+              placeholder="jan@voorbeeld.nl"
+              value={form.email}
+              onChange={(e) => setVeld("email", e.target.value)}
+              aria-invalid={Boolean(fouten.email)}
+            />
+            {fouten.email && (
+              <p className="text-xs text-destructive">{fouten.email}</p>
+            )}
           </div>
         </div>
 
