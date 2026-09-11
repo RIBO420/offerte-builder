@@ -494,19 +494,25 @@ export const tijdlijnHandmatigKanaalValidator = v.union(
 );
 
 /**
- * De vier typechips van de gesprekscomposer (klantdossier v7, WS4). Bewust
+ * De vijf typechips van de gesprekscomposer (klantdossier v7, WS4). Bewust
  * de UI-labels als waarde: de vertaling naar kanaal + eventType gebeurt op
  * één plek (tijdlijn.legGesprekVast), zodat de composer en de analyse-action
  * dezelfde taal spreken als het prototype.
  */
 export const tijdlijnGesprekTypeValidator = v.union(
   v.literal("Gebeld"),
+  v.literal("WhatsApp"),
   v.literal("Gemaild"),
   v.literal("Afspraak"),
   v.literal("Notitie")
 );
 
-export type GesprekType = "Gebeld" | "Gemaild" | "Afspraak" | "Notitie";
+export type GesprekType =
+  | "Gebeld"
+  | "WhatsApp"
+  | "Gemaild"
+  | "Afspraak"
+  | "Notitie";
 
 /**
  * Event-typen op de klanttijdlijn. De typen voor beurten (§2.6),

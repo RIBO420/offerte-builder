@@ -39,6 +39,7 @@ import {
   CalendarDays,
   Loader2,
   Mail,
+  MessageCircle,
   Mic,
   Phone,
   ShieldCheck,
@@ -61,8 +62,8 @@ import {
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 
-/** De vier typechips uit het prototype, in dezelfde volgorde. */
-const TYPES = ["Gebeld", "Gemaild", "Afspraak", "Notitie"] as const;
+/** De vijf typechips uit het prototype, in dezelfde volgorde. */
+const TYPES = ["Gebeld", "WhatsApp", "Gemaild", "Afspraak", "Notitie"] as const;
 type GesprekType = (typeof TYPES)[number];
 
 /**
@@ -71,22 +72,27 @@ type GesprekType = (typeof TYPES)[number];
  */
 const TYPE_ICONEN: Record<GesprekType, typeof Phone> = {
   Gebeld: Phone,
+  WhatsApp: MessageCircle,
   Gemaild: Mail,
   Afspraak: CalendarDays,
   Notitie: StickyNote,
 };
 
 /**
- * Vertaling van de UI-chip naar het datamodel. Gebeld/Gemaild hebben een eigen
- * kanaal; Afspraak en Notitie delen kanaal "intern" en worden uit elkaar
- * gehouden door het eventType — anders was een bezoek later niet meer terug
- * te vinden tussen de losse notities.
+ * Vertaling van de UI-chip naar het datamodel. Gebeld/WhatsApp/Gemaild hebben
+ * elk een eigen kanaal; Afspraak en Notitie delen kanaal "intern" en worden
+ * uit elkaar gehouden door het eventType — anders was een bezoek later niet
+ * meer terug te vinden tussen de losse notities.
  */
 const NAAR_TIJDLIJN: Record<
   GesprekType,
-  { kanaal: "telefoon" | "email" | "intern"; eventType: "handmatig" | "afspraak" }
+  {
+    kanaal: "telefoon" | "whatsapp" | "email" | "intern";
+    eventType: "handmatig" | "afspraak";
+  }
 > = {
   Gebeld: { kanaal: "telefoon", eventType: "handmatig" },
+  WhatsApp: { kanaal: "whatsapp", eventType: "handmatig" },
   Gemaild: { kanaal: "email", eventType: "handmatig" },
   Afspraak: { kanaal: "intern", eventType: "afspraak" },
   Notitie: { kanaal: "intern", eventType: "handmatig" },
@@ -487,7 +493,7 @@ export function GesprekComposer({
       }
     >
       <div className="px-3 py-2.5">
-        {/* Typechips: één keuze, dus radiogroup — niet vier losse knoppen. */}
+        {/* Typechips: één keuze, dus radiogroup — niet vijf losse knoppen. */}
         <div
           role="radiogroup"
           aria-label="Soort contact"

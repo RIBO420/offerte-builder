@@ -65,6 +65,7 @@ const GEEN_TAKEN: AnalyseResultaat = { taken: [], herkend: false };
 /** Wat de UI-typechip betekent in de prompt. */
 const TYPE_OMSCHRIJVING: Record<GesprekType, string> = {
   Gebeld: "een telefoongesprek met de klant",
+  WhatsApp: "een WhatsApp-gesprek met de klant",
   Gemaild: "een e-mailwisseling met de klant",
   Afspraak: "een afspraak of bezoek bij de klant",
   Notitie: "een interne notitie over deze klant",

@@ -203,6 +203,23 @@ describe("GesprekComposer: de analyse stelt voor, de gebruiker beslist", () => {
       eventType: "afspraak",
     });
   });
+
+  it("legt een WhatsApp-gesprek vast op het kanaal whatsapp", async () => {
+    analyseer.mockResolvedValue({ herkend: true, taken: [] });
+    const user = userEvent.setup();
+    await toonComposer();
+
+    await user.click(screen.getByRole("radio", { name: "WhatsApp" }));
+    await legVoor(user);
+
+    await waitFor(() => expect(legVast).toHaveBeenCalledTimes(1));
+    // WhatsApp is het kanaal waar Top Tuinen het meest mee doet; het krijgt
+    // een eigen kanaal in plaats van weg te zakken in "intern".
+    expect(legVast.mock.calls[0][0]).toMatchObject({
+      kanaal: "whatsapp",
+      eventType: "handmatig",
+    });
+  });
 });
 
 describe("GesprekComposer: de AI mag het vastleggen nooit tegenhouden", () => {
