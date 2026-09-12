@@ -70,8 +70,8 @@ export async function leesAlleOfBatch<Tabel extends TableNames>(
   }
 ): Promise<MigratieLezing<Doc<Tabel>>> {
   if (opties.dryRun) {
-    // Eén leesquery over de hele tabel. Met ~460 klanten blijft dit ver onder
-    // de leeslimiet van een Convex-transactie.
+    // Eén leesquery over de hele tabel. Met enkele honderden klanten blijft
+    // dit ver onder de leeslimiet van een Convex-transactie.
     const documenten = await ctx.db.query(tabel).collect();
     return { documenten, isDone: true, continueCursor: null };
   }
@@ -96,11 +96,13 @@ export type Voorbeeldlijst<T> = {
 };
 
 /**
- * Verzamelt hooguit `max` voorbeelden voor het rapport. Het tellen zelf blijft
- * bij de migratie: het rapport noemt altijd het échte aantal, met deze lijst
- * als steekproef om na te lopen.
+ * Verzamelt hooguit `max` voorbeelden voor het rapport (standaard
+ * `MAX_VOORBEELDEN`). Het tellen zelf blijft bij de migratie: het rapport
+ * noemt altijd het échte aantal, met deze lijst als steekproef om na te lopen.
  */
-export function verzamelVoorbeelden<T>(max: number): Voorbeeldlijst<T> {
+export function verzamelVoorbeelden<T>(
+  max: number = MAX_VOORBEELDEN
+): Voorbeeldlijst<T> {
   const lijst: T[] = [];
 
   return {

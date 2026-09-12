@@ -414,6 +414,15 @@ describe("verzamelVoorbeelden", () => {
   it("gebruikt in de migraties een leesbaar maximum", () => {
     expect(MAX_VOORBEELDEN).toBe(50);
   });
+
+  it("valt zonder maximum terug op MAX_VOORBEELDEN", () => {
+    // De migraties roepen hem zonder argument aan; de standaard hoort dus
+    // hetzelfde plafond te zijn als wat zij vroeger meegaven.
+    const voorbeelden = verzamelVoorbeelden<number>();
+    for (let i = 0; i < MAX_VOORBEELDEN + 5; i++) voorbeelden.voegToe(i);
+
+    expect(voorbeelden.lijst).toHaveLength(MAX_VOORBEELDEN);
+  });
 });
 
 describe("leesAlleOfBatch", () => {

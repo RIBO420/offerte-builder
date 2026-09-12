@@ -46,7 +46,7 @@ import { v } from "convex/values";
 import { internalMutation, internalQuery } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
 import { naamDelenVoorNieuweKlant, woorden } from "../lib/klantNaam";
-import { MAX_VOORBEELDEN, leesAlleOfBatch, verzamelVoorbeelden } from "./_batch";
+import { leesAlleOfBatch, verzamelVoorbeelden } from "./_batch";
 
 /** Waarom een klant niet gesplitst wordt. Alles behalve `al_gesplitst` is twijfel. */
 export type NaamOverslagReden =
@@ -131,7 +131,7 @@ export const start = internalMutation({
     let gesplitst = 0;
     let alGesplitst = 0;
     let twijfel = 0;
-    const twijfelVoorbeelden = verzamelVoorbeelden<Voorbeeld>(MAX_VOORBEELDEN);
+    const twijfelVoorbeelden = verzamelVoorbeelden<Voorbeeld>();
 
     /** Telt één klant mee in het rapport; schrijven gebeurt alleen buiten een dry run. */
     const verwerk = async (klant: Doc<"klanten">) => {

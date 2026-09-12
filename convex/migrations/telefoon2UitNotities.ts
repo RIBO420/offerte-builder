@@ -54,7 +54,7 @@ import { v } from "convex/values";
 import { internalMutation, internalQuery } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
 import { normaliseerImportTelefoon } from "../validators";
-import { MAX_VOORBEELDEN, leesAlleOfBatch, verzamelVoorbeelden } from "./_batch";
+import { leesAlleOfBatch, verzamelVoorbeelden } from "./_batch";
 
 /** Exact de tekst die `importKlanten` in de notities schreef. */
 export const TELEFOON2_NOTITIE_PREFIX = "Tweede telefoonnummer:";
@@ -163,7 +163,7 @@ export const start = internalMutation({
     let alTelefoon2 = 0;
     let ongeldig = 0;
     let regelsBlijvenStaan = 0;
-    const ongeldigeVoorbeelden = verzamelVoorbeelden<Voorbeeld>(MAX_VOORBEELDEN);
+    const ongeldigeVoorbeelden = verzamelVoorbeelden<Voorbeeld>();
 
     /** Telt één klant mee in het rapport; schrijven gebeurt alleen buiten een dry run. */
     const verwerk = async (klant: Doc<"klanten">) => {
