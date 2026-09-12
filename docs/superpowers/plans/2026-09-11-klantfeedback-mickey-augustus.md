@@ -664,3 +664,21 @@ convex/leadsKlantenHelpers.ts, convex/configuratorAanvragen.ts, convex/klantBest
 convex/migrations/leadAanvraagNaarDossier.ts, src/components/tijdlijn/klant-tijdlijn.tsx,
 src/components/klanten/dossier/bestanden-tab.tsx, src/components/leads/lead-historie-card.tsx,
 tests onder src/__tests__/.
+
+### Uitkomst Task 15 (12 sep 2026)
+
+Gebouwd door de orchestrator zelf (bouw- en reviewagents stalden die middag
+herhaaldelijk), in vijf commits b294dd3..0274631. Zelfreview langs de checklist:
+tenancy via de geverifieerde `orgId` van de aanroeper (promoveerLead,
+legKlantKoppelingVast) en via `lead.orgId` + klantcontrole in de migratie;
+`logTijdlijnEvent` mag null geven — dan blijft `eventNodig` waar en haalt de
+volgende run het in; GDPR-verwijdering ruimt eerst storage, dan de afgeleide rijen,
+dan de lead; `klantBestanden.verwijder` laat storage staan bij bron `lead`. Bekend
+en pre-existing: `fotoStorage.getUrls` toetst alleen op ingelogd zijn, niet op
+organisatie — geldt voor álle bijlagen (chat, tijdlijn), niet nieuw door deze taak.
+
+Uitrol: Convex deployen, dan
+`npx convex run migrations/leadAanvraagNaarDossier:start '{"dryRun":true}'` →
+rapport lezen → `'{"dryRun":false}'` met cursor tot `isDone` →
+`migrations/leadAanvraagNaarDossier:verifieerAanvraagOvername` (`zonderEvent` 0,
+op leads van een andere org na).
