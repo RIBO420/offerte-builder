@@ -945,6 +945,12 @@ async function legKlantKoppelingVast(
  *
  * De lead blijft open: alleen `gekoppeldKlantId` wordt gezet, de
  * pipelinestatus blijft staan.
+ *
+ * Uitzondering: een lead die al "gewonnen" is zónder klantrecord (legacy, van
+ * vóór de promotieflow). Weigeren zou kantoor met een lead laten zitten die
+ * nergens meer heen kan; in plaats daarvan loopt de koppeling via
+ * promoveerLead met déze klant — werkitem en promotielog erbij, zodat de
+ * lead niet anders is dan een lead die via markGewonnen ging.
  */
 export const koppelKlant = mutation({
   args: {
@@ -959,7 +965,7 @@ export const koppelKlant = mutation({
 
     // Idempotent: dezelfde klant nogmaals koppelen logt niets dubbel.
     if (lead.gekoppeldKlantId?.toString() === args.klantId.toString()) {
-      return { klantId: args.klantId, alGekoppeld: true };
+      return { klantId: args.klantId, alGekoppeld: true, werkitemId: null };
     }
 
     // Bij een gewonnen lead ís de klant de lead (PRD §1.3): omhangen zou het
@@ -971,9 +977,15 @@ export const koppelKlant = mutation({
     }
 
     await klantVanEigenOrg(ctx, args.klantId, orgId);
+
+    if (effectieveLeadStatus(lead) === "gewonnen") {
+      const { werkitemId } = await promoveerLead(ctx, lead, currentUser, orgId, args.klantId);
+      return { klantId: args.klantId, alGekoppeld: false, werkitemId };
+    }
+
     await legKlantKoppelingVast(ctx, lead, args.klantId, currentUser, orgId, false);
 
-    return { klantId: args.klantId, alGekoppeld: false };
+    return { klantId: args.klantId, alGekoppeld: false, werkitemId: null };
   },
 });
 

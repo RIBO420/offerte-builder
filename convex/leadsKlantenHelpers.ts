@@ -246,12 +246,16 @@ export type PromotieResultaat = {
  *   de wizard met deze klant.
  * - Het lead-record krijgt gekoppeldKlantId + pipelineStatus "gewonnen" en
  *   verdwijnt daarmee van het bord (isGepromoveerdeLead); historie blijft.
+ * - `gekozenKlantId`: een door kantoor aangewezen klant (koppelKlant op een
+ *   legacy-gewonnen lead zonder koppeling) gaat vóór de e-mail-match; de
+ *   aanroeper heeft die klant al op tenancy gecontroleerd.
  */
 export async function promoveerLead(
   ctx: GenericMutationCtx<DataModel>,
   lead: Doc<"configuratorAanvragen">,
   currentUser: Doc<"users">,
-  orgId: Id<"organisaties">
+  orgId: Id<"organisaties">,
+  gekozenKlantId?: Id<"klanten">
 ): Promise<PromotieResultaat> {
   // Idempotentie: promotie is al gebeurd — geen tweede klant/werkitem.
   if (isGepromoveerdeLead(lead) && lead.gekoppeldKlantId) {
@@ -265,9 +269,13 @@ export async function promoveerLead(
 
   const now = Date.now();
 
-  // 1. Bestaande klant zoeken: eerst de al gelegde koppeling, anders
-  //    case-insensitief op e-mail via de by_email-index.
-  let klantId = lead.gekoppeldKlantId ?? (await vindKlantVoorLead(ctx, lead, orgId));
+  // 1. Bestaande klant zoeken: eerst de al gelegde koppeling, dan de door
+  //    kantoor gekozen klant, anders case-insensitief op e-mail via de
+  //    by_email-index.
+  let klantId =
+    lead.gekoppeldKlantId ??
+    gekozenKlantId ??
+    (await vindKlantVoorLead(ctx, lead, orgId));
   let nieuweKlant = false;
 
   // 2. Geen match → de lead wórdt de klant (géén "lead"-stadium, zie sanering).

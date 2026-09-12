@@ -56,6 +56,7 @@ type LeadFixture = {
   klantAdres: string;
   klantPostcode: string;
   klantPlaats: string;
+  omschrijving?: string;
   specificaties: Record<string, never>;
   indicatiePrijs: number;
   createdAt: number;
@@ -512,6 +513,57 @@ describe("Klant koppelen vanuit een open lead", () => {
     const tijdlijn = store.getAll("klantTijdlijn");
     expect(tijdlijn).toHaveLength(1);
     expect(tijdlijn[0].klantId).toBe(klantId);
+  });
+
+  /**
+   * Legacy: leads die vóór de promotieflow al "gewonnen" waren, hebben geen
+   * klantrecord. Weigeren ("koppel via Gewonnen") helpt kantoor niet verder —
+   * koppelen betekent hier: promoveren met déze klant, zodat de lead net zo
+   * consistent is als een lead die via markGewonnen ging.
+   */
+  it("koppelKlant op een gewonnen lead zonder koppeling promoveert met de gekozen klant", async () => {
+    const { store, ctx, orgId, seedLead } = maakKoppelContext();
+    const klantId = store.insert("klanten", maakKlant({ orgId, email: "ander@adres.nl" }));
+    const leadId = seedLead({ pipelineStatus: "gewonnen", omschrijving: "Achtertuin" });
+
+    const resultaat = (await koppelKlantH(ctx, { id: leadId, klantId })) as {
+      klantId: string;
+      alGekoppeld: boolean;
+      werkitemId: string | null;
+    };
+
+    const lead = getLead(store, leadId);
+    expect(lead.gekoppeldKlantId).toBe(klantId);
+    expect(lead.pipelineStatus).toBe("gewonnen");
+    expect(resultaat.klantId).toBe(klantId);
+    expect(resultaat.alGekoppeld).toBe(false);
+    // De gekozen klant, geen nieuw record via de e-mail-match
+    expect(store.getAll("klanten")).toHaveLength(1);
+    // Het promotiepad: eerste werkitem bij die klant + promotielog
+    const werkitems = store.getAll("projecten");
+    expect(werkitems).toHaveLength(1);
+    expect(werkitems[0].klantId).toBe(klantId);
+    expect(werkitems[0].orgId).toBe(orgId);
+    expect(resultaat.werkitemId).toBe(werkitems[0]._id);
+    const activiteiten = store.getAll("leadActiviteiten");
+    expect(activiteiten).toHaveLength(1);
+    expect(activiteiten[0].type).toBe("status_wijziging");
+    expect((activiteiten[0].metadata as Record<string, unknown>).gekoppeldKlantId).toBe(klantId);
+    expect(store.getAll("klantTijdlijn")[0].eventType).toBe("lead_gewonnen");
+  });
+
+  it("koppelKlant op een gewonnen lead weigert nog steeds een klant van een andere organisatie", async () => {
+    const { store, ctx, seedLead } = maakKoppelContext();
+    const vreemdeKlantId = store.insert(
+      "klanten",
+      maakKlant({ orgId: "organisaties:andere", email: "buurman@groenenco.nl" })
+    );
+    const leadId = seedLead({ pipelineStatus: "gewonnen" });
+
+    const fout = await vangFout(koppelKlantH(ctx, { id: leadId, klantId: vreemdeKlantId }));
+    expect(fout.data ?? fout.message).toContain("Klant niet gevonden");
+    expect(getLead(store, leadId).gekoppeldKlantId).toBeUndefined();
+    expect(store.getAll("projecten")).toHaveLength(0);
   });
 
   it("koppelKlant weigert een klant van een andere organisatie (generieke melding)", async () => {
