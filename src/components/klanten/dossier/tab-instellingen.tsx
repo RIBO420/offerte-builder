@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import {
-  ChevronDown,
   Info,
   Loader2,
   Pencil,
@@ -33,16 +32,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import { SectieLegeStaat, SectiePaneel } from "@/components/ui/sectie-paneel";
 import { Switch } from "@/components/ui/switch";
 import { TextareaWithCount } from "@/components/ui/textarea-with-count";
 import { AdresVeld } from "@/components/klanten/adres-veld";
 import { Feit } from "@/components/klanten/klant-detail-primitieven";
+import { NaamVelden } from "@/components/klanten/velden/naam-velden";
+import { TelefoonVelden } from "@/components/klanten/velden/telefoon-velden";
+import { UitvoeradresVelden } from "@/components/klanten/velden/uitvoeradres-velden";
+import {
+  naamVelden,
+  splitsVoorBewerken,
+  uitvoerAdresIngevuld,
+  UITVOER_FORMULIER_VELD,
+  UITVOERADRES_WISSEN,
+} from "@/components/klanten/velden/klant-formulier-logica";
 import {
   isZakelijk,
   KLANT_TYPE_OPTIONS,
@@ -55,7 +59,7 @@ import { showErrorToast, showSuccessToast } from "@/lib/toast-utils";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { adresRegel } from "@convex/lib/adres";
-import { samengesteldeNaam, splitsNaam } from "@convex/lib/klantNaam";
+import { splitsNaam } from "@convex/lib/klantNaam";
 
 /** Wat de server ook aanhoudt (`klanten.update`). */
 const BIJZONDERHEDEN_MAX = 2000;
@@ -260,6 +264,34 @@ type VeldFouten = Partial<
 
 const VELD_KLASSE = "grid gap-3 @[34rem]/sectie:grid-cols-2";
 
+/** De velden van het bewerkformulier, allemaal als string in de staat. */
+type FormulierVelden = Record<
+  | "naam"
+  | "voornaam"
+  | "achternaam"
+  | "adres"
+  | "postcode"
+  | "plaats"
+  | "email"
+  | "telefoon"
+  | "telefoon2"
+  | "uitvoerAdres"
+  | "uitvoerPostcode"
+  | "uitvoerPlaats"
+  | "contactpersoon"
+  | "kvkNummer"
+  | "btwNummer"
+  | "website",
+  string
+>;
+
+/** Welke foutsleutel bij welk invoerveld hoort (alleen waar ze verschillen). */
+const FOUTSLEUTEL: Partial<Record<keyof FormulierVelden, keyof VeldFouten>> = {
+  uitvoerAdres: "uitvoerAdres.adres",
+  uitvoerPostcode: "uitvoerAdres.postcode",
+  uitvoerPlaats: "uitvoerAdres.plaats",
+};
+
 /**
  * Het paneel in bewerkstand. Losstaand geëxporteerd zodat de componenttest hem
  * kan renderen zonder de hele tab (en zonder GDPR-query) op te tuigen.
@@ -285,14 +317,14 @@ export function ContactgegevensFormulier({
   const [klantType, setKlantType] = useState<KlantType>(
     klant.klantType ?? "particulier"
   );
-  const [form, setForm] = useState(() => {
+  const [form, setForm] = useState<FormulierVelden>(() => {
     // Geen losse naamvelden? Dan is de opgeslagen naam het beste voorstel —
     // zo hoeft niemand zijn eigen klantenbestand opnieuw in te typen.
-    const delen = splitsNaam(klant.naam ?? "");
+    const delen = splitsVoorBewerken(klant, klant.klantType ?? "particulier");
     return {
       naam: klant.naam ?? "",
-      voornaam: klant.voornaam ?? delen.voornaam,
-      achternaam: klant.achternaam ?? delen.achternaam,
+      voornaam: delen.voornaam,
+      achternaam: delen.achternaam,
       adres: klant.adres ?? "",
       postcode: klant.postcode ?? "",
       plaats: klant.plaats ?? "",
@@ -317,14 +349,7 @@ export function ContactgegevensFormulier({
 
   const zakelijk = isZakelijk(klantType);
 
-  /** Welke foutsleutel bij welk invoerveld hoort (alleen waar ze verschillen). */
-  const FOUTSLEUTEL: Partial<Record<keyof typeof form, keyof VeldFouten>> = {
-    uitvoerAdres: "uitvoerAdres.adres",
-    uitvoerPostcode: "uitvoerAdres.postcode",
-    uitvoerPlaats: "uitvoerAdres.plaats",
-  };
-
-  const setVeld = (veld: keyof typeof form, waarde: string) => {
+  const setVeld = (veld: keyof FormulierVelden, waarde: string) => {
     setForm((prev) => ({ ...prev, [veld]: waarde }));
     setFouten((prev) => ({ ...prev, [FOUTSLEUTEL[veld] ?? veld]: undefined }));
   };
@@ -342,44 +367,27 @@ export function ContactgegevensFormulier({
     }
 
     // `naam` blijft de weergavenaam en blijft verplicht; bij een particulier
-    // is hij vanaf nu de afgeleide van voor- + achternaam (zelfde regel als
-    // serverzijde in `klanten.update`).
-    const naam = zakelijk
-      ? form.naam
-      : samengesteldeNaam({
-          voornaam: form.voornaam,
-          achternaam: form.achternaam,
-          naam: klant.naam,
-        });
+    // is hij de afgeleide van voor- + achternaam (zelfde regel als serverzijde
+    // in `klanten.update`). Bij een bedrijf gaan de naamdelen leeg mee.
+    const { naam, voornaam, achternaam } = naamVelden({ ...form, klantType });
 
     // Open én ergens iets ingevuld = het uitvoeradres telt mee, en dan moet
     // het compleet zijn (zod bewaakt dat). Open maar helemaal leeg leest als
     // "toch niet" — dat wist net als dichtklappen.
-    const uitvoerIngevuld =
-      uitvoerOpen &&
-      Boolean(
-        form.uitvoerAdres.trim() ||
-          form.uitvoerPostcode.trim() ||
-          form.uitvoerPlaats.trim()
-      );
+    const uitvoerWaarden = {
+      adres: form.uitvoerAdres,
+      postcode: form.uitvoerPostcode,
+      plaats: form.uitvoerPlaats,
+    };
+    const uitvoerIngevuld = uitvoerAdresIngevuld(uitvoerOpen, uitvoerWaarden);
 
     const resultaat = klantSchema.safeParse({
       naam,
-      ...(zakelijk
-        ? {}
-        : { voornaam: form.voornaam, achternaam: form.achternaam }),
+      ...(zakelijk ? {} : { voornaam, achternaam }),
       adres: form.adres,
       postcode: form.postcode,
       plaats: form.plaats,
-      ...(uitvoerIngevuld
-        ? {
-            uitvoerAdres: {
-              adres: form.uitvoerAdres,
-              postcode: form.uitvoerPostcode,
-              plaats: form.uitvoerPlaats,
-            },
-          }
-        : {}),
+      ...(uitvoerIngevuld ? { uitvoerAdres: uitvoerWaarden } : {}),
       email: form.email,
       telefoon: form.telefoon,
       telefoon2: form.telefoon2,
@@ -409,11 +417,7 @@ export function ContactgegevensFormulier({
         postcode: data.postcode,
         plaats: data.plaats,
         // Drie lege velden is voor `uitvoerAdres` wat "" voor e-mail is: weg.
-        uitvoerAdres: data.uitvoerAdres ?? {
-          adres: "",
-          postcode: "",
-          plaats: "",
-        },
+        uitvoerAdres: data.uitvoerAdres ?? { ...UITVOERADRES_WISSEN },
         // Lege string i.p.v. undefined: zo wist een leeggemaakt veld ook echt.
         email: data.email ?? "",
         telefoon: data.telefoon ?? "",
@@ -466,56 +470,22 @@ export function ContactgegevensFormulier({
           verandert dus mee met het type — en niet allebei tegelijk in beeld,
           want dan is het de vraag welke telt. */}
       <div className={VELD_KLASSE}>
-        {zakelijk ? (
-          <>
-            <div className="space-y-1.5">
-              <Label htmlFor="ki-naam">Bedrijfsnaam</Label>
-              <Input
-                id="ki-naam"
-                value={form.naam}
-                onChange={(e) => setVeld("naam", e.target.value)}
-                aria-invalid={Boolean(fouten.naam)}
-              />
-              {fouten.naam && (
-                <p className="text-xs text-destructive">{fouten.naam}</p>
-              )}
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="ki-contactpersoon">Contactpersoon</Label>
-              <Input
-                id="ki-contactpersoon"
-                value={form.contactpersoon}
-                onChange={(e) => setVeld("contactpersoon", e.target.value)}
-              />
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="space-y-1.5">
-              <Label htmlFor="ki-voornaam">Voornaam</Label>
-              <Input
-                id="ki-voornaam"
-                value={form.voornaam}
-                onChange={(e) => setVeld("voornaam", e.target.value)}
-                aria-invalid={Boolean(fouten.voornaam)}
-              />
-              {fouten.voornaam && (
-                <p className="text-xs text-destructive">{fouten.voornaam}</p>
-              )}
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="ki-achternaam">Achternaam</Label>
-              <Input
-                id="ki-achternaam"
-                value={form.achternaam}
-                onChange={(e) => setVeld("achternaam", e.target.value)}
-                aria-invalid={Boolean(fouten.achternaam)}
-              />
-              {fouten.achternaam && (
-                <p className="text-xs text-destructive">{fouten.achternaam}</p>
-              )}
-            </div>
-          </>
+        <NaamVelden
+          klantType={klantType}
+          waarden={form}
+          onChange={setVeld}
+          fouten={fouten}
+          idPrefix="ki"
+        />
+        {zakelijk && (
+          <div className="space-y-1.5">
+            <Label htmlFor="ki-contactpersoon">Contactpersoon</Label>
+            <Input
+              id="ki-contactpersoon"
+              value={form.contactpersoon}
+              onChange={(e) => setVeld("contactpersoon", e.target.value)}
+            />
+          </div>
         )}
       </div>
 
@@ -610,122 +580,35 @@ export function ContactgegevensFormulier({
       {/* Het tweede adres hoort bij het eerste en staat er daarom onder, maar
           dichtgeklapt: de uitzondering mag het gewone geval niet in de weg
           zitten. Dichtklappen is tegelijk de manier om hem te wissen — dat is
-          hieronder ook wat er gebeurt. */}
-      <Collapsible open={uitvoerOpen} onOpenChange={setUitvoerOpen}>
-        <CollapsibleTrigger asChild>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="-ml-2 h-8 gap-1.5 px-2 text-xs font-medium text-muted-foreground hover:text-foreground"
-          >
-            <ChevronDown
-              className={`size-3.5 transition-transform ${uitvoerOpen ? "rotate-180" : ""}`}
-              aria-hidden
-            />
-            Afwijkend uitvoeradres
-          </Button>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="space-y-3 pt-2">
-          <p className="text-xs text-muted-foreground">
-            Alleen invullen als het werk ergens anders gebeurt dan op het adres
-            hierboven. Het adres hierboven blijft het factuuradres; dichtklappen
-            wist het uitvoeradres.
-          </p>
-          <div className="space-y-1.5">
-            <Label htmlFor="ki-uitvoer-adres">Adres (uitvoer)</Label>
-            <AdresVeld
-              id="ki-uitvoer-adres"
-              waarde={form.uitvoerAdres}
-              ongeldig={Boolean(fouten["uitvoerAdres.adres"])}
-              onChange={(waarde) => setVeld("uitvoerAdres", waarde)}
-              onAdresGekozen={(adres) => {
-                setForm((prev) => ({
-                  ...prev,
-                  uitvoerAdres: adres.adres,
-                  uitvoerPostcode: adres.postcode || prev.uitvoerPostcode,
-                  uitvoerPlaats: adres.plaats || prev.uitvoerPlaats,
-                }));
-                setFouten((prev) => ({
-                  ...prev,
-                  "uitvoerAdres.adres": undefined,
-                  "uitvoerAdres.postcode": undefined,
-                  "uitvoerAdres.plaats": undefined,
-                }));
-              }}
-            />
-            {fouten["uitvoerAdres.adres"] && (
-              <p className="text-xs text-destructive">
-                {fouten["uitvoerAdres.adres"]}
-              </p>
-            )}
-          </div>
-          <div className={VELD_KLASSE}>
-            <div className="space-y-1.5">
-              <Label htmlFor="ki-uitvoer-postcode">Postcode (uitvoer)</Label>
-              <Input
-                id="ki-uitvoer-postcode"
-                placeholder="1234 AB"
-                value={form.uitvoerPostcode}
-                onChange={(e) => setVeld("uitvoerPostcode", e.target.value)}
-                aria-invalid={Boolean(fouten["uitvoerAdres.postcode"])}
-              />
-              {fouten["uitvoerAdres.postcode"] && (
-                <p className="text-xs text-destructive">
-                  {fouten["uitvoerAdres.postcode"]}
-                </p>
-              )}
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="ki-uitvoer-plaats">Plaats (uitvoer)</Label>
-              <Input
-                id="ki-uitvoer-plaats"
-                placeholder="Landgraaf"
-                value={form.uitvoerPlaats}
-                onChange={(e) => setVeld("uitvoerPlaats", e.target.value)}
-                aria-invalid={Boolean(fouten["uitvoerAdres.plaats"])}
-              />
-              {fouten["uitvoerAdres.plaats"] && (
-                <p className="text-xs text-destructive">
-                  {fouten["uitvoerAdres.plaats"]}
-                </p>
-              )}
-            </div>
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
+          hierboven in `opslaan` ook wat er gebeurt. */}
+      <UitvoeradresVelden
+        open={uitvoerOpen}
+        onOpenChange={setUitvoerOpen}
+        waarden={{
+          adres: form.uitvoerAdres,
+          postcode: form.uitvoerPostcode,
+          plaats: form.uitvoerPlaats,
+        }}
+        onChange={(veld, waarde) => setVeld(UITVOER_FORMULIER_VELD[veld], waarde)}
+        fouten={{
+          adres: fouten["uitvoerAdres.adres"],
+          postcode: fouten["uitvoerAdres.postcode"],
+          plaats: fouten["uitvoerAdres.plaats"],
+        }}
+        idPrefix="ki"
+        raster={VELD_KLASSE}
+      />
 
       {/* De twee nummers naast elkaar: je vergelijkt ze bij het invoeren, en
           zo is meteen te zien welk nummer waar staat. E-mail eronder over de
           volle breedte — die waarde is lang. */}
-      <div className={VELD_KLASSE}>
-        <div className="space-y-1.5">
-          <Label htmlFor="ki-telefoon">Telefoon</Label>
-          <Input
-            id="ki-telefoon"
-            placeholder="06-12345678"
-            value={form.telefoon}
-            onChange={(e) => setVeld("telefoon", e.target.value)}
-            aria-invalid={Boolean(fouten.telefoon)}
-          />
-          {fouten.telefoon && (
-            <p className="text-xs text-destructive">{fouten.telefoon}</p>
-          )}
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="ki-telefoon2">Telefoon 2</Label>
-          <Input
-            id="ki-telefoon2"
-            placeholder="045-5710000"
-            value={form.telefoon2}
-            onChange={(e) => setVeld("telefoon2", e.target.value)}
-            aria-invalid={Boolean(fouten.telefoon2)}
-          />
-          {fouten.telefoon2 && (
-            <p className="text-xs text-destructive">{fouten.telefoon2}</p>
-          )}
-        </div>
-      </div>
+      <TelefoonVelden
+        waarden={form}
+        onChange={setVeld}
+        fouten={fouten}
+        idPrefix="ki"
+        raster={VELD_KLASSE}
+      />
 
       <div className="space-y-1.5">
         <Label htmlFor="ki-email">E-mail</Label>

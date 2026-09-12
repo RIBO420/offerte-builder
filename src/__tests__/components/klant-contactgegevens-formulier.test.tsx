@@ -19,9 +19,14 @@
  * gegevens vast: voor-/achternaam bij een particulier (met `naam` als
  * afgeleide), een tweede telefoonnummer, een afwijkend uitvoeradres dat
  * alleen compleet de deur uit mag, en het bijzonderheden-blok.
+ *
+ * De naam-, telefoon- en uitvoeradresvelden komen uit
+ * `src/components/klanten/velden/`; hun labels ("Achternaam *", "Adres
+ * (uitvoer) *") zijn daarmee dezelfde als in de klantenlijst en het
+ * aanmaakdialoog.
  */
 import { describe, it, expect, vi, beforeAll, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 // jsdom kent de Pointer Capture-API niet; Radix (Select) roept hem wél aan.
@@ -143,7 +148,7 @@ describe("Contactgegevens bewerken", () => {
   it("begint met de gegevens die er al staan", () => {
     render(<ContactgegevensFormulier klant={ZAKELIJK} onKlaar={() => {}} />);
 
-    expect(screen.getByLabelText("Bedrijfsnaam")).toHaveValue(
+    expect(screen.getByLabelText("Bedrijfsnaam *")).toHaveValue(
       "De Groene Tuin B.V."
     );
     expect(screen.getByLabelText("Contactpersoon")).toHaveValue("Jan Jansen");
@@ -160,8 +165,8 @@ describe("Contactgegevens bewerken", () => {
     // die splitst `splitsNaam` uit de opgeslagen naam zolang de losse velden
     // nog leeg zijn (klanten van vóór sep 2026).
     expect(screen.getByLabelText("Voornaam")).toHaveValue("Alanys");
-    expect(screen.getByLabelText("Achternaam")).toHaveValue("Rerimassie");
-    expect(screen.queryByLabelText("Bedrijfsnaam")).toBeNull();
+    expect(screen.getByLabelText("Achternaam *")).toHaveValue("Rerimassie");
+    expect(screen.queryByLabelText("Bedrijfsnaam *")).toBeNull();
     expect(screen.queryByLabelText("KvK-nummer")).toBeNull();
     expect(screen.queryByLabelText("BTW-nummer")).toBeNull();
     expect(screen.queryByLabelText("Contactpersoon")).toBeNull();
@@ -211,7 +216,7 @@ describe("Contactgegevens bewerken", () => {
     // Bij een particulier is de achternaam het enige naamveld in beeld; leeg
     // laten zou de oude naam stilzwijgend laten staan.
     await gebruiker.clear(screen.getByLabelText("Voornaam"));
-    await gebruiker.clear(screen.getByLabelText("Achternaam"));
+    await gebruiker.clear(screen.getByLabelText("Achternaam *"));
     await gebruiker.click(screen.getByRole("button", { name: "Opslaan" }));
 
     expect(await screen.findByText("Achternaam is verplicht")).toBeInTheDocument();
@@ -222,7 +227,7 @@ describe("Contactgegevens bewerken", () => {
     const gebruiker = userEvent.setup();
     render(<ContactgegevensFormulier klant={ZAKELIJK} onKlaar={() => {}} />);
 
-    await gebruiker.clear(screen.getByLabelText("Bedrijfsnaam"));
+    await gebruiker.clear(screen.getByLabelText("Bedrijfsnaam *"));
     await gebruiker.click(screen.getByRole("button", { name: "Opslaan" }));
 
     expect(await screen.findByText("Naam is verplicht")).toBeInTheDocument();
@@ -256,7 +261,7 @@ describe("Voor- en achternaam", () => {
     );
 
     expect(screen.getByLabelText("Voornaam")).toHaveValue("");
-    expect(screen.getByLabelText("Achternaam")).toHaveValue("van der Berg");
+    expect(screen.getByLabelText("Achternaam *")).toHaveValue("van der Berg");
   });
 
   it("wist voor- en achternaam bij een zakelijke klant", async () => {
@@ -313,7 +318,7 @@ describe("Afwijkend uitvoeradres", () => {
     expect(
       screen.getByRole("button", { name: /Afwijkend uitvoeradres/ })
     ).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByLabelText("Plaats (uitvoer)")).toBeNull();
+    expect(screen.queryByLabelText("Plaats (uitvoer) *")).toBeNull();
   });
 
   it("staat open zodra de klant er een heeft", () => {
@@ -321,11 +326,11 @@ describe("Afwijkend uitvoeradres", () => {
       <ContactgegevensFormulier klant={PARTICULIER_COMPLEET} onKlaar={() => {}} />
     );
 
-    expect(screen.getByLabelText("Adres (uitvoer)")).toHaveValue(
+    expect(screen.getByLabelText("Adres (uitvoer) *")).toHaveValue(
       "Kerkstraat 12"
     );
-    expect(screen.getByLabelText("Postcode (uitvoer)")).toHaveValue("6411 CA");
-    expect(screen.getByLabelText("Plaats (uitvoer)")).toHaveValue("Heerlen");
+    expect(screen.getByLabelText("Postcode (uitvoer) *")).toHaveValue("6411 CA");
+    expect(screen.getByLabelText("Plaats (uitvoer) *")).toHaveValue("Heerlen");
   });
 
   it("eist een compleet uitvoeradres zodra er iets ingevuld staat", async () => {
@@ -335,7 +340,7 @@ describe("Afwijkend uitvoeradres", () => {
     await gebruiker.click(
       screen.getByRole("button", { name: /Afwijkend uitvoeradres/ })
     );
-    await gebruiker.type(screen.getByLabelText("Adres (uitvoer)"), "Kerkstraat 12");
+    await gebruiker.type(screen.getByLabelText("Adres (uitvoer) *"), "Kerkstraat 12");
     await gebruiker.click(screen.getByRole("button", { name: "Opslaan" }));
 
     expect(await screen.findByText("Postcode is verplicht")).toBeInTheDocument();
@@ -350,9 +355,9 @@ describe("Afwijkend uitvoeradres", () => {
     await gebruiker.click(
       screen.getByRole("button", { name: /Afwijkend uitvoeradres/ })
     );
-    await gebruiker.type(screen.getByLabelText("Adres (uitvoer)"), "Kerkstraat 12");
-    await gebruiker.type(screen.getByLabelText("Postcode (uitvoer)"), "6411ca");
-    await gebruiker.type(screen.getByLabelText("Plaats (uitvoer)"), "Heerlen");
+    await gebruiker.type(screen.getByLabelText("Adres (uitvoer) *"), "Kerkstraat 12");
+    await gebruiker.type(screen.getByLabelText("Postcode (uitvoer) *"), "6411ca");
+    await gebruiker.type(screen.getByLabelText("Plaats (uitvoer) *"), "Heerlen");
     await gebruiker.click(screen.getByRole("button", { name: "Opslaan" }));
 
     await waitFor(() => expect(updateKlant).toHaveBeenCalledTimes(1));
@@ -395,16 +400,21 @@ describe("Instellingen-tab", () => {
     // Weergave: label/waarde-regels, geen invoervelden. Een particulier staat
     // er als voor- én achternaam, niet als één naamregel.
     expect(screen.getByText("Rerimassie")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Achternaam")).toBeNull();
+    expect(screen.queryByLabelText("Achternaam *")).toBeNull();
 
     // Het bewerkknopje van Contactgegevens, niet dat van Bijzonderheden.
-    const wijzigen = screen.getAllByRole("button", { name: /Wijzigen/ });
-    await gebruiker.click(wijzigen[0]);
-    expect(screen.getByLabelText("Achternaam")).toHaveValue("Rerimassie");
+    const paneel = screen
+      .getByRole("heading", { name: "Contactgegevens" })
+      .closest("section");
+    if (!paneel) throw new Error("Contactgegevens-paneel niet gevonden");
+    await gebruiker.click(
+      within(paneel).getByRole("button", { name: /Wijzigen/ })
+    );
+    expect(screen.getByLabelText("Achternaam *")).toHaveValue("Rerimassie");
 
     // Annuleren gooit de wijziging weg: terug naar de oorspronkelijke waarde.
-    await gebruiker.clear(screen.getByLabelText("Achternaam"));
-    await gebruiker.type(screen.getByLabelText("Achternaam"), "Iets anders");
+    await gebruiker.clear(screen.getByLabelText("Achternaam *"));
+    await gebruiker.type(screen.getByLabelText("Achternaam *"), "Iets anders");
     await gebruiker.click(screen.getByRole("button", { name: "Annuleren" }));
 
     expect(updateKlant).not.toHaveBeenCalled();
