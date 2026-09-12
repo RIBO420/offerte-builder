@@ -127,6 +127,14 @@ function maakPromotieContext() {
   return { store, ctx, user, orgId };
 }
 
+/**
+ * De handler achter een Convex mutation/query, zodat de test hem buiten de
+ * Convex-runtime kan aanroepen met een mock-context.
+ */
+function handlerVan<A = unknown, R = unknown>(fn: unknown) {
+  return (fn as { _handler: (ctx: unknown, args: A) => Promise<R> })._handler;
+}
+
 function getLead(store: MockConvexStore, id: string) {
   return store.get(id) as Record<string, unknown>;
 }
@@ -403,11 +411,6 @@ describe("Leads zijn org-gescoopt", () => {
     return { store, ctx: createMockCtx(store), eigenLeadId, vreemdeLeadId };
   }
 
-  function handlerVan(fn: unknown) {
-    return (fn as { _handler: (ctx: unknown, args: unknown) => Promise<unknown> })
-      ._handler;
-  }
-
   it("getById geeft null voor een lead van een andere organisatie", async () => {
     const { ctx, eigenLeadId, vreemdeLeadId } = ctxMetLeadsVanTweeOrgs();
 
@@ -443,10 +446,6 @@ describe("Leads zijn org-gescoopt", () => {
  * `isGepromoveerdeLead` eist gewonnen ÉN een koppeling.
  */
 describe("Klant koppelen vanuit een open lead", () => {
-  function handlerVan<A, R>(fn: unknown) {
-    return (fn as { _handler: (ctx: unknown, args: A) => Promise<R> })._handler;
-  }
-
   const koppelKlantH = handlerVan<Record<string, unknown>, unknown>(koppelKlant);
   const maakKlantUitLeadH = handlerVan<Record<string, unknown>, {
     klantId: string;
