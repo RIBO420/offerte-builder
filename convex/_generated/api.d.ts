@@ -89,6 +89,7 @@ import type * as materiaalDelta from "../materiaalDelta.js";
 import type * as medewerkers from "../medewerkers.js";
 import type * as meerwerk from "../meerwerk.js";
 import type * as migrations from "../migrations.js";
+import type * as migrations__batch from "../migrations/_batch.js";
 import type * as migrations_backfillWerkitemType from "../migrations/backfillWerkitemType.js";
 import type * as migrations_migreerWeekPlanningNaarWerkitems from "../migrations/migreerWeekPlanningNaarWerkitems.js";
 import type * as migrations_naarOrganisaties from "../migrations/naarOrganisaties.js";
@@ -255,6 +256,7 @@ declare const fullApi: ApiFromModules<{
   medewerkers: typeof medewerkers;
   meerwerk: typeof meerwerk;
   migrations: typeof migrations;
+  "migrations/_batch": typeof migrations__batch;
   "migrations/backfillWerkitemType": typeof migrations_backfillWerkitemType;
   "migrations/migreerWeekPlanningNaarWerkitems": typeof migrations_migreerWeekPlanningNaarWerkitems;
   "migrations/naarOrganisaties": typeof migrations_naarOrganisaties;
