@@ -40,7 +40,8 @@ import {
   type ReistijdFetch,
 } from "../../../../convex/reistijdLogica";
 import { magPlanbordMuteren } from "../../../../convex/planbordLogica";
-import { getDagkaart } from "../../../../convex/dagkaart";
+import { getDagkaart, getOntbrekendeAdresParen } from "../../../../convex/dagkaart";
+import { googleMapsRouteUrl } from "../../../../convex/lib/adres";
 import {
   MockConvexStore,
   createMockCtx,
@@ -541,5 +542,190 @@ describe("getDagkaart — bijzonderheden", () => {
       notities: "Gebeld over de heg, 3 juni",
     });
     expect(stop.bijzonderheden).toBeNull();
+  });
+});
+
+/**
+ * Ruling sep 2026: wérk gaat naar het uitvoeradres van de klant, de rekening
+ * naar het hoofdadres. De dagkaart is werk — het stop-adres, de sleutel
+ * waarmee de reistijd in de cache wordt opgezocht én het adres dat naar
+ * Google Maps gaat (Distance Matrix, routelink) moeten dus allemaal het
+ * uitvoeradres zijn. Zonder uitvoeradres valt alles terug op het hoofdadres.
+ */
+describe("getDagkaart — uitvoeradres van de klant", () => {
+  const DATUM = "2026-07-21";
+  const LOODS = "Kwekerijweg 1, Boskoop";
+  const HOOFD = { adres: "Hoofdweg 1", postcode: "1234 AB", plaats: "Meppel" };
+  const UITVOER = { adres: "Tuinlaan 9", postcode: "7941 CD", plaats: "Staphorst" };
+  const HOOFD_REGEL = "Hoofdweg 1, 1234 AB Meppel";
+  const UITVOER_REGEL = "Tuinlaan 9, 7941 CD Staphorst";
+
+  type Kaart = {
+    loodsAdres: string | null;
+    reistijdBron: "standaard" | "google_maps";
+    blokken: DagBlok[];
+    stops: { adres: string | null }[];
+  };
+  type Paren = { ontbrekend: { vanAdres: string; naarAdres: string }[] };
+
+  const kaartHandler = (
+    getDagkaart as unknown as {
+      _handler: (ctx: unknown, args: { teamId: string; datum: string }) => Promise<Kaart>;
+    }
+  )._handler;
+  const parenHandler = (
+    getOntbrekendeAdresParen as unknown as {
+      _handler: (ctx: unknown, args: { teamId: string; datum: string }) => Promise<Paren>;
+    }
+  )._handler;
+
+  function wereld(
+    klantVelden: Record<string, unknown>,
+    werkitemVelden: Record<string, unknown> = {}
+  ) {
+    const store = new MockConvexStore();
+    const orgId = seedMockOrganisatie(store);
+    const userId = store.insert("users", createMockUser({ role: "directie" }));
+    store.insert("instellingen", {
+      orgId,
+      userId,
+      bedrijfsgegevens: { naam: "Top Tuinen", adres: "Kwekerijweg 1", plaats: "Boskoop" },
+    });
+    const teamId = store.insert("teams", {
+      orgId,
+      userId,
+      naam: "Team B",
+      leden: [],
+      isActief: true,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    const klantId = store.insert(
+      "klanten",
+      createMockKlant(userId, { orgId, ...HOOFD, ...klantVelden })
+    );
+    store.insert("projecten", {
+      orgId,
+      userId,
+      type: "onderhoudsbeurt",
+      klantId,
+      naam: "Snoeibeurt",
+      status: "gepland",
+      teamId,
+      geplandeStart: DATUM,
+      geplandeEind: DATUM,
+      volgordeBinnenDag: 1,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      ...werkitemVelden,
+    });
+    const cacheRij = (van: string, naar: string, minuten: number) =>
+      store.insert("reistijdCache", {
+        orgId,
+        sleutel: reistijdSleutel(van, naar),
+        vanAdres: van,
+        naarAdres: naar,
+        minuten,
+        bron: "google_maps",
+        berekendOp: Date.now(),
+      });
+    return { ctx: createMockCtx(store), store, orgId, teamId, cacheRij };
+  }
+
+  it("zet het uitvoeradres op de stop, niet het hoofdadres", async () => {
+    const { ctx, teamId } = wereld({ uitvoerAdres: UITVOER });
+    const kaart = await kaartHandler(ctx, { teamId, datum: DATUM });
+    expect(kaart.stops).toHaveLength(1);
+    expect(kaart.stops[0].adres).toBe(UITVOER_REGEL);
+    expect(kaart.loodsAdres).toBe(LOODS);
+  });
+
+  it("valt terug op het hoofdadres als de klant geen uitvoeradres heeft", async () => {
+    const { ctx, teamId } = wereld({});
+    const kaart = await kaartHandler(ctx, { teamId, datum: DATUM });
+    expect(kaart.stops[0].adres).toBe(HOOFD_REGEL);
+  });
+
+  it("negeert een uitvoeradres dat alleen uit lege velden bestaat", async () => {
+    const { ctx, teamId } = wereld({
+      uitvoerAdres: { adres: " ", postcode: "", plaats: "  " },
+    });
+    const kaart = await kaartHandler(ctx, { teamId, datum: DATUM });
+    expect(kaart.stops[0].adres).toBe(HOOFD_REGEL);
+  });
+
+  it("laat een eigen werkitem-adres boven het uitvoeradres gaan", async () => {
+    const { ctx, teamId } = wereld(
+      { uitvoerAdres: UITVOER },
+      { adres: "Achterom, poort naast nr. 12" }
+    );
+    const kaart = await kaartHandler(ctx, { teamId, datum: DATUM });
+    expect(kaart.stops[0].adres).toBe("Achterom, poort naast nr. 12");
+  });
+
+  it("zoekt de reistijd op met de sleutel loods → uitvoeradres", async () => {
+    const { ctx, teamId, cacheRij } = wereld({ uitvoerAdres: UITVOER });
+    // Alleen het uitvoeradres staat in de cache: 37 minuten via Google Maps.
+    // De rij op het hoofdadres is een lokvogel — die mag niet gebruikt worden.
+    cacheRij(LOODS, UITVOER_REGEL, 37);
+    cacheRij(UITVOER_REGEL, LOODS, 41);
+    cacheRij(LOODS, HOOFD_REGEL, 5);
+    cacheRij(HOOFD_REGEL, LOODS, 5);
+
+    const kaart = await kaartHandler(ctx, { teamId, datum: DATUM });
+    expect(kaart.reistijdBron).toBe("google_maps");
+    const klantblok = kaart.blokken.find((b) => b.soort === "klant");
+    // 07:00 vertrek + 37 minuten naar Staphorst → 07:37 (niet 07:05)
+    expect(klantblok?.start).toBe("07:37");
+    const terugreis = kaart.blokken.filter((b) => b.soort === "reistijd").at(-1);
+    expect(naarMinuten(terugreis!.eind) - naarMinuten(terugreis!.start)).toBe(41);
+  });
+
+  it("zoekt zonder uitvoeradres de reistijd op met de sleutel loods → hoofdadres", async () => {
+    const { ctx, teamId, cacheRij } = wereld({});
+    cacheRij(LOODS, HOOFD_REGEL, 12);
+    cacheRij(HOOFD_REGEL, LOODS, 12);
+    // Een verdwaalde rij op een (niet-bestaand) uitvoeradres doet niets
+    cacheRij(LOODS, UITVOER_REGEL, 99);
+
+    const kaart = await kaartHandler(ctx, { teamId, datum: DATUM });
+    expect(kaart.reistijdBron).toBe("google_maps");
+    expect(kaart.blokken.find((b) => b.soort === "klant")?.start).toBe("07:12");
+  });
+
+  it("valt zonder cache-rij op het uitvoeradres terug op de standaard-reistijd", async () => {
+    const { ctx, teamId, cacheRij } = wereld({ uitvoerAdres: UITVOER });
+    // Alleen het hoofdadres is bekend — voor de dagkaart telt dat niet.
+    cacheRij(LOODS, HOOFD_REGEL, 5);
+    const kaart = await kaartHandler(ctx, { teamId, datum: DATUM });
+    expect(kaart.reistijdBron).toBe("standaard");
+    expect(kaart.blokken.find((b) => b.soort === "klant")?.start).toBe(
+      naarTijd(naarMinuten(S.vertrekTijd) + S.standaardReistijdMinuten)
+    );
+  });
+
+  it("stuurt het uitvoeradres naar Google Maps (ontbrekende adresparen)", async () => {
+    const { ctx, teamId } = wereld({ uitvoerAdres: UITVOER });
+    const { ontbrekend } = await parenHandler(ctx, { teamId, datum: DATUM });
+    expect(ontbrekend.map((p) => [p.vanAdres, p.naarAdres])).toEqual([
+      [LOODS, UITVOER_REGEL],
+      [UITVOER_REGEL, LOODS],
+    ]);
+    expect(JSON.stringify(ontbrekend)).not.toContain("Hoofdweg");
+  });
+
+  it("stuurt zonder uitvoeradres het hoofdadres naar Google Maps", async () => {
+    const { ctx, teamId } = wereld({});
+    const { ontbrekend } = await parenHandler(ctx, { teamId, datum: DATUM });
+    expect(ontbrekend.map((p) => p.naarAdres)).toEqual([HOOFD_REGEL, LOODS]);
+  });
+
+  it("bouwt de routelink van de stop op het uitvoeradres", async () => {
+    const { ctx, teamId } = wereld({ uitvoerAdres: UITVOER });
+    const kaart = await kaartHandler(ctx, { teamId, datum: DATUM });
+    const route = googleMapsRouteUrl(kaart.stops[0].adres ?? "");
+    expect(route).toBe(
+      `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(UITVOER_REGEL)}`
+    );
   });
 });
