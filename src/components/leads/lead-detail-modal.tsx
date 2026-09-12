@@ -17,6 +17,7 @@ import {
   UserPlus,
   Link2,
   Unlink,
+  Loader2,
   ExternalLink,
   MoreHorizontal,
   TriangleAlert,
@@ -417,6 +418,7 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
   const [klantZoekterm, setKlantZoekterm] = useState("");
   const [nieuweKlantOpen, setNieuweKlantOpen] = useState(false);
   const [isKoppelen, setIsKoppelen] = useState(false);
+  const [isOntkoppelen, setIsOntkoppelen] = useState(false);
 
   // Mutations
   const updatePipelineStatus = useMutation(
@@ -568,10 +570,16 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
 
     setIsKoppelen(true);
     try {
-      await koppelKlant({ id: lead._id, klantId });
+      const { werkitemId } = await koppelKlant({ id: lead._id, klantId });
       setKlantZoekOpen(false);
       setKlantZoekterm("");
-      showSuccessToast("Klant gekoppeld aan deze lead");
+      // Een legacy-gewonnen lead zonder klant wordt bij koppelen meteen
+      // gepromoveerd (eerste werkitem erbij); zeg dat er dan ook bij.
+      showSuccessToast(
+        werkitemId
+          ? "Klant gekoppeld en eerste werkitem aangemaakt"
+          : "Klant gekoppeld aan deze lead"
+      );
     } catch (error) {
       showErrorToast(
         error instanceof Error
@@ -609,8 +617,9 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
   }
 
   async function handleOntkoppelKlant() {
-    if (!lead) return;
+    if (!lead || isOntkoppelen) return;
 
+    setIsOntkoppelen(true);
     try {
       await ontkoppelKlant({ id: lead._id });
       showSuccessToast("Klantkoppeling verwijderd");
@@ -620,6 +629,8 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
           ? error.message
           : "Er ging iets mis bij het ontkoppelen"
       );
+    } finally {
+      setIsOntkoppelen(false);
     }
   }
 
@@ -679,6 +690,9 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
               <Link
                 href={`/klanten/${lead.gekoppeldKlantId}`}
                 className="inline-flex"
+                // Modal sluiten bij navigeren: terug naar het bord toont dan
+                // geen oud modal meer.
+                onClick={onClose}
               >
                 <Badge
                   variant="secondary"
@@ -786,8 +800,22 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
                     {pipelineStatus !== "gewonnen" && (
                       <>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onSelect={handleOntkoppelKlant}>
-                          <Unlink className="size-4" />
+                        <DropdownMenuItem
+                          disabled={isOntkoppelen}
+                          // Menu openhouden zolang de mutatie loopt: zo is de
+                          // spinner zichtbaar en kan niemand dubbel klikken.
+                          // Na succes verdwijnt het menu vanzelf (geen klant
+                          // meer gekoppeld).
+                          onSelect={(event) => {
+                            event.preventDefault();
+                            void handleOntkoppelKlant();
+                          }}
+                        >
+                          {isOntkoppelen ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            <Unlink className="size-4" />
+                          )}
                           Ontkoppelen
                         </DropdownMenuItem>
                       </>
@@ -861,7 +889,11 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
                   handleKoppelKlant(duplicaten[0]._id as Id<"klanten">)
                 }
               >
-                <Link2 className="size-3.5 mr-1.5" />
+                {isKoppelen ? (
+                  <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+                ) : (
+                  <Link2 className="size-3.5 mr-1.5" />
+                )}
                 Koppelen
               </Button>
             </div>
