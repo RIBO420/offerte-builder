@@ -574,9 +574,8 @@ gedeelde veldcomponenten in dialoog en dossier (labels, `aria-describedby`, geen
 horizontale scroll), koppelen/ontkoppelen ververst het leaddetail direct. Beide
 migraties opnieuw als dry run op dev gedraaid: gelijke tellingen (206/67/7).
 
-Resterende follow-ups (klein, kunnen wachten):
-- Portaalprofielpagina prefilt adres/postcode/plaats niet (alleen naam).
-- `promoveerLead` vertrouwt een meegegeven `gekozenKlantId` op conventie van de
-  aanroeper; `updatePipelineStatus` accepteert "gewonnen" nog direct (pre-existing).
-- Lead die tijdens een open modal gearchiveerd wordt, blijft de momentopname tonen.
-- Reistijdcache: eenmalige misses na het uniforme adresformaat (geaccepteerd).
+Resterende follow-ups: afgehandeld op 12 sep (commits e8531ba, 7006d78, bf2e298 en
+de portaal-nafix): portaalprofiel vult alle velden voor en valideert als het
+kantoorformulier; `updatePipelineStatus` weigert "gewonnen" (alleen via
+`markGewonnen`); het leaddetail sluit met een melding als de lead verdwijnt.
+Bewust gelaten: reistijdcache eenmalig koud na het uniforme adresformaat.
