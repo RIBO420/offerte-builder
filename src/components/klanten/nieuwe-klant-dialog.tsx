@@ -22,14 +22,26 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { klantSchema } from "@/lib/validations/klant";
-import { samengesteldeNaam, splitsNaam } from "@convex/lib/klantNaam";
 import { BedrijfZoeken } from "@/components/klanten/bedrijf-zoeken";
 import { AdresVeld } from "@/components/klanten/adres-veld";
+import { NaamVelden } from "@/components/klanten/velden/naam-velden";
+import { TelefoonVelden } from "@/components/klanten/velden/telefoon-velden";
+import {
+  isZakelijk,
+  naamVelden,
+  splitsVoorBewerken,
+  type KlantType,
+} from "@/components/klanten/velden/klant-formulier-logica";
 import { showErrorToast, showSuccessToast } from "@/lib/toast-utils";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
 
-export type KlantType = "particulier" | "zakelijk" | "vve" | "gemeente" | "overig";
+/**
+ * Het klanttype en `isZakelijk` wonen in `velden/klant-formulier-logica`;
+ * hier doorgegeven omdat het dossier en de offerte-flows ze van dit dialoog
+ * gewend zijn.
+ */
+export { isZakelijk, type KlantType };
 
 /**
  * Eén lijst klanttypes met hun Nederlandse naam. Geëxporteerd omdat het
@@ -101,11 +113,6 @@ const LEEG = {
   btwNummer: "",
 };
 
-/** Particulieren hebben geen contactpersoon, KvK of BTW-nummer. */
-export function isZakelijk(type: KlantType): boolean {
-  return type !== "particulier";
-}
-
 /**
  * Klant aanmaken zónder de offerte-flow te verlaten (voorheen moest de klant
  * eerst via /klanten worden aangemaakt). De klant landt gewoon in het
@@ -135,13 +142,7 @@ export function NieuweKlantDialog({
      * (offerte-wizard, lead), dan splitsen we die hier, zodat de voorvulling
      * niet in een onzichtbaar veld verdwijnt.
      */
-    const gesplitst =
-      initialValues?.voornaam || initialValues?.achternaam
-        ? {
-            voornaam: initialValues.voornaam ?? "",
-            achternaam: initialValues.achternaam ?? "",
-          }
-        : splitsNaam(initialValues?.naam ?? "");
+    const gesplitst = splitsVoorBewerken(initialValues ?? {});
 
     setForm({
       naam: initialValues?.naam ?? "",
@@ -172,22 +173,16 @@ export function NieuweKlantDialog({
 
     /**
      * `naam` blijft de weergavenaam en is bij een particulier afgeleid van de
-     * twee velden op het scherm. Bewust met een lege `naam` als basis: heeft
-     * de gebruiker beide velden leeggemaakt, dan moet de melding "verplicht"
-     * verschijnen en niet stilletjes de voorgevulde naam terugkomen.
+     * twee velden op het scherm (`naamVelden`: lege basis, zodat leeggemaakte
+     * velden "verplicht" opleveren en niet stilletjes de voorvulling). Bij
+     * een bedrijf gaan de naamdelen leeg mee; zod maakt daar `undefined` van.
      */
-    const naam = particulier
-      ? samengesteldeNaam({
-          voornaam: form.voornaam,
-          achternaam: form.achternaam,
-          naam: "",
-        })
-      : form.naam;
+    const namen = naamVelden({ ...form, klantType });
 
     // Dezelfde zod-validatie als de klantenpagina — één waarheid over wat een
     // geldige klant is (postcode-formaat, e-mail, telefoon).
     const { contactpersoon, kvkNummer, btwNummer, ...adresVelden } = form;
-    const resultaat = klantSchema.safeParse({ ...adresVelden, naam });
+    const resultaat = klantSchema.safeParse({ ...adresVelden, ...namen });
     if (!resultaat.success) {
       const nieuweFouten: VeldFouten = {};
       for (const issue of resultaat.error.issues) {
@@ -208,10 +203,11 @@ export function NieuweKlantDialog({
     try {
       const id = await createKlant({
         naam: data.naam,
-        // Alleen bij een particulier: bij een bedrijf zou de backend `naam`
-        // uit de naamdelen afleiden en zo de bedrijfsnaam overschrijven.
-        voornaam: particulier ? data.voornaam : undefined,
-        achternaam: particulier ? data.achternaam : undefined,
+        // Alleen bij een particulier gevuld (zie `naamVelden`): bij een
+        // bedrijf zou de backend `naam` uit de naamdelen afleiden en zo de
+        // bedrijfsnaam overschrijven.
+        voornaam: data.voornaam,
+        achternaam: data.achternaam,
         adres: data.adres,
         postcode: data.postcode,
         plaats: data.plaats,
@@ -304,62 +300,23 @@ export function NieuweKlantDialog({
           {/* Particulier: voor- en achternaam apart — de klantenlijst sorteert
               op achternaam. Andere typen houden bedrijfsnaam + contactpersoon. */}
           <div className="grid gap-3 sm:grid-cols-2">
-            {isZakelijk(klantType) ? (
-              <>
-                <div className="space-y-1.5">
-                  <Label htmlFor="nk-naam">Bedrijfsnaam *</Label>
-                  <Input
-                    id="nk-naam"
-                    placeholder="De Groene Tuin B.V."
-                    value={form.naam}
-                    onChange={(e) => setVeld("naam", e.target.value)}
-                    aria-invalid={Boolean(fouten.naam)}
-                  />
-                  {fouten.naam && (
-                    <p className="text-xs text-destructive">{fouten.naam}</p>
-                  )}
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="nk-contactpersoon">Contactpersoon</Label>
-                  <Input
-                    id="nk-contactpersoon"
-                    placeholder="Jan Jansen"
-                    value={form.contactpersoon}
-                    onChange={(e) => setVeld("contactpersoon", e.target.value)}
-                  />
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="space-y-1.5">
-                  <Label htmlFor="nk-voornaam">Voornaam</Label>
-                  <Input
-                    id="nk-voornaam"
-                    placeholder="Jan"
-                    value={form.voornaam}
-                    onChange={(e) => setVeld("voornaam", e.target.value)}
-                    aria-invalid={Boolean(fouten.voornaam)}
-                  />
-                  {fouten.voornaam && (
-                    <p className="text-xs text-destructive">{fouten.voornaam}</p>
-                  )}
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="nk-achternaam">Achternaam *</Label>
-                  <Input
-                    id="nk-achternaam"
-                    placeholder="van der Berg"
-                    value={form.achternaam}
-                    onChange={(e) => setVeld("achternaam", e.target.value)}
-                    aria-invalid={Boolean(fouten.achternaam)}
-                  />
-                  {fouten.achternaam && (
-                    <p className="text-xs text-destructive">
-                      {fouten.achternaam}
-                    </p>
-                  )}
-                </div>
-              </>
+            <NaamVelden
+              klantType={klantType}
+              waarden={form}
+              onChange={setVeld}
+              fouten={fouten}
+              idPrefix="nk"
+            />
+            {isZakelijk(klantType) && (
+              <div className="space-y-1.5">
+                <Label htmlFor="nk-contactpersoon">Contactpersoon</Label>
+                <Input
+                  id="nk-contactpersoon"
+                  placeholder="Jan Jansen"
+                  value={form.contactpersoon}
+                  onChange={(e) => setVeld("contactpersoon", e.target.value)}
+                />
+              </div>
             )}
           </div>
 
@@ -445,34 +402,13 @@ export function NieuweKlantDialog({
           {/* Twee nummers naast elkaar (vast naast mobiel, of dat van de
               partner) — zelfde validatie en melding. E-mail eronder over de
               volle breedte, want die is het langst. */}
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="nk-telefoon">Telefoon</Label>
-              <Input
-                id="nk-telefoon"
-                placeholder="06-12345678"
-                value={form.telefoon}
-                onChange={(e) => setVeld("telefoon", e.target.value)}
-                aria-invalid={Boolean(fouten.telefoon)}
-              />
-              {fouten.telefoon && (
-                <p className="text-xs text-destructive">{fouten.telefoon}</p>
-              )}
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="nk-telefoon2">Telefoon 2</Label>
-              <Input
-                id="nk-telefoon2"
-                placeholder="0522-123456"
-                value={form.telefoon2}
-                onChange={(e) => setVeld("telefoon2", e.target.value)}
-                aria-invalid={Boolean(fouten.telefoon2)}
-              />
-              {fouten.telefoon2 && (
-                <p className="text-xs text-destructive">{fouten.telefoon2}</p>
-              )}
-            </div>
-          </div>
+          <TelefoonVelden
+            waarden={form}
+            onChange={setVeld}
+            fouten={fouten}
+            idPrefix="nk"
+            raster="grid gap-3 sm:grid-cols-2"
+          />
 
           <div className="space-y-1.5">
             <Label htmlFor="nk-email">E-mail</Label>
