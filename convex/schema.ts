@@ -3829,6 +3829,9 @@ export default defineSchema({
     meldingId: v.optional(v.id("servicemeldingen")),
     // Foto's/bijlagen — zelfde storage-patroon als chat_messages
     bijlagen: v.optional(v.array(v.id("_storage"))),
+    // Herkomst als dit event de overgenomen lead-aanvraag is (idempotentie-
+    // sleutel voor promoveerLead/koppelKlant en de backfill-migratie).
+    bronLeadId: v.optional(v.id("configuratorAanvragen")),
     // ─── Gesprekslog met taakherkenning (klantdossier v7, WS4) ──────────────
     // Welke taken zijn er uit dít gesprek aangemaakt? De koppeling staat aan
     // beide kanten (klantTaken.bronTijdlijnId is de tegenhanger): de tijdlijn
@@ -3850,6 +3853,7 @@ export default defineSchema({
     .index("by_klant", ["klantId", "timestamp"])
     .index("by_org", ["orgId", "timestamp"])
     .index("by_werkitem", ["werkitemId", "timestamp"])
+    .index("by_bron_lead", ["bronLeadId"])
     .searchIndex("search_tekst", {
       searchField: "tekst",
       filterFields: ["klantId", "kanaal", "werkitemId", "orgId"],
@@ -3984,17 +3988,23 @@ export default defineSchema({
       v.literal("upload"),
       v.literal("offerte"),
       v.literal("factuur"),
-      v.literal("klant")
+      v.literal("klant"),
+      // Verwijzing naar een foto van de oorspronkelijke lead-aanvraag: deelt
+      // het storage-object met configuratorAanvragen.fotoIds, dus nooit
+      // storage.delete vanuit het dossier (zie klantBestanden.verwijder).
+      v.literal("lead")
     ),
     offerteId: v.optional(v.id("offertes")),
     factuurId: v.optional(v.id("facturen")),
+    leadId: v.optional(v.id("configuratorAanvragen")),
     nummer: v.optional(v.string()), // OF-…/F-… bij automatische rijen
     geuploadDoorId: v.optional(v.id("users")),
     timestamp: v.number(),
   })
     .index("by_klant", ["orgId", "klantId"])
     .index("by_offerte", ["offerteId"])
-    .index("by_factuur", ["factuurId"]),
+    .index("by_factuur", ["factuurId"])
+    .index("by_lead", ["leadId"]),
 
   // ─── Bouwstenencatalogus (PRD §2.5f + bijlage A) ───────────────────────────
   // Bedrijfsbrede catalogus (geen userId): bouwstenen beheren = records beheren

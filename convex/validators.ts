@@ -536,6 +536,9 @@ export const tijdlijnEventTypeValidator = v.union(
   v.literal("contract_opgezegd"),
   v.literal("portaal_uitnodiging"),
   v.literal("lead_gewonnen"),
+  // Overgenomen lead-aanvraag (tekst + foto's) bij de overgang naar klant;
+  // gedateerd op de aanvraagdatum, kanaal "systeem" (leadsKlantenHelpers.ts)
+  v.literal("lead_aanvraag"),
   // §2.6 — beurten (helper-ready, hook volgt daar)
   v.literal("beurt_afgerond"),
   // §2.8 — facturatie (helper-ready, hook volgt daar)
