@@ -59,6 +59,7 @@ import {
   Bot,
   Briefcase,
   CalendarDays,
+  Inbox,
   ChevronDown,
   History,
   ImagePlus,
@@ -133,6 +134,8 @@ const KANAAL_TEGEL: Record<Kanaal, string> = {
  * (toekomstige) aandacht: amber uit de `status-herinnering`-familie.
  */
 const AFSPRAAK_TEGEL = "bg-status-herinnering text-status-herinnering-text";
+/** Overgenomen lead-aanvraag: de eerste regel van het dossier, in de primaire tint. */
+const AANVRAAG_TEGEL = "bg-surface-primair text-primary";
 
 /**
  * De rail zelf. Niet `bg-border`: die ligt op het werkstroomvlak op 1,00:1 —
@@ -292,6 +295,9 @@ function TijdlijnEntryRij({
   // Afspraak deelt kanaal "intern" met een notitie; het eventType is het
   // enige onderscheid en krijgt een eigen (amber) tegel + icoon.
   const isAfspraak = entry.eventType === "afspraak";
+  // De overgenomen lead-aanvraag: systeemkanaal, maar wél een eigen tegel —
+  // dit is de start van het dossier, geen ruis.
+  const isAanvraag = entry.eventType === "lead_aanvraag";
   return (
     <li
       className={cn(
@@ -318,13 +324,25 @@ function TijdlijnEntryRij({
         <span
           className={cn(
             "relative flex size-8 shrink-0 items-center justify-center rounded-[10px] [&>svg]:size-4",
-            isAfspraak ? AFSPRAAK_TEGEL : KANAAL_TEGEL[entry.kanaal]
+            isAfspraak
+              ? AFSPRAAK_TEGEL
+              : isAanvraag
+                ? AANVRAAG_TEGEL
+                : KANAAL_TEGEL[entry.kanaal]
           )}
-          title={isAfspraak ? "Afspraak" : KANAAL_LABELS[entry.kanaal]}
+          title={
+            isAfspraak ? "Afspraak" : isAanvraag ? "Aanvraag" : KANAAL_LABELS[entry.kanaal]
+          }
         >
-          {isAfspraak ? <CalendarDays /> : KANAAL_ICONS[entry.kanaal]}
+          {isAfspraak ? (
+            <CalendarDays />
+          ) : isAanvraag ? (
+            <Inbox />
+          ) : (
+            KANAAL_ICONS[entry.kanaal]
+          )}
           <span className="sr-only">
-            {isAfspraak ? "Afspraak" : KANAAL_LABELS[entry.kanaal]}
+            {isAfspraak ? "Afspraak" : isAanvraag ? "Aanvraag" : KANAAL_LABELS[entry.kanaal]}
           </span>
         </span>
         <span aria-hidden className={cn("w-px flex-1", !isLaatste && RAIL)} />
@@ -333,7 +351,7 @@ function TijdlijnEntryRij({
         <p
           className={cn(
             "whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-sm leading-snug",
-            isSysteem && "text-muted-foreground"
+            isSysteem && !isAanvraag && "text-muted-foreground"
           )}
         >
           {entry.tekst}

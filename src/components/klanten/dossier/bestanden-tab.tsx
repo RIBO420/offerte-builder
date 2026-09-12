@@ -81,6 +81,7 @@ const BRON_TEKST: Record<string, string> = {
   offerte: "automatisch toegevoegd",
   factuur: "automatisch toegevoegd",
   klant: "door klant gestuurd",
+  lead: "uit de aanvraag",
 };
 
 function datumKort(timestamp: number): string {

@@ -34,7 +34,7 @@ export interface VerrijktBestand {
   soort: "foto" | "document";
   label?: "voor" | "tijdens" | "na" | "schets";
   titel: string;
-  bron: "upload" | "offerte" | "factuur" | "klant";
+  bron: "upload" | "offerte" | "factuur" | "klant" | "lead";
   nummer?: string;
   timestamp: number;
   url: string | null;
@@ -198,6 +198,9 @@ export const verwijder = mutation({
     // `storage.delete` daarop sloopte de PDF onder de offerte vandaan, terwijl
     // de gebruiker alleen een regel uit zijn dossier haalde (review v13,
     // bevinding 7). Zo'n rij verdwijnt hieronder gewoon, zonder storage.
+    // Bron `lead` is óók een verwijzing: de foto hoort bij de lead
+    // (configuratorAanvragen.fotoIds) en wordt alleen via de GDPR-
+    // verwijdering van die lead opgeruimd.
     const eigenUpload = bestand.bron === "upload" || bestand.bron === "klant";
     if (eigenUpload && bestand.storageId) {
       // Een storage-object dat al weg is mag het verwijderen niet laten klappen.

@@ -1252,6 +1252,24 @@ export const verwijder = mutation({
       await ctx.db.delete(activiteit._id);
     }
 
+    // Afgeleide dossierrijen (overgenomen aanvraag): de foto's zijn zojuist
+    // uit storage verwijderd, dus de verwijzingen en het aanvraag-event gaan
+    // mee — anders blijven er dode bijlagen in het klantdossier staan.
+    const dossierBestanden = await ctx.db
+      .query("klantBestanden")
+      .withIndex("by_lead", (q) => q.eq("leadId", args.id))
+      .collect();
+    for (const bestand of dossierBestanden) {
+      await ctx.db.delete(bestand._id);
+    }
+    const aanvraagEvents = await ctx.db
+      .query("klantTijdlijn")
+      .withIndex("by_bron_lead", (q) => q.eq("bronLeadId", args.id))
+      .collect();
+    for (const event of aanvraagEvents) {
+      await ctx.db.delete(event._id);
+    }
+
     // Verwijder de lead zelf
     await ctx.db.delete(args.id);
   },

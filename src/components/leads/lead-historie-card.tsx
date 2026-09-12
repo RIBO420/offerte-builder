@@ -75,7 +75,11 @@ export function LeadHistorieCard({ klantId }: { klantId: Id<"klanten"> }) {
             ))}
           </ul>
         )}
-      </CardContent>
+              <p className="text-xs text-muted-foreground">
+          De aanvraagtekst en de foto&apos;s staan op de tijdlijn (op de
+          aanvraagdatum) en onder Bestanden.
+        </p>
+</CardContent>
     </Card>
   );
 }
