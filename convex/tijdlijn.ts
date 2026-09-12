@@ -111,6 +111,8 @@ export type LogTijdlijnEventArgs = {
   /** §2.4: koppeling met de melding/case op het interne bord */
   meldingId?: Id<"servicemeldingen">;
   bijlagen?: Id<"_storage">[];
+  /** Overgenomen lead-aanvraag: idempotentiesleutel (index by_bron_lead) */
+  bronLeadId?: Id<"configuratorAanvragen">;
   /** Default Date.now() — migratie/backdated events kunnen afwijken */
   timestamp?: number;
 };
@@ -151,6 +153,7 @@ export async function logTijdlijnEvent(
       werkitemId: args.werkitemId,
       meldingId: args.meldingId,
       bijlagen: args.bijlagen,
+      bronLeadId: args.bronLeadId,
       createdAt: now,
     });
   } catch (error) {

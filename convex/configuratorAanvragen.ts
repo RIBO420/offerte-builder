@@ -14,6 +14,7 @@ import {
   // de UI aanroept); de helper maakt alleen het klantrecord.
   maakKlantUitLead as maakKlantRecordUitLead,
   type LeadPipelineStatus,
+  neemAanvraagOverInDossier,
 } from "./leadsKlantenHelpers";
 import { logTijdlijnEvent } from "./tijdlijn";
 import { zetTriggerMailKlaar } from "./mailTriggers";
@@ -927,6 +928,13 @@ async function legKlantKoppelingVast(
   await ctx.db.patch(lead._id, {
     gekoppeldKlantId: klantId,
     updatedAt: now,
+  });
+
+  // De oorspronkelijke aanvraag (tekst + foto's) mee naar het dossier;
+  // idempotent, dus opnieuw koppelen geeft geen dubbele regel.
+  await neemAanvraagOverInDossier(ctx, lead, klantId, {
+    id: currentUser._id,
+    naam: currentUser.name,
   });
 
   await ctx.db.insert("leadActiviteiten", {

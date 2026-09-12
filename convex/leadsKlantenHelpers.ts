@@ -28,6 +28,7 @@ import { GenericMutationCtx } from "convex/server";
 import { DataModel, Doc, Id } from "./_generated/dataModel";
 import { logTijdlijnEvent } from "./tijdlijn";
 import { naamDelenVoorNieuweKlant } from "./lib/klantNaam";
+import { aanvraagTekst } from "./lib/leadAanvraagTekst";
 
 // ─── Lead-funnel status (configuratorAanvragen) ──────────────────────────────
 
@@ -304,6 +305,13 @@ export async function promoveerLead(
     updatedAt: now,
   });
 
+  // 4b. De oorspronkelijke aanvraag (tekst + foto's) naar het dossier —
+  //     idempotent, dus een eerder gekoppelde lead krijgt geen dubbele regel.
+  await neemAanvraagOverInDossier(ctx, lead, klantId, {
+    id: currentUser._id,
+    naam: currentUser.name,
+  });
+
   // 5. Activiteitenlog (historie blijft vanaf de klant bereikbaar).
   await ctx.db.insert("leadActiviteiten", {
     leadId: lead._id,
@@ -335,4 +343,131 @@ export async function promoveerLead(
   });
 
   return { klantId, werkitemId, nieuweKlant, alGepromoveerd: false };
+}
+
+// ─── Aanvraag overnemen in het klantdossier ─────────────────────────────────
+//
+// Een lead draagt de oorspronkelijke aanvraag (specificaties, bericht, bron)
+// en de meegestuurde foto's (`fotoIds`). Zodra de lead een klant wordt of aan
+// een klant gekoppeld wordt, hoort dat in het dossier te staan:
+//   1. één klantTijdlijn-event "lead_aanvraag", gedateerd op de aanvraagdatum,
+//      met de samenvatting als tekst en de foto's als bijlagen;
+//   2. per foto een klantBestanden-rij met bron "lead" (verwijzing naar
+//      hetzelfde storage-object — geen kopie, geen storage.delete vanuit het
+//      dossier).
+// De lead zelf wordt hier nooit gemuteerd. Beide stappen zijn idempotent
+// (sleutels: klantTijdlijn.bronLeadId, klantBestanden.storageId per klant),
+// zodat de backfill-migratie en de conversiepaden elkaar niet bijten.
+
+export type AanvraagOvernamePlan = {
+  eventNodig: boolean;
+  ontbrekendeFotoIds: Id<"_storage">[];
+};
+
+export type AanvraagOvernameResultaat = {
+  eventToegevoegd: boolean;
+  fotosToegevoegd: number;
+  /** Waarom er niets gebeurde (klant weg / andere organisatie). */
+  overgeslagen?: "klant_weg" | "andere_org";
+};
+
+export type AanvraagAuteur = { id: Id<"users">; naam: string };
+
+type LeesCtx = { db: GenericMutationCtx<DataModel>["db"] };
+
+/** Alleen lezen: wat ontbreekt er nog in het dossier voor deze lead? */
+export async function bepaalAanvraagOvername(
+  ctx: LeesCtx,
+  lead: Doc<"configuratorAanvragen">,
+  klantId: Id<"klanten">
+): Promise<AanvraagOvernamePlan> {
+  const bestaandEvent = await ctx.db
+    .query("klantTijdlijn")
+    .withIndex("by_bron_lead", (q) => q.eq("bronLeadId", lead._id))
+    .first();
+
+  const fotoIds = lead.fotoIds ?? [];
+  let ontbrekendeFotoIds: Id<"_storage">[] = [];
+  if (fotoIds.length > 0) {
+    const bestanden = await ctx.db
+      .query("klantBestanden")
+      .withIndex("by_klant", (q) => q.eq("orgId", lead.orgId).eq("klantId", klantId))
+      .collect();
+    const aanwezig = new Set(
+      bestanden.map((b) => b.storageId?.toString()).filter(Boolean)
+    );
+    ontbrekendeFotoIds = fotoIds.filter((id) => !aanwezig.has(id.toString()));
+  }
+
+  return { eventNodig: !bestaandEvent, ontbrekendeFotoIds };
+}
+
+/** Schrijven volgens het plan. Auteur ontbreekt bij de migratie ("Systeem"). */
+export async function voerAanvraagOvernameUit(
+  ctx: GenericMutationCtx<DataModel>,
+  lead: Doc<"configuratorAanvragen">,
+  klantId: Id<"klanten">,
+  plan: AanvraagOvernamePlan,
+  auteur?: AanvraagAuteur
+): Promise<AanvraagOvernameResultaat> {
+  let eventToegevoegd = false;
+  if (plan.eventNodig) {
+    const eventId = await logTijdlijnEvent(ctx, {
+      orgId: lead.orgId,
+      klantId,
+      eventType: "lead_aanvraag",
+      kanaal: "systeem",
+      timestamp: lead.createdAt,
+      auteurId: auteur?.id,
+      auteurNaam: auteur?.naam,
+      tekst: aanvraagTekst(lead),
+      bijlagen: lead.fotoIds && lead.fotoIds.length > 0 ? lead.fotoIds : undefined,
+      bronLeadId: lead._id,
+    });
+    eventToegevoegd = eventId !== null;
+  }
+
+  for (const storageId of plan.ontbrekendeFotoIds) {
+    await ctx.db.insert("klantBestanden", {
+      orgId: lead.orgId,
+      klantId,
+      soort: "foto",
+      titel: `Foto bij aanvraag ${lead.referentie}`,
+      storageId,
+      bron: "lead",
+      leadId: lead._id,
+      geuploadDoorId: auteur?.id,
+      timestamp: lead.createdAt,
+    });
+  }
+
+  return { eventToegevoegd, fotosToegevoegd: plan.ontbrekendeFotoIds.length };
+}
+
+/**
+ * Bepalen + uitvoeren in één stap, voor de conversiepaden. Weigert stil (met
+ * console.warn) als de klant niet bestaat of bij een andere organisatie hoort:
+ * de koppeling zelf is dan al door de aanroeper afgevangen, en een dossier van
+ * een andere org mag nooit aanvraagdata van deze lead krijgen.
+ */
+export async function neemAanvraagOverInDossier(
+  ctx: GenericMutationCtx<DataModel>,
+  lead: Doc<"configuratorAanvragen">,
+  klantId: Id<"klanten">,
+  auteur?: AanvraagAuteur
+): Promise<AanvraagOvernameResultaat> {
+  const klant = await ctx.db.get(klantId);
+  if (!klant) {
+    console.warn("[leads] aanvraag-overname overgeslagen: klant bestaat niet");
+    return { eventToegevoegd: false, fotosToegevoegd: 0, overgeslagen: "klant_weg" };
+  }
+  if (klant.orgId?.toString() !== lead.orgId.toString()) {
+    console.warn("[leads] aanvraag-overname overgeslagen: klant van andere organisatie");
+    return { eventToegevoegd: false, fotosToegevoegd: 0, overgeslagen: "andere_org" };
+  }
+  const plan = await bepaalAanvraagOvername(ctx, lead, klantId);
+  if (!plan.eventNodig && plan.ontbrekendeFotoIds.length === 0) {
+    return { eventToegevoegd: false, fotosToegevoegd: 0 };
+  }
+  return voerAanvraagOvernameUit(ctx, lead, klantId, plan, auteur);
 }
