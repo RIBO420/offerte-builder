@@ -793,6 +793,21 @@ export const updatePipelineStatus = mutation({
       throw new ConvexError("Een gewonnen lead kan niet terug naar een eerdere status");
     }
 
+    /**
+     * Winnen kan alleen via markGewonnen (PRD §1.3). Deze mutation zet
+     * uitsluitend het statusveld; "gewonnen" ís meer dan dat — promoveerLead
+     * maakt of matcht het klantrecord en het eerste werkitem. Wie hier langs
+     * kwam, kreeg een gewonnen lead zónder klant en zonder werk: van het bord
+     * verdwenen (listByPipeline filtert gepromoveerde leads) en nergens
+     * aangekomen. Het bord en het leaddetail roepen voor die kolom al
+     * markGewonnen aan; dit sluit de API-route erachter.
+     */
+    if (args.pipelineStatus === "gewonnen") {
+      throw new ConvexError(
+        "Gebruik Gewonnen (markGewonnen) om een lead te winnen"
+      );
+    }
+
     if (args.pipelineStatus === "verloren" && !args.verliesReden?.trim()) {
       throw new ConvexError("Een verliesreden is verplicht bij status 'verloren'");
     }
@@ -946,11 +961,13 @@ async function legKlantKoppelingVast(
  * De lead blijft open: alleen `gekoppeldKlantId` wordt gezet, de
  * pipelinestatus blijft staan.
  *
- * Uitzondering: een lead die al "gewonnen" is zónder klantrecord (legacy, van
- * vóór de promotieflow). Weigeren zou kantoor met een lead laten zitten die
- * nergens meer heen kan; in plaats daarvan loopt de koppeling via
- * promoveerLead met déze klant — werkitem en promotielog erbij, zodat de
- * lead niet anders is dan een lead die via markGewonnen ging.
+ * Uitzondering: een lead die al "gewonnen" is zónder klantrecord. Dat is sinds
+ * sep 2026 uitsluitend oude data — `updatePipelineStatus` weigert "gewonnen",
+ * dus nieuwe gewonnen leads lopen altijd langs promoveerLead. Weigeren zou
+ * kantoor met zo'n oude lead laten zitten die nergens meer heen kan; in plaats
+ * daarvan loopt de koppeling via promoveerLead met déze klant — werkitem en
+ * promotielog erbij, zodat de lead niet anders is dan een lead die via
+ * markGewonnen ging.
  */
 export const koppelKlant = mutation({
   args: {

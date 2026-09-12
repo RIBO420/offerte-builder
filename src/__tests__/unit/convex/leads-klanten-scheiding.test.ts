@@ -39,6 +39,7 @@ import {
   koppelKlant,
   maakKlantUitLead,
   ontkoppelKlant,
+  updatePipelineStatus,
 } from "../../../../convex/configuratorAanvragen";
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
@@ -698,5 +699,77 @@ describe("Klant koppelen vanuit een open lead", () => {
     const fout = await vangFout(ontkoppelKlantH(ctx, { id: leadId }));
     expect(fout.data ?? fout.message).toContain("gewonnen");
     expect(getLead(store, leadId).gekoppeldKlantId).toBe(klantId);
+  });
+});
+
+/**
+ * Winnen loopt via markGewonnen (promoveerLead) — `updatePipelineStatus` zet
+ * alleen het statusveld. Kwam een aanroeper daar met "gewonnen" langs, dan
+ * ontstond een gewonnen lead zonder klantrecord en zonder werkitem: van het
+ * bord verdwenen en nergens aangekomen. Het bord en het leaddetail gebruiken
+ * voor die kolom al markGewonnen; deze tests bewaken de API erachter.
+ */
+describe("updatePipelineStatus kent geen weg naar gewonnen", () => {
+  const updateStatusH = handlerVan<Record<string, unknown>, unknown>(
+    updatePipelineStatus
+  );
+
+  async function vangFout(belofte: Promise<unknown>): Promise<{ data?: string; message: string }> {
+    const fout = await belofte.then(
+      () => null,
+      (e: unknown) => e as { data?: string; message: string }
+    );
+    if (!fout) throw new Error("Verwachtte een fout, maar de handler slaagde");
+    return fout;
+  }
+
+  function maakStatusContext() {
+    const basis = maakPromotieContext();
+    const seedLead = (overrides: Partial<LeadFixture> = {}) => {
+      const id = basis.store.insert("configuratorAanvragen", maakLead(overrides));
+      basis.store.patch(id, { orgId: basis.orgId });
+      return id;
+    };
+    return { ...basis, seedLead };
+  }
+
+  it("weigert 'gewonnen' en verwijst naar markGewonnen", async () => {
+    const { store, ctx, seedLead } = maakStatusContext();
+    const leadId = seedLead({ pipelineStatus: "offerte_verstuurd" });
+
+    const fout = await vangFout(
+      updateStatusH(ctx, { id: leadId, pipelineStatus: "gewonnen" })
+    );
+
+    expect(fout.data ?? fout.message).toContain("markGewonnen");
+    // Niets gebeurd: status ongewijzigd, geen klant, geen werkitem, geen log.
+    expect(getLead(store, leadId).pipelineStatus).toBe("offerte_verstuurd");
+    expect(store.getAll("klanten")).toHaveLength(0);
+    expect(store.getAll("projecten")).toHaveLength(0);
+    expect(store.getAll("leadActiviteiten")).toHaveLength(0);
+  });
+
+  it("laat een gewone stap in de funnel gewoon door", async () => {
+    const { store, ctx, seedLead } = maakStatusContext();
+    const leadId = seedLead({ pipelineStatus: "nieuw" });
+
+    await updateStatusH(ctx, { id: leadId, pipelineStatus: "contact_gehad" });
+
+    expect(getLead(store, leadId).pipelineStatus).toBe("contact_gehad");
+    const activiteiten = store.getAll("leadActiviteiten");
+    expect(activiteiten).toHaveLength(1);
+    expect(activiteiten[0].type).toBe("status_wijziging");
+  });
+
+  it("weigert nog steeds een gewonnen lead terug naar een eerdere status", async () => {
+    const { store, ctx, seedLead } = maakStatusContext();
+    const leadId = seedLead({ pipelineStatus: "gewonnen" });
+
+    const fout = await vangFout(
+      updateStatusH(ctx, { id: leadId, pipelineStatus: "contact_gehad" })
+    );
+
+    expect(fout.data ?? fout.message).toContain("niet terug naar een eerdere status");
+    expect(getLead(store, leadId).pipelineStatus).toBe("gewonnen");
   });
 });
