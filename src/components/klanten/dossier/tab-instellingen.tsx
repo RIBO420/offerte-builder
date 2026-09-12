@@ -39,18 +39,17 @@ import { BijzonderhedenPaneel } from "@/components/klanten/dossier/bijzonderhede
 import { NaamVelden } from "@/components/klanten/velden/naam-velden";
 import { TelefoonVelden } from "@/components/klanten/velden/telefoon-velden";
 import { UitvoeradresVelden } from "@/components/klanten/velden/uitvoeradres-velden";
+import { VELD_RASTER } from "@/components/klanten/velden/veld";
 import {
+  isZakelijk,
   naamVelden,
   splitsVoorBewerken,
   uitvoerAdresIngevuld,
   UITVOER_FORMULIER_VELD,
   UITVOERADRES_WISSEN,
-} from "@/components/klanten/velden/klant-formulier-logica";
-import {
-  isZakelijk,
-  KLANT_TYPE_OPTIONS,
   type KlantType,
-} from "@/components/klanten/nieuwe-klant-dialog";
+} from "@/components/klanten/velden/klant-formulier-logica";
+import { KLANT_TYPE_OPTIONS } from "@/components/klanten/nieuwe-klant-dialog";
 import { LeadHistorieCard } from "@/components/leads/lead-historie-card";
 import { useIsAdmin } from "@/hooks/use-users";
 import { klantSchema } from "@/lib/validations/klant";
@@ -250,8 +249,6 @@ type VeldFouten = Partial<
     string
   >
 >;
-
-const VELD_KLASSE = "grid gap-3 @[34rem]/sectie:grid-cols-2";
 
 /** De velden van het bewerkformulier, allemaal als string in de staat. */
 type FormulierVelden = Record<
@@ -458,7 +455,7 @@ export function ContactgegevensFormulier({
       {/* Een bedrijf heeft één naam, een particulier twee. Het naamveld
           verandert dus mee met het type — en niet allebei tegelijk in beeld,
           want dan is het de vraag welke telt. */}
-      <div className={VELD_KLASSE}>
+      <div className={VELD_RASTER}>
         <NaamVelden
           klantType={klantType}
           waarden={form}
@@ -480,7 +477,7 @@ export function ContactgegevensFormulier({
 
       {zakelijk && (
         <>
-          <div className={VELD_KLASSE}>
+          <div className={VELD_RASTER}>
             <div className="space-y-1.5">
               <Label htmlFor="ki-kvk">KvK-nummer</Label>
               <Input
@@ -537,7 +534,7 @@ export function ContactgegevensFormulier({
         )}
       </div>
 
-      <div className={VELD_KLASSE}>
+      <div className={VELD_RASTER}>
         <div className="space-y-1.5">
           <Label htmlFor="ki-postcode">Postcode *</Label>
           <Input
@@ -585,7 +582,7 @@ export function ContactgegevensFormulier({
           plaats: fouten["uitvoerAdres.plaats"],
         }}
         idPrefix="ki"
-        raster={VELD_KLASSE}
+        raster={VELD_RASTER}
       />
 
       {/* De twee nummers naast elkaar: je vergelijkt ze bij het invoeren, en
@@ -596,7 +593,7 @@ export function ContactgegevensFormulier({
         onChange={setVeld}
         fouten={fouten}
         idPrefix="ki"
-        raster={VELD_KLASSE}
+        raster={VELD_RASTER}
       />
 
       <div className="space-y-1.5">
