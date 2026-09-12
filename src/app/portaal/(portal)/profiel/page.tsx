@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { UserProfile } from "@clerk/nextjs";
 import { toast } from "sonner";
@@ -15,6 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePortaalTheme } from "@/components/portaal/portaal-theme-provider";
 import { klantSchema } from "@/lib/validations";
+import { getMutationErrorMessage } from "@/lib/error-handling";
 
 /**
  * Dezelfde vijf velden die `portaal.updateProfile` accepteert, langs dezelfde
@@ -32,6 +33,8 @@ const profielSchema = klantSchema.pick({
 
 type ProfielVeld = "naam" | "telefoon" | "adres" | "postcode" | "plaats";
 type VeldFouten = Partial<Record<ProfielVeld, string>>;
+/** Wat er na "Opslaan" naast de knop staat — niets, of één van deze twee. */
+type OpslaanMelding = "opgeslagen" | "geen-wijzigingen";
 
 export default function PortaalProfielPage() {
   const profiel = useQuery(api.portaal.getMijnProfiel);
@@ -45,8 +48,9 @@ export default function PortaalProfielPage() {
   const [plaats, setPlaats] = useState("");
   const [fouten, setFouten] = useState<VeldFouten>({});
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [melding, setMelding] = useState<OpslaanMelding | null>(null);
   const [prefilled, setPrefilled] = useState(false);
+  const meldingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /**
    * Voorvullen met wat er in het klantdossier staat — niet alleen de naam.
@@ -65,6 +69,24 @@ export default function PortaalProfielPage() {
       setPrefilled(true);
     }
   }, [profiel, prefilled]);
+
+  /**
+   * De melding naast de knop dooft na drie seconden. De timer hangt in een ref
+   * zodat hij bij unmount (klant navigeert weg) wordt opgeruimd; anders draait
+   * er een `setState` op een verdwenen component.
+   */
+  const toonMelding = (soort: OpslaanMelding) => {
+    setMelding(soort);
+    if (meldingTimer.current) clearTimeout(meldingTimer.current);
+    meldingTimer.current = setTimeout(() => setMelding(null), 3000);
+  };
+
+  useEffect(
+    () => () => {
+      if (meldingTimer.current) clearTimeout(meldingTimer.current);
+    },
+    [],
+  );
 
   /** Typen in een veld haalt de foutmelding eronder weg. */
   const wisFout = (veld: ProfielVeld) =>
@@ -107,17 +129,19 @@ export default function PortaalProfielPage() {
     };
 
     setSaving(true);
-    setSaved(false);
+    setMelding(null);
     try {
-      if (Object.values(wijzigingen).some((waarde) => waarde !== undefined)) {
-        await updateProfile(wijzigingen);
-      }
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Opslaan is niet gelukt",
+      const iets = Object.values(wijzigingen).some(
+        (waarde) => waarde !== undefined,
       );
+      // Zonder wijziging draait er geen mutatie — dan is "Opgeslagen!" een
+      // leugen tegen de klant.
+      if (iets) await updateProfile(wijzigingen);
+      toonMelding(iets ? "opgeslagen" : "geen-wijzigingen");
+    } catch (error) {
+      // `getMutationErrorMessage` pakt de Nederlandse `ConvexError`-tekst uit
+      // ("Adres is verplicht"); de rauwe Convex-clientstring ziet de klant niet.
+      toast.error(getMutationErrorMessage(error));
     } finally {
       setSaving(false);
     }
@@ -296,8 +320,13 @@ export default function PortaalProfielPage() {
               <Save className="h-4 w-4 mr-1.5" />
               {saving ? "Opslaan..." : "Opslaan"}
             </Button>
-            {saved && (
+            {melding === "opgeslagen" && (
               <span className="text-sm text-primary">Opgeslagen!</span>
+            )}
+            {melding === "geen-wijzigingen" && (
+              <span className="text-sm text-gray-500 dark:text-gray-400">
+                Geen wijzigingen
+              </span>
             )}
           </div>
         </div>

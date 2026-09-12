@@ -95,6 +95,37 @@ describe("Portaalprofiel voorvullen", () => {
     });
   });
 
+  it("stuurt een leeggemaakt telefoonveld als lege tekst mee", async () => {
+    const gebruiker = userEvent.setup();
+    render(<PortaalProfielPage />);
+
+    // Leeg laten is geldig (telefoon is optioneel). De backend wist het veld
+    // alleen als er expliciet "" binnenkomt — `undefined` betekent daar
+    // "ongewijzigd laten".
+    await gebruiker.clear(screen.getByLabelText("Telefoon"));
+    await gebruiker.click(screen.getByRole("button", { name: /opslaan/i }));
+
+    await waitFor(() => expect(updateProfile).toHaveBeenCalledTimes(1));
+    expect(updateProfile).toHaveBeenCalledWith({
+      naam: undefined,
+      telefoon: "",
+      adres: undefined,
+      postcode: undefined,
+      plaats: undefined,
+    });
+  });
+
+  it("zegt 'Geen wijzigingen' en laat de mutatie met rust", async () => {
+    const gebruiker = userEvent.setup();
+    render(<PortaalProfielPage />);
+
+    await gebruiker.click(screen.getByRole("button", { name: /opslaan/i }));
+
+    expect(await screen.findByText("Geen wijzigingen")).toBeInTheDocument();
+    expect(screen.queryByText("Opgeslagen!")).toBeNull();
+    expect(updateProfile).not.toHaveBeenCalled();
+  });
+
   it("weigert een leeg adres met dezelfde melding als het kantoorformulier", async () => {
     const gebruiker = userEvent.setup();
     render(<PortaalProfielPage />);
