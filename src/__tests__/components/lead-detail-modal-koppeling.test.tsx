@@ -12,6 +12,9 @@
  * 5. **De kop is reactief.** Het bord geeft een momentopname mee; het modal
  *    leest de lead zelf live. Komt er een verse lead binnen mét klant, dan
  *    verschijnt de badge zonder dat de prop verandert.
+ * 6. **Verdwenen lead sluit het modal.** Geeft de query `null` terug (de lead
+ *    is gearchiveerd of niet meer van ons), dan volgt één melding en gaat het
+ *    modal dicht — geen knoppen op een momentopname die nergens meer op slaat.
  */
 import { describe, it, expect, vi, beforeAll, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -72,7 +75,7 @@ vi.mock("@/lib/toast-utils", () => ({
   showErrorToast: vi.fn(),
 }));
 
-import { showSuccessToast } from "@/lib/toast-utils";
+import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 import { LeadDetailModal } from "@/components/leads/lead-detail-modal";
 import type { Lead } from "@/components/leads/lead-card";
 
@@ -249,5 +252,43 @@ describe("Verse lead uit de query", () => {
     expect(
       screen.getByRole("button", { name: /klant aanmaken/i })
     ).toBeInTheDocument();
+    expect(showErrorToast).not.toHaveBeenCalled();
+  });
+
+  it("meldt en sluit zodra de lead weg is (query geeft null)", async () => {
+    const onClose = vi.fn();
+    verseLead = null;
+
+    render(<LeadDetailModal lead={maakLead()} open onClose={onClose} />);
+
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+    expect(showErrorToast).toHaveBeenCalledWith(
+      "Deze lead is niet meer beschikbaar"
+    );
+  });
+
+  it("meldt niet twee keer als de ouder nog even blijft renderen", async () => {
+    const onClose = vi.fn();
+    verseLead = null;
+
+    const { rerender } = render(
+      <LeadDetailModal lead={maakLead()} open onClose={onClose} />
+    );
+    // Een nieuwe pijl-functie per render: zonder ref-bewaking zou de effect
+    // opnieuw lopen en een tweede toast afvuren.
+    rerender(<LeadDetailModal lead={maakLead()} open onClose={onClose} />);
+
+    await waitFor(() => expect(showErrorToast).toHaveBeenCalledTimes(1));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("laat een dicht modal met rust", () => {
+    const onClose = vi.fn();
+    verseLead = null;
+
+    render(<LeadDetailModal lead={maakLead()} open={false} onClose={onClose} />);
+
+    expect(onClose).not.toHaveBeenCalled();
+    expect(showErrorToast).not.toHaveBeenCalled();
   });
 });

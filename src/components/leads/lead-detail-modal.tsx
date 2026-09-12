@@ -440,7 +440,9 @@ export function LeadDetailModal({
   );
   const ontkoppelKlant = useMutation(api.configuratorAanvragen.ontkoppelKlant);
 
-  // Queries (only run when modal is open and lead is set)
+  // Queries — gescoopt op de lead zelf, niet op `open`: zonder geselecteerde
+  // lead (`lead={null}`) staat elke query hieronder op "skip".
+  //
   // Het bord geeft een momentopname mee; na koppelen/ontkoppelen klopt die
   // niet meer. Daarom leest het modal de lead zelf live (org-guarded), met de
   // prop als beginwaarde zodat het scherm meteen gevuld opent.
@@ -448,7 +450,30 @@ export function LeadDetailModal({
     api.configuratorAanvragen.getById,
     leadProp ? { id: leadProp._id } : "skip"
   );
+  // `undefined` is "nog aan het laden" — dan blijft de momentopname staan.
+  // `null` is een antwoord: deze lead bestaat niet meer (gearchiveerd,
+  // verwijderd of van een andere organisatie).
+  const leadIsWeg = verseLead === null;
   const lead = verseLead ?? leadProp;
+
+  /**
+   * Wordt de lead gearchiveerd terwijl iemand anders hem openheeft, dan bleef
+   * het modal de momentopname tonen: knoppen die op een verdwenen record
+   * werken en een detail dat niets meer weerspiegelt. Eén melding, dan dicht.
+   * De ref zorgt dat een trage `onClose` (of een ouder die opnieuw rendert)
+   * geen tweede toast oplevert; hij reset zodra het modal weer dicht is.
+   */
+  const weggemeld = useRef(false);
+  useEffect(() => {
+    if (!open || !leadIsWeg) {
+      weggemeld.current = false;
+      return;
+    }
+    if (weggemeld.current) return;
+    weggemeld.current = true;
+    showErrorToast("Deze lead is niet meer beschikbaar");
+    onClose();
+  }, [open, leadIsWeg, onClose]);
 
   const activiteiten = useQuery(
     api.leadActiviteiten.listByLead,
