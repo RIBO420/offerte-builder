@@ -82,10 +82,26 @@ export function bepaalNaamSplitsing(klant: NaamKandidaat): NaamBesluit {
     return { actie: "overslaan", reden: "al_gesplitst" };
   }
 
-  // Een oud record zonder klanttype is in de praktijk een particulier; alles
-  // wat expliciet zakelijk/vve/gemeente/overig is, heeft in `naam` een
-  // organisatienaam staan en hoort daar te blijven.
+  // Wat wel en niet gesplitst wordt, is dezelfde regel als voor een nieuw
+  // klantrecord uit een lead of een offerte (`naamDelenVoorNieuweKlant`): één
+  // waarheid, één keer uitgevoerd. Komt er een achternaam uit, dan splitsen we.
+  // "van der Berg" levert geen voornaam op — dan schrijven we dat veld niet,
+  // in plaats van er een lege string in te zetten.
+  const { voornaam, achternaam } = naamDelenVoorNieuweKlant(
+    klant.naam,
+    klant.klantType
+  );
+  if (achternaam) {
+    return { actie: "splitsen", voornaam, achternaam };
+  }
+
+  // Geen naamdelen. Kantoor moet in het rapport zien wáárom niet, en die reden
+  // geeft `naamDelenVoorNieuweKlant` niet terug — vandaar dezelfde poorten nog
+  // eens, in dezelfde volgorde, nu alleen om te benoemen.
   if (klant.klantType !== undefined && klant.klantType !== "particulier") {
+    // Een oud record zonder klanttype is in de praktijk een particulier; alles
+    // wat expliciet zakelijk/vve/gemeente/overig is, heeft in `naam` een
+    // organisatienaam staan en hoort daar te blijven.
     return { actie: "overslaan", reden: "ander_klanttype" };
   }
 
@@ -93,20 +109,9 @@ export function bepaalNaamSplitsing(klant: NaamKandidaat): NaamBesluit {
     return { actie: "overslaan", reden: "te_weinig_woorden" };
   }
 
-  // Vanaf hier is het dezelfde regel als voor een nieuw klantrecord uit een
-  // lead of een offerte (`naamDelenVoorNieuweKlant`): één waarheid over wat
-  // wel en niet gesplitst wordt. Geen achternaam terug = bedrijfsnaam.
-  const { voornaam, achternaam } = naamDelenVoorNieuweKlant(
-    klant.naam,
-    klant.klantType
-  );
-  if (!achternaam) {
-    return { actie: "overslaan", reden: "bedrijfsnaam" };
-  }
-
-  // "van der Berg" levert geen voornaam op — dan schrijven we het veld niet,
-  // in plaats van er een lege string in te zetten.
-  return { actie: "splitsen", voornaam, achternaam };
+  // Blijft over: twee woorden of meer die naar een organisatie ruiken
+  // ("Smeets Advocaten").
+  return { actie: "overslaan", reden: "bedrijfsnaam" };
 }
 
 type Voorbeeld = { klantId: Id<"klanten">; naam: string; reden: NaamOverslagReden };
