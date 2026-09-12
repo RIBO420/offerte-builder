@@ -59,10 +59,8 @@ vi.mock("@/components/tijdlijn/klant-tijdlijn", () => ({
   KlantTijdlijn: () => <div>tijdlijn</div>,
 }));
 
-import {
-  BijzonderhedenPaneel,
-  type KlantInstellingenGegevens,
-} from "@/components/klanten/dossier/tab-instellingen";
+import { BijzonderhedenPaneel } from "@/components/klanten/dossier/bijzonderheden-paneel";
+import type { KlantInstellingenGegevens } from "@/components/klanten/dossier/tab-instellingen";
 import { TabActueel } from "@/components/klanten/dossier/tab-actueel";
 import type { Id } from "../../../convex/_generated/dataModel";
 
