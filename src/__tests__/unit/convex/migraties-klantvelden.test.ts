@@ -14,6 +14,10 @@
  * bestaande klanten heen loopt — inclusief de belangrijkste eis: een tweede
  * run verandert niets meer.
  *
+ * Beide leunen op `convex/migrations/_batch.ts` voor de twee snelheden (dry
+ * run = hele tabel in één `collect`, echte run = precies één `paginate`) en
+ * de begrensde voorbeeldlijst; die helpers staan hier apart onder test.
+ *
  * De `start`-mutations zelf draaien hieronder tegen een nep-ctx, omdat het
  * rapport dat de operator leest hun tweede belofte is: een dry run toont ALLE
  * klanten (niet de eerste 100), een echte run schrijft 100 per transactie.
@@ -26,6 +30,13 @@
 
 import { describe, it, expect } from "vitest";
 import { samengesteldeNaam } from "../../../../convex/lib/klantNaam";
+import {
+  MAX_VOORBEELDEN,
+  MIGRATIE_BATCH_GROOTTE,
+  leesAlleOfBatch,
+  verzamelVoorbeelden,
+  type MigratieLeesCtx,
+} from "../../../../convex/migrations/_batch";
 import {
   bepaalNaamSplitsing,
   start as startSplitsKlantNaam,
@@ -372,6 +383,107 @@ function telefoonKlanten(): FakeKlant[] {
         : "Tweede telefoonnummer: onbekend",
   }));
 }
+
+// ─── De gedeelde scaffolding: _batch.ts ──────────────────────────────────────
+
+describe("verzamelVoorbeelden", () => {
+  it("houdt op bij het maximum, het tellen blijft bij de migratie", () => {
+    const voorbeelden = verzamelVoorbeelden<number>(3);
+    for (let i = 0; i < 10; i++) voorbeelden.voegToe(i);
+
+    expect(voorbeelden.lijst).toEqual([0, 1, 2]);
+  });
+
+  it("geeft de lijst zelf terug, niet een kopie", () => {
+    // De migratie legt `lijst` in het rapport; wat er na het aanmaken nog
+    // bijkomt, moet daar dus in zichtbaar zijn.
+    const voorbeelden = verzamelVoorbeelden<string>(2);
+    const rapportLijst = voorbeelden.lijst;
+    voorbeelden.voegToe("a");
+
+    expect(rapportLijst).toEqual(["a"]);
+  });
+
+  it("verzamelt niets bij een maximum van nul", () => {
+    const voorbeelden = verzamelVoorbeelden<string>(0);
+    voorbeelden.voegToe("a");
+
+    expect(voorbeelden.lijst).toEqual([]);
+  });
+
+  it("gebruikt in de migraties een leesbaar maximum", () => {
+    expect(MAX_VOORBEELDEN).toBe(50);
+  });
+});
+
+describe("leesAlleOfBatch", () => {
+  const leesCtx = (ctx: FakeCtx) => ctx as unknown as MigratieLeesCtx;
+
+  it("leest bij een dry run de hele tabel in één collect, zonder paginate", async () => {
+    const { ctx, paginas, collects } = nepCtx(naamKlanten());
+
+    const lezing = await leesAlleOfBatch(leesCtx(ctx), "klanten", { dryRun: true });
+
+    expect(lezing.documenten).toHaveLength(250);
+    expect(lezing.isDone).toBe(true);
+    expect(lezing.continueCursor).toBeNull();
+    expect(collects()).toBe(1);
+    expect(paginas()).toBe(0);
+  });
+
+  it("leest bij een echte run precies één pagina van de batchgrootte", async () => {
+    const { ctx, paginas, collects } = nepCtx(naamKlanten());
+
+    const lezing = await leesAlleOfBatch(leesCtx(ctx), "klanten", { dryRun: false });
+
+    expect(MIGRATIE_BATCH_GROOTTE).toBe(100);
+    expect(lezing.documenten).toHaveLength(100);
+    expect(lezing.documenten[0]?._id).toBe("klant_0");
+    expect(lezing.isDone).toBe(false);
+    expect(lezing.continueCursor).toBe("100");
+    expect(paginas()).toBe(1);
+    expect(collects()).toBe(0);
+  });
+
+  it("gaat verder vanaf de cursor en meldt de laatste batch met een lege cursor", async () => {
+    const { ctx } = nepCtx(naamKlanten());
+
+    const lezing = await leesAlleOfBatch(leesCtx(ctx), "klanten", {
+      dryRun: false,
+      cursor: "200",
+    });
+
+    expect(lezing.documenten).toHaveLength(50);
+    expect(lezing.documenten[0]?._id).toBe("klant_200");
+    expect(lezing.isDone).toBe(true);
+    // Geen "cursor naar het einde" in het rapport: klaar is klaar.
+    expect(lezing.continueCursor).toBeNull();
+  });
+
+  it("laat de batchgrootte per migratie overschrijven", async () => {
+    const { ctx } = nepCtx(naamKlanten());
+
+    const lezing = await leesAlleOfBatch(leesCtx(ctx), "klanten", {
+      dryRun: false,
+      batchGrootte: 25,
+    });
+
+    expect(lezing.documenten).toHaveLength(25);
+    expect(lezing.continueCursor).toBe("25");
+  });
+
+  it("leest een lege tabel als meteen klaar, in beide snelheden", async () => {
+    for (const dryRun of [true, false]) {
+      const { ctx } = nepCtx([]);
+
+      const lezing = await leesAlleOfBatch(leesCtx(ctx), "klanten", { dryRun });
+
+      expect(lezing.documenten).toEqual([]);
+      expect(lezing.isDone).toBe(true);
+      expect(lezing.continueCursor).toBeNull();
+    }
+  });
+});
 
 describe("splitsKlantNaam:start", () => {
   const start = handlerVan<{
