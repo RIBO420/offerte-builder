@@ -564,3 +564,19 @@ Verificatie: typecheck, eslint, `npx vitest run src/__tests__/unit/convex/migrat
 | 3 | 12 | convex/schema.ts (leadActiviteiten-union), convex/leadActiviteiten.ts, convex/configuratorAanvragen.ts, src/components/leads/**, leads-tests |
 | 3 | 13 | alleen testbestanden onder src/__tests__/ |
 | 3 | 14 | convex/migrations/_batch.ts, splitsKlantNaam.ts, telefoon2UitNotities.ts, migraties-klantvelden.test.ts |
+
+## Uitkomst fase 3 (12 sep 2026)
+
+Task 10 t/m 14 gebouwd, elk gereviewd, plus een fixwave (leaddetail leest de lead nu
+live via `getById`; verplicht-sterren dossier; routelink-test op `materiaalDelta`;
+scaffolding-defaults). Poort groen: typecheck, lint, 4296 tests. Browser-schouw:
+gedeelde veldcomponenten in dialoog en dossier (labels, `aria-describedby`, geen
+horizontale scroll), koppelen/ontkoppelen ververst het leaddetail direct. Beide
+migraties opnieuw als dry run op dev gedraaid: gelijke tellingen (206/67/7).
+
+Resterende follow-ups (klein, kunnen wachten):
+- Portaalprofielpagina prefilt adres/postcode/plaats niet (alleen naam).
+- `promoveerLead` vertrouwt een meegegeven `gekozenKlantId` op conventie van de
+  aanroeper; `updatePipelineStatus` accepteert "gewonnen" nog direct (pre-existing).
+- Lead die tijdens een open modal gearchiveerd wordt, blijft de momentopname tonen.
+- Reistijdcache: eenmalige misses na het uniforme adresformaat (geaccepteerd).
