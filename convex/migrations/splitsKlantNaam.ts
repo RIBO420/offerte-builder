@@ -46,11 +46,7 @@ import { v } from "convex/values";
 import { internalMutation, internalQuery } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
 import { naamDelenVoorNieuweKlant, woorden } from "../lib/klantNaam";
-
-const BATCH_SIZE = 100;
-
-/** Hooguit zoveel voorbeelden in het rapport — anders wordt de output onleesbaar. */
-const MAX_VOORBEELDEN = 50;
+import { MAX_VOORBEELDEN, leesAlleOfBatch, verzamelVoorbeelden } from "./_batch";
 
 /** Waarom een klant niet gesplitst wordt. Alles behalve `al_gesplitst` is twijfel. */
 export type NaamOverslagReden =
@@ -130,7 +126,7 @@ export const start = internalMutation({
     let gesplitst = 0;
     let alGesplitst = 0;
     let twijfel = 0;
-    const twijfelVoorbeelden: Voorbeeld[] = [];
+    const twijfelVoorbeelden = verzamelVoorbeelden<Voorbeeld>(MAX_VOORBEELDEN);
 
     /** Telt één klant mee in het rapport; schrijven gebeurt alleen buiten een dry run. */
     const verwerk = async (klant: Doc<"klanten">) => {
@@ -143,14 +139,12 @@ export const start = internalMutation({
           return;
         }
         twijfel++;
-        if (twijfelVoorbeelden.length < MAX_VOORBEELDEN) {
-          // Bewust alleen id + naam: genoeg om na te lopen, geen dossier.
-          twijfelVoorbeelden.push({
-            klantId: klant._id,
-            naam: klant.naam,
-            reden: besluit.reden,
-          });
-        }
+        // Bewust alleen id + naam: genoeg om na te lopen, geen dossier.
+        twijfelVoorbeelden.voegToe({
+          klantId: klant._id,
+          naam: klant.naam,
+          reden: besluit.reden,
+        });
         return;
       }
 
@@ -163,51 +157,23 @@ export const start = internalMutation({
       }
     };
 
-    const logRegel = (isDone: boolean) => {
-      console.log(
-        `[Migratie splitsKlantNaam] ${dryRun ? "Dry run over alle klanten" : "Batch verwerkt"}: ` +
-          `${bekeken} bekeken, ${gesplitst} gesplitst, ${alGesplitst} al gesplitst, ` +
-          `${twijfel} twijfel` +
-          (isDone ? " — KLAAR" : " — herhalen met continueCursor")
-      );
-    };
+    // Dry run: de hele tabel in één `collect`. Echte run: precies één pagina,
+    // want Convex staat één gepagineerde query per aanroep toe → `./_batch`.
+    const lezing = await leesAlleOfBatch(ctx, "klanten", {
+      dryRun,
+      cursor: args.cursor,
+    });
 
-    if (dryRun) {
-      // Eén leesquery over de hele tabel, geen `paginate`: Convex staat maar
-      // één gepagineerde query per functie-aanroep toe. Met ~460 klanten blijft
-      // dit ver onder de leeslimiet van een Convex-transactie, en omdat een dry
-      // run niets schrijft, kost het alleen leeswerk.
-      const klanten = await ctx.db.query("klanten").collect();
-
-      for (const klant of klanten) {
-        await verwerk(klant);
-      }
-
-      logRegel(true);
-
-      return {
-        dryRun,
-        bekeken,
-        gesplitst,
-        alGesplitst,
-        twijfel,
-        twijfelVoorbeelden,
-        isDone: true,
-        continueCursor: null,
-      };
-    }
-
-    // Echte run: precies één gepagineerde query per aanroep. De operator start
-    // de volgende batch met de teruggegeven `continueCursor`.
-    const page = await ctx.db
-      .query("klanten")
-      .paginate({ cursor: args.cursor ?? null, numItems: BATCH_SIZE });
-
-    for (const klant of page.page) {
+    for (const klant of lezing.documenten) {
       await verwerk(klant);
     }
 
-    logRegel(page.isDone);
+    console.log(
+      `[Migratie splitsKlantNaam] ${dryRun ? "Dry run over alle klanten" : "Batch verwerkt"}: ` +
+        `${bekeken} bekeken, ${gesplitst} gesplitst, ${alGesplitst} al gesplitst, ` +
+        `${twijfel} twijfel` +
+        (lezing.isDone ? " — KLAAR" : " — herhalen met continueCursor")
+    );
 
     return {
       dryRun,
@@ -215,9 +181,9 @@ export const start = internalMutation({
       gesplitst,
       alGesplitst,
       twijfel,
-      twijfelVoorbeelden,
-      isDone: page.isDone,
-      continueCursor: page.isDone ? null : page.continueCursor,
+      twijfelVoorbeelden: twijfelVoorbeelden.lijst,
+      isDone: lezing.isDone,
+      continueCursor: lezing.continueCursor,
     };
   },
 });
