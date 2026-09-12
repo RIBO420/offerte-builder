@@ -73,9 +73,10 @@ export const start = internalMutation({
       gekoppeld++;
 
       const klant = await ctx.db.get(klantId);
+      const orgId = lead.orgId;
       const reden: OverslaanReden | null = !klant
         ? "klant_weg"
-        : klant.orgId?.toString() !== lead.orgId.toString()
+        : !orgId || klant.orgId?.toString() !== orgId.toString()
           ? "andere_org"
           : null;
       if (reden) {
@@ -84,7 +85,7 @@ export const start = internalMutation({
         continue;
       }
 
-      const plan = await bepaalAanvraagOvername(ctx, lead, klantId);
+      const plan = await bepaalAanvraagOvername(ctx, lead, klantId, orgId);
       const fotos = plan.ontbrekendeFotoIds.length;
       if (!plan.eventNodig && fotos === 0) {
         alAanwezig++;
@@ -100,7 +101,7 @@ export const start = internalMutation({
       });
 
       if (!dryRun) {
-        await voerAanvraagOvernameUit(ctx, lead, klantId, plan);
+        await voerAanvraagOvernameUit(ctx, lead, klantId, orgId, plan);
       }
     }
 

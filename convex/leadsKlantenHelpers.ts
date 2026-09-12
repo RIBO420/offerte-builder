@@ -307,7 +307,7 @@ export async function promoveerLead(
 
   // 4b. De oorspronkelijke aanvraag (tekst + foto's) naar het dossier —
   //     idempotent, dus een eerder gekoppelde lead krijgt geen dubbele regel.
-  await neemAanvraagOverInDossier(ctx, lead, klantId, {
+  await neemAanvraagOverInDossier(ctx, lead, klantId, orgId, {
     id: currentUser._id,
     naam: currentUser.name,
   });
@@ -379,7 +379,8 @@ type LeesCtx = { db: GenericMutationCtx<DataModel>["db"] };
 export async function bepaalAanvraagOvername(
   ctx: LeesCtx,
   lead: Doc<"configuratorAanvragen">,
-  klantId: Id<"klanten">
+  klantId: Id<"klanten">,
+  orgId: Id<"organisaties">
 ): Promise<AanvraagOvernamePlan> {
   const bestaandEvent = await ctx.db
     .query("klantTijdlijn")
@@ -391,7 +392,7 @@ export async function bepaalAanvraagOvername(
   if (fotoIds.length > 0) {
     const bestanden = await ctx.db
       .query("klantBestanden")
-      .withIndex("by_klant", (q) => q.eq("orgId", lead.orgId).eq("klantId", klantId))
+      .withIndex("by_klant", (q) => q.eq("orgId", orgId).eq("klantId", klantId))
       .collect();
     const aanwezig = new Set(
       bestanden.map((b) => b.storageId?.toString()).filter(Boolean)
@@ -407,13 +408,14 @@ export async function voerAanvraagOvernameUit(
   ctx: GenericMutationCtx<DataModel>,
   lead: Doc<"configuratorAanvragen">,
   klantId: Id<"klanten">,
+  orgId: Id<"organisaties">,
   plan: AanvraagOvernamePlan,
   auteur?: AanvraagAuteur
 ): Promise<AanvraagOvernameResultaat> {
   let eventToegevoegd = false;
   if (plan.eventNodig) {
     const eventId = await logTijdlijnEvent(ctx, {
-      orgId: lead.orgId,
+      orgId,
       klantId,
       eventType: "lead_aanvraag",
       kanaal: "systeem",
@@ -429,7 +431,7 @@ export async function voerAanvraagOvernameUit(
 
   for (const storageId of plan.ontbrekendeFotoIds) {
     await ctx.db.insert("klantBestanden", {
-      orgId: lead.orgId,
+      orgId,
       klantId,
       soort: "foto",
       titel: `Foto bij aanvraag ${lead.referentie}`,
@@ -445,15 +447,18 @@ export async function voerAanvraagOvernameUit(
 }
 
 /**
- * Bepalen + uitvoeren in één stap, voor de conversiepaden. Weigert stil (met
- * console.warn) als de klant niet bestaat of bij een andere organisatie hoort:
- * de koppeling zelf is dan al door de aanroeper afgevangen, en een dossier van
- * een andere org mag nooit aanvraagdata van deze lead krijgen.
+ * Bepalen + uitvoeren in één stap, voor de conversiepaden. `orgId` is de door
+ * de aanroeper geverifieerde tenant (requireOrgId), niet iets uit de lead of
+ * de klant: zo krijgt een dossier van een andere organisatie nooit
+ * aanvraagdata van deze lead. Weigert stil (met console.warn) als de klant
+ * niet bestaat of niet bij die organisatie hoort — de koppeling zelf is dan
+ * al door de aanroeper afgevangen.
  */
 export async function neemAanvraagOverInDossier(
   ctx: GenericMutationCtx<DataModel>,
   lead: Doc<"configuratorAanvragen">,
   klantId: Id<"klanten">,
+  orgId: Id<"organisaties">,
   auteur?: AanvraagAuteur
 ): Promise<AanvraagOvernameResultaat> {
   const klant = await ctx.db.get(klantId);
@@ -461,13 +466,13 @@ export async function neemAanvraagOverInDossier(
     console.warn("[leads] aanvraag-overname overgeslagen: klant bestaat niet");
     return { eventToegevoegd: false, fotosToegevoegd: 0, overgeslagen: "klant_weg" };
   }
-  if (klant.orgId?.toString() !== lead.orgId.toString()) {
+  if (klant.orgId?.toString() !== orgId.toString()) {
     console.warn("[leads] aanvraag-overname overgeslagen: klant van andere organisatie");
     return { eventToegevoegd: false, fotosToegevoegd: 0, overgeslagen: "andere_org" };
   }
-  const plan = await bepaalAanvraagOvername(ctx, lead, klantId);
+  const plan = await bepaalAanvraagOvername(ctx, lead, klantId, orgId);
   if (!plan.eventNodig && plan.ontbrekendeFotoIds.length === 0) {
     return { eventToegevoegd: false, fotosToegevoegd: 0 };
   }
-  return voerAanvraagOvernameUit(ctx, lead, klantId, plan, auteur);
+  return voerAanvraagOvernameUit(ctx, lead, klantId, orgId, plan, auteur);
 }

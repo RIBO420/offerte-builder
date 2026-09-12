@@ -153,7 +153,7 @@ describe("aanvraag overnemen bij conversie", () => {
     expect(bestandenVan(store, klantId)).toHaveLength(2);
 
     // Nog eens (bijv. na ontkoppelen en opnieuw koppelen): idempotent.
-    await neemAanvraagOverInDossier(ctx, lead(store, leadId), klantId);
+    await neemAanvraagOverInDossier(ctx, lead(store, leadId), klantId, orgId);
     expect(eventsVan(store, klantId).filter((e) => e.eventType === "lead_aanvraag")).toHaveLength(1);
     expect(bestandenVan(store, klantId)).toHaveLength(2);
   });
@@ -162,15 +162,15 @@ describe("aanvraag overnemen bij conversie", () => {
     const { store, ctx, orgId } = maakContext();
     const klantId = seedKlant(store, orgId);
     const leadId = seedLead(store, orgId, { fotoIds: [FOTO_A] });
-    await neemAanvraagOverInDossier(ctx, lead(store, leadId), klantId);
+    await neemAanvraagOverInDossier(ctx, lead(store, leadId), klantId, orgId);
 
     // De klant krijgt later een tweede foto op de lead (bijv. nagestuurd).
     store.patch(leadId, { fotoIds: [FOTO_A, FOTO_B] });
-    const plan = await bepaalAanvraagOvername(ctx, lead(store, leadId), klantId);
+    const plan = await bepaalAanvraagOvername(ctx, lead(store, leadId), klantId, orgId);
     expect(plan.eventNodig).toBe(false);
     expect(plan.ontbrekendeFotoIds).toEqual([FOTO_B]);
 
-    const resultaat = await neemAanvraagOverInDossier(ctx, lead(store, leadId), klantId);
+    const resultaat = await neemAanvraagOverInDossier(ctx, lead(store, leadId), klantId, orgId);
     expect(resultaat).toEqual({ eventToegevoegd: false, fotosToegevoegd: 1 });
     expect(bestandenVan(store, klantId)).toHaveLength(2);
   });
@@ -181,7 +181,7 @@ describe("aanvraag overnemen bij conversie", () => {
     const vreemdeKlant = seedKlant(store, andereOrg);
     const leadId = seedLead(store, orgId);
 
-    const resultaat = await neemAanvraagOverInDossier(ctx, lead(store, leadId), vreemdeKlant);
+    const resultaat = await neemAanvraagOverInDossier(ctx, lead(store, leadId), vreemdeKlant, orgId);
 
     expect(resultaat.overgeslagen).toBe("andere_org");
     expect(eventsVan(store, vreemdeKlant)).toHaveLength(0);
@@ -193,7 +193,7 @@ describe("aanvraag overnemen bij conversie", () => {
     const klantId = seedKlant(store, orgId);
     const leadId = seedLead(store, orgId, { fotoIds: undefined });
 
-    await neemAanvraagOverInDossier(ctx, lead(store, leadId), klantId);
+    await neemAanvraagOverInDossier(ctx, lead(store, leadId), klantId, orgId);
 
     const [event] = eventsVan(store, klantId);
     expect(event.eventType).toBe("lead_aanvraag");
@@ -207,7 +207,7 @@ describe("opruimen", () => {
     const { store, ctx, orgId, verwijderdeStorage } = maakContext();
     const klantId = seedKlant(store, orgId);
     const leadId = seedLead(store, orgId, { fotoIds: [FOTO_A] });
-    await neemAanvraagOverInDossier(ctx, lead(store, leadId), klantId);
+    await neemAanvraagOverInDossier(ctx, lead(store, leadId), klantId, orgId);
     const [rij] = bestandenVan(store, klantId);
 
     await handlerVan<{ bestandId: Id<"klantBestanden"> }>(verwijderBestand)(ctx, {
@@ -222,7 +222,7 @@ describe("opruimen", () => {
     const { store, ctx, orgId } = maakContext();
     const klantId = seedKlant(store, orgId);
     const leadId = seedLead(store, orgId);
-    await neemAanvraagOverInDossier(ctx, lead(store, leadId), klantId);
+    await neemAanvraagOverInDossier(ctx, lead(store, leadId), klantId, orgId);
     // Een gewone tijdlijnregel van de klant moet blijven staan.
     store.insert("klantTijdlijn", {
       orgId,

@@ -932,7 +932,7 @@ async function legKlantKoppelingVast(
 
   // De oorspronkelijke aanvraag (tekst + foto's) mee naar het dossier;
   // idempotent, dus opnieuw koppelen geeft geen dubbele regel.
-  await neemAanvraagOverInDossier(ctx, lead, klantId, {
+  await neemAanvraagOverInDossier(ctx, lead, klantId, orgId, {
     id: currentUser._id,
     naam: currentUser.name,
   });

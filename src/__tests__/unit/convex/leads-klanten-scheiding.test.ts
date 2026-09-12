@@ -509,10 +509,11 @@ describe("Klant koppelen vanuit een open lead", () => {
     expect(activiteiten).toHaveLength(1);
     expect(activiteiten[0].type).toBe("klant_gekoppeld");
     expect((activiteiten[0].metadata as Record<string, unknown>).gekoppeldKlantId).toBe(klantId);
-    // Zichtbaar in het klantdossier (tijdlijn)
+    // Zichtbaar in het klantdossier (tijdlijn): de koppeling zelf plus de
+    // overgenomen aanvraag (Task 15), beide op deze klant.
     const tijdlijn = store.getAll("klantTijdlijn");
-    expect(tijdlijn).toHaveLength(1);
-    expect(tijdlijn[0].klantId).toBe(klantId);
+    expect(tijdlijn.map((e) => e.eventType).sort()).toEqual(["handmatig", "lead_aanvraag"]);
+    expect(tijdlijn.every((e) => e.klantId === klantId)).toBe(true);
   });
 
   /**
@@ -549,7 +550,10 @@ describe("Klant koppelen vanuit een open lead", () => {
     expect(activiteiten).toHaveLength(1);
     expect(activiteiten[0].type).toBe("status_wijziging");
     expect((activiteiten[0].metadata as Record<string, unknown>).gekoppeldKlantId).toBe(klantId);
-    expect(store.getAll("klantTijdlijn")[0].eventType).toBe("lead_gewonnen");
+    expect(store.getAll("klantTijdlijn").map((e) => e.eventType).sort()).toEqual([
+      "lead_aanvraag",
+      "lead_gewonnen",
+    ]);
   });
 
   it("koppelKlant op een gewonnen lead weigert nog steeds een klant van een andere organisatie", async () => {
