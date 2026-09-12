@@ -830,3 +830,50 @@ describe("offertenummer-reservering is org-gescoped", () => {
     expect(db.byId(id)!.offerteNummer).toBe(`OFF-${JAAR}-001`);
   });
 });
+
+// ─── 7. Offerte-snapshot: hoofdadres, nooit het uitvoeradres ────────────────
+
+/**
+ * Ruling sep 2026: een offerte gaat — net als de factuur — naar het
+ * hoofd-/factuuradres. Het uitvoeradres van de klant bepaalt alleen waar het
+ * werk gebeurt (werkitem, planbord, dagkaart) en hoort niet in de
+ * klant-snapshot op de offerte te belanden.
+ */
+describe("offerte-snapshot — factuuradres, nooit het uitvoeradres", () => {
+  const UITVOER = { adres: "Tuinlaan 9", postcode: "7941 CD", plaats: "Staphorst" };
+
+  it("create met klantId legt het hoofdadres vast", async () => {
+    const klantId = seedKlant({ uitvoerAdres: UITVOER });
+    const id = await createOfferte(ctx, {
+      type: "aanleg",
+      klantId,
+      algemeenParams: { bereikbaarheid: "goed" },
+      bron: "vrij",
+    });
+
+    const snapshot = db.byId(id)!.klant as Record<string, unknown>;
+    expect(snapshot).toEqual({
+      ...VOLLEDIGE_KLANT,
+      email: "jansen@example.nl",
+      telefoon: "0612345678",
+    });
+    expect(snapshot).not.toHaveProperty("uitvoerAdres");
+    expect(JSON.stringify(snapshot)).not.toContain("Tuinlaan");
+  });
+
+  it("koppelKlant legt het hoofdadres vast", async () => {
+    const id = await createOfferte(ctx, {
+      type: "onderhoud",
+      algemeenParams: { bereikbaarheid: "goed" },
+      bron: "vrij",
+    });
+    const klantId = seedKlant({ uitvoerAdres: UITVOER });
+
+    await koppelKlantH(ctx, { id, klantId });
+
+    const snapshot = db.byId(id)!.klant as Record<string, unknown>;
+    expect(snapshot).toMatchObject(VOLLEDIGE_KLANT);
+    expect(snapshot).not.toHaveProperty("uitvoerAdres");
+    expect(JSON.stringify(snapshot)).not.toContain("Staphorst");
+  });
+});

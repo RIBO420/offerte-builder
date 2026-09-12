@@ -822,3 +822,67 @@ describe("factuurnummering is per organisatie", () => {
     expect(store.getAll("facturen")).toHaveLength(0);
   });
 });
+
+// ─── Factuursnapshot: hoofdadres, nooit het uitvoeradres ─────────────────────
+
+/**
+ * Ruling sep 2026: wérk gaat naar het uitvoeradres, de rekening naar het
+ * hoofdadres. De engine legt op elke factuur een eigen klant-snapshot vast;
+ * die moet het factuuradres zijn — ook (juist) als de klant een afwijkend
+ * uitvoeradres heeft.
+ */
+describe("factuursnapshot — factuuradres, nooit het uitvoeradres", () => {
+  const HOOFD = { adres: "Hoofdweg 1", postcode: "1234 AB", plaats: "Meppel" };
+  const UITVOER = { adres: "Tuinlaan 9", postcode: "7941 CD", plaats: "Staphorst" };
+
+  it("per_bezoek: de factuur draagt het hoofdadres, niet het uitvoeradres", async () => {
+    const { store, ctx, userId, orgId } = basisOpstelling();
+    const klantId = store.insert(
+      "klanten",
+      createMockKlant(userId, { orgId, naam: "Familie Bos", ...HOOFD, uitvoerAdres: UITVOER })
+    );
+    const werkitemId = insertAfgerondeBeurt(store, userId, orgId, klantId);
+
+    await verwerkKlaarVoorFacturatie(ctx, { werkitemId });
+
+    const factuur = store.getAll("facturen")[0];
+    expect(factuur.klant).toEqual({
+      naam: "Familie Bos",
+      adres: "Hoofdweg 1",
+      postcode: "1234 AB",
+      plaats: "Meppel",
+      email: "jan@devries.nl",
+      telefoon: "0612345678",
+    });
+    expect(JSON.stringify(factuur.klant)).not.toContain("Tuinlaan");
+    expect(JSON.stringify(factuur.klant)).not.toContain("Staphorst");
+  });
+
+  it("maandverzameling: ook de verzamelfactuur draagt het hoofdadres", async () => {
+    const { store, ctx, userId, orgId } = basisOpstelling();
+    const klantId = store.insert(
+      "klanten",
+      createMockKlant(userId, { orgId, ...HOOFD, uitvoerAdres: UITVOER })
+    );
+    const contractId = store.insert("onderhoudscontracten", {
+      orgId,
+      userId,
+      klantId,
+      contractNummer: "OC-2026-009",
+      naam: "Jaarcontract",
+      status: "actief",
+      facturatiemodus: "maandelijks_verzameld",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    const werkitemId = insertAfgerondeBeurt(store, userId, orgId, klantId, { contractId });
+
+    const resultaat = await verwerkKlaarVoorFacturatie(ctx, { werkitemId });
+
+    expect(resultaat.actie).toBe("maandverzameling");
+    const factuur = store.getAll("facturen")[0];
+    expect(factuur.bron).toBe("engine_maandverzameling");
+    expect(factuur.klant).toMatchObject(HOOFD);
+    expect(JSON.stringify(factuur.klant)).not.toContain("Tuinlaan");
+  });
+});

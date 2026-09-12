@@ -8,12 +8,14 @@
  */
 import { describe, it, expect } from "vitest";
 import {
+  createVrij,
   list as facturenList,
   get as facturenGet,
 } from "../../../../convex/facturen";
 import {
   MockConvexStore,
   createMockCtx,
+  createMockKlant,
   createMockUser,
   seedAndereOrganisatie,
   seedMockOrganisatie,
@@ -818,5 +820,70 @@ describe("Facturen zijn org-gescoopt", () => {
       handlerVan(facturenGet)(ctx, { id: vreemdId })
     ).resolves.toBeNull();
     await expect(handlerVan(facturenGet)(ctx, { id: weesId })).resolves.toBeNull();
+  });
+});
+
+// ─── Vrije factuur: klant-snapshot op het hoofdadres ─────────────────────────
+
+/**
+ * Ruling sep 2026: een factuur gaat naar het hoofd-/factuuradres van de
+ * klant; een afwijkend uitvoeradres bepaalt alleen waar het werk gebeurt.
+ * `createVrij` kopieert de klantgegevens op de factuur — die kopie moet het
+ * hoofdadres zijn.
+ */
+describe("createVrij — klant-snapshot is het factuuradres", () => {
+  const HOOFD = { adres: "Hoofdweg 1", postcode: "1234 AB", plaats: "Meppel" };
+  const UITVOER = { adres: "Tuinlaan 9", postcode: "7941 CD", plaats: "Staphorst" };
+  const REGEL = {
+    id: "r1",
+    omschrijving: "Snoeiwerk",
+    eenheid: "uur",
+    hoeveelheid: 2,
+    prijsPerEenheid: 45,
+    totaal: 90,
+    btwCode: 21 as const,
+  };
+
+  function opstelling(klantVelden: Record<string, unknown>) {
+    const store = new MockConvexStore();
+    const orgId = seedMockOrganisatie(store);
+    const userId = store.insert("users", createMockUser({ role: "directie" }));
+    store.insert("instellingen", {
+      orgId,
+      userId,
+      laatsteFactuurNummer: 0,
+      bedrijfsgegevens: { naam: "Top Tuinen", adres: "Kwekerijweg 1", plaats: "Boskoop" },
+    });
+    const klantId = store.insert(
+      "klanten",
+      createMockKlant(userId, { orgId, naam: "Familie Bos", ...klantVelden })
+    );
+    const handler = (
+      createVrij as unknown as {
+        _handler: (ctx: unknown, args: unknown) => Promise<string>;
+      }
+    )._handler;
+    return { ctx: createMockCtx(store), store, klantId, handler };
+  }
+
+  it("legt het hoofdadres vast, niet het uitvoeradres", async () => {
+    const { ctx, store, klantId, handler } = opstelling({ ...HOOFD, uitvoerAdres: UITVOER });
+    const factuurId = await handler(ctx, { klantId, regels: [REGEL] });
+    const factuur = store.get(factuurId)!;
+    expect(factuur.klant).toEqual({
+      naam: "Familie Bos",
+      adres: "Hoofdweg 1",
+      postcode: "1234 AB",
+      plaats: "Meppel",
+      email: "jan@devries.nl",
+      telefoon: "0612345678",
+    });
+    expect(JSON.stringify(factuur.klant)).not.toContain("Tuinlaan");
+  });
+
+  it("zonder uitvoeradres staat er hetzelfde hoofdadres op", async () => {
+    const { ctx, store, klantId, handler } = opstelling(HOOFD);
+    const factuurId = await handler(ctx, { klantId, regels: [REGEL] });
+    expect(store.get(factuurId)!.klant).toMatchObject(HOOFD);
   });
 });
