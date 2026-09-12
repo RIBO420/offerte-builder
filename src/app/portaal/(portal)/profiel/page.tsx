@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { UserProfile } from "@clerk/nextjs";
+import { toast } from "sonner";
 import { User, Shield, Sun, Moon, Save } from "lucide-react";
 import { api } from "../../../../../convex/_generated/api";
 import { Card } from "@/components/ui/card";
@@ -13,9 +14,27 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePortaalTheme } from "@/components/portaal/portaal-theme-provider";
+import { klantSchema } from "@/lib/validations";
+
+/**
+ * Dezelfde vijf velden die `portaal.updateProfile` accepteert, langs dezelfde
+ * regels als het kantoorformulier. Eén waarheid: `klantSchema` levert ook de
+ * Nederlandse meldingen ("Adres is verplicht", "Ongeldige postcode (bijv.
+ * 1234 AB)") die hier onder het veld verschijnen.
+ */
+const profielSchema = klantSchema.pick({
+  naam: true,
+  telefoon: true,
+  adres: true,
+  postcode: true,
+  plaats: true,
+});
+
+type ProfielVeld = "naam" | "telefoon" | "adres" | "postcode" | "plaats";
+type VeldFouten = Partial<Record<ProfielVeld, string>>;
 
 export default function PortaalProfielPage() {
-  const overzicht = useQuery(api.portaal.getOverzicht);
+  const profiel = useQuery(api.portaal.getMijnProfiel);
   const updateProfile = useMutation(api.portaal.updateProfile);
   const { theme, toggleTheme } = usePortaalTheme();
 
@@ -24,37 +43,87 @@ export default function PortaalProfielPage() {
   const [adres, setAdres] = useState("");
   const [postcode, setPostcode] = useState("");
   const [plaats, setPlaats] = useState("");
+  const [fouten, setFouten] = useState<VeldFouten>({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [prefilled, setPrefilled] = useState(false);
 
-  // Prefill form from klant data
+  /**
+   * Voorvullen met wat er in het klantdossier staat — niet alleen de naam.
+   * Adres, postcode en plaats zijn serverzijde verplicht; stonden ze hier leeg,
+   * dan kreeg de klant "Adres is verplicht" zodra hij alleen zijn telefoon
+   * wilde wijzigen. Eén keer: daarna is de invoer van de klant de waarheid, ook
+   * als de query intussen opnieuw binnenkomt.
+   */
   useEffect(() => {
-    if (overzicht && !prefilled) {
-      setNaam(overzicht.klantNaam ?? "");
+    if (profiel && !prefilled) {
+      setNaam(profiel.naam);
+      setTelefoon(profiel.telefoon);
+      setAdres(profiel.adres);
+      setPostcode(profiel.postcode);
+      setPlaats(profiel.plaats);
       setPrefilled(true);
     }
-  }, [overzicht, prefilled]);
+  }, [profiel, prefilled]);
+
+  /** Typen in een veld haalt de foutmelding eronder weg. */
+  const wisFout = (veld: ProfielVeld) =>
+    setFouten((prev) => ({ ...prev, [veld]: undefined }));
 
   const handleSave = async () => {
+    if (!profiel || saving) return;
+
+    const resultaat = profielSchema.safeParse({
+      naam,
+      telefoon,
+      adres,
+      postcode,
+      plaats,
+    });
+    if (!resultaat.success) {
+      const nieuweFouten: VeldFouten = {};
+      for (const issue of resultaat.error.issues) {
+        const veld = issue.path[0] as ProfielVeld | undefined;
+        if (veld && !nieuweFouten[veld]) nieuweFouten[veld] = issue.message;
+      }
+      setFouten(nieuweFouten);
+      return;
+    }
+
+    // Alleen wat de klant écht veranderd heeft gaat mee: `updateProfile` slaat
+    // een `undefined` veld over, dus een ongewijzigd adres hoeft de klantrij
+    // niet aan te raken. De vergelijking loopt over de genormaliseerde waarden
+    // (postcode met spatie, telefoon zonder opmaak) — anders is "1234ab" altijd
+    // een wijziging.
+    const data = resultaat.data;
+    const nieuweTelefoon = data.telefoon ?? "";
+    const wijzigingen = {
+      naam: data.naam === profiel.naam ? undefined : data.naam,
+      telefoon:
+        nieuweTelefoon === profiel.telefoon ? undefined : nieuweTelefoon,
+      adres: data.adres === profiel.adres ? undefined : data.adres,
+      postcode: data.postcode === profiel.postcode ? undefined : data.postcode,
+      plaats: data.plaats === profiel.plaats ? undefined : data.plaats,
+    };
+
     setSaving(true);
     setSaved(false);
     try {
-      await updateProfile({
-        naam: naam || undefined,
-        telefoon: telefoon || undefined,
-        adres: adres || undefined,
-        postcode: postcode || undefined,
-        plaats: plaats || undefined,
-      });
+      if (Object.values(wijzigingen).some((waarde) => waarde !== undefined)) {
+        await updateProfile(wijzigingen);
+      }
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Opslaan is niet gelukt",
+      );
     } finally {
       setSaving(false);
     }
   };
 
-  if (!overzicht) {
+  if (!profiel) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-8 w-48" />
@@ -89,62 +158,133 @@ export default function PortaalProfielPage() {
         <div className="p-5 space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-1.5">
-              <Label className="text-xs text-gray-500 dark:text-gray-400">Naam</Label>
-              <Input
-                value={naam}
-                onChange={(e) => setNaam(e.target.value)}
-                placeholder="Uw naam"
-                className="bg-muted border-border text-sm"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-gray-500 dark:text-gray-400">
-                E-mailadres{" "}
-                <span className="text-[10px] text-gray-500">(niet wijzigbaar)</span>
+              <Label
+                htmlFor="profiel-naam"
+                className="text-xs text-gray-500 dark:text-gray-400"
+              >
+                Naam
               </Label>
               <Input
-                value={overzicht.klantNaam ? `${overzicht.klantNaam.toLowerCase().replace(/\s+/g, ".")}@...` : ""}
+                id="profiel-naam"
+                value={naam}
+                onChange={(e) => {
+                  setNaam(e.target.value);
+                  wisFout("naam");
+                }}
+                placeholder="Uw naam"
+                aria-invalid={Boolean(fouten.naam)}
+                className="bg-muted border-border text-sm"
+              />
+              {fouten.naam && (
+                <p className="text-xs text-destructive">{fouten.naam}</p>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label
+                htmlFor="profiel-email"
+                className="text-xs text-gray-500 dark:text-gray-400"
+              >
+                E-mailadres{" "}
+                <span className="text-[10px] text-gray-500">
+                  (niet wijzigbaar)
+                </span>
+              </Label>
+              <Input
+                id="profiel-email"
+                value={profiel.email}
                 disabled
                 className="bg-muted border-border text-sm text-gray-500 cursor-not-allowed"
               />
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs text-gray-500 dark:text-gray-400">Telefoon</Label>
+            <Label
+              htmlFor="profiel-telefoon"
+              className="text-xs text-gray-500 dark:text-gray-400"
+            >
+              Telefoon
+            </Label>
             <Input
+              id="profiel-telefoon"
               value={telefoon}
-              onChange={(e) => setTelefoon(e.target.value)}
+              onChange={(e) => {
+                setTelefoon(e.target.value);
+                wisFout("telefoon");
+              }}
               placeholder="06-12345678"
+              aria-invalid={Boolean(fouten.telefoon)}
               className="bg-muted border-border text-sm"
             />
+            {fouten.telefoon && (
+              <p className="text-xs text-destructive">{fouten.telefoon}</p>
+            )}
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs text-gray-500 dark:text-gray-400">Adres</Label>
+            <Label
+              htmlFor="profiel-adres"
+              className="text-xs text-gray-500 dark:text-gray-400"
+            >
+              Adres
+            </Label>
             <Input
+              id="profiel-adres"
               value={adres}
-              onChange={(e) => setAdres(e.target.value)}
+              onChange={(e) => {
+                setAdres(e.target.value);
+                wisFout("adres");
+              }}
               placeholder="Straatnaam 1"
+              aria-invalid={Boolean(fouten.adres)}
               className="bg-muted border-border text-sm"
             />
+            {fouten.adres && (
+              <p className="text-xs text-destructive">{fouten.adres}</p>
+            )}
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-1.5">
-              <Label className="text-xs text-gray-500 dark:text-gray-400">Postcode</Label>
+              <Label
+                htmlFor="profiel-postcode"
+                className="text-xs text-gray-500 dark:text-gray-400"
+              >
+                Postcode
+              </Label>
               <Input
+                id="profiel-postcode"
                 value={postcode}
-                onChange={(e) => setPostcode(e.target.value)}
+                onChange={(e) => {
+                  setPostcode(e.target.value);
+                  wisFout("postcode");
+                }}
                 placeholder="1234 AB"
+                aria-invalid={Boolean(fouten.postcode)}
                 className="bg-muted border-border text-sm"
               />
+              {fouten.postcode && (
+                <p className="text-xs text-destructive">{fouten.postcode}</p>
+              )}
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-gray-500 dark:text-gray-400">Plaats</Label>
+              <Label
+                htmlFor="profiel-plaats"
+                className="text-xs text-gray-500 dark:text-gray-400"
+              >
+                Plaats
+              </Label>
               <Input
+                id="profiel-plaats"
                 value={plaats}
-                onChange={(e) => setPlaats(e.target.value)}
+                onChange={(e) => {
+                  setPlaats(e.target.value);
+                  wisFout("plaats");
+                }}
                 placeholder="Plaatsnaam"
+                aria-invalid={Boolean(fouten.plaats)}
                 className="bg-muted border-border text-sm"
               />
+              {fouten.plaats && (
+                <p className="text-xs text-destructive">{fouten.plaats}</p>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-3 pt-2">

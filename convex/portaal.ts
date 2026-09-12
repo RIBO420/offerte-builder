@@ -528,6 +528,30 @@ export const getDocumenten = query({
   },
 });
 
+/**
+ * De eigen gegevens achter het profielformulier (portaal-regel 2: expliciete
+ * allowlist).
+ *
+ * Bestaat apart van `getOverzicht` omdat dat een KPI-query is die vier tabellen
+ * uitleest; het profielformulier heeft alleen deze zes velden nodig. Ze zijn
+ * dezelfde velden die `updateProfile` terugschrijft — zonder voorvulling zag de
+ * klant lege adresvelden en weigerde opslaan met "Adres is verplicht".
+ */
+export const getMijnProfiel = query({
+  handler: async (ctx) => {
+    const { klant } = await requireKlant(ctx);
+
+    return {
+      naam: klant.naam,
+      email: klant.email ?? "",
+      telefoon: klant.telefoon ?? "",
+      adres: klant.adres,
+      postcode: klant.postcode,
+      plaats: klant.plaats,
+    };
+  },
+});
+
 // Update klant profile
 export const updateProfile = mutation({
   args: {
