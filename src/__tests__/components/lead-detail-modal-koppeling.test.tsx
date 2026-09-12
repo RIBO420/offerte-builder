@@ -9,6 +9,9 @@
  *    en terugnavigeert, ziet het bord zonder oud modal.
  * 4. **Legacy-gewonnen lead: de toast noemt het werkitem.** koppelKlant
  *    promoveert dan via promoveerLead en geeft een werkitemId terug.
+ * 5. **De kop is reactief.** Het bord geeft een momentopname mee; het modal
+ *    leest de lead zelf live. Komt er een verse lead binnen mét klant, dan
+ *    verschijnt de badge zonder dat de prop verandert.
  */
 import { describe, it, expect, vi, beforeAll, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -32,6 +35,8 @@ beforeAll(() => {
 
 const koppelKlant = vi.fn();
 const ontkoppelKlant = vi.fn();
+/** Wat `configuratorAanvragen:getById` teruggeeft; undefined = nog aan het laden. */
+let verseLead: unknown = undefined;
 
 vi.mock("convex/react", async () => {
   const { getFunctionName } = await import("convex/server");
@@ -45,6 +50,7 @@ vi.mock("convex/react", async () => {
     useQuery: (fn: unknown, args: unknown) => {
       if (args === "skip") return undefined;
       const naam = getFunctionName(fn as never);
+      if (naam === "configuratorAanvragen:getById") return verseLead;
       if (naam === "leadActiviteiten:listByLead") return [];
       if (naam === "users:listUsersWithDetails") return [];
       if (naam === "klanten:getVoorSelector")
@@ -103,6 +109,7 @@ function uitgesteld<T>() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  verseLead = undefined;
 });
 
 describe("Koppelen via de duplicaatbanner", () => {
@@ -199,5 +206,48 @@ describe("Gekoppelde klant", () => {
     await gebruiker.click(badge);
 
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Verse lead uit de query", () => {
+  it("toont de klantbadge zodra de lead gekoppeld binnenkomt, zonder nieuwe prop", async () => {
+    const bordSnapshot = maakLead();
+
+    const { rerender } = render(
+      <LeadDetailModal lead={bordSnapshot} open onClose={vi.fn()} />
+    );
+
+    // Zoals het bord hem kent: nog geen klant, dus de aanmaakknop staat er.
+    expect(
+      screen.getByRole("button", { name: /klant aanmaken/i })
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /jan de vries/i })).toBeNull();
+
+    // De mutatie is geslaagd; Convex levert de bijgewerkte lead. De prop is
+    // exact dezelfde momentopname als hiervoor.
+    verseLead = maakLead({
+      gekoppeldKlantId: "klanten:k1" as Lead["gekoppeldKlantId"],
+    });
+    rerender(<LeadDetailModal lead={bordSnapshot} open onClose={vi.fn()} />);
+
+    const badge = await screen.findByRole("link", { name: /jan de vries/i });
+    expect(badge).toHaveAttribute("href", "/klanten/klanten:k1");
+    expect(screen.queryByRole("button", { name: /klant aanmaken/i })).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Klantacties" })
+    ).toBeInTheDocument();
+    // De duplicaatbanner hoort weg te zijn zodra er een klant hangt.
+    expect(screen.queryByRole("button", { name: /^koppelen$/i })).toBeNull();
+  });
+
+  it("valt terug op de prop zolang de query nog laadt", () => {
+    render(<LeadDetailModal lead={maakLead()} open onClose={vi.fn()} />);
+
+    expect(
+      screen.getByRole("heading", { name: "Jan de Vries" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /klant aanmaken/i })
+    ).toBeInTheDocument();
   });
 });

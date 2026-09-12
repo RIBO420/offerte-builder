@@ -407,7 +407,11 @@ interface LeadDetailModalProps {
   onClose: () => void;
 }
 
-export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
+export function LeadDetailModal({
+  lead: leadProp,
+  open,
+  onClose,
+}: LeadDetailModalProps) {
   const [notitie, setNotitie] = useState("");
   const [isSavingNote, setIsSavingNote] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -437,6 +441,15 @@ export function LeadDetailModal({ lead, open, onClose }: LeadDetailModalProps) {
   const ontkoppelKlant = useMutation(api.configuratorAanvragen.ontkoppelKlant);
 
   // Queries (only run when modal is open and lead is set)
+  // Het bord geeft een momentopname mee; na koppelen/ontkoppelen klopt die
+  // niet meer. Daarom leest het modal de lead zelf live (org-guarded), met de
+  // prop als beginwaarde zodat het scherm meteen gevuld opent.
+  const verseLead = useQuery(
+    api.configuratorAanvragen.getById,
+    leadProp ? { id: leadProp._id } : "skip"
+  );
+  const lead = verseLead ?? leadProp;
+
   const activiteiten = useQuery(
     api.leadActiviteiten.listByLead,
     lead ? { leadId: lead._id } : "skip"
