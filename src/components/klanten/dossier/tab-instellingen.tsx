@@ -437,7 +437,7 @@ export function ContactgegevensFormulier({
     <form onSubmit={opslaan} noValidate className="space-y-3 px-3 py-3">
       {/* Type eerst: die keuze bepaalt welke velden hieronder verschijnen. */}
       <div className="space-y-1.5">
-        <Label htmlFor="ki-type">Type klant</Label>
+        <Label htmlFor="ki-type">Type klant *</Label>
         <Select
           value={klantType}
           onValueChange={(waarde) => setKlantType(waarde as KlantType)}
@@ -514,7 +514,7 @@ export function ContactgegevensFormulier({
       )}
 
       <div className="space-y-1.5">
-        <Label htmlFor="ki-adres">Adres</Label>
+        <Label htmlFor="ki-adres">Adres *</Label>
         <AdresVeld
           id="ki-adres"
           waarde={form.adres}
@@ -539,7 +539,7 @@ export function ContactgegevensFormulier({
 
       <div className={VELD_KLASSE}>
         <div className="space-y-1.5">
-          <Label htmlFor="ki-postcode">Postcode</Label>
+          <Label htmlFor="ki-postcode">Postcode *</Label>
           <Input
             id="ki-postcode"
             placeholder="1234 AB"
@@ -552,7 +552,7 @@ export function ContactgegevensFormulier({
           )}
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="ki-plaats">Plaats</Label>
+          <Label htmlFor="ki-plaats">Plaats *</Label>
           <Input
             id="ki-plaats"
             placeholder="Landgraaf"

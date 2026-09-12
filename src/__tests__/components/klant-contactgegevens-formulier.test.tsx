@@ -152,7 +152,7 @@ describe("Contactgegevens bewerken", () => {
       "De Groene Tuin B.V."
     );
     expect(screen.getByLabelText("Contactpersoon")).toHaveValue("Jan Jansen");
-    expect(screen.getByLabelText("Postcode")).toHaveValue("6374 NR");
+    expect(screen.getByLabelText("Postcode *")).toHaveValue("6374 NR");
     expect(screen.getByLabelText("Telefoon")).toHaveValue("0612345678");
     expect(screen.getByLabelText("KvK-nummer")).toHaveValue("12345678");
     expect(screen.getByLabelText("Website")).toHaveValue("www.groenetuin.nl");
