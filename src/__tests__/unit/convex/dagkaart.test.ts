@@ -41,7 +41,6 @@ import {
 } from "../../../../convex/reistijdLogica";
 import { magPlanbordMuteren } from "../../../../convex/planbordLogica";
 import { getDagkaart, getOntbrekendeAdresParen } from "../../../../convex/dagkaart";
-import { googleMapsRouteUrl } from "../../../../convex/lib/adres";
 import {
   MockConvexStore,
   createMockCtx,
@@ -548,9 +547,10 @@ describe("getDagkaart — bijzonderheden", () => {
 /**
  * Ruling sep 2026: wérk gaat naar het uitvoeradres van de klant, de rekening
  * naar het hoofdadres. De dagkaart is werk — het stop-adres, de sleutel
- * waarmee de reistijd in de cache wordt opgezocht én het adres dat naar
- * Google Maps gaat (Distance Matrix, routelink) moeten dus allemaal het
- * uitvoeradres zijn. Zonder uitvoeradres valt alles terug op het hoofdadres.
+ * waarmee de reistijd in de cache wordt opgezocht én het adres dat naar de
+ * Distance Matrix gaat moeten dus allemaal het uitvoeradres zijn. Zonder
+ * uitvoeradres valt alles terug op het hoofdadres. De routelink van de
+ * veld-rol staat in materiaal-delta-route.test.ts.
  */
 describe("getDagkaart — uitvoeradres van de klant", () => {
   const DATUM = "2026-07-21";
@@ -718,14 +718,5 @@ describe("getDagkaart — uitvoeradres van de klant", () => {
     const { ctx, teamId } = wereld({});
     const { ontbrekend } = await parenHandler(ctx, { teamId, datum: DATUM });
     expect(ontbrekend.map((p) => p.naarAdres)).toEqual([HOOFD_REGEL, LOODS]);
-  });
-
-  it("bouwt de routelink van de stop op het uitvoeradres", async () => {
-    const { ctx, teamId } = wereld({ uitvoerAdres: UITVOER });
-    const kaart = await kaartHandler(ctx, { teamId, datum: DATUM });
-    const route = googleMapsRouteUrl(kaart.stops[0].adres ?? "");
-    expect(route).toBe(
-      `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(UITVOER_REGEL)}`
-    );
   });
 });
