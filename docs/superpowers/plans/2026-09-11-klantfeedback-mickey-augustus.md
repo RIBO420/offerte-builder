@@ -579,3 +579,88 @@ de portaal-nafix): portaalprofiel vult alle velden voor en valideert als het
 kantoorformulier; `updatePipelineStatus` weigert "gewonnen" (alleen via
 `markGewonnen`); het leaddetail sluit met een melding als de lead verdwijnt.
 Bewust gelaten: reistijdcache eenmalig koud na het uniforme adresformaat.
+
+## Fase 4: aanvraag en foto's van de lead in het klantdossier — Task 15
+
+### Task 15: Lead-aanvraag (tekst + foto's + bron) overnemen in het dossier, met backfill
+
+Feiten (12 sep): `configuratorAanvragen` heeft `fotoIds: Id<"_storage">[]`, `bron`,
+`configuratie` (contact: `onderwerp`, `bericht`, `tuinoppervlak`, `heeftOntwerp`,
+`onderhoudFrequentie`, `reinigingOpties`, `hoeGevonden`; configurators: oppervlakte,
+opmerkingen, gewenste datum e.d.), `klantAdres`, `createdAt`. Bij conversie
+(`promoveerLead` in convex/leadsKlantenHelpers.ts, `koppelKlant`/`maakKlantUitLead` in
+convex/configuratorAanvragen.ts) gaat alleen een tijdlijnregel "Lead … gewonnen" naar
+het dossier. `klantTijdlijn` heeft al `bijlagen: _storage[]` (gerenderd met
+`useFotoUrls` in src/components/tijdlijn/klant-tijdlijn.tsx). `klantBestanden` kent
+verwijzingsrijen zonder eigen storage (`bron: offerte|factuur`) en `verwijder` sloopt
+alleen storage bij `bron: upload|klant`. `getLeadVoorKlant` + `LeadHistorieCard`
+(tab-instellingen.tsx r.810) tonen alleen referentie/bron/aantal foto's.
+
+Ontwerp (kleinste oplossing, geen kopie van storage-bestanden):
+
+1. **Schema (additief):**
+   - `klantTijdlijn.bronLeadId: v.optional(v.id("configuratorAanvragen"))` + index
+     `by_bron_lead` op `["bronLeadId"]` (idempotentiesleutel).
+   - `klantBestanden.bron` krijgt literal `"lead"`; `klantBestanden.leadId:
+     v.optional(v.id("configuratorAanvragen"))`.
+   - `tijdlijnEventTypeValidator` (convex/validators.ts) krijgt literal
+     `"lead_aanvraag"`.
+2. **Pure tekstopbouw** `convex/lib/leadAanvraagTekst.ts` (+ test): `aanvraagTekst(lead)`
+   → meerregelige Nederlandse samenvatting: kop "Aanvraag via {bron-label}" (labels
+   uit de bestaande `BRON_LABELS`/leadsKlantenHelpers), daarna per type de velden die
+   gevuld zijn (contact: onderwerp, bericht, tuinoppervlak, ontwerp, frequentie,
+   reinigingsopties, "gevonden via"; configurators: oppervlakte, opmerkingen, gewenste
+   datum, indicatieprijs), adres van de aanvraag en "N foto's bijgevoegd". Lege velden
+   overslaan. Max ±2000 tekens (bericht afkappen met "…").
+3. **Overname-helper** in convex/leadsKlantenHelpers.ts, in twee stappen zodat de
+   migratie een echte dry run kan doen:
+   - `bepaalAanvraagOvername(ctx, lead, klantId)` (alleen lezen) → `{ eventNodig:
+     boolean, ontbrekendeFotoIds: Id<"_storage">[] }`: event ontbreekt als er geen
+     `klantTijdlijn`-rij met `bronLeadId === lead._id` is (via `by_bron_lead`); foto's
+     ontbreken als er voor `klantId` geen `klantBestanden`-rij met dezelfde
+     `storageId` is (rijen van `by_klant` in geheugen vergelijken).
+   - `voerAanvraagOvernameUit(ctx, lead, klantId, plan, auteur?)` (schrijven):
+     tijdlijn-event via `logTijdlijnEvent` met `eventType: "lead_aanvraag"`, `kanaal:
+     "systeem"`, `timestamp: lead.createdAt` (zodat hij chronologisch bij de intake
+     staat), `tekst: aanvraagTekst(lead)`, `bijlagen: lead.fotoIds`, `bronLeadId`;
+     per ontbrekende foto een `klantBestanden`-rij `{ soort: "foto", bron: "lead",
+     leadId, storageId, titel: "Foto bij aanvraag {referentie}", timestamp:
+     lead.createdAt, orgId: lead.orgId, klantId }`. Nooit `lead` zelf muteren.
+   - `neemAanvraagOverInDossier(ctx, lead, klantId, auteur?)` = beide stappen; wordt
+     aangeroepen in `promoveerLead` (na de koppeling, vóór het bestaande
+     `lead_gewonnen`-event) én in `koppelKlant`/`maakKlantUitLead` (patroon: één
+     aanroep per conversiepad; de helper is idempotent, dubbel aanroepen is veilig).
+     Guard: `klant.orgId === lead.orgId`, anders niets doen en `console.warn`.
+4. **Opruimen:** `klantBestanden.verwijder` laat `bron: "lead"` zonder storage-delete
+   (verwijzing; commentaar + test). GDPR-hardverwijdering van een lead
+   (`configuratorAanvragen.verwijder`, ±r.1218) verwijdert óók de `klantBestanden`-
+   rijen met dat `leadId` en de `klantTijdlijn`-events met dat `bronLeadId` (de
+   foto's zijn dan weg). Archiveren van een lead verandert niets in het dossier.
+5. **UI:** `src/components/tijdlijn/klant-tijdlijn.tsx`: label/icoon voor
+   `lead_aanvraag` ("Aanvraag via website", icoon `Inbox` of `Globe`), tekst
+   meerregelig tonen (`whitespace-pre-line`), bijlagen tonen zoals nu. Bestanden-tab
+   (`bestanden-tab.tsx` ±r.414): `bron === "lead"` → icoon `Inbox`, badge "Aanvraag";
+   verwijderen van zo'n rij haalt alleen de verwijzing weg (bestaande tekst). Tab
+   Actueel: "Laatste contact" pakt automatisch het nieuwste event; niets extra.
+   `LeadHistorieCard`: regel "De aanvraagtekst en foto's staan in Tijdlijn en
+   Bestanden." (geen dubbele weergave).
+6. **Backfill** `convex/migrations/leadAanvraagNaarDossier.ts` op het `_batch.ts`-
+   sjabloon: alle `configuratorAanvragen` met `gekoppeldKlantId` (ongeacht status of
+   archief), per lead: klant bestaat en `klant.orgId === lead.orgId`, anders
+   overslaan met reden (`klant_weg`, `andere_org`); `bepaalAanvraagOvername` →
+   rapport telt `leads`, `gekoppeld`, `eventsToegevoegd`, `fotosToegevoegd`,
+   `alAanwezig`, `overgeslagen` + max 50 voorbeelden (id + referentie); bij
+   `dryRun: false` `voerAanvraagOvernameUit` zonder auteur (auteurNaam "Systeem").
+   Idempotent: tweede run voegt niets toe. `verifieer`-query: aantal gekoppelde leads
+   zonder `lead_aanvraag`-event. Headers met de `npx convex run`-volgorde.
+7. **Tests:** `leadAanvraagTekst` (per type, lege velden, afkappen), overname-helper
+   (event + bestanden aangemaakt met juiste timestamp/bijlagen; idempotent; andere org
+   → niets), `promoveerLead`/`koppelKlant`/`maakKlantUitLead` roepen de overname aan,
+   `verwijder` ruimt op, `klantBestanden.verwijder` laat storage staan bij `lead`,
+   migratie dryRun schrijft niets en telt correct, tijdlijn-label rendert.
+
+Bestanden: convex/schema.ts, convex/validators.ts, convex/lib/leadAanvraagTekst.ts,
+convex/leadsKlantenHelpers.ts, convex/configuratorAanvragen.ts, convex/klantBestanden.ts,
+convex/migrations/leadAanvraagNaarDossier.ts, src/components/tijdlijn/klant-tijdlijn.tsx,
+src/components/klanten/dossier/bestanden-tab.tsx, src/components/leads/lead-historie-card.tsx,
+tests onder src/__tests__/.
