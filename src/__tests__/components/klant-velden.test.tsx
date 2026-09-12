@@ -13,8 +13,9 @@
  * 3. De uitklapknop van het uitvoeradres is bedienbaar met een screenreader:
  *    `aria-expanded` zegt of het blok open staat en `aria-describedby` wijst
  *    naar de toelichting die vertelt waar het blok voor is.
- * 4. Dichtklappen is de manier om een uitvoeradres te wissen — en dat levert
- *    de wispayload van `klanten.update` op, niet `undefined`.
+ * 4. Dichtklappen is de manier om een uitvoeradres te wissen: de component
+ *    meldt dat via `onOpenChange`. Wat die dichtgeklapte staat aan
+ *    `klanten.update` oplevert staat in klant-formulier-logica.test.ts.
  */
 import { describe, it, expect, vi, beforeAll } from "vitest";
 import { render, screen } from "@testing-library/react";
@@ -44,7 +45,6 @@ vi.mock("convex/react", () => ({
 import { NaamVelden } from "@/components/klanten/velden/naam-velden";
 import { TelefoonVelden } from "@/components/klanten/velden/telefoon-velden";
 import { UitvoeradresVelden } from "@/components/klanten/velden/uitvoeradres-velden";
-import { uitvoerAdresPayload } from "@/components/klanten/velden/klant-formulier-logica";
 
 const NAMEN = { naam: "De Groene Tuin B.V.", voornaam: "Jan", achternaam: "Jansen" };
 const ADRES = { adres: "Kerkstraat 12", postcode: "6411 CA", plaats: "Heerlen" };
@@ -309,35 +309,5 @@ describe("UitvoeradresVelden", () => {
       "aria-invalid",
       "true"
     );
-  });
-
-  it("levert dichtklappen de wispayload van klanten.update op", async () => {
-    const gebruiker = userEvent.setup();
-    let open = true;
-    const onOpenChange = vi.fn((volgende: boolean) => {
-      open = volgende;
-    });
-    render(
-      <UitvoeradresVelden
-        open
-        onOpenChange={onOpenChange}
-        waarden={ADRES}
-        onChange={() => {}}
-        idPrefix="t"
-      />
-    );
-
-    await gebruiker.click(
-      screen.getByRole("button", { name: /Afwijkend uitvoeradres/ })
-    );
-
-    // Drie lege velden, niet `undefined`: dat laatste laat het opgeslagen
-    // uitvoeradres juist staan.
-    expect(open).toBe(false);
-    expect(uitvoerAdresPayload(open, ADRES, "bijwerken")).toEqual({
-      adres: "",
-      postcode: "",
-      plaats: "",
-    });
   });
 });
