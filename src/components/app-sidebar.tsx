@@ -148,13 +148,29 @@ const projectSubItems = [
 ];
 void projectSubItems;
 
-// Actieve staat in merkgroen ("Vakwerk in het groen"): tekst en icoon in
-// primary op een lichte primary-tint, met een 2px "grasrand" links als
-// inset-shadow — die schuift niet met de layout en blijft ook in de
-// ingeklapte 32px-knop zichtbaar. `relative` staat hier zodat de MenuTeller
-// zijn stip op de knop kan positioneren (zie MenuTeller-docstring).
+// Actieve staat volgens de signature-icoontegel (DESIGN.md "Icoontegels"):
+// het icoon van het actieve item zit in een zachte loofgroene tegel, het
+// label staat in inkt (niet in groen) op een rustige sidebar-accent-vlak.
+// Geen gekleurde rand links — die leest als generiek, de tegel is van ons.
+// `group/nav` laat de tegel op de actieve staat van de knop reageren;
+// `relative` is er voor de MenuTeller-stip (zie MenuTeller-docstring).
+// p-1 i.p.v. p-2: de 24px-tegel past dan precies in de 32px-rij, ook
+// ingeklapt (dan is de tegel het hele beeld).
 const menuKnopKlasse =
-  "relative data-[active=true]:bg-primary/10 data-[active=true]:text-primary data-[active=true]:hover:bg-primary/15 data-[active=true]:hover:text-primary data-[active=true]:shadow-[inset_2px_0_0_0_var(--primary)]";
+  "group/nav relative p-1 pr-2 gap-2 group-data-[collapsible=icon]:p-1! " +
+  "data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground " +
+  "data-[active=true]:hover:bg-sidebar-accent data-[active=true]:font-medium";
+
+/**
+ * Icoontegel van een menu-item: 24px, radius 7. In rust transparant; bij het
+ * actieve item krijgt hij de zachte zonetint met het icoon in merkgroen.
+ * Bewust een <div>, geen <span>: de sidebar-knop vervaagt bij inklappen zijn
+ * eerste span (het label) — een span-tegel zou dan mee verdwijnen.
+ */
+const navTegelKlasse =
+  "flex size-6 shrink-0 items-center justify-center rounded-[7px] transition-colors duration-150 " +
+  "[&>svg]:size-4 [&>svg]:shrink-0 " +
+  "group-data-[active=true]/nav:bg-surface-primair group-data-[active=true]/nav:text-primary";
 
 
 /**
@@ -406,7 +422,11 @@ export function AppSidebar() {
                       className={menuKnopKlasse}
                     >
                       <Link href={item.url}>
-                        <item.icon />
+                        <span className={navTegelKlasse}>
+                          <div className={navTegelKlasse}>
+                            <item.icon />
+                          </div>
+                        </span>
                         <span>{item.title}</span>
                         {toonTeller && (
                           <MenuTeller
@@ -440,7 +460,9 @@ export function AppSidebar() {
                         className={menuKnopKlasse}
                       >
                         <Link href={item.url}>
-                          <item.icon />
+                          <div className={navTegelKlasse}>
+                            <item.icon />
+                          </div>
                           <span>{item.title}</span>
                         </Link>
                       </SidebarMenuButton>
