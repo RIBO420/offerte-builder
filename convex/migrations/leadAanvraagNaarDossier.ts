@@ -21,6 +21,8 @@
  *   2. Rapport lezen: `eventsToegevoegd`/`fotosToegevoegd` zijn wat er zou
  *      gebeuren; `overgeslagen` + voorbeelden zijn de gevallen om na te lopen.
  *   3. npx convex run migrations/leadAanvraagNaarDossier:start '{"dryRun":false}'
+ *      Tekst van bestaande events herschrijven na een opmaakwijziging:
+ *      '{"dryRun":false,"vernieuwTekst":true}' (dry run: idem met dryRun true).
  *      → 100 leads per aanroep; herhalen met de teruggegeven `continueCursor`
  *      als '{"dryRun":false,"cursor":"…"}' tot `isDone` true is.
  *   4. npx convex run migrations/leadAanvraagNaarDossier:verifieerAanvraagOvername
@@ -36,22 +38,27 @@ import {
   voerAanvraagOvernameUit,
 } from "../leadsKlantenHelpers";
 import { leesAlleOfBatch, verzamelVoorbeelden } from "./_batch";
+import { aanvraagTekst } from "../lib/leadAanvraagTekst";
 
 type OverslaanReden = "klant_weg" | "andere_org";
 
 type Voorbeeld = {
   leadId: Id<"configuratorAanvragen">;
   referentie: string;
-  actie: "event" | "fotos" | "event+fotos" | OverslaanReden;
+  actie: "event" | "fotos" | "event+fotos" | "tekst" | OverslaanReden;
 };
 
 export const start = internalMutation({
   args: {
     dryRun: v.optional(v.boolean()),
     cursor: v.optional(v.union(v.string(), v.null())),
+    // Herschrijf de tekst van al aanwezige aanvraag-events met de huidige
+    // aanvraagTekst (bijv. na een opmaakwijziging). Raakt alleen `tekst`.
+    vernieuwTekst: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const dryRun = args.dryRun ?? true;
+    const vernieuwTekst = args.vernieuwTekst ?? false;
     const lezing = await leesAlleOfBatch(ctx, "configuratorAanvragen", {
       dryRun,
       cursor: args.cursor,
@@ -61,6 +68,7 @@ export const start = internalMutation({
     let eventsToegevoegd = 0;
     let fotosToegevoegd = 0;
     let alAanwezig = 0;
+    let tekstVernieuwd = 0;
     const overgeslagen: Record<OverslaanReden, number> = {
       klant_weg: 0,
       andere_org: 0,
@@ -89,6 +97,18 @@ export const start = internalMutation({
       const fotos = plan.ontbrekendeFotoIds.length;
       if (!plan.eventNodig && fotos === 0) {
         alAanwezig++;
+        if (vernieuwTekst) {
+          const event = await ctx.db
+            .query("klantTijdlijn")
+            .withIndex("by_bron_lead", (q) => q.eq("bronLeadId", lead._id))
+            .first();
+          const nieuweTekst = aanvraagTekst(lead);
+          if (event && event.tekst !== nieuweTekst) {
+            tekstVernieuwd++;
+            voorbeelden.voegToe({ leadId: lead._id, referentie: lead.referentie, actie: "tekst" });
+            if (!dryRun) await ctx.db.patch(event._id, { tekst: nieuweTekst });
+          }
+        }
         continue;
       }
 
@@ -108,7 +128,8 @@ export const start = internalMutation({
     console.log(
       `[leadAanvraagNaarDossier] ${dryRun ? "DRY RUN" : "UITGEVOERD"}: ` +
         `${lezing.documenten.length} leads bekeken, ${gekoppeld} gekoppeld, ` +
-        `${eventsToegevoegd} events, ${fotosToegevoegd} foto's, ${alAanwezig} al aanwezig`
+        `${eventsToegevoegd} events, ${fotosToegevoegd} foto's, ${alAanwezig} al aanwezig` +
+        (vernieuwTekst ? `, ${tekstVernieuwd} teksten vernieuwd` : "")
     );
 
     return {
@@ -118,6 +139,7 @@ export const start = internalMutation({
       eventsToegevoegd,
       fotosToegevoegd,
       alAanwezig,
+      tekstVernieuwd,
       overgeslagen,
       voorbeelden: voorbeelden.lijst,
       isDone: lezing.isDone,

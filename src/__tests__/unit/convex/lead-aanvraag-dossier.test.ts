@@ -129,7 +129,6 @@ describe("aanvraag overnemen bij conversie", () => {
     expect(aanvraag?.bijlagen).toEqual([FOTO_A, FOTO_B]);
     expect(aanvraag?.tekst).toContain("Aanvraag via website contactformulier (AV-2026-0042)");
     expect(aanvraag?.tekst).toContain("Bericht: Graag een offerte voor het onderhoud.");
-    expect(aanvraag?.tekst).toContain("2 foto's bijgevoegd");
 
     const fotos = bestandenVan(store, resultaat.klantId);
     expect(fotos).toHaveLength(2);
@@ -253,11 +252,15 @@ describe("migratie leadAanvraagNaarDossier", () => {
     eventsToegevoegd: number;
     fotosToegevoegd: number;
     alAanwezig: number;
+    tekstVernieuwd: number;
     overgeslagen: { klant_weg: number; andere_org: number };
     voorbeelden: Array<{ referentie: string; actie: string }>;
     isDone: boolean;
   };
-  const startH = handlerVan<{ dryRun?: boolean; cursor?: string | null }, Rapport>(migratieStart);
+  const startH = handlerVan<
+    { dryRun?: boolean; cursor?: string | null; vernieuwTekst?: boolean },
+    Rapport
+  >(migratieStart);
   const verifieerH = handlerVan<Record<string, never>, { gekoppeld: number; zonderEvent: number }>(
     verifieerAanvraagOvername
   );
@@ -323,5 +326,27 @@ describe("migratie leadAanvraagNaarDossier", () => {
     const controle = await verifieerH(ctx, {});
     // L-5 (andere org) blijft bewust zonder event; L-4 telt als klantWeg.
     expect(controle).toMatchObject({ gekoppeld: 4, zonderEvent: 1 });
+  });
+
+  it("vernieuwTekst herschrijft alleen de tekst van verouderde events, en niets bij een tweede run", async () => {
+    const { store, ctx, klantA } = seedScenario();
+    await startH(ctx, { dryRun: false });
+    const event = eventsVan(store, klantA).find((e) => e.eventType === "lead_aanvraag")!;
+    const eventId = String(event._id);
+    const verse = event.tekst;
+    store.patch(eventId, { tekst: "Aanvraag via website contactformulier (L-1)\nOude opmaak" });
+
+    const droog = await startH(ctx, { dryRun: true, vernieuwTekst: true });
+    expect(droog).toMatchObject({ tekstVernieuwd: 1, alAanwezig: 2, eventsToegevoegd: 0 });
+    const lees = () => store.get(eventId) as unknown as Doc<"klantTijdlijn"> | undefined;
+    expect(lees()?.tekst).toContain("Oude opmaak");
+
+    const echt = await startH(ctx, { dryRun: false, vernieuwTekst: true });
+    expect(echt).toMatchObject({ tekstVernieuwd: 1 });
+    expect(lees()?.tekst).toBe(verse);
+    expect(lees()?.bijlagen).toHaveLength(2);
+
+    const nogmaals = await startH(ctx, { dryRun: false, vernieuwTekst: true });
+    expect(nogmaals).toMatchObject({ tekstVernieuwd: 0 });
   });
 });

@@ -70,7 +70,16 @@ function euro(bedrag: number): string {
 }
 
 function aanvraagAdres(lead: LeadVoorAanvraagTekst): string | null {
-  const straat = [tekst(lead.klantAdres), tekst(lead.klantHuisnummer)]
+  const adres = tekst(lead.klantAdres);
+  const huisnummer = tekst(lead.klantHuisnummer);
+  // Het websiteformulier levert het huisnummer soms al in het adresveld mee
+  // ("Prins Bernhardstraat 64" + huisnummer "64"): dan niet nog eens plakken.
+  const straat = [
+    adres,
+    huisnummer && !(adres && adres.toLowerCase().endsWith(` ${huisnummer.toLowerCase()}`))
+      ? huisnummer
+      : null,
+  ]
     .filter(Boolean)
     .join(" ");
   const plaats = [tekst(lead.klantPostcode), tekst(lead.klantPlaats)]
@@ -86,7 +95,6 @@ function specificatieRegels(lead: LeadVoorAanvraagTekst): string[] {
     case "contact":
       return [
         regel("Onderwerp", s.onderwerp),
-        regel("Bericht", s.bericht),
         regel("Tuinoppervlak", s.tuinoppervlak),
         regel("Ontwerp aanwezig", s.heeftOntwerp),
         regel("Onderhoudsfrequentie", s.onderhoudFrequentie),
@@ -118,7 +126,6 @@ function specificatieRegels(lead: LeadVoorAanvraagTekst): string[] {
         regel("Benodigd", s.m3Nodig != null ? `${s.m3Nodig} m³` : null),
         s.bezorging != null ? `Bezorging: ${JA_NEE(s.bezorging)}` : null,
         regel("Leverdatum", s.leveringsDatum),
-        regel("Opmerkingen", s.opmerkingen),
       ].filter((r): r is string => r !== null);
     case "verticuteren":
       return [
@@ -128,11 +135,43 @@ function specificatieRegels(lead: LeadVoorAanvraagTekst): string[] {
         s.topdressing != null ? `Topdressing: ${JA_NEE(s.topdressing)}` : null,
         s.bemesting != null ? `Bemesting: ${JA_NEE(s.bemesting)}` : null,
         regel("Gewenste datum", s.gewensteDatum),
-        regel("Opmerkingen", s.opmerkingen),
       ].filter((r): r is string => r !== null);
     default:
       return [];
   }
+}
+
+/** Label + inhoud van de vrije tekst van de aanvraag (bericht of opmerkingen). */
+export const VRIJE_TEKST_LABELS = ["Bericht", "Opmerkingen"] as const;
+
+function vrijeTekst(
+  lead: LeadVoorAanvraagTekst
+): { label: (typeof VRIJE_TEKST_LABELS)[number]; inhoud: string } | null {
+  const s = lead.specificaties ?? {};
+  const bericht = tekst(s.bericht);
+  if (bericht) return { label: "Bericht", inhoud: bericht };
+  const opmerkingen = tekst(s.opmerkingen);
+  if (opmerkingen) return { label: "Opmerkingen", inhoud: opmerkingen };
+  return null;
+}
+
+/**
+ * De lead-omschrijving is bij websiteleads afgeleid van het bericht
+ * ("[Tuinonderhoud] Beste, …"). Dan is hij dubbel en blijft hij weg; alleen
+ * een omschrijving die iets anders zegt dan de vrije tekst wordt getoond.
+ */
+function eigenOmschrijving(
+  lead: LeadVoorAanvraagTekst,
+  vrij: { inhoud: string } | null
+): string | null {
+  const omschrijving = tekst(lead.omschrijving);
+  if (!omschrijving) return null;
+  if (!vrij) return omschrijving;
+  const kaal = (t: string) => t.replace(/^\[[^\]]*\]\s*/, "").trim().toLowerCase();
+  const a = kaal(omschrijving);
+  const b = kaal(vrij.inhoud);
+  if (a.length === 0 || a.includes(b) || b.includes(a)) return null;
+  return omschrijving;
 }
 
 /**
@@ -146,7 +185,8 @@ export function aanvraagTekst(lead: LeadVoorAanvraagTekst): string {
     : `Aanvraag ${lead.referentie}`;
 
   const regels: string[] = [kop];
-  const omschrijving = tekst(lead.omschrijving);
+  const vrij = vrijeTekst(lead);
+  const omschrijving = eigenOmschrijving(lead, vrij);
   if (omschrijving) regels.push(omschrijving);
   regels.push(...specificatieRegels(lead));
 
@@ -157,12 +197,65 @@ export function aanvraagTekst(lead: LeadVoorAanvraagTekst): string {
     regels.push(`Indicatieprijs: ${euro(lead.indicatiePrijs)}`);
   }
 
-  const aantalFotos = lead.fotoIds?.length ?? 0;
-  if (aantalFotos > 0) {
-    regels.push(`${aantalFotos} foto${aantalFotos === 1 ? "" : "'s"} bijgevoegd`);
-  }
+  // De vrije tekst staat als laatste: alles ná "Bericht:" hoort bij het
+  // bericht, ook regels met een dubbele punt erin (parseAanvraagTekst).
+  // Foto's staan niet in de tekst; die reizen als bijlagen op het event.
+  if (vrij) regels.push(`${vrij.label}: ${vrij.inhoud}`);
 
   const volledig = regels.join("\n");
   if (volledig.length <= AANVRAAG_TEKST_MAX) return volledig;
   return `${volledig.slice(0, AANVRAAG_TEKST_MAX - 1).trimEnd()}…`;
+}
+
+export type AanvraagOnderdelen = {
+  /** Eerste regel: "Aanvraag via … (referentie)". */
+  kop: string;
+  /** Vrije tekst van de klant (bericht/opmerkingen), zonder label. */
+  bericht: string | null;
+  /** "Label: waarde"-regels in volgorde van de tekst. */
+  kenmerken: { label: string; waarde: string }[];
+  /** Regels zonder label vóór het bericht (bijv. een eigen omschrijving). */
+  overig: string[];
+};
+
+const KENMERK_REGEL = /^([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ ]{1,30}): (.+)$/;
+
+/**
+ * Splitst een opgeslagen aanvraagtekst weer in onderdelen zodat de tijdlijn
+ * hem gestructureerd kan tonen. Verwacht de vorm van aanvraagTekst (bericht
+ * als laatste); oudere events worden met de migratie `vernieuwTekst`
+ * herschreven naar deze vorm.
+ */
+export function parseAanvraagTekst(tekstInhoud: string): AanvraagOnderdelen {
+  const regels = tekstInhoud.split("\n");
+  const kop = regels[0]?.trim() ?? "";
+  const kenmerken: AanvraagOnderdelen["kenmerken"] = [];
+  const overig: string[] = [];
+  let bericht: string[] | null = null;
+  for (const rauw of regels.slice(1)) {
+    const r = rauw.trimEnd();
+    if (bericht) {
+      // Alles ná "Bericht:" is bericht — ook regels met een dubbele punt.
+      bericht.push(r);
+      continue;
+    }
+    if (r.trim().length === 0) continue;
+    const m = KENMERK_REGEL.exec(r);
+    if (m && (VRIJE_TEKST_LABELS as readonly string[]).includes(m[1])) {
+      bericht = [m[2]];
+      continue;
+    }
+    if (m) {
+      kenmerken.push({ label: m[1], waarde: m[2] });
+      continue;
+    }
+    if (/^\d+ foto('s)? bijgevoegd$/.test(r.trim())) continue;
+    overig.push(r.trim());
+  }
+  return {
+    kop,
+    bericht: bericht ? bericht.join("\n").trim() || null : null,
+    kenmerken,
+    overig,
+  };
 }

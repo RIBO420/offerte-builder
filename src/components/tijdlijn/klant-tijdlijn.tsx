@@ -21,6 +21,7 @@ import { Fragment, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
+import { parseAanvraagTekst } from "../../../convex/lib/leadAanvraagTekst";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useFotoUpload, useFotoUrls } from "@/hooks/use-foto-upload";
 import { isKantoorRol } from "@/lib/rollen";
@@ -228,6 +229,66 @@ function formatOpnameDuur(seconden: number): string {
  * Eigen component omdat `useFotoUrls` een hook is: die mag niet in de `.map()`
  * van de lijst staan.
  */
+/** Vanaf hoeveel tekens het bericht van een aanvraag standaard ingeklapt staat. */
+const AANVRAAG_BERICHT_INKLAP = 280;
+
+/**
+ * De overgenomen lead-aanvraag als gestructureerde tegel: kopregel, kenmerken
+ * als compacte lijst, het bericht als citaat dat bij lange teksten ingeklapt
+ * begint. De tekst zelf blijft één opgeslagen string (zie aanvraagTekst).
+ */
+function AanvraagInhoud({ tekst }: { tekst: string }) {
+  const [uitgeklapt, setUitgeklapt] = useState(false);
+  const delen = useMemo(() => parseAanvraagTekst(tekst), [tekst]);
+  const lang =
+    delen.bericht !== null &&
+    (delen.bericht.length > AANVRAAG_BERICHT_INKLAP || delen.bericht.split("\n").length > 4);
+  return (
+    <div className="min-w-0 space-y-1.5">
+      <p className="text-sm font-medium leading-snug break-words [overflow-wrap:anywhere]">
+        {delen.kop}
+      </p>
+      {delen.overig.map((regel, i) => (
+        <p key={i} className="text-sm leading-snug break-words [overflow-wrap:anywhere]">
+          {regel}
+        </p>
+      ))}
+      {delen.kenmerken.length > 0 && (
+        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-xs leading-snug">
+          {delen.kenmerken.map((k) => (
+            <Fragment key={k.label}>
+              <dt className="text-muted-foreground">{k.label}</dt>
+              <dd className="min-w-0 break-words [overflow-wrap:anywhere]">{k.waarde}</dd>
+            </Fragment>
+          ))}
+        </dl>
+      )}
+      {delen.bericht && (
+        <div className="border-l-2 border-border pl-2.5">
+          <p
+            className={cn(
+              "whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-sm leading-snug",
+              lang && !uitgeklapt && "line-clamp-4"
+            )}
+          >
+            {delen.bericht}
+          </p>
+          {lang && (
+            <button
+              type="button"
+              onClick={() => setUitgeklapt((v) => !v)}
+              aria-expanded={uitgeklapt}
+              className="mt-0.5 text-xs font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+            >
+              {uitgeklapt ? "Minder tonen" : "Meer tonen"}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function EntryBijlagen({ bijlagen }: { bijlagen: Id<"_storage">[] }) {
   const { urls } = useFotoUrls(bijlagen);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
@@ -348,14 +409,18 @@ function TijdlijnEntryRij({
         <span aria-hidden className={cn("w-px flex-1", !isLaatste && RAIL)} />
       </span>
       <div className="min-w-0">
-        <p
-          className={cn(
-            "whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-sm leading-snug",
-            isSysteem && !isAanvraag && "text-muted-foreground"
-          )}
-        >
-          {entry.tekst}
-        </p>
+        {isAanvraag ? (
+          <AanvraagInhoud tekst={entry.tekst} />
+        ) : (
+          <p
+            className={cn(
+              "whitespace-pre-wrap break-words [overflow-wrap:anywhere] text-sm leading-snug",
+              isSysteem && "text-muted-foreground"
+            )}
+          >
+            {entry.tekst}
+          </p>
+        )}
         <p className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 text-[11px] leading-tight text-muted-foreground">
           <span className="font-medium text-foreground/80">
             {entry.auteurNaam}
