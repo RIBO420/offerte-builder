@@ -422,11 +422,9 @@ export function AppSidebar() {
                       className={menuKnopKlasse}
                     >
                       <Link href={item.url}>
-                        <span className={navTegelKlasse}>
-                          <div className={navTegelKlasse}>
-                            <item.icon />
-                          </div>
-                        </span>
+                        <div className={navTegelKlasse}>
+                          <item.icon />
+                        </div>
                         <span>{item.title}</span>
                         {toonTeller && (
                           <MenuTeller
