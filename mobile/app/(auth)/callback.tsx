@@ -6,18 +6,16 @@
  * leidt de gebruiker door naar de biometric setup of het dashboard.
  */
 
-import { useEffect, useState, useRef, useCallback } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ActivityIndicator,
-  TouchableOpacity,
-} from 'react-native';
+import { useEffect, useState, useRef, useCallback, type ReactNode } from 'react';
+import { View, Text, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useSignIn, useSignUp, useAuth } from '@clerk/clerk-expo';
 import { CheckCircle, AlertCircle, ArrowLeft } from 'lucide-react-native';
 import { isAuthConfigured } from '../../lib/env';
+import { tekst, useColors } from '../../theme';
+import { Button } from '../../components/ui';
+import { IcoonTegel, Melding } from '../../components/werk/Bouwstenen';
 
 type CallbackStatus = 'verifying' | 'success' | 'error';
 
@@ -26,6 +24,7 @@ const AUTH_CONFIGURED = isAuthConfigured();
 
 export default function CallbackScreen() {
   const router = useRouter();
+  const kleuren = useColors();
   const [status, setStatus] = useState<CallbackStatus>('verifying');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -175,122 +174,64 @@ export default function CallbackScreen() {
   // Verifying state
   if (status === 'verifying') {
     return (
-      <View style={styles.container}>
-        <View style={styles.content}>
-          <ActivityIndicator size="large" color="#4ADE80" />
-          <Text style={styles.statusText}>Even geduld...</Text>
-          <Text style={styles.hintText}>
-            We controleren je inloglink. Dit duurt maar even.
-          </Text>
-        </View>
-      </View>
+      <Vlak>
+        <ActivityIndicator size="large" color={kleuren.primary} />
+        <Text accessibilityRole="header" style={[tekst.titel3, { color: kleuren.foreground, textAlign: 'center', marginTop: 8 }]}>
+          Even geduld…
+        </Text>
+        <Text style={[tekst.callout, { color: kleuren.mutedForeground, textAlign: 'center' }]}>
+          We controleren je inloglink. Dit duurt maar even.
+        </Text>
+      </Vlak>
     );
   }
 
   // Success state
   if (status === 'success') {
     return (
-      <View style={styles.container}>
-        <View style={styles.content}>
-          <View style={styles.successIcon}>
-            <CheckCircle size={64} color="#4ADE80" />
-          </View>
-          <Text style={styles.successText}>Ingelogd!</Text>
-          <Text style={styles.hintText}>
-            Je wordt doorgestuurd...
-          </Text>
-        </View>
-      </View>
+      <Vlak>
+        <IcoonTegel icoon={CheckCircle} toon="succes" grootte={80} />
+        <Text accessibilityRole="header" style={[tekst.titel1, { color: kleuren.foreground, textAlign: 'center', marginTop: 8 }]}>
+          Ingelogd
+        </Text>
+        <Text style={[tekst.callout, { color: kleuren.mutedForeground, textAlign: 'center' }]}>
+          Je wordt doorgestuurd…
+        </Text>
+      </Vlak>
     );
   }
 
   // Error state
   return (
-    <View style={styles.container}>
-      <View style={styles.content}>
-        <View style={styles.errorIcon}>
-          <AlertCircle size={64} color="#EF4444" />
-        </View>
-        <Text style={styles.errorText}>Verificatie mislukt</Text>
-        <Text style={styles.errorMessage}>
-          {errorMessage || 'Er ging iets mis bij de verificatie.'}
-        </Text>
-
-        <View style={styles.actions}>
-          <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
-            <ArrowLeft size={20} color="#4ADE80" />
-            <Text style={styles.retryButtonText}>
-              Terug naar inloggen
-            </Text>
-          </TouchableOpacity>
-        </View>
+    <Vlak>
+      <IcoonTegel icoon={AlertCircle} toon="gemist" grootte={80} />
+      <Text accessibilityRole="header" style={[tekst.titel1, { color: kleuren.foreground, textAlign: 'center', marginTop: 8 }]}>
+        Verificatie mislukt
+      </Text>
+      <View style={{ alignSelf: 'stretch', gap: 16, marginTop: 8 }}>
+        <Melding tekst={errorMessage || 'Er ging iets mis bij de verificatie.'} toon="gemist" />
+        <Button
+          title="Terug naar inloggen"
+          size="lg"
+          fullWidth
+          icon={<ArrowLeft size={20} color={kleuren.primaryForeground} strokeWidth={2} />}
+          onPress={handleRetry}
+        />
       </View>
-    </View>
+    </Vlak>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0A0A0A',
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  statusText: {
-    marginTop: 24,
-    fontSize: 13,
-    fontWeight: '400',
-    color: '#888',
-  },
-  hintText: {
-    marginTop: 8,
-    fontSize: 13,
-    color: '#888',
-    textAlign: 'center',
-  },
-  successIcon: {
-    marginBottom: 16,
-  },
-  successText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#4ADE80',
-  },
-  errorIcon: {
-    marginBottom: 16,
-  },
-  errorText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#EF4444',
-  },
-  errorMessage: {
-    marginTop: 12,
-    fontSize: 13,
-    color: '#888',
-    textAlign: 'center',
-    paddingHorizontal: 16,
-    lineHeight: 20,
-  },
-  actions: {
-    marginTop: 32,
-  },
-  retryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    backgroundColor: '#1A2E1A',
-    borderRadius: 12,
-  },
-  retryButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#4ADE80',
-  },
-});
+/** Gecentreerd statusvlak binnen de veilige marges. */
+function Vlak({ children }: { children: ReactNode }) {
+  const kleuren = useColors();
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: kleuren.background }} edges={['top', 'bottom']}>
+      <View style={{ flex: 1, justifyContent: 'center', paddingHorizontal: 24 }}>
+        <View style={{ width: '100%', maxWidth: 440, alignSelf: 'center', alignItems: 'center', gap: 12 }}>
+          {children}
+        </View>
+      </View>
+    </SafeAreaView>
+  );
+}

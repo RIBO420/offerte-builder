@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
   Alert,
   ActivityIndicator,
-  StyleSheet,
+  ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ShieldCheck, Fingerprint, Zap, Shield, Lock } from 'lucide-react-native';
 import * as LocalAuthentication from 'expo-local-authentication';
@@ -18,12 +18,16 @@ import {
   BiometricType,
 } from '../../lib/auth/biometric';
 import { isAuthConfigured } from '../../lib/env';
+import { tekst, useColors } from '../../theme';
+import { Button } from '../../components/ui';
+import { IcoonTegel, Kaart } from '../../components/werk/Bouwstenen';
 
 // Check auth configuratie buiten component (constant tijdens runtime)
 const AUTH_CONFIGURED = isAuthConfigured();
 
 export default function BiometricSetupScreen() {
   const router = useRouter();
+  const kleuren = useColors();
   const [biometricType, setBiometricType] = useState<BiometricType>(null);
   const [isAvailable, setIsAvailable] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -145,16 +149,16 @@ export default function BiometricSetupScreen() {
     router.replace('/(tabs)');
   };
 
+  const wachten = (tekstje: string) => (
+    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, backgroundColor: kleuren.background }}>
+      <ActivityIndicator size="large" color={kleuren.primary} />
+      <Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>{tekstje}</Text>
+    </View>
+  );
+
   // Loading state
   if (isLoading) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.centerContent}>
-          <ActivityIndicator size="large" color="#4ADE80" />
-          <Text style={styles.loadingText}>Biometrie controleren...</Text>
-        </View>
-      </View>
-    );
+    return wachten('Biometrie controleren…');
   }
 
   // Als biometrie niet beschikbaar is, skip naar dashboard
@@ -164,170 +168,64 @@ export default function BiometricSetupScreen() {
       router.replace('/(tabs)');
     }, 100);
 
-    return (
-      <View style={styles.container}>
-        <View style={styles.centerContent}>
-          <ActivityIndicator size="large" color="#4ADE80" />
-          <Text style={styles.loadingText}>Doorsturen...</Text>
-        </View>
-      </View>
-    );
+    return wachten('Doorsturen…');
   }
 
   const biometricLabel = biometricType === 'face' ? 'Face ID' : 'Touch ID';
   const BiometricIcon = biometricType === 'face' ? ShieldCheck : Fingerprint;
+  const voordelen = [
+    { icoon: Zap, label: 'Direct inloggen in 1 seconde' },
+    { icoon: Shield, label: 'Extra beveiligd met biometrie' },
+    { icoon: Lock, label: 'Geen wachtwoord onthouden' },
+  ];
 
   return (
-    <View style={styles.container}>
-      <View style={styles.centerContent}>
-        {/* Logo */}
-        <Text style={styles.logoText}>TOP TUINEN</Text>
-
-        {/* Icon */}
-        <View style={styles.iconContainer}>
-          <BiometricIcon size={64} color="#4ADE80" />
-        </View>
-
-        {/* Title and description */}
-        <Text style={styles.title}>Sneller Inloggen?</Text>
-        <Text style={styles.subtitle}>
-          Schakel {biometricLabel} in om de volgende keer sneller en veiliger in
-          te loggen op de Top Tuinen app.
-        </Text>
-
-        {/* Benefits */}
-        <View style={styles.benefitsList}>
-          <View style={styles.benefitItem}>
-            <Zap size={18} color="#4ADE80" />
-            <Text style={styles.benefitText}>Direct inloggen in 1 seconde</Text>
-          </View>
-          <View style={styles.benefitItem}>
-            <Shield size={18} color="#4ADE80" />
-            <Text style={styles.benefitText}>Extra beveiligd met biometrie</Text>
-          </View>
-          <View style={styles.benefitItem}>
-            <Lock size={18} color="#4ADE80" />
-            <Text style={styles.benefitText}>Geen wachtwoord onthouden</Text>
-          </View>
-        </View>
-
-        {/* Buttons */}
-        <View style={styles.buttonGroup}>
-          <TouchableOpacity
-            style={[
-              styles.enableButton,
-              isSettingUp && styles.enableButtonDisabled,
-            ]}
-            onPress={handleEnableBiometric}
-            disabled={isSettingUp}
-          >
-            {isSettingUp ? (
-              <ActivityIndicator size="small" color="#4ADE80" style={{ marginRight: 8 }} />
-            ) : (
-              <BiometricIcon size={20} color="#4ADE80" style={{ marginRight: 8 }} />
-            )}
-            <Text style={styles.enableButtonText}>
-              {isSettingUp ? 'Bezig...' : `Activeer ${biometricLabel}`}
+    <SafeAreaView style={{ flex: 1, backgroundColor: kleuren.background }} edges={['top', 'bottom']}>
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 32 }}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={{ width: '100%', maxWidth: 440, alignSelf: 'center', gap: 28 }}>
+          <View style={{ alignItems: 'center', gap: 12 }}>
+            <IcoonTegel icoon={BiometricIcon} toon="primair" grootte={80} />
+            <Text accessibilityRole="header" style={[tekst.titel1, { color: kleuren.foreground, textAlign: 'center', marginTop: 8 }]}>
+              Sneller inloggen?
             </Text>
-          </TouchableOpacity>
+            <Text style={[tekst.callout, { color: kleuren.mutedForeground, textAlign: 'center', maxWidth: 340 }]}>
+              Schakel {biometricLabel} in om de volgende keer sneller en veiliger in te loggen op de Top Tuinen app.
+            </Text>
+          </View>
 
-          <TouchableOpacity
-            style={styles.skipButton}
-            onPress={handleSkip}
-            disabled={isSettingUp}
-          >
-            <Text style={styles.skipText}>Later instellen</Text>
-          </TouchableOpacity>
+          <Kaart style={{ gap: 4 }}>
+            {voordelen.map(({ icoon, label }) => (
+              <View key={label} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 48 }}>
+                <IcoonTegel icoon={icoon} toon="primair" grootte={36} />
+                <Text style={[tekst.body, { color: kleuren.foreground, flex: 1 }]}>{label}</Text>
+              </View>
+            ))}
+          </Kaart>
+
+          <View style={{ gap: 8 }}>
+            <Button
+              title={isSettingUp ? 'Bezig…' : `Activeer ${biometricLabel}`}
+              size="lg"
+              fullWidth
+              loading={isSettingUp}
+              icon={<BiometricIcon size={20} color={kleuren.primaryForeground} strokeWidth={2} />}
+              onPress={handleEnableBiometric}
+              disabled={isSettingUp}
+            />
+            <Button
+              title="Later instellen"
+              variant="ghost"
+              size="lg"
+              fullWidth
+              onPress={handleSkip}
+              disabled={isSettingUp}
+            />
+          </View>
         </View>
-      </View>
-    </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0A0A0A',
-  },
-  centerContent: {
-    flex: 1,
-    paddingHorizontal: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 13,
-    color: '#888',
-  },
-  logoText: {
-    fontSize: 11,
-    textTransform: 'uppercase',
-    letterSpacing: 3,
-    color: '#6B8F6B',
-    fontWeight: '600',
-    marginBottom: 32,
-  },
-  iconContainer: {
-    marginBottom: 24,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: '#E8E8E8',
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  subtitle: {
-    fontSize: 13,
-    color: '#888',
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 32,
-    paddingHorizontal: 16,
-  },
-  benefitsList: {
-    width: '100%',
-    gap: 16,
-    marginBottom: 40,
-  },
-  benefitItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 16,
-  },
-  benefitText: {
-    fontSize: 14,
-    color: '#E8E8E8',
-  },
-  buttonGroup: {
-    width: '100%',
-    gap: 12,
-  },
-  enableButton: {
-    width: '100%',
-    flexDirection: 'row',
-    backgroundColor: '#1A2E1A',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  enableButtonDisabled: {
-    opacity: 0.5,
-  },
-  enableButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#4ADE80',
-  },
-  skipButton: {
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  skipText: {
-    fontSize: 14,
-    color: '#888',
-  },
-});

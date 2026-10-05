@@ -12,13 +12,13 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
   Alert,
   ActivityIndicator,
-  StyleSheet,
+  ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Fingerprint, ShieldCheck, Mail } from 'lucide-react-native';
+import { Fingerprint, Leaf, ShieldCheck, Mail } from 'lucide-react-native';
 import { useAuth, useClerk } from '@clerk/clerk-expo';
 import {
   authenticateWithBiometric,
@@ -27,12 +27,16 @@ import {
   BiometricType,
 } from '../../lib/auth/biometric';
 import { isAuthConfigured } from '../../lib/env';
+import { tekst, useColors } from '../../theme';
+import { Button } from '../../components/ui';
+import { Drukvlak, IcoonTegel } from '../../components/werk/Bouwstenen';
 
 // Check auth configuratie buiten component (constant tijdens runtime)
 const AUTH_CONFIGURED = isAuthConfigured();
 
 export default function BiometricLoginScreen() {
   const router = useRouter();
+  const kleuren = useColors();
   const [biometricType, setBiometricType] = useState<BiometricType>(null);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -167,11 +171,9 @@ export default function BiometricLoginScreen() {
 
   if (isLoading) {
     return (
-      <View style={styles.container}>
-        <View style={styles.centerContent}>
-          <ActivityIndicator size="large" color="#4ADE80" />
-          <Text style={styles.loadingText}>Laden...</Text>
-        </View>
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, backgroundColor: kleuren.background }}>
+        <ActivityIndicator size="large" color={kleuren.primary} />
+        <Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>Laden…</Text>
       </View>
     );
   }
@@ -180,115 +182,56 @@ export default function BiometricLoginScreen() {
   const BiometricIcon = biometricType === 'face' ? ShieldCheck : Fingerprint;
 
   return (
-    <View style={styles.container}>
-      <View style={styles.centerContent}>
-        {/* Logo */}
-        <Text style={styles.logoText}>TOP TUINEN</Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: kleuren.background }} edges={['top', 'bottom']}>
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 32 }}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={{ width: '100%', maxWidth: 440, alignSelf: 'center', gap: 40 }}>
+          {/* Logo-lockup */}
+          <View
+            accessible
+            accessibilityLabel="Top Tuinen"
+            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}
+          >
+            <IcoonTegel icoon={Leaf} toon="primair" grootte={40} />
+            <Text style={[tekst.titel3, { color: kleuren.foreground }]}>Top Tuinen</Text>
+          </View>
 
-        {/* Large centered icon */}
-        <View style={styles.iconContainer}>
-          <BiometricIcon size={64} color="#4ADE80" />
+          <View style={{ alignItems: 'center', gap: 12 }}>
+            <IcoonTegel icoon={BiometricIcon} toon="primair" grootte={80} />
+            <Text accessibilityRole="header" style={[tekst.titel1, { color: kleuren.foreground, textAlign: 'center', marginTop: 8 }]}>
+              Welkom terug
+            </Text>
+            <Text style={[tekst.callout, { color: kleuren.mutedForeground, textAlign: 'center' }]}>
+              Log in met {biometricLabel}.
+            </Text>
+          </View>
+
+          <View style={{ gap: 8, alignItems: 'center' }}>
+            <Button
+              title={isAuthenticating ? 'Verificatie…' : `Gebruik ${biometricLabel}`}
+              size="lg"
+              fullWidth
+              loading={isAuthenticating}
+              icon={<BiometricIcon size={20} color={kleuren.primaryForeground} strokeWidth={2} />}
+              onPress={handleBiometricLogin}
+              disabled={isAuthenticating}
+            />
+
+            {/* Terugval naar e-mail */}
+            <Drukvlak
+              onPress={handleUseEmail}
+              haptic="selection"
+              accessibilityLabel="Inloggen met e-mail"
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44, paddingHorizontal: 12 }}
+            >
+              <Mail size={16} color={kleuren.primary} strokeWidth={2} />
+              <Text style={[tekst.callout, { color: kleuren.primary, fontWeight: '600' }]}>Inloggen met e-mail</Text>
+            </Drukvlak>
+          </View>
         </View>
-
-        {/* Title */}
-        <Text style={styles.title}>{biometricLabel}</Text>
-
-        {/* Subtitle */}
-        <Text style={styles.subtitle}>Gebruik biometrie om in te loggen</Text>
-
-        {/* Biometric button */}
-        <TouchableOpacity
-          style={[
-            styles.biometricButton,
-            isAuthenticating && styles.biometricButtonDisabled,
-          ]}
-          onPress={handleBiometricLogin}
-          disabled={isAuthenticating}
-        >
-          {isAuthenticating ? (
-            <ActivityIndicator size="small" color="#4ADE80" style={{ marginRight: 8 }} />
-          ) : (
-            <BiometricIcon size={20} color="#4ADE80" style={{ marginRight: 8 }} />
-          )}
-          <Text style={styles.biometricButtonText}>
-            {isAuthenticating ? 'Verificatie...' : `Gebruik ${biometricLabel}`}
-          </Text>
-        </TouchableOpacity>
-
-        {/* Skip link */}
-        <TouchableOpacity style={styles.skipButton} onPress={handleUseEmail}>
-          <Mail size={14} color="#6B8F6B" style={{ marginRight: 6 }} />
-          <Text style={styles.skipText}>Gebruik email</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0A0A0A',
-  },
-  centerContent: {
-    flex: 1,
-    paddingHorizontal: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 13,
-    color: '#888',
-  },
-  logoText: {
-    fontSize: 11,
-    textTransform: 'uppercase',
-    letterSpacing: 3,
-    color: '#6B8F6B',
-    fontWeight: '600',
-    marginBottom: 40,
-  },
-  iconContainer: {
-    marginBottom: 24,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: '#E8E8E8',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 13,
-    color: '#888',
-    marginBottom: 40,
-  },
-  biometricButton: {
-    width: '100%',
-    flexDirection: 'row',
-    backgroundColor: '#1A2E1A',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  biometricButtonDisabled: {
-    opacity: 0.5,
-  },
-  biometricButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#4ADE80',
-  },
-  skipButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-  },
-  skipText: {
-    fontSize: 13,
-    color: '#6B8F6B',
-  },
-});

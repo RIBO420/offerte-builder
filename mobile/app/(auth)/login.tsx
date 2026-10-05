@@ -1,23 +1,25 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, type ComponentType, type ReactNode } from 'react';
 import {
   View,
   Text,
   TextInput,
-  TouchableOpacity,
   KeyboardAvoidingView,
+  ScrollView,
   Platform,
   Alert,
   ActivityIndicator,
-  StyleSheet,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { RefreshCw, Zap } from 'lucide-react-native';
+import { Leaf, RefreshCw, Zap } from 'lucide-react-native';
 import { useSignIn, useAuth, useSSO } from '@clerk/clerk-expo';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 import { isAuthConfigured } from '../../lib/env';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors } from '../../theme/colors';
+import { tekst, useColors } from '../../theme';
+import { Button, Input } from '../../components/ui';
+import { Drukvlak, IcoonTegel, Melding } from '../../components/werk/Bouwstenen';
 
 // Complete any pending auth sessions (required for OAuth redirect flow)
 WebBrowser.maybeCompleteAuthSession();
@@ -41,6 +43,8 @@ export default function LoginScreen() {
   const [loginState, setLoginState] = useState<LoginState>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const digitInputRefs = useRef<(TextInput | null)[]>([]);
+  const wachtwoordRef = useRef<TextInput>(null);
+  const kleuren = useColors();
 
   // Altijd hooks aanroepen (React rules of hooks)
   const signInHook = useSignIn();
@@ -324,7 +328,15 @@ export default function LoginScreen() {
 
   // Handle individual digit input for code
   const handleDigitChange = (text: string, index: number) => {
-    const digit = text.replace(/[^0-9]/g, '').slice(-1);
+    const cijfers = text.replace(/[^0-9]/g, '');
+    // Autofill of plakken: iOS zet de hele code in het eerste vakje.
+    if (cijfers.length === 6) {
+      setCode(cijfers);
+      setErrorMessage(null);
+      digitInputRefs.current[5]?.focus();
+      return;
+    }
+    const digit = cijfers.slice(-1);
     const newCode = code.split('');
     newCode[index] = digit;
     const updatedCode = newCode.join('').slice(0, 6);
@@ -346,428 +358,301 @@ export default function LoginScreen() {
     }
   };
 
+  const bezig = loginState === 'sending';
+  const kanVersturen = !!email.trim() && !emailError && !bezig;
+
   // Loading state als Clerk nog niet geladen is
   if (!isLoaded) {
     return (
-      <View style={styles.container}>
-        <View style={styles.centerContent}>
-          <ActivityIndicator size="large" color="#4ADE80" />
-          <Text style={styles.loadingText}>Laden...</Text>
-        </View>
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, backgroundColor: kleuren.background }}>
+        <ActivityIndicator size="large" color={kleuren.primary} />
+        <Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>Laden…</Text>
       </View>
     );
   }
 
   // Code verificatie scherm
   if (loginState === 'code_sent' || loginState === 'verifying') {
+    const verifieren = loginState === 'verifying';
     return (
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.container}
-      >
-        <View style={styles.mainContent}>
-          {/* Top section */}
-          <View style={styles.topSection}>
-            <Text style={styles.logoText}>TOP TUINEN</Text>
-            <Text style={styles.heading}>Check je inbox</Text>
-            <Text style={styles.subtitle}>
-              We hebben een code verstuurd naar:
-            </Text>
-            <Text style={styles.emailDisplay}>{email}</Text>
-          </View>
-
-          {/* Code digit boxes */}
-          <View style={styles.formSection}>
-            <View style={styles.digitRow}>
-              {[0, 1, 2, 3, 4, 5].map((index) => (
-                <TextInput
-                  key={index}
-                  ref={(ref) => { digitInputRefs.current[index] = ref; }}
-                  style={[
-                    styles.digitBox,
-                    code[index] ? styles.digitBoxActive : null,
-                    errorMessage ? styles.digitBoxError : null,
-                  ]}
-                  value={code[index] || ''}
-                  onChangeText={(text) => handleDigitChange(text, index)}
-                  onKeyPress={(e) => handleDigitKeyPress(e, index)}
-                  keyboardType="number-pad"
-                  maxLength={1}
-                  autoFocus={index === 0}
-                  editable={loginState !== 'verifying'}
-                  selectionColor="#4ADE80"
-                />
-              ))}
-            </View>
-
-            {errorMessage && (
-              <Text style={styles.errorText}>{errorMessage}</Text>
-            )}
-
-            <TouchableOpacity
-              style={[
-                styles.submitButton,
-                (code.length < 6 || loginState === 'verifying') && styles.submitButtonDisabled,
-              ]}
-              onPress={handleVerifyCode}
-              disabled={code.length < 6 || loginState === 'verifying'}
-            >
-              {loginState === 'verifying' ? (
-                <ActivityIndicator size="small" color="#4ADE80" style={{ marginRight: 8 }} />
-              ) : null}
-              <Text style={styles.submitButtonText}>
-                {loginState === 'verifying' ? 'Verifieren...' : 'Inloggen'}
-              </Text>
-            </TouchableOpacity>
-
-            <View style={styles.codeActions}>
-              <TouchableOpacity
-                style={styles.resendButton}
-                onPress={() => {
-                  setCode('');
-                  setErrorMessage(null);
-                  handleSendCode();
-                }}
-              >
-                <RefreshCw size={14} color="#6B8F6B" />
-                <Text style={styles.resendText}>Nieuwe code versturen</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.changeEmailButton}
-                onPress={() => {
-                  setLoginState('idle');
-                  setCode('');
-                  setErrorMessage(null);
-                }}
-              >
-                <Text style={styles.changeEmailText}>Ander e-mailadres</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+      <Scherm>
+        <View style={{ gap: 8 }}>
+          <Merk />
+          <Text accessibilityRole="header" style={[tekst.titel1, { color: kleuren.foreground, marginTop: 20 }]}>
+            Check je inbox
+          </Text>
+          <Text style={[tekst.callout, { color: kleuren.mutedForeground }]}>
+            We hebben een code gestuurd naar{' '}
+            <Text style={{ color: kleuren.foreground, fontWeight: '600' }}>{email}</Text>
+          </Text>
         </View>
 
-        {/* Bottom decorative gradient */}
-        <LinearGradient
-          colors={['transparent', '#1A2E1A10']}
-          style={styles.bottomGradient}
-        />
-      </KeyboardAvoidingView>
+        <View style={{ gap: 16 }}>
+          <View style={{ gap: 8 }}>
+            <Text style={[tekst.sub, { color: kleuren.foreground, fontWeight: '600' }]}>Inlogcode</Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {[0, 1, 2, 3, 4, 5].map((index) => {
+                const gevuld = !!code[index];
+                return (
+                  <TextInput
+                    key={index}
+                    ref={(ref) => { digitInputRefs.current[index] = ref; }}
+                    style={[
+                      tekst.titel2,
+                      tekst.cijfers,
+                      {
+                        flex: 1,
+                        height: 60,
+                        // Geen lineHeight op een TextInput: iOS verschuift dan de cursor.
+                        lineHeight: undefined,
+                        borderRadius: 12,
+                        borderWidth: 1,
+                        borderColor: errorMessage ? kleuren.danger : gevuld ? kleuren.primary : kleuren.border,
+                        backgroundColor: kleuren.input,
+                        color: kleuren.foreground,
+                        textAlign: 'center',
+                      },
+                    ]}
+                    value={code[index] || ''}
+                    onChangeText={(text) => handleDigitChange(text, index)}
+                    onKeyPress={(e) => handleDigitKeyPress(e, index)}
+                    keyboardType="number-pad"
+                    textContentType={index === 0 ? 'oneTimeCode' : 'none'}
+                    autoComplete={index === 0 ? 'one-time-code' : 'off'}
+                    // Het eerste vakje neemt een geplakte of ingevulde code in één keer aan.
+                    maxLength={index === 0 ? 6 : 1}
+                    autoFocus={index === 0}
+                    editable={!verifieren}
+                    selectionColor={kleuren.primary}
+                    accessibilityLabel={`Inlogcode, cijfer ${index + 1} van 6`}
+                  />
+                );
+              })}
+            </View>
+          </View>
+
+          {errorMessage && <Melding tekst={errorMessage} toon="gemist" />}
+
+          <Button
+            title={verifieren ? 'Verifiëren…' : 'Inloggen'}
+            size="lg"
+            fullWidth
+            loading={verifieren}
+            onPress={handleVerifyCode}
+            disabled={code.length < 6 || verifieren}
+          />
+
+          <View style={{ alignItems: 'center', gap: 4 }}>
+            <TekstKnop
+              label="Nieuwe code versturen"
+              icoon={RefreshCw}
+              onPress={() => {
+                setCode('');
+                setErrorMessage(null);
+                handleSendCode();
+              }}
+            />
+            <TekstKnop
+              label="Ander e-mailadres"
+              gedempt
+              onPress={() => {
+                setLoginState('idle');
+                setCode('');
+                setErrorMessage(null);
+              }}
+            />
+          </View>
+        </View>
+      </Scherm>
     );
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <View style={styles.mainContent}>
-        {/* Top section - logo and heading */}
-        <View style={styles.topSection}>
-          <Text style={styles.logoText}>TOP TUINEN</Text>
-          <Text style={styles.heading}>Welkom terug</Text>
-          <Text style={styles.subtitle}>Medewerkers App</Text>
-        </View>
-
-        {/* Login form */}
-        <View style={styles.formSection}>
-          <TextInput
-            style={[
-              styles.emailInput,
-              (emailError || loginState === 'error') && styles.emailInputError,
-            ]}
-            value={email}
-            onChangeText={handleEmailChange}
-            placeholder="je@email.nl"
-            placeholderTextColor={colors.inactive}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-            autoComplete="email"
-            editable={loginState !== 'sending'}
-            selectionColor="#4ADE80"
-          />
-
-          {passwordMode && <TextInput
-            style={styles.emailInput} value={password} onChangeText={setPassword}
-            placeholder="Wachtwoord" placeholderTextColor={colors.inactive}
-            secureTextEntry autoCapitalize="none" autoCorrect={false}
-            autoComplete="current-password" editable={loginState !== 'sending'}
-            accessibilityLabel="Wachtwoord"
-          />}
-          {/* Email validatie fout */}
-          {emailError && (
-            <Text style={styles.errorText}>{emailError}</Text>
-          )}
-
-          {/* Server error message */}
-          {errorMessage && (
-            <Text style={styles.errorText}>{errorMessage}</Text>
-          )}
-
-          <TouchableOpacity
-            style={[
-              styles.submitButton,
-              (!email.trim() || !!emailError || loginState === 'sending') && styles.submitButtonDisabled,
-            ]}
-            onPress={passwordMode ? handlePasswordLogin : handleSendCode}
-            disabled={!email.trim() || !!emailError || loginState === 'sending'}
-          >
-            {loginState === 'sending' ? (
-              <ActivityIndicator size="small" color="#4ADE80" style={{ marginRight: 8 }} />
-            ) : null}
-            <Text style={styles.submitButtonText}>
-              {loginState === 'sending' ? 'Even geduld...' : passwordMode ? 'Inloggen' : 'Stuur inlogcode'}
-            </Text>
-          </TouchableOpacity>
-
-          <Text style={styles.hintText}>
-            {passwordMode ? 'Wachtwoord vergeten? Gebruik een inlogcode om je account te openen.' : 'We sturen een 6-cijferige code naar je e-mailadres.'}
-          </Text>
-
-          <TouchableOpacity accessibilityRole="button" style={styles.changeEmailButton}
-            disabled={loginState === 'sending'} onPress={() => { setPasswordMode(!passwordMode); setPassword(''); setErrorMessage(null); }}>
-            <Text style={styles.changeEmailText}>{passwordMode ? 'Inloggen met een code' : 'Inloggen met wachtwoord'}</Text>
-          </TouchableOpacity>
-          {/* Divider */}
-          <View style={styles.dividerRow}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>of</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          {/* Google OAuth login */}
-          <TouchableOpacity
-            style={styles.googleButton}
-            onPress={handleGoogleLogin}
-            disabled={loginState === 'sending'}
-          >
-            <Text style={styles.googleIcon}>G</Text>
-            <Text style={styles.googleButtonText}>
-              Inloggen met Google
-            </Text>
-          </TouchableOpacity>
-
-          {/* Dev mode: password login */}
-          {__DEV__ && (
-            <TouchableOpacity
-              style={styles.devButton}
-              onPress={handleDevLogin}
-              disabled={loginState === 'sending'}
-            >
-              <Zap size={18} color="#F97316" />
-              <Text style={styles.devButtonText}>
-                Dev Login (medewerker)
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
+    <Scherm>
+      <View style={{ gap: 8 }}>
+        <Merk />
+        <Text accessibilityRole="header" style={[tekst.titel1, { color: kleuren.foreground, marginTop: 20 }]}>
+          Welkom terug
+        </Text>
+        <Text style={[tekst.callout, { color: kleuren.mutedForeground }]}>Log in op de medewerkersapp.</Text>
       </View>
 
-      {/* Bottom decorative gradient */}
-      <LinearGradient
-        colors={['transparent', '#1A2E1A10']}
-        style={styles.bottomGradient}
-      />
-    </KeyboardAvoidingView>
+      <View style={{ gap: 16 }}>
+        <Input
+          label="E-mailadres"
+          className="mb-0"
+          value={email}
+          onChangeText={handleEmailChange}
+          error={emailError ?? undefined}
+          status={loginState === 'error' ? 'invalid' : 'idle'}
+          placeholder="je@email.nl"
+          keyboardType="email-address"
+          textContentType="emailAddress"
+          autoComplete="email"
+          autoCapitalize="none"
+          autoCorrect={false}
+          returnKeyType={passwordMode ? 'next' : 'send'}
+          onSubmitEditing={() => {
+            if (passwordMode) wachtwoordRef.current?.focus();
+            else if (kanVersturen) handleSendCode();
+          }}
+          disabled={bezig}
+        />
+
+        {passwordMode && (
+          <Input
+            ref={wachtwoordRef}
+            label="Wachtwoord"
+            className="mb-0"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+            textContentType="password"
+            autoComplete="current-password"
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="go"
+            onSubmitEditing={() => {
+              if (kanVersturen) handlePasswordLogin();
+            }}
+            disabled={bezig}
+          />
+        )}
+
+        {/* Server error message */}
+        {errorMessage && <Melding tekst={errorMessage} toon="gemist" />}
+
+        <Button
+          title={bezig ? 'Even geduld…' : passwordMode ? 'Inloggen' : 'Stuur inlogcode'}
+          size="lg"
+          fullWidth
+          loading={bezig}
+          onPress={passwordMode ? handlePasswordLogin : handleSendCode}
+          disabled={!kanVersturen}
+        />
+
+        <Text style={[tekst.sub, { color: kleuren.mutedForeground, textAlign: 'center' }]}>
+          {passwordMode ? 'Wachtwoord vergeten? Gebruik een inlogcode om je account te openen.' : 'We sturen een 6-cijferige code naar je e-mailadres.'}
+        </Text>
+
+        <View style={{ alignItems: 'center' }}>
+          <TekstKnop
+            label={passwordMode ? 'Inloggen met een code' : 'Inloggen met wachtwoord'}
+            disabled={bezig}
+            onPress={() => { setPasswordMode(!passwordMode); setPassword(''); setErrorMessage(null); }}
+          />
+        </View>
+
+        {/* Divider */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <View style={{ flex: 1, height: 1, backgroundColor: kleuren.border }} />
+          <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground }]}>of</Text>
+          <View style={{ flex: 1, height: 1, backgroundColor: kleuren.border }} />
+        </View>
+
+        {/* Google OAuth login */}
+        <Button
+          title="Inloggen met Google"
+          variant="secondary"
+          size="lg"
+          fullWidth
+          onPress={handleGoogleLogin}
+          disabled={bezig}
+        />
+
+        {/* Dev mode: login via server-side sign-in token */}
+        {__DEV__ && (
+          <Drukvlak
+            onPress={handleDevLogin}
+            disabled={bezig}
+            accessibilityLabel="Dev Login (medewerker)"
+            accessibilityHint="Alleen in ontwikkelbuilds"
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              minHeight: 48,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderStyle: 'dashed',
+              borderColor: kleuren.warning,
+              backgroundColor: kleuren.warningSoft,
+            }}
+          >
+            <Zap size={18} color={kleuren.warning} strokeWidth={2} />
+            <Text style={[tekst.callout, { color: kleuren.warning, fontWeight: '600' }]}>Dev Login (medewerker)</Text>
+          </Drukvlak>
+        )}
+      </View>
+    </Scherm>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0A0A0A',
-  },
-  centerContent: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 13,
-    color: '#888',
-  },
-  mainContent: {
-    flex: 1,
-    paddingHorizontal: 24,
-    justifyContent: 'center',
-  },
-  topSection: {
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  logoText: {
-    fontSize: 11,
-    textTransform: 'uppercase',
-    letterSpacing: 3,
-    color: '#6B8F6B',
-    fontWeight: '600',
-  },
-  heading: {
-    fontSize: 28,
-    fontWeight: '600',
-    color: '#E8E8E8',
-    marginTop: 16,
-  },
-  subtitle: {
-    fontSize: 13,
-    color: '#888',
-    marginTop: 6,
-  },
-  emailDisplay: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#E8E8E8',
-    marginTop: 4,
-  },
-  formSection: {
-    gap: 16,
-  },
-  emailInput: {
-    backgroundColor: '#1A1A1A',
-    borderWidth: 1,
-    borderColor: '#222',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: '#E8E8E8',
-  },
-  emailInputError: {
-    borderColor: '#EF4444',
-  },
-  digitRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  digitBox: {
-    width: 48,
-    height: 56,
-    backgroundColor: '#1A1A1A',
-    borderWidth: 1,
-    borderColor: '#222',
-    borderRadius: 10,
-    textAlign: 'center',
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#E8E8E8',
-  },
-  digitBoxActive: {
-    borderColor: '#4ADE80',
-  },
-  digitBoxError: {
-    borderColor: '#EF4444',
-  },
-  errorText: {
-    fontSize: 11,
-    color: '#EF4444',
-    textAlign: 'center',
-  },
-  submitButton: {
-    backgroundColor: '#1A2E1A',
-    borderRadius: 12,
-    paddingVertical: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 4,
-  },
-  submitButtonDisabled: {
-    opacity: 0.4,
-  },
-  submitButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#4ADE80',
-  },
-  hintText: {
-    fontSize: 13,
-    color: '#888',
-    textAlign: 'center',
-  },
-  codeActions: {
-    alignItems: 'center',
-    gap: 12,
-    marginTop: 8,
-  },
-  resendButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-  },
-  resendText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#6B8F6B',
-  },
-  changeEmailButton: {
-    paddingVertical: 6,
-  },
-  changeEmailText: {
-    fontSize: 13,
-    color: '#888',
-  },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginVertical: 4,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#222',
-  },
-  dividerText: {
-    fontSize: 13,
-    color: '#666',
-  },
-  googleButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#1A1A1A',
-    borderWidth: 1,
-    borderColor: '#333',
-    borderRadius: 12,
-    paddingVertical: 14,
-    gap: 10,
-  },
-  googleIcon: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#4285F4',
-  },
-  googleButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#E8E8E8',
-  },
-  devButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#2A1A0A',
-    borderRadius: 12,
-    paddingVertical: 14,
-    gap: 8,
-    marginTop: 8,
-  },
-  devButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#F97316',
-  },
-  bottomGradient: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 120,
-    pointerEvents: 'none',
-  },
-});
+/** Logo-lockup: blad in een icoontegel naast de naam. */
+function Merk() {
+  const kleuren = useColors();
+  return (
+    <View
+      accessible
+      accessibilityLabel="Top Tuinen"
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}
+    >
+      <IcoonTegel icoon={Leaf} toon="primair" grootte={40} />
+      <Text style={[tekst.titel3, { color: kleuren.foreground }]}>Top Tuinen</Text>
+    </View>
+  );
+}
+
+/** Schermraam: veilige marges, toetsenbordruimte en een zachte groene was bovenin. */
+function Scherm({ children }: { children: ReactNode }) {
+  const kleuren = useColors();
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: kleuren.background }} edges={['top', 'bottom']}>
+      <LinearGradient
+        pointerEvents="none"
+        colors={[kleuren.primarySoft, kleuren.background]}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 320 }}
+      />
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 32 }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={{ width: '100%', maxWidth: 440, alignSelf: 'center', gap: 32 }}>{children}</View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+/** Tekstknop met een raakvlak van 44pt: voor de stille nevenroutes. */
+function TekstKnop({
+  label,
+  onPress,
+  icoon: I,
+  gedempt,
+  disabled,
+}: {
+  label: string;
+  onPress: () => void;
+  icoon?: ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
+  gedempt?: boolean;
+  disabled?: boolean;
+}) {
+  const kleuren = useColors();
+  const kleur = gedempt ? kleuren.mutedForeground : kleuren.primary;
+  return (
+    <Drukvlak
+      onPress={onPress}
+      disabled={disabled}
+      haptic="selection"
+      accessibilityLabel={label}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44, paddingHorizontal: 12 }}
+    >
+      {I && <I size={16} color={kleur} strokeWidth={2} />}
+      <Text style={[tekst.callout, { color: kleur, fontWeight: '600' }]}>{label}</Text>
+    </Drukvlak>
+  );
+}

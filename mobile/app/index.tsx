@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react';
 import { Redirect } from 'expo-router';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, ActivityIndicator } from 'react-native';
 import { useAuth } from '@clerk/clerk-expo';
 import { isBiometricEnabled, getBiometricUserId } from '../lib/auth/biometric';
 import { isAuthConfigured } from '../lib/env';
+import { useColors } from '../theme';
 
 // Check auth configuratie buiten component (constant tijdens runtime)
 const AUTH_CONFIGURED = isAuthConfigured();
 
 export default function Index() {
+  const kleuren = useColors();
   const [checkingBiometric, setCheckingBiometric] = useState(true);
   const [hasBiometric, setHasBiometric] = useState(false);
 
@@ -37,8 +39,8 @@ export default function Index() {
   // Toon loading indicator terwijl auth status wordt geladen
   if (!isLoaded || checkingBiometric) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#2d5016" />
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: kleuren.background }}>
+        <ActivityIndicator size="large" color={kleuren.primary} accessibilityLabel="Laden" />
       </View>
     );
   }
@@ -57,12 +59,3 @@ export default function Index() {
   // Anders, ga naar normale login
   return <Redirect href="/(auth)/login" />;
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});

@@ -2,19 +2,19 @@ import '../global.css';
 import React from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ClerkProvider, ClerkLoaded } from '@clerk/clerk-expo';
 import { tokenCache } from '@clerk/clerk-expo/token-cache';
 import { SessieConvexProvider } from '../components/SessieConvexProvider';
 import { CLERK_PUBLISHABLE_KEY } from '../lib/env';
-import { ThemeProvider, useTheme } from '../theme';
+import { ThemeProvider, useTheme, useColors, tekst, typography } from '../theme';
 import { useCurrentUser } from '../hooks/use-current-user';
 import { usePushNotifications } from '../hooks/use-push-notifications';
 import { RoleProvider } from '../contexts/RoleContext';
 import { ToastProvider } from '../contexts/ToastContext';
 import { OrgGate } from '../components/OrgGate';
-import { Feather } from '@expo/vector-icons';
+import { AlertTriangle, Flag, RefreshCw } from 'lucide-react-native';
 
 
 // ============================================
@@ -67,40 +67,11 @@ class AppErrorBoundary extends React.Component<
   render() {
     if (this.state.hasError) {
       return (
-        <View style={errorStyles.container}>
-          <View style={errorStyles.iconContainer}>
-            <Feather name="alert-triangle" size={48} color="#4ADE80" />
-          </View>
-
-          <Text style={errorStyles.title}>Er is iets misgegaan</Text>
-          <Text style={errorStyles.subtitle}>
-            De app heeft een onverwachte fout ondervonden. Probeer de app opnieuw te laden.
-          </Text>
-
-          {__DEV__ && this.state.error && (
-            <View style={errorStyles.debugBox}>
-              <Text style={errorStyles.debugText} numberOfLines={4}>
-                {this.state.error.message}
-              </Text>
-            </View>
-          )}
-
-          <Pressable
-            style={errorStyles.retryButton}
-            onPress={this.handleRetry}
-          >
-            <Feather name="refresh-cw" size={18} color="#0A0A0A" />
-            <Text style={errorStyles.retryButtonText}>Probeer opnieuw</Text>
-          </Pressable>
-
-          <Pressable
-            style={errorStyles.reportButton}
-            onPress={this.handleReport}
-          >
-            <Feather name="flag" size={16} color="#888888" />
-            <Text style={errorStyles.reportButtonText}>Meld probleem</Text>
-          </Pressable>
-        </View>
+        <FoutScherm
+          melding={__DEV__ ? this.state.error?.message : undefined}
+          onOpnieuw={this.handleRetry}
+          onMeld={this.handleReport}
+        />
       );
     }
 
@@ -108,87 +79,79 @@ class AppErrorBoundary extends React.Component<
   }
 }
 
-const errorStyles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0A0A0A',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 32,
-  },
-  iconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(74, 222, 128, 0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#FAFAFA',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 15,
-    color: '#999999',
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 32,
-  },
-  debugBox: {
-    backgroundColor: '#1A1A1A',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 24,
-    width: '100%',
-    borderWidth: 1,
-    borderColor: '#222222',
-  },
-  debugText: {
-    fontSize: 12,
-    color: '#EF4444',
-    fontFamily: 'monospace',
-  },
-  retryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#4ADE80',
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    borderRadius: 12,
-    gap: 8,
-    width: '100%',
-    marginBottom: 12,
-  },
-  retryButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#0A0A0A',
-  },
-  reportButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#1A1A1A',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-    gap: 8,
-    width: '100%',
-    borderWidth: 1,
-    borderColor: '#222222',
-  },
-  reportButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#888888',
-  },
-});
+/**
+ * Foutscherm van de ErrorBoundary. De boundary staat binnen ThemeProvider, dus
+ * de kleuren volgen licht/donker. Bewust kale primitieven (geen Button/Drukvlak):
+ * dit scherm moet ook renderen als een gedeelde bouwsteen de fout veroorzaakte.
+ */
+function FoutScherm({ melding, onOpnieuw, onMeld }: { melding?: string; onOpnieuw: () => void; onMeld: () => void }) {
+  const kleuren = useColors();
+  return (
+    <View style={{ flex: 1, backgroundColor: kleuren.background, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
+      <View style={{ width: '100%', maxWidth: 400, alignItems: 'center' }}>
+        <View style={{ width: 80, height: 80, borderRadius: 24, backgroundColor: kleuren.warningSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
+          <AlertTriangle size={40} color={kleuren.warning} strokeWidth={2} />
+        </View>
+
+        <Text accessibilityRole="header" style={[tekst.titel2, { color: kleuren.foreground, textAlign: 'center', marginBottom: 12 }]}>
+          Er is iets misgegaan
+        </Text>
+        <Text style={[tekst.callout, { color: kleuren.mutedForeground, textAlign: 'center', marginBottom: 32 }]}>
+          De app heeft een onverwachte fout ondervonden. Probeer de app opnieuw te laden.
+        </Text>
+
+        {melding && (
+          <View style={{ alignSelf: 'stretch', backgroundColor: kleuren.dangerSoft, borderRadius: 12, padding: 12, marginBottom: 24 }}>
+            <Text style={[tekst.bijschrift, { color: kleuren.danger, fontFamily: typography.fontFamily.mono }]} numberOfLines={4}>
+              {melding}
+            </Text>
+          </View>
+        )}
+
+        <Pressable
+          onPress={onOpnieuw}
+          accessibilityRole="button"
+          style={({ pressed }) => ({
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            alignSelf: 'stretch',
+            minHeight: 52,
+            borderRadius: 12,
+            backgroundColor: kleuren.primary,
+            opacity: pressed ? 0.85 : 1,
+            marginBottom: 12,
+          })}
+        >
+          <RefreshCw size={18} color={kleuren.primaryForeground} strokeWidth={2} />
+          <Text style={[tekst.kop, { color: kleuren.primaryForeground }]}>Probeer opnieuw</Text>
+        </Pressable>
+
+        <Pressable
+          onPress={onMeld}
+          accessibilityRole="button"
+          style={({ pressed }) => ({
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8,
+            alignSelf: 'stretch',
+            minHeight: 48,
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: kleuren.border,
+            backgroundColor: kleuren.card,
+            opacity: pressed ? 0.85 : 1,
+          })}
+        >
+          <Flag size={16} color={kleuren.mutedForeground} strokeWidth={2} />
+          <Text style={[tekst.callout, { color: kleuren.foreground, fontWeight: '500' }]}>Meld probleem</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
 
 /**
  * User Sync Component
