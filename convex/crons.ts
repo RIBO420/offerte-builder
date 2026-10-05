@@ -177,4 +177,6 @@ crons.monthly(
   internal.facturatieEngine.sluitMaandverzamelfacturen
 );
 
+crons.interval("velduren kantoorherinnering", { minutes: 15 }, internal.veldHerinneringen.verwerk);
+
 export default crons;

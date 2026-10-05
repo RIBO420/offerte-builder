@@ -84,7 +84,8 @@ function getNotificationLink(notification: Notification): string | null {
   } else if (notification.type.startsWith("project_") && notification.projectId) {
     return `/projecten/${notification.projectId}`;
   }
-  // Chat and system notifications don't have specific links for now
+  if (notification.type === "system_reminder" && notification.metadata?.route === "/uren") return "/uren";
+  // Other system notifications have no specific destination.
   return null;
 }
 
