@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
+// Dev-only allowance so impeccable live mode can load. Guarded by NODE_ENV.
+const __impeccableLiveDev =
+  process.env.NODE_ENV === "development" ? " http://localhost:8400" : "";
+
 const nextConfig: NextConfig = {
   turbopack: {
     root: process.cwd(),
@@ -52,7 +56,7 @@ const nextConfig: NextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://clerk.toptuinen.app https://*.clerk.accounts.dev https://*.clerk.dev https://cdn.sentry-cdn.com https://browser.sentry-cdn.com https://challenges.cloudflare.com",
+              `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://clerk.toptuinen.app https://*.clerk.accounts.dev https://*.clerk.dev https://cdn.sentry-cdn.com https://browser.sentry-cdn.com https://challenges.cloudflare.com${__impeccableLiveDev}`,
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' https: data: blob:",
               "font-src 'self' data:",
@@ -62,7 +66,7 @@ const nextConfig: NextConfig = {
               // devtools. Sentry-events zelf lopen via de tunnel op /monitoring
               // en hebben dus genoeg aan 'self'. De host laadt hierboven al
               // script-src, dus dit verbreedt het aanvalsoppervlak niet.
-              "connect-src 'self' data: blob: https://clerk.toptuinen.app https://*.convex.cloud https://*.clerk.accounts.dev https://*.clerk.dev https://api.clerk.dev wss://*.convex.cloud https://browser.sentry-cdn.com",
+              `connect-src 'self' data: blob: https://clerk.toptuinen.app https://*.convex.cloud https://*.clerk.accounts.dev https://*.clerk.dev https://api.clerk.dev wss://*.convex.cloud https://browser.sentry-cdn.com${__impeccableLiveDev}`,
               "frame-src 'self' blob: https://clerk.toptuinen.app https://*.clerk.accounts.dev https://*.clerk.dev https://challenges.cloudflare.com",
               "worker-src 'self' blob:",
               "frame-ancestors 'none'",
