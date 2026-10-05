@@ -1,5 +1,7 @@
 # Klantdossier v13 + Werkbord "Mijn dag" — Implementatieplan
 
+> **Status (5 okt 2026): uitgevoerd en live op prod.** De vinkjes hieronder zijn niet bijgehouden; dit plan is historie.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: superpowers:subagent-driven-development.
 > Eén agent per fase-taak; stappen met `- [ ]`. Elke agent leest vóór de start:
 > `docs/superpowers/specs/2026-08-20-prototype-v13/functionele-inventaris.md` (bindend gedrag)

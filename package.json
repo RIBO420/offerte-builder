@@ -14,6 +14,7 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "test:mobile": "vitest run --config mobile/vitest.config.ts",
     "dev:all": "node scripts/dev-all.mjs",
     "dev:login": "node scripts/dev-login.mjs",
     "seed:demo": "convex run demoSeed:vullen '{\"bevestigDeployment\":\"affable-rook-669\"}'",

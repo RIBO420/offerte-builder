@@ -1,5 +1,7 @@
 # Clerk Organizations-migratie Implementation Plan
 
+> **Status (5 okt 2026): uitgevoerd en live op prod.** De vinkjes hieronder zijn niet bijgehouden; dit plan is historie.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Eén organisatie "Top Tuinen" (Clerk Organizations) waarvan alle gebruikers dezelfde Convex-data zien, met een samengevoegd Team-scherm en een verstopte opruimfunctie in Instellingen.

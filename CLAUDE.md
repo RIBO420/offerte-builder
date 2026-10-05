@@ -12,7 +12,7 @@ ziet (portaal, PDF, mail, publieke configurator) zegt **Top Tuinen**.
 ```
 /src/      → Next.js 16 web-app (App Router, React 19, Tailwind v4, shadcn/ui)
 /mobile/   → React Native Expo 54 (NativeWind, Tailwind-v3-syntax, theme in mobile/theme/, primair #4ADE80)
-/convex/   → Gedeelde serverless backend (schema, auth, 65+ functiebestanden)
+/convex/   → Gedeelde serverless backend (schema, auth, ~140 functiebestanden)
 ```
 
 Convex is de enige backend voor web én mobiel; Clerk doet auth voor beide. Web en
@@ -24,10 +24,15 @@ mobiel delen géén UI-componenten.
 npm run dev:all      # next dev + convex dev samen — normale start (dev draait NIET standaard)
 npm run dev:login    # browser inloggen als staf, zonder wachtwoord → docs/dev/dev-omgeving.md
 npm run seed:demo    # demodata in de dev-deployment; seed:clear ruimt exact op → zelfde doc
-npm run typecheck && npm run lint && npm run test:run   # de groene poort (Vitest, ~3000 tests)
+npm run typecheck && npm run lint && npm run test:run   # de groene poort (Vitest, ~4650 tests)
+npm run test:mobile                # mobiele hooktests (Vitest, staat niet in CI)
 npx playwright test configurator   # E2E zonder auth; auth-E2E is stuk → docs/dev/dev-omgeving.md
-npx convex deploy --yes            # productie-deploy Convex
+npx convex deploy --yes            # productie-deploy Convex — alleen na expliciete go
 ```
+
+Deploy: `git push origin main` = Vercel-productiebuild; Convex is een losse stap
+(`npx convex deploy`). Deploy Convex vanuit een schone werkboom, anders gaat
+ongecommit schema mee. Dev-deployment: `affable-rook-669`, prod: `impartial-dinosaur-829`.
 
 Mobiel: `cd mobile && npx expo start --ios`. `mobile/.npmrc` zet `legacy-peer-deps=true`
 — niet verwijderen, anders faalt `npm ci` (o.a. in EAS Build).
@@ -54,6 +59,11 @@ Mobiel: `cd mobile && npx expo start --ios`. `mobile/.npmrc` zet `legacy-peer-de
    (`navigate force:true`) → dan pas dev-server herstarten (stale Tailwind-stylesheet).
    → docs/dev/dev-omgeving.md
 8. **Committen mag, pushen alleen op expliciet verzoek.**
+9. **Alles is multi-tenant (Clerk Organizations).** Elke tenanttabel heeft `orgId`;
+   lees de tenant met `requireOrg`/`requireOrgId`/`requireOrgContext` uit
+   `convex/auth.ts` (org uit het JWT, nooit uit args), query via een `by_org…`-index
+   en check losse documenten met `verifyOrgOwnership`. Nieuwe tabel → ook een keuze
+   in `convex/lib/orgTabellen.ts` (typecheck dwingt dat af).
 
 ## Auth & routing (kort)
 
@@ -81,12 +91,22 @@ Goedgekeurd masterplan met 10 werkstromen, volgordeketens en keuzepunten:
 `docs/design/plannen/masterplan.md` (bronplannen ernaast). Richting: "Vakwerk in het
 groen" / "Loof & Leem"-tokens, licht-eerst, dark blijft volwaardig.
 
-## Openstaand (14 aug 2026)
+## Stand (5 okt 2026)
 
-- Places API (New) staat UIT in Google Cloud; `BedrijfZoeken` verbergt zichzelf tot die
-  aan staat (= TT-006 live).
-- Fallback-prijzen parkeerplaats/beregening zijn schattingen — kantoor moet eigen
-  normuren/producten invoeren.
-- E2E-auth stuk (pre-existing); aanpak-suggestie in docs/dev/dev-omgeving.md.
-- Leveranciers-, medewerkers-, wagenpark- en machines-tabellen alleen nagerekend, niet
-  visueel gecontroleerd.
+Live op prod: offerte/CRM/klantdossier v13, org-migratie, klantfeedback Mickey (13 sep).
+**Gecommit maar NIET gepusht/gedeployed:** hub-/veldintegratie F01–F51 (uren-dagvoorstel,
+werkbezoek+afvoer, aanhanger-retouren, protocollen, losse krachten, herinneringscron,
+hub-XLSX-export, mobiele `app/werk/*`). Status en toestel-testlijst:
+`docs/superpowers/implementation/2026-09-12-hub-eindstatus-f01-f51.md` en
+`…/2026-09-12-expo-testoverdracht.md`. Uitrol vraagt: `convex deploy` (schema puur
+additief), push, en een nieuwe native build (`expo-sharing`).
+
+Open:
+- Hub: toestelacceptatie (2 crewleden, offline kill/herstart, Android-CSV, XLSX in
+  Excel), afvoertarieven/protocollen/herinneringsontvangers inrichten, back-upproef.
+- B8: telefoonnummer-placeholder in `src/app/(public)/configurator/layout.tsx`.
+- E2E-auth stuk; aanpak in docs/dev/dev-omgeving.md.
+- Places API (New) staat UIT in Google Cloud; `BedrijfZoeken` verbergt zich tot die aan staat.
+- Fallback-prijzen parkeerplaats/beregening zijn schattingen.
+- Opschoning: 41 bestanden >800 regels, `formatCurrency`/`formatDate` 7-8× gedupliceerd,
+  uren-/weekhelpers dubbel in `convex/lib` en `src/components/uren`.

@@ -431,7 +431,7 @@ met pathspec.
 
 Gebouwd in 27 commits (6740cf0..857e3b1), 9 taken elk apart gereviewd, eindreview +
 fixwave, poort groen (typecheck, lint, 4218 tests). Dry runs van beide migraties op
-dev geverifieerd. Niet gepusht, Convex prod niet gedeployed.
+dev geverifieerd. Op 13 sep 2026 uitgerold: Convex prod gedeployed, migraties gedraaid, gepusht.
 
 Uitrolvolgorde: `npx convex deploy --yes` → `git push origin main` →
 `npx convex run migrations/splitsKlantNaam:start '{"dryRun":true}'` (rapport lezen,
