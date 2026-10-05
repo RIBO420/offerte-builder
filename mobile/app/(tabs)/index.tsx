@@ -161,7 +161,7 @@ function Dashboard() {
         />
 
         {/* De eerste kaart ligt half over het tuinbeeld. */}
-        <View style={{ marginTop: -48, gap: 22 }}>
+        <View style={{ marginTop: -36, gap: 22 }}>
           {isMedewerker ? (
             eigenDag === undefined ? <SkeletonCard lines={4} /> : <NuKaart dag={eigenDag} gelogd={gelogdVandaag} />
           ) : actieveProjecten === undefined ? (
@@ -298,6 +298,7 @@ function JeDag({ dag, gelogd }: { dag: VeldDagData; gelogd: number }) {
     <View style={{ gap: 12 }}>
       <Text accessibilityRole="header" style={[tekst.titel3, { color: kleuren.foreground, paddingHorizontal: 2 }]}>Je dag</Text>
       <DagTijdlijn items={items} />
+      <Scheiding />
       <Text style={[tekst.sub, tekst.cijfers, { color: kleuren.mutedForeground, textAlign: 'center' }]}>
         <Text style={{ color: kleuren.foreground, fontWeight: '600' }}>{urenLabel(gelogd)}</Text> geschreven{rest > 0 ? ` · nog ${urenLabel(rest)}` : ''}
       </Text>

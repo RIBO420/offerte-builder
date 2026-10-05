@@ -74,7 +74,7 @@ function OverzichtInhoud() {
     />
     {uitCache && <Melding tekst="Laatst geladen urenoverzicht op dit toestel." />}
 
-    {!data ? <Kaart variant="stil"><Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>Uren laden…</Text></Kaart> : (
+    {!data ? <Kaart variant="stil"><Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>Uren laden…</Text></Kaart> : !data.dagen.length ? null : (
       <Kaart variant="natuur" padding={18}>
         <View style={{ gap: 2 }}>
           <Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>Geregistreerd in deze {modus}</Text>
@@ -102,7 +102,7 @@ function OverzichtInhoud() {
         title={exportBezig ? 'Export voorbereiden…' : 'Mijn uren delen als CSV'}
         variant="outline"
         icon={exportBezig ? undefined : <Share size={18} color={kleuren.foreground} strokeWidth={2} />}
-        disabled={!data || exportBezig}
+        disabled={!data || !data.dagen.length || exportBezig}
         onPress={exporteer}
         fullWidth
       />

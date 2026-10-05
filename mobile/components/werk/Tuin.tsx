@@ -7,9 +7,10 @@
  */
 
 import React, { type ComponentType, type ReactNode } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Path } from 'react-native-svg';
 import { BrickWall, Check, Coffee, Leaf, Shovel, Sprout, Truck, Warehouse } from 'lucide-react-native';
 import { tekst, useColors } from '../../theme';
 import type { VeldDagData } from '../../types/veld';
@@ -49,16 +50,19 @@ export function TuinKop({ titel, sub, rechts, hoogte = 196 }: { titel: string; s
   const deel = dagdeelVan();
   return (
     <View style={{ height: hoogte + insets.top, marginHorizontal: -16, overflow: 'hidden' }}>
-      <Image source={BEELDEN[deel]} style={StyleSheet.absoluteFill} resizeMode="cover" accessibilityIgnoresInvertColors />
+      {/* De foto schuift 90pt omhoog: zo valt het midden van de tuin (beplanting,
+          pad) in de zichtbare strook boven de Nu-kaart in plaats van de haag of lucht. */}
+      <Image source={BEELDEN[deel]} style={{ position: 'absolute', left: 0, right: 0, top: -90, height: hoogte + insets.top + 90 }} resizeMode="cover" accessibilityIgnoresInvertColors />
+      {/* Plaatselijke verduistering alleen achter de tekst, niet over de hele foto. */}
       <LinearGradient
-        colors={['rgba(0,0,0,0.42)', 'rgba(0,0,0,0.12)', 'rgba(0,0,0,0)']}
-        locations={[0, 0.55, 1]}
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top + 150 }}
+        colors={['rgba(0,0,0,0.38)', 'rgba(0,0,0,0.1)', 'rgba(0,0,0,0)']}
+        locations={[0, 0.6, 1]}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top + 128 }}
       />
-      <LinearGradient
-        colors={[`${kleuren.background}00`, kleuren.background]}
-        style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 80 }}
-      />
+      {/* De foto eindigt in een zachte boog; de Nu-kaart ligt daar half overheen. */}
+      <Svg width="100%" height={40} viewBox="0 0 100 40" preserveAspectRatio="none" style={{ position: 'absolute', left: 0, right: 0, bottom: -1 }}>
+        <Path d="M0 40 L0 26 Q50 -4 100 26 L100 40 Z" fill={kleuren.background} />
+      </Svg>
       <View style={{ paddingTop: insets.top + 6, paddingHorizontal: 16, gap: 6 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 }}>
           <View accessible accessibilityLabel="Top Tuinen" style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -163,6 +167,20 @@ export function dagItemsVan(dag: VeldDagData, isVandaag: boolean): DagItem[] {
     });
 }
 
+function minutenTussen(begin: string, eind?: string): number {
+  if (!eind) return 0;
+  const [bu, bm] = begin.split(':').map(Number);
+  const [eu, em] = eind.split(':').map(Number);
+  return Math.max(0, eu * 60 + em - (bu * 60 + bm));
+}
+
+/** Blokhoogte schaalt met de duur (0,75pt per minuut), binnen 52–150pt. */
+function blokHoogte(item: DagItem): number {
+  const min = minutenTussen(item.begin, item.eind);
+  if (item.soort === 'pauze') return 40;
+  return Math.min(150, Math.max(52, Math.round(min * 0.75)));
+}
+
 export function DagTijdlijn({ items }: { items: DagItem[] }) {
   const kleuren = useColors();
   const kleurVan = (s: WerkSoort) =>
@@ -199,7 +217,7 @@ export function DagTijdlijn({ items }: { items: DagItem[] }) {
                 flexDirection: 'row',
                 alignItems: 'center',
                 gap: 10,
-                minHeight: pauze ? 40 : 52,
+                minHeight: blokHoogte(item),
                 paddingHorizontal: 12,
                 paddingVertical: 8,
                 borderRadius: 14,
@@ -209,9 +227,10 @@ export function DagTijdlijn({ items }: { items: DagItem[] }) {
               }}
             >
               <I size={18} color={pauze ? kleuren.mutedForeground : 'rgba(255,255,255,0.92)'} strokeWidth={2} />
-              <View style={{ flex: 1, gap: 1 }}>
+              <View style={{ flex: 1, gap: 1, alignSelf: blokHoogte(item) > 64 ? 'flex-start' : 'center', paddingTop: blokHoogte(item) > 64 ? 4 : 0 }}>
                 <Text style={[tekst.kop, { color: voor, fontSize: 16 }]} numberOfLines={1}>{item.titel}</Text>
                 {item.sub ? <Text style={[tekst.voetnoot, { color: pauze ? kleuren.mutedForeground : 'rgba(255,255,255,0.85)' }]} numberOfLines={1}>{item.sub}</Text> : null}
+                {item.eind && !pauze && blokHoogte(item) > 64 ? <Text style={[tekst.voetnoot, tekst.cijfers, { color: 'rgba(255,255,255,0.85)', marginTop: 2 }]}>{item.begin} – {item.eind}</Text> : null}
               </View>
               {item.klaar && (
                 <View style={{ width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: pauze ? kleuren.primarySoft : 'rgba(255,255,255,0.22)' }}>

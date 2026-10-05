@@ -193,9 +193,9 @@ export function Kaart({
 export function SectieKop({ titel, telling, rechts }: { titel: string; telling?: number; rechts?: ReactNode }) {
   const kleuren = useVeldKleuren();
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, paddingHorizontal: 4, minHeight: 28 }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, paddingHorizontal: 2, minHeight: 32 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 }}>
-        <Text accessibilityRole="header" style={[tekst.voetnoot, { color: kleuren.mutedForeground, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.6 }]}>
+        <Text accessibilityRole="header" style={[tekst.titel3, { color: kleuren.foreground }]}>
           {titel}
         </Text>
         {telling !== undefined && telling > 0 && (
@@ -331,9 +331,9 @@ export function Segment<T extends string>({
             left: 3,
             width: segment,
             borderRadius: 11,
-            backgroundColor: donker ? kleuren.surfaceElevated : kleuren.card,
+            backgroundColor: donker ? kleuren.accent : kleuren.card,
             borderWidth: donker ? 1 : 0,
-            borderColor: kleuren.border,
+            borderColor: donker ? 'rgba(123,211,137,0.28)' : kleuren.border,
             shadowColor: '#000',
             shadowOffset: { width: 0, height: 2 },
             shadowOpacity: donker ? 0 : 0.08,

@@ -353,7 +353,7 @@ function AuthenticatedProfielScreen() {
             <Scheiding />
             <InstellingRegel icoon={MessageCircle} toon="primair" label="Chatberichten" rechts={<Switch accessibilityLabel="Chatberichten" value={chatEnabled} disabled={!notificationPrefs} onValueChange={(val) => { saveNotificationPrefs({ push: pushEnabled, chat: val, projectUpdates: projectUpdatesEnabled }); }} />} />
             <Scheiding />
-            <InstellingRegel icoon={Hammer} toon="wachten" label="Projectchat" rechts={<Switch accessibilityLabel="Projectchat" value={projectUpdatesEnabled} disabled={!notificationPrefs} onValueChange={(val) => { saveNotificationPrefs({ push: pushEnabled, chat: chatEnabled, projectUpdates: val }); }} />} />
+            <InstellingRegel icoon={Hammer} toon="neutraal" label="Projectchat" rechts={<Switch accessibilityLabel="Projectchat" value={projectUpdatesEnabled} disabled={!notificationPrefs} onValueChange={(val) => { saveNotificationPrefs({ push: pushEnabled, chat: chatEnabled, projectUpdates: val }); }} />} />
           </Kaart>
 
           <SectieKop titel="Weergave" />

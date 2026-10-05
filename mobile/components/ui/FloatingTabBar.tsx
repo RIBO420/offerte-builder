@@ -25,7 +25,7 @@ const routeIcons: Record<string, React.ComponentType<any>> = {
 const routeLabels: Record<string, string> = {
   index: 'Vandaag',
   fotos: "Foto's",
-  uren: 'Uren',
+  uren: 'Mijn dag',
   chat: 'Chat',
   profiel: 'Profiel',
 };

@@ -30,10 +30,10 @@ const buttonVariants = cva(
         nature: '',
       },
       size: {
-        sm: 'h-11 px-4 rounded-lg',
-        md: 'h-11 px-6 rounded-lg',
-        lg: 'h-[52px] px-8 rounded-xl',
-        icon: 'h-11 w-11 px-0 rounded-lg',
+        sm: 'h-11 px-4 rounded-full',
+        md: 'h-12 px-6 rounded-full',
+        lg: 'h-[52px] px-8 rounded-full',
+        icon: 'h-11 w-11 px-0 rounded-full',
       },
     },
     defaultVariants: {
