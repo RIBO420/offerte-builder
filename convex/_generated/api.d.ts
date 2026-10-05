@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as aanhangerRetouren from "../aanhangerRetouren.js";
 import type * as acceptatieKeten from "../acceptatieKeten.js";
 import type * as acceptatieRegels from "../acceptatieRegels.js";
 import type * as afronding from "../afronding.js";
@@ -184,6 +185,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  aanhangerRetouren: typeof aanhangerRetouren;
   acceptatieKeten: typeof acceptatieKeten;
   acceptatieRegels: typeof acceptatieRegels;
   afronding: typeof afronding;
