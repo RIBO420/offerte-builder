@@ -80,7 +80,7 @@ export function FloatingTabBar({ state, navigation, descriptors }: BottomTabBarP
     <View style={[styles.wrapper, { paddingBottom: Math.max(insets.bottom, 12) }]}>
       <View style={[styles.container, { borderColor: kleuren.border, shadowOpacity: isDark ? 0.4 : 0.1 }]}>
         <BlurView intensity={isDark ? 40 : 60} tint={isDark ? 'dark' : 'light'} style={styles.blur}>
-          <View style={[styles.overlay, { backgroundColor: isDark ? 'rgba(17,17,17,0.82)' : 'rgba(255,255,255,0.78)' }]}>
+          <View style={[styles.overlay, { backgroundColor: isDark ? `${kleuren.card}D9` : 'rgba(255,255,255,0.78)' }]}>
             {zichtbareRoutes.map((route) => {
               // Vergelijk tegen de ORIGINELE index: state.index verwijst naar
               // state.routes, niet naar de gefilterde lijst.

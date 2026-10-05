@@ -1,10 +1,10 @@
 /**
- * Premium Organic-bouwstenen voor de veldapp (okt 2026).
+ * Bouwstenen van de veldapp in de stijl "Tuinvenster" (okt 2026).
  *
- * Eén vormtaal voor Home, Mijn dag en de werkschermen: kaarten op radius 18,
- * het natuurverloop alleen voor "vandaag"-vlakken, statuspillen met stip,
- * icoontegels als anker en drukfeedback op elk tikbaar vlak. Alle kleuren komen
- * uit `useVeldKleuren()`, dus licht, donker en buiten-modus kloppen vanzelf.
+ * Eén vormtaal voor alle schermen: kaarten op radius 24 (uitgelicht 26), in licht
+ * met zachte schaduw en in donker met haarlijn, statuspillen met stip, icoontegels
+ * als anker en drukfeedback (0,96) op elk tikbaar vlak. Alle kleuren komen uit
+ * `useVeldKleuren()`, dus licht, donker en buiten-modus kloppen vanzelf.
  */
 
 import React, { useEffect, useState, type ComponentType, type ReactNode } from 'react';
