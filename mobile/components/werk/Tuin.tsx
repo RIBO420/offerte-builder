@@ -7,7 +7,7 @@
  */
 
 import React, { type ComponentType, type ReactNode } from 'react';
-import { Image, Text, View } from 'react-native';
+import { Image, Text, View, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BrickWall, Check, Coffee, Leaf, Shovel, Sprout, Truck, Warehouse } from 'lucide-react-native';
@@ -45,15 +45,22 @@ export function groetVan(deel: Dagdeel): string {
  * witte tekst en onderin een overloop naar de achtergrond, zodat de eerste kaart
  * er half overheen kan liggen. Bewust laag (rustig): de inhoud gaat voor.
  */
-export function TuinKop({ titel, sub, rechts, hoogte = 196 }: { titel: string; sub?: string; rechts?: ReactNode; hoogte?: number }) {
+export function TuinKop({ titel, sub, rechts }: { titel: string; sub?: string; rechts?: ReactNode }) {
   const kleuren = useColors();
   const insets = useSafeAreaInsets();
+  const { width: schermBreedte } = useWindowDimensions();
   const deel = dagdeelVan();
+  // Panorama (1400×594): de kop is net hoog genoeg voor de tekst en de foto
+  // vult hem van de statusbalk tot de fade. Breder dan het scherm wordt
+  // gecentreerd bijgesneden, zodat de tuin zo ver mogelijk uitgezoomd blijft.
+  const kopHoogte = insets.top + 168;
+  const beeldHoogte = Math.max(kopHoogte, Math.round((schermBreedte * 594) / 1400));
+  const beeldBreedte = Math.round((beeldHoogte * 1400) / 594);
   return (
-    <View style={{ height: hoogte + insets.top, marginHorizontal: -16, overflow: 'hidden' }}>
-      {/* De foto schuift 90pt omhoog: zo valt het midden van de tuin (beplanting,
-          pad) in de zichtbare strook boven de Nu-kaart in plaats van de haag of lucht. */}
-      <Image source={BEELDEN[deel]} style={{ position: 'absolute', left: 0, right: 0, top: -90, height: hoogte + insets.top + 90 }} resizeMode="cover" accessibilityIgnoresInvertColors />
+    <View style={{ height: kopHoogte, marginHorizontal: -16, overflow: 'hidden' }}>
+      {/* De hele foto op volle breedte (geen extra inzoom): je ziet de complete tuin.
+          Wat er onder de foto overblijft valt in de fade naar de achtergrond. */}
+      <Image source={BEELDEN[deel]} style={{ position: 'absolute', top: 0, left: (schermBreedte - beeldBreedte) / 2, width: beeldBreedte, height: beeldHoogte }} resizeMode="cover" accessibilityIgnoresInvertColors />
       {/* Plaatselijke verduistering alleen achter de tekst, niet over de hele foto. */}
       <LinearGradient
         colors={['rgba(0,0,0,0.38)', 'rgba(0,0,0,0.1)', 'rgba(0,0,0,0)']}
@@ -65,7 +72,7 @@ export function TuinKop({ titel, sub, rechts, hoogte = 196 }: { titel: string; s
       <LinearGradient
         colors={[`${kleuren.background}00`, `${kleuren.background}26`, `${kleuren.background}80`, `${kleuren.background}D9`, kleuren.background]}
         locations={[0, 0.3, 0.6, 0.85, 1]}
-        style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 128 }}
+        style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 110 }}
       />
       <View style={{ paddingTop: insets.top + 6, paddingHorizontal: 16, gap: 6 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 }}>
