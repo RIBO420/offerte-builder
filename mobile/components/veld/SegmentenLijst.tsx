@@ -1,3 +1,4 @@
+import { WerksoortKeuze, type Werksoort } from './WerksoortKeuze';
 /**
  * SegmentenLijst — urensegmenten van de veld-dag (PRD §2.6/§8.10, mobiel).
  * Voorstellen komen uit de dagkaart; de medewerker bevestigt of corrigeert —
@@ -5,11 +6,19 @@
  * (incl. categorie BES/afvalverwerker met werkitem-koppeling) of verwijderen.
  */
 
-import React, { useState } from 'react';
-import { Alert, Pressable, Text, View } from 'react-native';
-import { useMutation } from 'convex/react';
-import { Check, CheckCheck, Pencil, Plus, Trash2 } from 'lucide-react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '@clerk/clerk-expo';
+import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
+import { leesUrenConcept, schrijfUrenConcept, urenConceptSleutel, type UrenConcept } from '../../lib/uren-concept';
+import { Alert, Pressable, Text, View } from 'react-native';
+import { useVeldOpdracht } from '../../hooks/use-veld-opdracht';
+import * as Crypto from 'expo-crypto';
+import { DagvoorstelEditor } from './DagvoorstelEditor';
+import { KlusKiezer } from './KlusKiezer';
+import { useVeldServerActie } from '../../hooks/use-veld-server-actie';
+import { Check, CheckCheck, Pencil, Plus, Trash2 } from 'lucide-react-native';
 import { Badge, BottomSheet, Button, Input } from '../ui';
 import {
   CATEGORIE_LABELS,
@@ -38,9 +47,13 @@ export function SegmentenLijst({
   magBewerken: boolean;
 }) {
   const { kleuren } = useBuitenModus();
-  const bevestigSegment = useMutation(api.urenSegmenten.bevestigSegment);
-  const bevestigAlle = useMutation(api.urenSegmenten.bevestigAlleVoorstellen);
-  const verwijderSegment = useMutation(api.urenSegmenten.verwijderSegment);
+  const { voerUit } = useVeldServerActie();
+  const { wachtrij, verstuur } = useVeldOpdracht();
+  const actieBezig = useRef(false);
+  const dagWacht = wachtrij.some(r =>
+    ((r.type === 'dagvoorstel' || r.type === 'segmentToevoegen') && r.payload.datum === datum) ||
+    (r.type === 'segmentWijzigen' && dag.segmenten.some(s => s._id === r.payload.id)));
+
 
   const [formOpen, setFormOpen] = useState(false);
   const [bewerkSegment, setBewerkSegment] = useState<VeldSegment | null>(null);
@@ -51,28 +64,17 @@ export function SegmentenLijst({
     return stop ? stop.klantNaam ?? stop.naam : null;
   };
 
-  const handleBevestigVoorstel = async (voorstel: VoorstelSegment) => {
+  const bevestigVoorstellen = async (voorstellen: VoorstelSegment[]) => {
+    if (actieBezig.current || dagWacht) return;
+    actieBezig.current = true;
     try {
-      await bevestigSegment({
-        datum,
-        categorie: voorstel.categorie,
-        beginTijd: voorstel.beginTijd,
-        eindTijd: voorstel.eindTijd,
-        werkitemId: voorstel.werkitemId ?? undefined,
-        bron: 'voorstel',
-      });
-    } catch (fout) {
-      toonFout(fout, 'Bevestigen is mislukt');
-    }
+      const resultaat = await verstuur('dagvoorstel', { datum, verwachteRevisie: dag.revisie, segmenten: voorstellen.map(v => ({ categorie: v.categorie, beginTijd: v.beginTijd, eindTijd: v.eindTijd, ...(v.werkitemId ? { werkitemId: v.werkitemId } : {}) })) });
+      if (resultaat.status === 'conflict') toonFout(resultaat.fout, 'Bevestigen is mislukt. Controleer de wachtrij.');
+    } catch (fout) { toonFout(fout, 'Bevestigen is mislukt'); }
+    finally { actieBezig.current = false; }
   };
-
-  const handleBevestigAlle = async () => {
-    try {
-      await bevestigAlle({ datum });
-    } catch (fout) {
-      toonFout(fout, 'Bevestigen is mislukt');
-    }
-  };
+  const handleBevestigVoorstel = (voorstel: VoorstelSegment) => bevestigVoorstellen([voorstel]);
+  const handleBevestigAlle = () => bevestigVoorstellen(dag.voorstellen);
 
   const handleVerwijder = (segment: VeldSegment) => {
     Alert.alert(
@@ -85,7 +87,7 @@ export function SegmentenLijst({
           style: 'destructive',
           onPress: async () => {
             try {
-              await verwijderSegment({ id: segment._id });
+              await voerUit('urenSegmenten:verwijderSegment', { id: segment._id });
             } catch (fout) {
               toonFout(fout, 'Verwijderen is mislukt');
             }
@@ -115,6 +117,7 @@ export function SegmentenLijst({
             variant="outline"
             size="sm"
             title="Segment"
+            disabled={dagWacht}
             icon={<Plus size={16} color={kleuren.foreground} />}
             onPress={() => {
               setBewerkSegment(null);
@@ -124,8 +127,9 @@ export function SegmentenLijst({
         )}
       </View>
 
+      {dagWacht && <Text style={{ color: kleuren.mutedForeground }}>Uren van deze dag wachten op synchronisatie. Controleer de wachtrij voordat je verder wijzigt.</Text>}
       {/* Voorgestelde segmenten uit de dagkaart (§8.10) */}
-      {magBewerken && dag.voorstellen.length > 0 && (
+      {magBewerken && !dagWacht && dag.voorstellen.length > 0 && (
         <View
           style={{
             borderWidth: 1,
@@ -162,6 +166,7 @@ export function SegmentenLijst({
               onPress={handleBevestigAlle}
             />
           </View>
+          <DagvoorstelEditor dag={dag} datum={datum} />
           {dag.voorstellen.map((voorstel, i) => (
             <View
               key={`${voorstel.beginTijd}-${voorstel.categorie}-${i}`}
@@ -206,7 +211,8 @@ export function SegmentenLijst({
       ) : (
         <View style={{ gap: 8 }}>
           {dag.segmenten.map((segment) => {
-            const bewerkbaar = magBewerken && segment.status !== 'ingediend';
+            const wachtend = wachtrij.find(r => r.type === 'segmentWijzigen' && r.payload.id === segment._id);
+            const bewerkbaar = magBewerken && !dagWacht && segment.status !== 'ingediend';
             return (
               <View
                 key={String(segment._id)}
@@ -256,6 +262,7 @@ export function SegmentenLijst({
                       {stopNaam(segment.werkitemId)}
                     </Text>
                   )}
+                  {wachtend && <Text accessibilityLiveRegion="polite" style={{ color: kleuren.foreground }}>Wachtende wijziging: {String(wachtend.payload.beginTijd ?? segment.beginTijd)}–{String(wachtend.payload.eindTijd ?? segment.eindTijd)} {String(wachtend.payload.categorie ?? segment.categorie)}{typeof wachtend.payload.notitie === 'string' ? ` · ${wachtend.payload.notitie}` : ''}. Nog niet bevestigd.</Text>}
                   {segment.notitie ? (
                     <Text
                       style={{ color: kleuren.mutedForeground, fontSize: 12 }}
@@ -265,6 +272,7 @@ export function SegmentenLijst({
                     </Text>
                   ) : null}
                 </View>
+                {!bewerkbaar && !dagWacht && dag.isEigenDag && <Button title="Notitie" variant="ghost" size="sm" onPress={() => { setBewerkSegment(segment); setFormOpen(true); }} />}
                 {bewerkbaar && (
                   <View style={{ flexDirection: 'row', gap: 4 }}>
                     <Pressable
@@ -296,7 +304,8 @@ export function SegmentenLijst({
         </View>
       )}
 
-      <SegmentFormSheet
+      {formOpen && <SegmentFormSheet
+        key={`${datum}:${bewerkSegment?._id ?? 'nieuw'}`}
         open={formOpen}
         onClose={() => {
           setFormOpen(false);
@@ -305,7 +314,7 @@ export function SegmentenLijst({
         dag={dag}
         datum={datum}
         bewerkSegment={bewerkSegment}
-      />
+      />}
     </View>
   );
 }
@@ -329,79 +338,120 @@ function SegmentFormSheet({
   bewerkSegment: VeldSegment | null;
 }) {
   const { kleuren } = useBuitenModus();
-  const bevestigSegment = useMutation(api.urenSegmenten.bevestigSegment);
-  const updateSegment = useMutation(api.urenSegmenten.updateSegment);
+  const { verstuur, wachtrij } = useVeldOpdracht();
+  const { userId, orgId } = useAuth();
+  const conceptSleutel = urenConceptSleutel(orgId, userId, datum, bewerkSegment?._id ?? null);
+  const [geladen, setGeladen] = useState(false);
+  const [herstelPoging, setHerstelPoging] = useState<{ sleutel: string; payload: string } | null>(null);
+  const [conceptMelding, setConceptMelding] = useState<string | null>(null);
+  const receipt = useQuery(api.urenSegmenten.getEigenOpdracht, herstelPoging ? { sleutel: herstelPoging.sleutel, actie: bewerkSegment ? 'wijzigen' : 'toevoegen' } : 'skip');
+  const afgewikkeld = useRef(false);
+  const opdracht = useRef<{ payload: string; sleutel: string } | null>(null);
+  const actiefOpslaan = useRef(false);
+  const [revisie, setRevisie] = useState(dag.revisie ?? 0);
+  const alleenNotitie = dag.dagStatus === 'ingediend' && !!bewerkSegment;
 
-  const [categorie, setCategorie] = useState<SegmentCategorie>('werken');
-  const [beginTijd, setBeginTijd] = useState('07:00');
-  const [eindTijd, setEindTijd] = useState('08:00');
-  const [werkitemId, setWerkitemId] = useState<string | null>(null);
-  const [notitie, setNotitie] = useState('');
+  const [categorie, setCategorie] = useState<SegmentCategorie>(bewerkSegment?.categorie ?? 'werken');
+  const [werksoort, setWerksoort] = useState<Werksoort | undefined>(bewerkSegment?.werksoort);
+  const [beginTijd, setBeginTijd] = useState(bewerkSegment?.beginTijd ?? '07:00');
+  const [eindTijd, setEindTijd] = useState(bewerkSegment?.eindTijd ?? '08:00');
+  const [werkitemId, setWerkitemId] = useState<string | null>(bewerkSegment?.werkitemId ?? null);
+  const [notitie, setNotitie] = useState(bewerkSegment?.notitie ?? '');
   const [tijdFout, setTijdFout] = useState<string | null>(null);
   const [bezig, setBezig] = useState(false);
 
-  // Formulier vullen zodra het opengaat (nieuw of bewerken)
-  const [vorigeSleutel, setVorigeSleutel] = useState<string | null>(null);
-  const sleutel = open ? String(bewerkSegment?._id ?? 'nieuw') : null;
-  if (sleutel !== vorigeSleutel) {
-    setVorigeSleutel(sleutel);
-    if (sleutel !== null) {
-      setCategorie(bewerkSegment?.categorie ?? 'werken');
-      setBeginTijd(bewerkSegment?.beginTijd ?? '07:00');
-      setEindTijd(bewerkSegment?.eindTijd ?? '08:00');
-      setWerkitemId(
-        bewerkSegment?.werkitemId ? String(bewerkSegment.werkitemId) : null
-      );
-      setNotitie(bewerkSegment?.notitie ?? '');
-      setTijdFout(null);
-    }
-  }
+  const maakConcept = useCallback((): UrenConcept | null => conceptSleutel ? {
+    versie: 1, scope: conceptSleutel, datum, segmentId: bewerkSegment?._id ?? null, revisie,
+    categorie, werksoort, beginTijd, eindTijd, werkitemId, notitie,
+    ...(opdracht.current ? { opdracht: opdracht.current } : {}),
+  } : null, [conceptSleutel, datum, bewerkSegment?._id, revisie, categorie, werksoort, beginTijd, eindTijd, werkitemId, notitie]);
+  useEffect(() => {
+    let actief = true;
+    if (!conceptSleutel) return;
+    void AsyncStorage.getItem(conceptSleutel).then(tekst => {
+      if (!actief) return;
+      const concept = leesUrenConcept(tekst, conceptSleutel, datum, bewerkSegment?._id ?? null);
+      if (concept) {
+        if (!(concept.categorie in CATEGORIE_LABELS)) throw new Error('De categorie van dit concept is niet beschikbaar.');
+        setCategorie(concept.categorie); setWerksoort(concept.werksoort); setBeginTijd(concept.beginTijd); setEindTijd(concept.eindTijd); setWerkitemId(concept.werkitemId); setNotitie(concept.notitie); setRevisie(concept.revisie);
+        opdracht.current = concept.opdracht ?? null; setHerstelPoging(concept.opdracht ?? null);
+        setConceptMelding('Je bewaarde invoer is hersteld.');
+      }
+      setGeladen(true);
+    }).catch(error => { if (actief) { setTijdFout(error instanceof Error ? error.message : 'Concept laden mislukt.'); } });
+    return () => { actief = false; };
+  }, [conceptSleutel, datum, bewerkSegment?._id]);
+  useEffect(() => {
+    if (!geladen || afgewikkeld.current || !conceptSleutel) return;
+    const concept = maakConcept();
+    if (concept) void schrijfUrenConcept(AsyncStorage, conceptSleutel, concept).catch(() => setTijdFout('Je invoer kon niet op dit toestel worden bewaard. Houd het formulier open en probeer opnieuw.'));
+  }, [geladen, conceptSleutel, maakConcept]);
+  const verwijderConcept = useCallback(async () => {
+    afgewikkeld.current = true;
+    if (conceptSleutel) await schrijfUrenConcept(AsyncStorage, conceptSleutel, null);
+  }, [conceptSleutel]);
+  const staatInWachtrij = !!herstelPoging && wachtrij.some(r => r.id === herstelPoging.sleutel);
+  useEffect(() => {
+    if (!herstelPoging || (!receipt && !staatInWachtrij)) return;
+    void verwijderConcept().then(onClose).catch(() => setTijdFout('Opruimen van bevestigd concept mislukt. De invoer wordt niet opnieuw verstuurd.'));
+  }, [herstelPoging, receipt, staatInWachtrij, verwijderConcept, onClose]);
 
   const toontKlusKeuze =
     categorie === 'werken' || categorie === 'afvalverwerker_bes';
 
   const handleOpslaan = async () => {
-    if (!isGeldigTijdvak(beginTijd, eindTijd)) {
-      setTijdFout('Vul tijden als HH:MM in, begin vóór eind');
-      return;
-    }
-    if (categorie === 'werken' && !werkitemId) {
-      setTijdFout('Kies de klus waar je gewerkt hebt');
-      return;
-    }
-    setTijdFout(null);
-    setBezig(true);
+    if (actiefOpslaan.current || !geladen) return;
+    if (!alleenNotitie && !isGeldigTijdvak(beginTijd, eindTijd)) { setTijdFout('Vul tijden als HH:MM in, begin vóór eind'); return; }
+    if (!alleenNotitie && categorie === 'werken' && !werkitemId) { setTijdFout('Kies de klus waar je gewerkt hebt'); return; }
+    const inhoud = herstelPoging ? JSON.parse(herstelPoging.payload) as Record<string, unknown> : bewerkSegment ? {
+      id: bewerkSegment._id, verwachteRevisie: revisie, notitie: notitie.trim(),
+      ...(!alleenNotitie ? { categorie, beginTijd, eindTijd, ...(categorie === 'anders' && werksoort ? { werksoort } : {}), werkitemId: toontKlusKeuze ? werkitemId ?? null : null } : {}),
+    } : {
+      datum, categorie, beginTijd, eindTijd, verwachteRevisie: revisie, bron: 'handmatig',
+      ...(categorie === 'anders' && werksoort ? { werksoort } : {}),
+      ...(toontKlusKeuze && werkitemId ? { werkitemId } : {}), ...(notitie.trim() ? { notitie: notitie.trim() } : {}),
+    };
+    const payload = JSON.stringify(inhoud);
+    if (opdracht.current?.payload !== payload) opdracht.current = { payload, sleutel: Crypto.randomUUID() };
+    setTijdFout(null); setBezig(true); actiefOpslaan.current = true;
     try {
-      if (bewerkSegment) {
-        await updateSegment({
-          id: bewerkSegment._id,
-          categorie,
-          beginTijd,
-          eindTijd,
-          werkitemId: toontKlusKeuze ? werkitemId ?? null : null,
-          notitie: notitie.trim() || undefined,
-        });
-      } else {
-        await bevestigSegment({
-          datum,
-          categorie,
-          beginTijd,
-          eindTijd,
-          werkitemId: toontKlusKeuze && werkitemId ? werkitemId : undefined,
-          notitie: notitie.trim() || undefined,
-          bron: 'handmatig',
-        });
+      const concept = maakConcept();
+      if (concept && conceptSleutel) await schrijfUrenConcept(AsyncStorage, conceptSleutel, concept);
+      const result = await verstuur(bewerkSegment ? 'segmentWijzigen' : 'segmentToevoegen', inhoud, opdracht.current.sleutel);
+      if (result.status === 'conflict') setTijdFout(result.fout ?? 'Controleer de wachtende invoer bovenaan de dag.');
+      else {
+        await verwijderConcept();
+        onClose(); opdracht.current = null;
+        if (result.status === 'wacht') Alert.alert('Op toestel bewaard', 'De registratie wordt gesynchroniseerd zodra je verbinding hebt.');
       }
-      onClose();
-    } catch (fout) {
-      toonFout(
-        fout,
-        bewerkSegment ? 'Aanpassen is mislukt' : 'Opslaan is mislukt'
-      );
-    } finally {
-      setBezig(false);
-    }
+    } catch (fout) { toonFout(fout, 'Opslaan is mislukt'); }
+    finally { setBezig(false); actiefOpslaan.current = false; }
   };
+
+  const conceptInfo = <View style={{ gap: 8 }}>
+    <Text style={{ color: kleuren.mutedForeground }}>{conceptMelding ?? 'Je invoer wordt op dit toestel bewaard bij sluiten of herstart.'}</Text>
+    {geladen && !herstelPoging && revisie !== dag.revisie && <Text accessibilityRole="alert" style={{ color: kleuren.foreground }}>De dag is gewijzigd sinds dit concept. Controleer je tijden en laad de actuele dagrevisie voordat je opslaat.</Text>}
+    {geladen && !herstelPoging && revisie !== dag.revisie && <Button title="Gecontroleerd, actuele revisie gebruiken" variant="outline" onPress={() => setRevisie(dag.revisie)} />}
+    <Button title="Concept verwijderen" variant="ghost" disabled={bezig} onPress={async () => { try { await verwijderConcept(); onClose(); } catch { setTijdFout('Concept verwijderen mislukt.'); } }} />
+  </View>;
+  if (!geladen || herstelPoging) return <BottomSheet isOpen={open} onClose={onClose} title="Bewaarde ureninvoer">
+    <View style={{ gap: 12 }}>
+      <Text style={{ color: kleuren.foreground }}>{herstelPoging ? `${beginTijd}–${eindTijd} · ${CATEGORIE_LABELS[categorie]}` : 'Bewaarde invoer laden…'}</Text>
+      {herstelPoging && <><Text style={{ color: kleuren.mutedForeground }}>Deze invoer is eerder aangeboden. We controleren of ze al bevestigd is. Opnieuw versturen gebruikt dezelfde sleutel en maakt geen tweede registratie.</Text><Button title="Dezelfde invoer opnieuw versturen" variant="outline" loading={bezig} onPress={handleOpslaan} disabled={!!receipt || staatInWachtrij} /></>}
+      {tijdFout && <Text accessibilityRole="alert" style={{ color: kleuren.destructive }}>{tijdFout}</Text>}
+      {!herstelPoging && conceptInfo}
+    </View>
+  </BottomSheet>;
+
+  if (alleenNotitie) return <BottomSheet isOpen={open} onClose={onClose} title="Notitie aanvullen">
+    <View style={{ gap: 12, paddingBottom: 12 }}>
+      <Text style={{ color: kleuren.mutedForeground }}>De dag is ingediend. Je kunt alleen de notitie aanpassen.</Text>
+      {conceptInfo}
+      <Input label="Notitie" value={notitie} onChangeText={setNotitie} disabled={bezig} multiline />
+      {tijdFout && <Text accessibilityRole="alert" style={{ color: kleuren.destructive }}>{tijdFout}</Text>}
+      <Button title="Notitie opslaan" onPress={handleOpslaan} loading={bezig} />
+    </View>
+  </BottomSheet>;
 
   return (
     <BottomSheet
@@ -410,6 +460,7 @@ function SegmentFormSheet({
       title={bewerkSegment ? 'Segment aanpassen' : 'Segment toevoegen'}
     >
       <View style={{ gap: 14, paddingBottom: 12 }}>
+        {conceptInfo}
         {/* Categorie-keuze */}
         <View style={{ gap: 6 }}>
           <Text style={{ color: kleuren.mutedForeground, fontSize: 12 }}>
@@ -424,7 +475,7 @@ function SegmentFormSheet({
                     key={waarde}
                     accessibilityRole="button"
                     accessibilityState={{ selected: actief }}
-                    onPress={() => setCategorie(waarde)}
+                    onPress={() => { setCategorie(waarde); setWerksoort(undefined); }}
                     style={{
                       paddingHorizontal: 12,
                       paddingVertical: 8,
@@ -452,6 +503,8 @@ function SegmentFormSheet({
             )}
           </View>
         </View>
+
+        {categorie === 'anders' && <WerksoortKeuze waarde={werksoort} wijzigen={setWerksoort} disabled={bezig} />}
 
         {/* Tijdvak */}
         <View style={{ flexDirection: 'row', gap: 12 }}>
@@ -487,43 +540,7 @@ function SegmentFormSheet({
                 ? 'Klus (verplicht)'
                 : 'Herkomst groenafval (optioneel)'}
             </Text>
-            {dag.stops.length === 0 ? (
-              <Text style={{ color: kleuren.mutedForeground, fontSize: 13 }}>
-                Geen geplande klussen op deze dag.
-              </Text>
-            ) : (
-              <View style={{ gap: 8 }}>
-                {dag.stops.map((stop) => {
-                  const id = String(stop.werkitemId);
-                  const actief = werkitemId === id;
-                  return (
-                    <Pressable
-                      key={id}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: actief }}
-                      onPress={() => setWerkitemId(actief ? null : id)}
-                      style={{
-                        paddingHorizontal: 12,
-                        paddingVertical: 10,
-                        borderRadius: 10,
-                        borderWidth: 1,
-                        borderColor: actief ? kleuren.primary : kleuren.border,
-                        backgroundColor: actief
-                          ? kleuren.secondary
-                          : 'transparent',
-                      }}
-                    >
-                      <Text
-                        style={{ color: kleuren.foreground, fontSize: 14 }}
-                        numberOfLines={1}
-                      >
-                        {stop.klantNaam ?? stop.naam}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            )}
+            <KlusKiezer datum={datum} stops={dag.stops} waarde={werkitemId} wijzigen={setWerkitemId} disabled={bezig} />
           </View>
         )}
 

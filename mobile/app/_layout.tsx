@@ -4,10 +4,9 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { ClerkProvider, ClerkLoaded, useAuth } from '@clerk/clerk-expo';
+import { ClerkProvider, ClerkLoaded } from '@clerk/clerk-expo';
 import { tokenCache } from '@clerk/clerk-expo/token-cache';
-import { ConvexProviderWithClerk } from 'convex/react-clerk';
-import { getConvexClient } from '../lib/convex';
+import { SessieConvexProvider } from '../components/SessieConvexProvider';
 import { CLERK_PUBLISHABLE_KEY } from '../lib/env';
 import { ThemeProvider } from '../theme';
 import { useCurrentUser } from '../hooks/use-current-user';
@@ -17,8 +16,6 @@ import { ToastProvider } from '../contexts/ToastContext';
 import { OrgGate } from '../components/OrgGate';
 import { Feather } from '@expo/vector-icons';
 
-// Convex client instantie
-const convex = getConvexClient();
 
 // ============================================
 // ERROR BOUNDARY
@@ -308,9 +305,9 @@ export default function RootLayout() {
               publishableKey={CLERK_PUBLISHABLE_KEY}
             >
               <ClerkLoaded>
-                <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
+                <SessieConvexProvider>
                   <InnerLayout />
-                </ConvexProviderWithClerk>
+                </SessieConvexProvider>
               </ClerkLoaded>
             </ClerkProvider>
           </AppErrorBoundary>

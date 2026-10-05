@@ -26,7 +26,7 @@ import { radius } from '../theme/radius';
 import { typography } from '../theme/typography';
 import { disableBiometric } from '../lib/auth/biometric';
 
-export function GeenToegang() {
+export function GeenToegang({ uitleg }: { uitleg?: string } = {}) {
   const clerk = useClerk();
   const [uitloggen, setUitloggen] = useState(false);
 
@@ -51,8 +51,7 @@ export function GeenToegang() {
 
       <Text style={styles.title}>Nog geen toegang</Text>
       <Text style={styles.description}>
-        Je account is nog niet aan een organisatie gekoppeld — vraag je beheerder om een
-        uitnodiging.
+        {uitleg ?? 'Je account is nog niet aan een organisatie gekoppeld — vraag je beheerder om een uitnodiging.'}
       </Text>
 
       <Pressable

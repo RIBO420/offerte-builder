@@ -20,6 +20,7 @@ import { api } from '../../convex/_generated/api';
 import { useTheme, useColors } from '../../theme';
 import { colors } from '../../theme/colors';
 import { useCurrentUser } from '../../hooks/use-current-user';
+import { useVeldOpdracht } from '../../hooks/use-veld-opdracht';
 import { useUserRole } from '../../hooks/use-user-role';
 import { Button, Badge, Switch, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '../../components/ui';
 import {
@@ -33,7 +34,6 @@ import {
 
 // Storage keys
 const LANGUAGE_STORAGE_KEY = '@toptuinen_language';
-const NOTIFICATIONS_STORAGE_KEY = '@toptuinen_notifications';
 
 // App version info
 const APP_VERSION = Constants.expoConfig?.version || '1.0.0';
@@ -164,6 +164,8 @@ function AuthenticatedProfielScreen() {
   // These queries will only run when this component is mounted (i.e., when authenticated)
   const profile = useQuery(api.mobile.getProfile);
   const updateBiometric = useMutation(api.mobile.updateBiometricSetting);
+  const notificationPrefs = useQuery(api.chat.getNotificationPreferences, {});
+  const updateNotificationPrefs = useMutation(api.chat.updateNotificationPreferences);
 
   // Local state
   const [biometricEnabled, setBiometricEnabled] = useState(false);
@@ -176,9 +178,9 @@ function AuthenticatedProfielScreen() {
   const [showHelpDialog, setShowHelpDialog] = useState(false);
 
   // Notification settings state
-  const [pushEnabled, setPushEnabled] = useState(true);
-  const [chatEnabled, setChatEnabled] = useState(true);
-  const [projectUpdatesEnabled, setProjectUpdatesEnabled] = useState(true);
+  const pushEnabled = notificationPrefs?.enablePushNotifications ?? false;
+  const chatEnabled = !!notificationPrefs?.notifyOnTeamChat && !!notificationPrefs?.notifyOnDirectMessage;
+  const projectUpdatesEnabled = notificationPrefs?.notifyOnProjectChat ?? false;
 
   // Initialize biometric state
   useEffect(() => {
@@ -228,30 +230,11 @@ function AuthenticatedProfielScreen() {
     loadLanguage();
   }, []);
 
-  // Load notification preferences
-  useEffect(() => {
-    const loadNotificationPrefs = async () => {
-      try {
-        const saved = await AsyncStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
-        if (saved) {
-          const prefs = JSON.parse(saved);
-          setPushEnabled(prefs.push ?? true);
-          setChatEnabled(prefs.chat ?? true);
-          setProjectUpdatesEnabled(prefs.projectUpdates ?? true);
-        }
-      } catch (error) {
-        console.warn('Failed to load notification preferences:', error);
-      }
-    };
-    loadNotificationPrefs();
-  }, []);
-
-  // Save notification preferences
   const saveNotificationPrefs = async (prefs: { push: boolean; chat: boolean; projectUpdates: boolean }) => {
     try {
-      await AsyncStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(prefs));
+      await updateNotificationPrefs({ enablePushNotifications: prefs.push, notifyOnTeamChat: prefs.chat, notifyOnDirectMessage: prefs.chat, notifyOnBroadcast: prefs.chat, notifyOnProjectChat: prefs.projectUpdates });
     } catch (error) {
-      console.warn('Failed to save notification preferences:', error);
+      Alert.alert('Voorkeur niet opgeslagen', error instanceof Error ? error.message : 'Probeer het opnieuw zodra je verbinding hebt.');
     }
   };
 
@@ -266,12 +249,17 @@ function AuthenticatedProfielScreen() {
   // Generate initials
   const initials = `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase() || 'U';
 
+  const { wachtrij, synchroniseer } = useVeldOpdracht();
+
   const handleSignOut = () => {
     Alert.alert(
       'Uitloggen',
-      'Weet je zeker dat je wilt uitloggen?',
+      wachtrij.length > 0
+        ? `Er staan nog ${wachtrij.length} opdrachten op dit toestel die niet bevestigd zijn. Ze blijven bewaard voor dit account en deze organisatie. Log later met hetzelfde account in om ze te versturen. Wis of verwijder de app niet voordat de wachtrij leeg is.`
+        : 'Weet je zeker dat je wilt uitloggen?',
       [
         { text: 'Annuleren', style: 'cancel' },
+        ...(wachtrij.length > 0 ? [{ text: 'Eerst synchroniseren', onPress: () => { void synchroniseer(); } }] : []),
         {
           text: 'Uitloggen',
           style: 'destructive',
@@ -500,9 +488,8 @@ function AuthenticatedProfielScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                   <Text style={{ fontSize: 13, color: '#888888' }}>Push notificaties</Text>
                   <Switch
-                    value={pushEnabled}
+                    value={pushEnabled} disabled={!notificationPrefs}
                     onValueChange={(val) => {
-                      setPushEnabled(val);
                       saveNotificationPrefs({ push: val, chat: chatEnabled, projectUpdates: projectUpdatesEnabled });
                     }}
                     size="sm"
@@ -513,9 +500,8 @@ function AuthenticatedProfielScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                   <Text style={{ fontSize: 13, color: '#888888' }}>Chat meldingen</Text>
                   <Switch
-                    value={chatEnabled}
+                    value={chatEnabled} disabled={!notificationPrefs}
                     onValueChange={(val) => {
-                      setChatEnabled(val);
                       saveNotificationPrefs({ push: pushEnabled, chat: val, projectUpdates: projectUpdatesEnabled });
                     }}
                     size="sm"
@@ -524,11 +510,10 @@ function AuthenticatedProfielScreen() {
               </View>
               <View style={{ paddingVertical: 14, paddingHorizontal: 14 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Text style={{ fontSize: 13, color: '#888888' }}>Project updates</Text>
+                  <Text style={{ fontSize: 13, color: '#888888' }}>Projectchat</Text>
                   <Switch
-                    value={projectUpdatesEnabled}
+                    value={projectUpdatesEnabled} disabled={!notificationPrefs}
                     onValueChange={(val) => {
-                      setProjectUpdatesEnabled(val);
                       saveNotificationPrefs({ push: pushEnabled, chat: chatEnabled, projectUpdates: val });
                     }}
                     size="sm"
@@ -538,6 +523,12 @@ function AuthenticatedProfielScreen() {
             </View>
           </View>
 
+          <View style={{ paddingHorizontal: 16, marginBottom: 16, gap: 8 }}>
+            <Button title="Installeren en bijwerken" variant="outline" onPress={() => router.push('/werk/app-hulp')} />
+            <Button title="Uitleg opnieuw bekijken" variant="outline" onPress={() => router.push('/werk/intro')} />
+            <Button title="Wachtwoord instellen of wijzigen" variant="outline" onPress={() => router.push('/werk/account')} />
+            <Button title="Foto’s van mijn klussen" variant="outline" onPress={() => router.push('/werk/fotos')} />
+          </View>
           {/* APP Section */}
           <View style={{ paddingHorizontal: 16, marginBottom: 16 }}>
             <Text style={{ fontSize: 10, color: colors.inactive, textTransform: 'uppercase', letterSpacing: 1.5, fontWeight: '600', marginBottom: 8, paddingLeft: 4 }}>

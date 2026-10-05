@@ -11,21 +11,10 @@ import { CONVEX_URL } from './env';
 // Re-export hooks van convex/react voor gemak
 export { useQuery, useMutation, useAction, useConvex } from 'convex/react';
 
-// Convex client instantie
-// Wordt geinitialiseerd als CONVEX_URL beschikbaar is
-let convexClient: ConvexReactClient | null = null;
-
-export function getConvexClient(): ConvexReactClient {
-  if (!convexClient) {
-    if (!CONVEX_URL) {
-      throw new Error(
-        'EXPO_PUBLIC_CONVEX_URL is niet geconfigureerd. ' +
-        'Voeg deze toe aan je .env.local bestand.'
-      );
-    }
-    convexClient = new ConvexReactClient(CONVEX_URL);
-  }
-  return convexClient;
+// Geen singleton: de provider maakt een client per Clerk-sessie en organisatie.
+export function maakConvexClient(): ConvexReactClient {
+  if (!CONVEX_URL) throw new Error('EXPO_PUBLIC_CONVEX_URL is niet geconfigureerd.');
+  return new ConvexReactClient(CONVEX_URL);
 }
 
 // Type-safe API reference

@@ -9,15 +9,17 @@
  * Bewuste keuzes t.o.v. web:
  * - Kantoor-capabilities (andermans dag, dag heropenen) bestaan hier niet;
  *   dat blijft webwerk. Mobiel is het altijd je eigen dag.
- * - Online-only, net als de Hub: segment-bevestigen praat direct met Convex.
+ * - Concepten, correcties en bezoekmeldingen gaan via een accountgebonden
+ *   offline wachtrij. Definitief indienen vraagt serverbevestiging.
  * - "Buiten"-modus is een hoog-contrast licht thema over de theme-tokens,
  *   persistent per gebruiker (bijlage C).
  */
 
+import { useVeldServerActie } from '../../hooks/use-veld-server-actie';
 import React, { Component, useMemo, useState, type ReactNode } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useMutation, useQuery } from 'convex/react';
+import { useQuery } from 'convex/react';
 import {
   CalendarDays,
   ChevronLeft,
@@ -27,6 +29,12 @@ import {
   Send,
   Sun,
 } from 'lucide-react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useVeldCache } from '../../hooks/use-veld-cache';
+import { useVeldOpdracht } from '../../hooks/use-veld-opdracht';
+import { WerkbezoekDag, type WerkbezoekDagData } from '../../components/veld/WerkbezoekDag';
+import { VeldWachtrij } from '../../components/veld/VeldWachtrij';
+import { geldigeDag } from '../../lib/werk-periode';
 import { api } from '../../convex/_generated/api';
 import { useCurrentUser } from '../../hooks/use-current-user';
 import { Badge, Button, OfflineIndicator } from '../../components/ui';
@@ -37,6 +45,8 @@ import {
   SegmentenLijst,
   useBuitenModus,
 } from '../../components/veld';
+import { isInternalRole } from '../../lib/roles';
+import { AanhangerRetourKaart } from '../../components/veld/AanhangerRetourKaart';
 import type { VeldDagData, VeldInstellingenData } from '../../types/veld';
 
 // ============================================
@@ -99,8 +109,9 @@ function toonFout(fout: unknown, fallback: string) {
 export default function UrenScreen() {
   const { user, isLoading, role } = useCurrentUser();
 
-  // Klant-rol (mobiel: 'viewer') hoort de veld-schermen nooit te zien
-  if (!isLoading && role === 'viewer') {
+  if (isLoading) return <SafeAreaView style={{ flex: 1, justifyContent: 'center' }}><ActivityIndicator accessibilityLabel="Je dag laden" /></SafeAreaView>;
+
+  if (!isInternalRole(role)) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: '#0A0A0A' }}>
         <View
@@ -141,17 +152,29 @@ export default function UrenScreen() {
 
 function MijnDag() {
   const { buiten, toggleBuiten, kleuren } = useBuitenModus();
-  const [datum, setDatum] = useState(vandaagIso());
+  const params = useLocalSearchParams<{ datum?: string }>();
+  const router = useRouter();
+  const [datum, setDatum] = useState(() => geldigeDag(params.datum) ? params.datum : vandaagIso());
+  const [routeDatum, setRouteDatum] = useState(params.datum);
+  if (routeDatum !== params.datum) {
+    setRouteDatum(params.datum);
+    if (geldigeDag(params.datum)) setDatum(params.datum);
+  }
+  const { wachtrij } = useVeldOpdracht();
+  const { online, voerUit } = useVeldServerActie();
 
-  const dag = useQuery(api.urenSegmenten.getVeldDag, { datum }) as
+  const liveDag = useQuery(api.urenSegmenten.getVeldDag, { datum }) as
     | VeldDagData
     | null
     | undefined;
+  const { data: dag, uitCache } = useVeldCache(`dag:${datum}`, liveDag);
+  const bezoekLive = useQuery(api.werkbezoek.getVoorDag, { datum }) as WerkbezoekDagData | undefined;
+  const { data: bezoekDag } = useVeldCache(`bezoeken:${datum}`, bezoekLive);
   const veldInstellingen = useQuery(api.instellingen.getVeldInstellingen, {}) as
     | VeldInstellingenData
     | undefined;
 
-  const dienDagIn = useMutation(api.urenSegmenten.dienDagIn);
+
   const [bezigMetIndienen, setBezigMetIndienen] = useState(false);
 
   const isIngediend = dag?.dagStatus === 'ingediend';
@@ -161,10 +184,10 @@ function MijnDag() {
   const label = useMemo(() => datumLabel(datum), [datum]);
 
   const handleDienIn = () => {
-    if (!dag || dag.segmenten.length === 0) return;
+    if (!online || !dag || dag.segmenten.length === 0 || wachtrij.length > 0 || uitCache || !bezoekLive?.gereed) return;
     Alert.alert(
       'Dag indienen',
-      `${dag.segmenten.length} segment${dag.segmenten.length === 1 ? '' : 'en'} indienen? Daarna staat de dag op slot; kantoor kan hem zo nodig heropenen.`,
+      `${dag.segmenten.length} segment${dag.segmenten.length === 1 ? '' : 'en'} indienen? Daarna staan je uren op slot; kantoor kan ze zo nodig heropenen. Bezoekmeldingen blijven aanvulbaar.`,
       [
         { text: 'Annuleer', style: 'cancel' },
         {
@@ -172,7 +195,7 @@ function MijnDag() {
           onPress: async () => {
             setBezigMetIndienen(true);
             try {
-              await dienDagIn({ datum });
+              await voerUit('urenSegmenten:dienDagIn', { datum });
             } catch (fout) {
               toonFout(fout, 'Dag indienen is mislukt');
             } finally {
@@ -242,6 +265,13 @@ function MijnDag() {
           </View>
         </View>
 
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          <Button title="Mijn uren" variant="outline" onPress={() => router.push('/werk/urenoverzicht')} />
+          <Button title="Planning" variant="ghost" onPress={() => router.push('/werk/planning')} />
+          <Button title="Protocollen" variant="ghost" onPress={() => router.push('/werk/protocollen')} />
+        </View>
+        {uitCache && <Text style={{ color: kleuren.mutedForeground }}>Opgeslagen dag op dit toestel. Nieuwe invoer wordt gesynchroniseerd zodra je verbinding hebt.</Text>}
+        <VeldWachtrij />
         {/* Datum-navigatie */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Pressable
@@ -356,8 +386,9 @@ function MijnDag() {
             </View>
             {isIngediend && (
               <Text style={{ color: kleuren.mutedForeground, fontSize: 12 }}>
-                Deze dag is ingediend en op slot. Alleen kantoor kan hem
-                heropenen en corrigeren (met log).
+                Je uren zijn ingediend en op slot. Alleen kantoor kan ze
+                heropenen en corrigeren (met log). Notities en gedeelde
+                bezoekmeldingen kun je nog aanvullen.
               </Text>
             )}
 
@@ -388,6 +419,9 @@ function MijnDag() {
             {/* Urensegmenten: voorstellen bevestigen + eigen segmenten */}
             <SegmentenLijst dag={dag} datum={datum} magBewerken={magBewerken} />
 
+            <WerkbezoekDag data={bezoekDag} datum={datum} />
+            <AanhangerRetourKaart key={`${datum}:${dag.team?._id ?? dag.medewerker._id}`} datum={datum} teamId={dag.team?._id} />
+
             {/* Dag indienen */}
             {!isIngediend && (
               <Button
@@ -396,7 +430,7 @@ function MijnDag() {
                 icon={<Send size={18} color={kleuren.primaryForeground} />}
                 onPress={handleDienIn}
                 loading={bezigMetIndienen}
-                disabled={dag.segmenten.length === 0}
+                disabled={!online || dag.segmenten.length === 0 || wachtrij.length > 0 || uitCache || !bezoekLive?.gereed}
                 fullWidth
               />
             )}

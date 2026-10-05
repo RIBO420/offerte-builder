@@ -7,6 +7,7 @@ import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { useCurrentUser } from '../../hooks/use-current-user';
 import { useUserRole } from '../../hooks/use-user-role';
+import { vandaagAmsterdam } from '../../lib/werk-periode';
 import { Bell, Leaf, Hammer, TreePine, Shovel } from 'lucide-react-native';
 
 // Theme system
@@ -15,6 +16,7 @@ import { colors } from '../../theme/colors';
 
 // UI Components
 import {
+  Button,
   HeroProjectCard,
   NotificationBanner,
   ProjectListItem,
@@ -90,18 +92,16 @@ export default function DashboardScreen() {
 function AuthenticatedDashboard() {
   const colors = useColors();
   const router = useRouter();
-  const { isMedewerker } = useUserRole();
+  const { isMedewerker, role } = useUserRole();
+  const { user } = useCurrentUser();
   const [refreshing, setRefreshing] = useState(false);
 
   // Queries
-  const profile = useQuery(api.medewerkers.getActive);
-  const activeProjects = useQuery(api.projecten.getActiveProjectsWithProgress);
+  const activeProjects = useQuery(api.projecten.getActiveProjectsWithProgress, isMedewerker ? 'skip' : {});
 
-  const isDataLoading = profile === undefined;
-  const planningProjects = useQuery(
-    api.projecten.listForPlanning,
-    isMedewerker ? {} : 'skip'
-  );
+  const isDataLoading = user === undefined;
+  const eigenDag = useQuery(api.urenSegmenten.getVeldDag, isMedewerker ? { datum: vandaagAmsterdam() } : 'skip');
+  const planningProjects = eigenDag?.stops.map(stop => ({ _id: stop.werkitemId, naam: stop.naam, klantNaam: stop.klantNaam ?? '', status: 'gepland', voortgang: stop.klaarVoorFacturatie ? 100 : 0 }));
 
   // Notification queries
   const notifications = useQuery(api.notifications.list, { limit: 5 });
@@ -109,7 +109,7 @@ function AuthenticatedDashboard() {
   const markAsRead = useMutation(api.notifications.markAsRead);
   const dismissNotification = useMutation(api.notifications.dismiss);
 
-  const userName = profile?.[0]?.naam || 'Medewerker';
+  const userName = user?.name || 'Medewerker';
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -158,6 +158,13 @@ function AuthenticatedDashboard() {
               </TouchableOpacity>
             </View>
 
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+              <Button title="Planning" variant="outline" onPress={() => router.push('/werk/planning')} />
+              <Button title="Mijn uren" variant="ghost" onPress={() => router.push('/werk/urenoverzicht')} />
+              {['directie', 'projectleider'].includes(role) && <Button title="Kantoorcontrole" variant="outline" onPress={() => router.push('/werk/kantoor-uren')} />}
+              <Button title="Protocollen" variant="ghost" onPress={() => router.push('/werk/protocollen')} />
+              {['directie', 'projectleider', 'voorman'].includes(role) && <Button title="Losse krachten" variant="ghost" onPress={() => router.push('/werk/losse-krachten')} />}
+            </View>
             {/* ── Hero Project Card ── */}
             {isDataLoading ? (
               <View style={{ marginBottom: 16 }}>
@@ -174,7 +181,7 @@ function AuthenticatedDashboard() {
                   }
                   progress={'voortgang' in heroProject ? (heroProject.voortgang as number) : 0}
                   onPress={() => router.push(`/project/${heroProject._id}`)}
-                  onPhotoPress={() => router.push(`/project/${heroProject._id}`)}
+                  onPhotoPress={() => router.push('/werk/fotos')}
                   onHoursPress={() => router.push('/(tabs)/uren')}
                 />
               </View>
@@ -203,15 +210,7 @@ function AuthenticatedDashboard() {
               </View>
             ) : latestNotifications.length > 0 ? (
               <View style={{ gap: 8, marginBottom: 8 }}>
-                {latestNotifications.map((notif: {
-                  _id: string;
-                  type: string;
-                  title: string;
-                  message: string;
-                  _creationTime: number;
-                  isRead?: boolean;
-                  projectId?: string;
-                }) => (
+                {latestNotifications.map((notif) => (
                   <NotificationBanner
                     key={notif._id}
                     icon={getNotificationIcon(notif.type)}
@@ -251,7 +250,7 @@ function AuthenticatedDashboard() {
                   <Text style={styles.sectionLabel}>ANDERE PROJECTEN</Text>
                 </View>
                 <FlatList
-                  data={otherProjects}
+                  data={otherProjects.map(item => ({ _id: item._id, naam: item.naam, status: item.status, klantNaam: 'klantNaam' in item && typeof item.klantNaam === 'string' ? item.klantNaam : '', voortgang: 'voortgang' in item && typeof item.voortgang === 'number' ? item.voortgang : 0 }))}
                   horizontal
                   showsHorizontalScrollIndicator={false}
                   keyExtractor={(item) => item._id}

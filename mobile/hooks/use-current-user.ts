@@ -3,23 +3,24 @@
  * Creates user in Convex if they don't exist yet
  *
  * Also provides role-based access control information:
- * - role: The user's role (admin, medewerker, viewer)
+ * - role: Canonical company role; unknown identities have no capabilities
  * - isAdmin: Whether the user has admin privileges
  * - isMedewerker: Whether the user is a medewerker
  * - isViewer: Whether the user is a viewer (read-only)
  * - linkedMedewerkerId: The ID of the linked medewerker profile (for medewerker role)
  */
 
-import { useUser } from "@clerk/clerk-expo";
+import { useUser, useAuth } from "@clerk/clerk-expo";
 import { useQuery, useMutation, useConvexAuth } from "convex/react";
 import { api } from "../convex/_generated/api";
-import { useEffect, useRef, useMemo, useState } from "react";
+import { useEffect, useRef, useMemo } from "react";
 import type { Id } from "../convex/_generated/dataModel";
 
 /**
  * User roles for role-based access control
  */
-export type UserRole = "admin" | "medewerker" | "viewer";
+import { normalizeRole, isFieldRole, type NativeRole } from '../lib/roles';
+export type UserRole = NativeRole;
 
 /**
  * Return type for the useCurrentUser hook
@@ -35,7 +36,7 @@ export interface CurrentUserResult {
   isAuthenticated: boolean;
   /** Whether the Convex user has been synced */
   isUserSynced: boolean;
-  /** The user's role (defaults to 'admin' for backwards compatibility) */
+  /** The canonical role, or onbekend while loading/unauthorized */
   role: UserRole;
   /** Whether the user has admin privileges */
   isAdmin: boolean;
@@ -49,20 +50,8 @@ export interface CurrentUserResult {
 
 export function useCurrentUser(): CurrentUserResult {
   const { user: clerkUser, isLoaded: isClerkLoaded } = useUser();
+  const { orgId } = useAuth();
   const { isAuthenticated, isLoading: isConvexLoading } = useConvexAuth();
-
-  // Dev mode: stop blocking UI after timeout if auth is stuck
-  const [authTimedOut, setAuthTimedOut] = useState(false);
-  useEffect(() => {
-    if (isAuthenticated) return;
-    const timer = setTimeout(() => {
-      if (__DEV__) {
-        console.warn('[useCurrentUser] Auth timed out — showing UI without data');
-        setAuthTimedOut(true);
-      }
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, [isAuthenticated]);
 
   // Query current user - skip if not authenticated
   const convexUser = useQuery(
@@ -76,6 +65,10 @@ export function useCurrentUser(): CurrentUserResult {
   // Track if we've already attempted user creation
   const hasAttemptedUpsert = useRef(false);
   const hasInitialized = useRef(false);
+  useEffect(() => {
+    hasAttemptedUpsert.current = false;
+    hasInitialized.current = false;
+  }, [clerkUser?.id, orgId]);
 
   // Sync Clerk user to Convex on first load
   useEffect(() => {
@@ -116,27 +109,26 @@ export function useCurrentUser(): CurrentUserResult {
 
   // Compute role-based access control values
   const roleInfo = useMemo(() => {
-    // Default to 'admin' for backwards compatibility (users without a role are admins)
-    const role: UserRole = (convexUser?.role as UserRole) || "admin";
-    const linkedMedewerkerId = convexUser?.linkedMedewerkerId ?? null;
+    const role = normalizeRole(isAuthenticated ? convexUser?.role : null);
+    const linkedMedewerkerId = isAuthenticated ? convexUser?.linkedMedewerkerId ?? null : null;
 
     return {
       role,
-      isAdmin: role === "admin",
-      isMedewerker: role === "medewerker",
-      isViewer: role === "viewer",
+      isAdmin: role === "directie",
+      isMedewerker: isFieldRole(role),
+      isViewer: role === "klant",
       linkedMedewerkerId,
     };
-  }, [convexUser?.role, convexUser?.linkedMedewerkerId]);
+  }, [convexUser?.role, convexUser?.linkedMedewerkerId, isAuthenticated]);
 
   const actuallyLoading = !isClerkLoaded || isConvexLoading || (isAuthenticated && convexUser === undefined);
 
   return {
     user: convexUser,
     clerkUser,
-    isLoading: authTimedOut ? false : actuallyLoading,
-    isAuthenticated: authTimedOut ? true : (isAuthenticated && !!convexUser),
-    isUserSynced: authTimedOut ? true : (convexUser !== null && convexUser !== undefined),
+    isLoading: actuallyLoading,
+    isAuthenticated: isAuthenticated && !!convexUser,
+    isUserSynced: isAuthenticated && convexUser !== null && convexUser !== undefined,
     ...roleInfo,
   };
 }

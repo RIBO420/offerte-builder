@@ -10,7 +10,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "expo-router";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import * as Notifications from "expo-notifications";
 import { api } from "../convex/_generated/api";
 import {
@@ -40,10 +40,12 @@ export type PushNotificationState = {
 
 export function usePushNotifications(): PushNotificationState {
   const router = useRouter();
-  const { isAuthenticated, isLoading: isUserLoading } = useCurrentUser();
+  const { isAuthenticated, isLoading: isUserLoading, user, isViewer } = useCurrentUser();
   const updateNotificationPreferences = useMutation(
     api.chat.updateNotificationPreferences
   );
+
+  const preferences = useQuery(api.chat.getNotificationPreferences, isAuthenticated && !isViewer ? {} : "skip");
 
   const [isEnabled, setIsEnabled] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -51,7 +53,7 @@ export function usePushNotifications(): PushNotificationState {
   const [error, setError] = useState<string | null>(null);
 
   // Track if we've already initialized
-  const hasInitialized = useRef(false);
+  const hasInitialized = useRef<string | null>(null);
 
   // Subscriptions ref to clean up on unmount
   const notificationReceivedSubscription =
@@ -92,7 +94,7 @@ export function usePushNotifications(): PushNotificationState {
         }
       } else if (data.type === "project" && data.projectId) {
         // Navigate to project details
-        router.push(`/(tabs)/projecten/${data.projectId}`);
+        router.push(`/project/${data.projectId}`);
       } else {
         // Default: navigate to home/dashboard
         router.push("/(tabs)");
@@ -106,7 +108,7 @@ export function usePushNotifications(): PushNotificationState {
    */
   const requestPermissionAndRegister = useCallback(async (): Promise<boolean> => {
     // Check if push notifications are available in this environment
-    if (!isPushNotificationsAvailable()) {
+    if (!isPushNotificationsAvailable() || !preferences?.enablePushNotifications) {
       // Silently skip in Expo Go or on simulators - this is expected behavior
       setIsLoading(false);
       setIsEnabled(false);
@@ -139,7 +141,6 @@ export function usePushNotifications(): PushNotificationState {
       // Register token with backend
       const platform = getDevicePlatform();
       await updateNotificationPreferences({
-        enablePushNotifications: true,
         deviceToken: token,
         devicePlatform: platform,
       });
@@ -156,7 +157,13 @@ export function usePushNotifications(): PushNotificationState {
     } finally {
       setIsLoading(false);
     }
-  }, [updateNotificationPreferences]);
+  }, [updateNotificationPreferences, preferences?.enablePushNotifications]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !preferences?.enablePushNotifications) {
+      hasInitialized.current = null;
+    }
+  }, [isAuthenticated, preferences?.enablePushNotifications]);
 
   /**
    * Initialize push notifications on mount
@@ -168,12 +175,12 @@ export function usePushNotifications(): PushNotificationState {
     }
 
     // Only initialize once and only if authenticated
-    if (!isAuthenticated || hasInitialized.current) {
+    if (!isAuthenticated || !user || !preferences?.enablePushNotifications || hasInitialized.current === user._id) {
       setIsLoading(false);
       return;
     }
 
-    hasInitialized.current = true;
+    hasInitialized.current = user._id;
 
     // Setup push notifications
     requestPermissionAndRegister();
@@ -189,7 +196,7 @@ export function usePushNotifications(): PushNotificationState {
         }
       }
     });
-  }, [isAuthenticated, isUserLoading, requestPermissionAndRegister, handleNotificationTap]);
+  }, [isAuthenticated, isUserLoading, user, preferences?.enablePushNotifications, requestPermissionAndRegister, handleNotificationTap]);
 
   /**
    * Setup notification listeners
@@ -224,7 +231,7 @@ export function usePushNotifications(): PushNotificationState {
   }, [handleNotificationTap]);
 
   return {
-    isEnabled,
+    isEnabled: isEnabled && preferences?.enablePushNotifications === true,
     isLoading,
     pushToken,
     error,

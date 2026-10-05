@@ -7,9 +7,8 @@
  * - Helper functions for permission checks
  *
  * Roles:
- * - admin: Full access to all features, can manage users, medewerkers, and all data
- * - medewerker: Limited access, can only see own data, linked to a medewerker profile
- * - viewer: Read-only access to allowed features
+ * Canonical seven-role model. Legacy admin/viewer are normalized by useCurrentUser.
+ * Unknown/loading identities cannot perform actions.
  */
 
 import React, {
@@ -116,38 +115,21 @@ export type FeatureAccess =
 /**
  * Permission matrix defining which roles can perform which actions
  */
+const INTERNAL: UserRole[] = ['directie', 'projectleider', 'voorman', 'medewerker', 'onderaannemer_zzp', 'materiaalman'];
+const OFFICE: UserRole[] = ['directie', 'projectleider'];
 const PERMISSION_MATRIX: Record<PermissionAction, UserRole[]> = {
-  manage_medewerkers: ['admin'],
-  manage_voertuigen: ['admin'],
-  manage_machines: ['admin'],
-  create_offertes: ['admin'],
-  edit_offertes: ['admin'],
-  delete_offertes: ['admin'],
-  view_all_rapportages: ['admin'],
-  view_own_rapportages: ['admin', 'medewerker'],
-  register_uren: ['admin', 'medewerker'],
-  register_km: ['admin', 'medewerker'],
-  view_instellingen: ['admin', 'viewer'],
-  edit_instellingen: ['admin'],
+  manage_medewerkers: ['directie'], manage_voertuigen: ['directie', 'materiaalman'],
+  manage_machines: ['directie'], create_offertes: OFFICE, edit_offertes: OFFICE,
+  delete_offertes: ['directie'], view_all_rapportages: OFFICE,
+  view_own_rapportages: INTERNAL, register_uren: INTERNAL, register_km: INTERNAL,
+  view_instellingen: OFFICE, edit_instellingen: ['directie'],
 };
-
-/**
- * Feature access matrix defining which roles can access which features
- */
 const FEATURE_ACCESS_MATRIX: Record<FeatureAccess, UserRole[]> = {
-  dashboard: ['admin', 'medewerker', 'viewer'],
-  offertes: ['admin', 'viewer'],
-  projecten: ['admin', 'medewerker', 'viewer'],
-  klanten: ['admin', 'viewer'],
-  medewerkers: ['admin'],
-  wagenpark: ['admin', 'medewerker'],
-  machines: ['admin'],
-  rapportages: ['admin', 'medewerker', 'viewer'],
-  instellingen: ['admin'],
-  chat: ['admin', 'medewerker'],
-  notifications: ['admin', 'medewerker', 'viewer'],
-  time_registration: ['admin', 'medewerker'],
-  km_registration: ['admin', 'medewerker'],
+  dashboard: INTERNAL, offertes: OFFICE, projecten: INTERNAL, klanten: OFFICE,
+  medewerkers: ['directie', 'projectleider', 'voorman'],
+  wagenpark: ['directie', 'projectleider', 'voorman', 'materiaalman'], machines: ['directie'],
+  rapportages: ['directie', 'projectleider', 'materiaalman'], instellingen: OFFICE,
+  chat: INTERNAL, notifications: INTERNAL, time_registration: INTERNAL, km_registration: INTERNAL,
 };
 
 // Create the context with undefined as default
@@ -188,7 +170,7 @@ export function RoleProvider({ children }: RoleProviderProps) {
   // Fetch linked medewerker profile if the user has medewerker role
   const linkedMedewerkerData = useQuery(
     api.medewerkers.get,
-    linkedMedewerkerId ? { id: linkedMedewerkerId } : 'skip'
+    isAuthenticated && !isUserLoading && linkedMedewerkerId ? { id: linkedMedewerkerId } : 'skip'
   );
 
   // Compute if linked medewerker is loading
@@ -212,17 +194,17 @@ export function RoleProvider({ children }: RoleProviderProps) {
   const canPerform = useMemo(() => {
     return (action: PermissionAction): boolean => {
       const allowedRoles = PERMISSION_MATRIX[action];
-      return allowedRoles.includes(role);
+      return isAuthenticated && !isUserLoading && allowedRoles.includes(role);
     };
-  }, [role]);
+  }, [role, isAuthenticated, isUserLoading]);
 
   // Feature access check function
   const canAccess = useMemo(() => {
     return (feature: FeatureAccess): boolean => {
       const allowedRoles = FEATURE_ACCESS_MATRIX[feature];
-      return allowedRoles.includes(role);
+      return isAuthenticated && !isUserLoading && allowedRoles.includes(role);
     };
-  }, [role]);
+  }, [role, isAuthenticated, isUserLoading]);
 
   // Build context value
   const contextValue: RoleContextValue = useMemo(() => ({
@@ -299,12 +281,12 @@ export function useRole(): RoleContextValue {
  * @example
  * ```tsx
  * // Show only for admins
- * <RoleGate roles={['admin']}>
+ * <RoleGate roles={['directie']}>
  *   <AdminOnlyContent />
  * </RoleGate>
  *
  * // Show for admins and medewerkers
- * <RoleGate roles={['admin', 'medewerker']}>
+ * <RoleGate permission="register_uren">
  *   <TimeRegistrationButton />
  * </RoleGate>
  *
@@ -314,7 +296,7 @@ export function useRole(): RoleContextValue {
  * </RoleGate>
  *
  * // Show with fallback
- * <RoleGate roles={['admin']} fallback={<NoAccessMessage />}>
+ * <RoleGate roles={['directie']} fallback={<NoAccessMessage />}>
  *   <AdminPanel />
  * </RoleGate>
  * ```
@@ -373,7 +355,7 @@ export function RoleGate({
 /**
  * AdminOnly Component
  *
- * Shorthand for RoleGate with roles={['admin']}
+ * Shorthand for RoleGate with roles={['directie']}
  */
 export function AdminOnly({
   children,
@@ -383,7 +365,7 @@ export function AdminOnly({
   fallback?: ReactNode;
 }) {
   return (
-    <RoleGate roles={['admin']} fallback={fallback}>
+    <RoleGate roles={['directie']} fallback={fallback}>
       {children}
     </RoleGate>
   );
@@ -392,7 +374,7 @@ export function AdminOnly({
 /**
  * MedewerkerOnly Component
  *
- * Shorthand for RoleGate with roles={['medewerker']}
+ * Shorthand for RoleGate with roles={['voorman', 'medewerker', 'onderaannemer_zzp', 'materiaalman']}
  */
 export function MedewerkerOnly({
   children,
@@ -402,7 +384,7 @@ export function MedewerkerOnly({
   fallback?: ReactNode;
 }) {
   return (
-    <RoleGate roles={['medewerker']} fallback={fallback}>
+    <RoleGate roles={['voorman', 'medewerker', 'onderaannemer_zzp', 'materiaalman']} fallback={fallback}>
       {children}
     </RoleGate>
   );
@@ -411,7 +393,7 @@ export function MedewerkerOnly({
 /**
  * AdminOrMedewerker Component
  *
- * Shorthand for RoleGate with roles={['admin', 'medewerker']}
+ * Shorthand for RoleGate with permission="register_uren"
  */
 export function AdminOrMedewerker({
   children,
@@ -421,7 +403,7 @@ export function AdminOrMedewerker({
   fallback?: ReactNode;
 }) {
   return (
-    <RoleGate roles={['admin', 'medewerker']} fallback={fallback}>
+    <RoleGate permission="register_uren" fallback={fallback}>
       {children}
     </RoleGate>
   );

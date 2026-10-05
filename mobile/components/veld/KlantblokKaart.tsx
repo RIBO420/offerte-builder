@@ -10,19 +10,16 @@ import React, { useState } from 'react';
 import { Alert, Linking, Pressable, Text, View } from 'react-native';
 import { useMutation, useQuery } from 'convex/react';
 import {
-  Camera,
   CheckCircle2,
   Circle,
   CircleDot,
   ClipboardCheck,
-  Image as ImageIcon,
   MapPin,
   Plus,
 } from 'lucide-react-native';
 import { api } from '../../convex/_generated/api';
-import type { Id } from '../../convex/_generated/dataModel';
 import { Badge, BottomSheet, Button, Checkbox, Input } from '../ui';
-import { usePhotoCapture } from '../../hooks/use-photo-capture';
+import { BezoekFotoActies } from './BezoekFotoActies';
 import {
   type DeltaChecklistData,
   type MeerwerkRij,
@@ -203,7 +200,7 @@ export function KlantblokKaart({
             onPress={() => setMeerwerkOpen(true)}
           />
         )}
-        {magBewerken && <FotoActies stop={stop} />}
+        {magBewerken && <BezoekFotoActies werkitemId={stop.werkitemId} datum={datum} />}
       </View>
 
       <RouteDeltaSheet
@@ -248,6 +245,18 @@ function RouteDeltaSheet({
     open ? { werkitemId: stop.werkitemId, datum } : 'skip'
   ) as DeltaChecklistData | undefined;
   const vinkAf = useMutation(api.materiaalDelta.vinkAf);
+  const voegToe = useMutation(api.materiaalDelta.voegBenodigdheidToe);
+  const verwijder = useMutation(api.materiaalDelta.verwijderBenodigdheid);
+  const [naam, setNaam] = useState('');
+  const [soort, setSoort] = useState<'machine' | 'materiaal'>('materiaal');
+  const [bezig, setBezig] = useState(false);
+  const toevoegen = async (item: { naam: string; soort: 'machine' | 'materiaal'; bron: 'handmatig' | 'suggestie' }) => {
+    if (bezig) return;
+    setBezig(true);
+    try { await voegToe({ werkitemId: stop.werkitemId, datum, ...item }); if (item.bron === 'handmatig') setNaam(''); }
+    catch (fout) { toonFout(fout, 'Toevoegen is mislukt'); }
+    finally { setBezig(false); }
+  };
 
   const handleVink = async (item: string, ongedaan: boolean) => {
     try {
@@ -332,6 +341,17 @@ function RouteDeltaSheet({
             )}
           </>
         )}
+        {!!delta?.suggesties?.length && <View style={{ gap: 8 }}>
+          <Text style={{ color: kleuren.foreground, fontWeight: '600' }}>Suggesties bij deze klus</Text>
+          <Text style={{ color: kleuren.mutedForeground }}>Voeg alleen toe wat je nodig hebt.</Text>
+          {delta.suggesties.map(item => <Button key={`${item.soort}:${item.naam}`} title={`Toevoegen: ${item.naam}`} variant="outline" disabled={bezig} onPress={() => toevoegen({ naam: item.naam, soort: item.soort, bron: 'suggestie' })} />)}
+        </View>}
+        <View style={{ gap: 8 }}>
+          <Input label="Zelf een benodigdheid toevoegen" value={naam} onChangeText={setNaam} disabled={bezig} />
+          <View style={{ flexDirection: 'row', gap: 8 }}>{(['materiaal', 'machine'] as const).map(waarde => <Button key={waarde} title={waarde === 'materiaal' ? 'Materiaal' : 'Machine'} variant={soort === waarde ? 'secondary' : 'outline'} disabled={bezig} onPress={() => setSoort(waarde)} />)}</View>
+          <Button title="Toevoegen aan checklist" variant="outline" disabled={bezig || !naam.trim()} onPress={() => toevoegen({ naam: naam.trim(), soort, bron: 'handmatig' })} />
+        </View>
+        {delta?.kanVerwijderen && delta.handmatigBenodigd?.map(item => <Button key={item.id} title={`Verwijderen: ${item.naam}`} variant="ghost" disabled={bezig} onPress={() => Alert.alert('Benodigdheid verwijderen?', item.naam, [{ text: 'Annuleren', style: 'cancel' }, { text: 'Verwijderen', style: 'destructive', onPress: async () => { try { await verwijder({ id: item.id, datum }); } catch (fout) { toonFout(fout, 'Verwijderen mislukt'); } } }])} />)}
         <Button
           title="Open route in Maps"
           icon={
@@ -661,74 +681,5 @@ function MeerwerkSheet({
         )}
       </View>
     </BottomSheet>
-  );
-}
-
-/**
- * Foto's per opdracht → bijlage op de klanttijdlijn bij het werkitem (§2.3).
- * Hergebruikt de bestaande photo-capture-hook (compressie + permissies) en
- * hetzelfde storage-pad als web (fotoStorage.generateUploadUrl +
- * urenSegmenten.voegVeldFotoToe). Online-only, net als de Hub.
- */
-function FotoActies({ stop }: { stop: VeldStop }) {
-  const { kleuren } = useBuitenModus();
-  const { takePhoto, pickFromGallery } = usePhotoCapture();
-  const generateUploadUrl = useMutation(api.fotoStorage.generateUploadUrl);
-  const voegFotoToe = useMutation(api.urenSegmenten.voegVeldFotoToe);
-  const [bezig, setBezig] = useState(false);
-
-  const uploadFoto = async (uri: string) => {
-    const uploadUrl = (await generateUploadUrl({})) as string;
-    const bestand = await fetch(uri);
-    const blob = await bestand.blob();
-    const respons = await fetch(uploadUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'image/jpeg' },
-      body: blob,
-    });
-    if (!respons.ok) throw new Error('Upload mislukt');
-    const { storageId } = (await respons.json()) as {
-      storageId: Id<'_storage'>;
-    };
-    await voegFotoToe({ werkitemId: stop.werkitemId, bijlagen: [storageId] });
-  };
-
-  const handleFoto = async (bron: 'camera' | 'galerij') => {
-    setBezig(true);
-    try {
-      const foto =
-        bron === 'camera' ? await takePhoto('situatie') : await pickFromGallery();
-      await uploadFoto(foto.uri);
-      Alert.alert('Gelukt', 'Foto op de klanttijdlijn gezet.');
-    } catch (fout) {
-      const bericht = fout instanceof Error ? fout.message : '';
-      // Annuleren is geen fout
-      if (!bericht.toLowerCase().includes('geannuleerd')) {
-        toonFout(fout, "Foto uploaden is mislukt");
-      }
-    } finally {
-      setBezig(false);
-    }
-  };
-
-  return (
-    <>
-      <Button
-        variant="outline"
-        size="sm"
-        title={bezig ? 'Bezig…' : 'Foto'}
-        icon={<Camera size={16} color={kleuren.foreground} />}
-        onPress={() => handleFoto('camera')}
-        disabled={bezig}
-      />
-      <Button
-        variant="ghost"
-        size="sm"
-        title="Galerij"
-        icon={<ImageIcon size={16} color={kleuren.mutedForeground} />}
-        onPress={() => handleFoto('galerij')}
-        disabled={bezig}
-      />
-    </>
   );
 }

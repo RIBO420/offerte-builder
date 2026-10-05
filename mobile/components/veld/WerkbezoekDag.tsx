@@ -1,0 +1,120 @@
+import React, { useState } from 'react';
+import { Alert, Text, TextInput, View } from 'react-native';
+import { useVeldServerActie } from '../../hooks/use-veld-server-actie';
+import type { Id } from '../../convex/_generated/dataModel';
+import { useVeldOpdracht } from '../../hooks/use-veld-opdracht';
+import { useCurrentUser } from '../../hooks/use-current-user';
+import { Button } from '../ui';
+import { BezoekFotoActies } from './BezoekFotoActies';
+import { BezoekFoto } from './BezoekFoto';
+import { useBuitenModus } from './BuitenModus';
+
+type Onderdeel = 'foto' | 'afronding' | 'aanhanger' | 'afvoer';
+const LABELS: Record<Onderdeel, string> = { foto: 'Foto', afronding: 'Werk terugmelden', aanhanger: 'Aanhanger', afvoer: 'Afval meegenomen' };
+interface Bezoek {
+  werkitemId: Id<'projecten'>; bezoekSleutel: string; naam: string; klantNaam: string | null; instructie?: string | null;
+  afronding: { afgerond: boolean; reden?: string; resterendMinuten?: number; revision: number; doorNaam: string } | null;
+  afvoer?: { keuze: AfvoerKeuze; revision: number; doorNaam: string } | null;
+  fotos: { magVerwijderen?: boolean; id: Id<'werkbezoekFotos'>; fase: 'voor' | 'na'; url: string | null; doorNaam: string }[];
+  delegaties: { _id: Id<'werkbezoekDelegaties'>; onderdeel: Onderdeel; medewerkerId: string; doorNaam: string }[];
+  ontbreekt: Onderdeel[]; verplicht: boolean; gereed: boolean; gedeeldGereed: boolean;
+}
+export interface WerkbezoekDagData { bezoeken: Bezoek[]; gereed: boolean }
+
+export function WerkbezoekDag({ data, datum }: { data: WerkbezoekDagData | undefined; datum: string }) {
+  const { kleuren } = useBuitenModus();
+  if (!data) return <Text style={{ color: kleuren.mutedForeground }}>Dagcontrole laden…</Text>;
+  if (!data.bezoeken.length) return null;
+  return <View style={{ gap: 12 }}>
+    <Text accessibilityRole="header" style={{ color: kleuren.foreground, fontSize: 17, fontWeight: '600' }}>Controle voor je vertrekt</Text>
+    <Text style={{ color: kleuren.mutedForeground }}>Meld per bezoek wat je hebt gedaan. Je collega&apos;s zien hetzelfde antwoord.</Text>
+    {data.bezoeken.map(bezoek => <BezoekKaart key={bezoek.bezoekSleutel} bezoek={bezoek} datum={datum} />)}
+  </View>;
+}
+
+function BezoekKaart({ bezoek, datum }: { bezoek: Bezoek; datum: string }) {
+  const { kleuren } = useBuitenModus(); const { linkedMedewerkerId } = useCurrentUser();
+  const { verstuur, wachtrij } = useVeldOpdracht();
+  const { voerUit } = useVeldServerActie();
+  const [form, setForm] = useState<{ afgerond: boolean; reden: string; minuten: string; revision?: number } | null>(null);
+  const [bezig, setBezig] = useState(false); const [melding, setMelding] = useState<string | null>(null);
+  const [fout, setFout] = useState<string | null>(null);
+  const pending = wachtrij.some(r => r.payload.werkitemId === bezoek.werkitemId && r.payload.datum === datum);
+  const opslaan = async () => {
+    if (!form || bezig) return;
+    if (!form.afgerond && !form.reden.trim()) { setFout('Vertel waarom het werk nog niet af is.'); return; }
+    const aantal = form.minuten.trim() ? Number(form.minuten) : undefined;
+    if (aantal !== undefined && (!Number.isInteger(aantal) || aantal < 0)) { setFout('Vul resterende tijd in als een heel aantal minuten.'); return; }
+    setBezig(true); setFout(null);
+    try {
+      const resultaat = await verstuur('afronding', { werkitemId: bezoek.werkitemId, datum, afgerond: form.afgerond,
+        ...(form.revision !== undefined ? { expectedRevision: form.revision } : {}),
+        ...(!form.afgerond ? { reden: form.reden.trim(), ...(aantal !== undefined ? { resterendMinuten: aantal } : {}) } : {}),
+      });
+      if (resultaat.status === 'conflict') setFout(resultaat.fout ?? 'Controleer de wachtende invoer.');
+      else { setForm(null); setMelding(resultaat.status === 'wacht' ? 'Op dit toestel bewaard; wacht op bevestiging.' : 'Je bezoekmelding is opgeslagen.'); }
+    } catch (error) { setFout(error instanceof Error ? error.message : 'Opslaan mislukt.'); }
+    finally { setBezig(false); }
+  };
+  const delegeer = async (onderdeel: Onderdeel) => {
+    setBezig(true); setFout(null);
+    try {
+      const result = await verstuur('delegatie', { werkitemId: bezoek.werkitemId, datum, onderdeel });
+      if (result.status === 'conflict') setFout(result.fout ?? 'Overdragen is niet gelukt.');
+      else setMelding(result.status === 'wacht' ? 'Overdracht bewaard op dit toestel; wacht op bevestiging.' : 'Overgelaten aan een collega. Het ontbrekende antwoord blijft zichtbaar voor je ploeg.');
+    } catch (error) { setFout(error instanceof Error ? error.message : 'Overdragen mislukt.'); }
+    finally { setBezig(false); }
+  };
+  const intrekkenDelegatie = async (id: Id<'werkbezoekDelegaties'>) => {
+    try { await voerUit('werkbezoek:trekDelegatieIn', { id }); } catch (error) { setFout(error instanceof Error ? error.message : 'Intrekken mislukt.'); }
+  };
+  const fotoWeg = (foto: Bezoek['fotos'][number]) => Alert.alert('Foto verwijderen?', 'De foto verdwijnt uit dit bezoek en het klantdossier.', [
+    { text: 'Annuleren', style: 'cancel' }, { text: 'Verwijderen', style: 'destructive', onPress: async () => { try { await voerUit('werkbezoek:verwijderFoto', { id: foto.id }); } catch (error) { setFout(error instanceof Error ? error.message : 'Verwijderen mislukt.'); } } },
+  ]);
+  const veld = { color: kleuren.foreground, borderWidth: 1, borderColor: kleuren.border, borderRadius: 10, minHeight: 48, padding: 12, fontSize: 16 };
+  return <View style={{ gap: 12, borderWidth: 1, borderColor: kleuren.border, backgroundColor: kleuren.card, borderRadius: 14, padding: 16 }}>
+    <Text accessibilityRole="header" style={{ color: kleuren.foreground, fontWeight: '600', fontSize: 17 }}>{bezoek.klantNaam ?? bezoek.naam}</Text>
+    {bezoek.instructie && <Text style={{ color: kleuren.foreground }}>{bezoek.instructie}</Text>}
+    <Text style={{ color: kleuren.mutedForeground }}>{bezoek.gedeeldGereed ? 'Bezoekmelding compleet' : `Nog nodig: ${bezoek.ontbreekt.map(o => LABELS[o]).join(', ')}`}</Text>
+    {bezoek.afronding && <View style={{ gap: 6 }}><Text style={{ color: kleuren.foreground }}>{bezoek.afronding.afgerond ? 'Werk van dit bezoek is af' : 'Werk is nog niet af'} · {bezoek.afronding.doorNaam}</Text>{bezoek.afronding.reden && <Text style={{ color: kleuren.mutedForeground }}>{bezoek.afronding.reden}</Text>}{bezoek.afronding.resterendMinuten !== undefined && <Text style={{ color: kleuren.mutedForeground }}>Nog ongeveer {bezoek.afronding.resterendMinuten} minuten werk</Text>}</View>}
+    {!form && <Button title={bezoek.afronding ? 'Bezoekmelding aanpassen' : 'Werk terugmelden'} variant="outline" disabled={pending} onPress={() => { setForm({ afgerond: bezoek.afronding?.afgerond ?? true, reden: bezoek.afronding?.reden ?? '', minuten: bezoek.afronding?.resterendMinuten?.toString() ?? '', revision: bezoek.afronding?.revision }); setFout(null); }} />}
+    {form && <View style={{ gap: 10 }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}><Button title="Werk is af" variant={form.afgerond ? 'secondary' : 'outline'} disabled={bezig} onPress={() => setForm({ ...form, afgerond: true })} /><Button title="Nog niet af" variant={!form.afgerond ? 'secondary' : 'outline'} disabled={bezig} onPress={() => setForm({ ...form, afgerond: false })} /></View>
+      {!form.afgerond && <><TextInput accessibilityLabel="Waarom is het werk nog niet af?" value={form.reden} editable={!bezig} maxLength={2000} onChangeText={reden => setForm({ ...form, reden })} placeholder="Waarom is het werk nog niet af?" placeholderTextColor={kleuren.mutedForeground} style={veld} multiline /><TextInput accessibilityLabel="Resterende minuten (optioneel)" value={form.minuten} editable={!bezig} onChangeText={minuten => setForm({ ...form, minuten })} placeholder="Resterende minuten (optioneel)" placeholderTextColor={kleuren.mutedForeground} keyboardType="number-pad" style={veld} /></>}
+      <Button title="Bezoekmelding opslaan" variant="outline" onPress={opslaan} loading={bezig} />
+      <Button title="Annuleren" variant="ghost" disabled={bezig} onPress={() => setForm(null)} />
+    </View>}
+    <AfvoerMelding bezoek={bezoek} datum={datum} />
+    <BezoekFotoActies werkitemId={bezoek.werkitemId} datum={datum} />
+    {bezoek.fotos.map(foto => <View key={foto.id} style={{ gap: 6 }}>{foto.url && <BezoekFoto url={foto.url} label={`${foto.fase === 'voor' ? 'Voorfoto' : 'Nafoto'} van ${bezoek.naam}`} />}<Text style={{ color: kleuren.mutedForeground }}>{foto.fase === 'voor' ? 'Voorfoto' : 'Nafoto'} · {foto.doorNaam}</Text>{foto.magVerwijderen && <Button title="Foto verwijderen" variant="ghost" onPress={() => fotoWeg(foto)} />}</View>)}
+    {bezoek.ontbreekt.map(onderdeel => {
+      const eigenDelegatie = bezoek.delegaties.find(d => d.onderdeel === onderdeel && d.medewerkerId === linkedMedewerkerId);
+      return <View key={onderdeel} style={{ gap: 6 }}><Text style={{ color: kleuren.mutedForeground }}>{LABELS[onderdeel]}: {eigenDelegatie ? 'aan collega overgelaten; antwoord ontbreekt nog' : 'nog niet ingevuld'}</Text>{eigenDelegatie ? <Button title="Zelf weer oppakken" variant="ghost" disabled={bezig} onPress={() => intrekkenDelegatie(eigenDelegatie._id)} /> : <Button title={`${LABELS[onderdeel]} door collega`} variant="ghost" disabled={bezig || pending} onPress={() => delegeer(onderdeel)} />}</View>;
+    })}
+    {melding && <Text accessibilityLiveRegion="polite" style={{ color: kleuren.foreground }}>{melding}</Text>}{fout && <Text accessibilityRole="alert" style={{ color: kleuren.foreground }}>{fout}</Text>}
+  </View>;
+}
+
+type AfvoerKeuze = 'geen' | 'kwart' | 'half' | 'driekwart' | 'vol';
+const AFVOER: [AfvoerKeuze, string][] = [['geen', 'Geen'], ['kwart', '¼ aanhanger'], ['half', '½ aanhanger'], ['driekwart', '¾ aanhanger'], ['vol', 'Volle aanhanger']];
+function AfvoerMelding({ bezoek, datum }: { bezoek: Bezoek; datum: string }) {
+  const { kleuren } = useBuitenModus(); const { verstuur, wachtrij } = useVeldOpdracht();
+  const pending = wachtrij.find(r => r.type === 'afvoer' && r.payload.werkitemId === bezoek.werkitemId && r.payload.datum === datum);
+  const [bezig, setBezig] = useState(false); const [melding, setMelding] = useState<string | null>(null);
+  const opslaan = async (keuze: AfvoerKeuze) => {
+    if (bezig || pending) return;
+    setBezig(true);
+    try {
+      const result = await verstuur('afvoer', { werkitemId: bezoek.werkitemId, datum, keuze, ...(bezoek.afvoer ? { expectedRevision: bezoek.afvoer.revision } : {}) });
+      setMelding(result.status === 'conflict' ? result.fout ?? 'Controleer de wachtende invoer.' : result.status === 'wacht' ? 'Bewaard op dit toestel; wacht op bevestiging.' : 'Afvalmelding opgeslagen.');
+    } catch (error) { setMelding(error instanceof Error ? error.message : 'Opslaan mislukt.'); }
+    finally { setBezig(false); }
+  };
+  return <View style={{ gap: 8 }}>
+    <Text style={{ color: kleuren.foreground, fontWeight: '600' }}>Afval meegenomen bij deze klus</Text>
+    {bezoek.afvoer && <Text style={{ color: kleuren.mutedForeground }}>{AFVOER.find(([key]) => key === bezoek.afvoer?.keuze)?.[1]} · {bezoek.afvoer.doorNaam}</Text>}
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>{AFVOER.map(([keuze, label]) => <Button key={keuze} title={label} variant={bezoek.afvoer?.keuze === keuze ? 'secondary' : 'outline'} disabled={bezig || !!pending} onPress={() => opslaan(keuze)} />)}</View>
+    {pending && <Text style={{ color: kleuren.foreground }}>Wachtende afvalmelding: {AFVOER.find(([key]) => key === pending.payload.keuze)?.[1] ?? 'controleer wachtrij'}. Nog niet bevestigd; eerst synchroniseren.</Text>}
+    {melding && <Text accessibilityLiveRegion="polite" style={{ color: kleuren.foreground }}>{melding}</Text>}
+  </View>;
+}

@@ -1,3 +1,6 @@
+import { useCurrentUser } from '../../hooks/use-current-user';
+import { isInternalRole } from '../../lib/roles';
+import { GeenToegang } from '../../components/GeenToegang';
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -24,6 +27,13 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
 };
 
 export default function ProjectDetailScreen() {
+  const { role, isLoading } = useCurrentUser();
+  if (isLoading) return <View style={{ flex: 1 }}><Text>Project laden…</Text></View>;
+  if (!isInternalRole(role)) return <GeenToegang uitleg="Dit projectscherm is alleen voor medewerkers. Gebruik als klant het klantportaal." />;
+  return <ProjectDetailContent />;
+}
+
+function ProjectDetailContent() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const colors = useColors();
@@ -74,7 +84,7 @@ export default function ProjectDetailScreen() {
           <View style={s.errorBody}>
             <Feather name="alert-circle" size={48} color={colors.destructive} />
             <Text style={s.errorHeading}>Geen toegang</Text>
-            <Text style={s.errorMessage}>{projectData.error}</Text>
+            <Text style={s.errorMessage}>{typeof projectData.error === 'string' ? projectData.error : 'Dit project is niet beschikbaar.'}</Text>
             <TouchableOpacity onPress={() => router.back()} style={s.errorButton}>
               <Text style={s.errorButtonText}>Terug</Text>
             </TouchableOpacity>
@@ -84,7 +94,8 @@ export default function ProjectDetailScreen() {
     );
   }
 
-  const { project, offerte, voorcalculatie, planningTaken, medewerkerUren } = projectData;
+  const { project, offerte, voorcalculatie, planningTaken } = projectData;
+  const medewerkerUren = { registraties: projectData.mijnUrenRegistraties, totaalUren: projectData.totaalUren };
   const statusColor = STATUS_COLORS[project.status] || STATUS_COLORS.gepland;
 
   // Calculate progress from planning tasks
@@ -226,7 +237,7 @@ export default function ProjectDetailScreen() {
                 <Text style={s.sectionLabel}>TEAM</Text>
                 <View style={s.card}>
                   <View style={s.teamGrid}>
-                    {voorcalculatie.teamleden.map((naam: string, index: number) => (
+                    {(voorcalculatie.teamleden ?? []).map((naam: string, index: number) => (
                       <View key={index} style={s.teamMember}>
                         <View style={s.avatar}>
                           <Text style={s.avatarText}>
@@ -254,11 +265,11 @@ export default function ProjectDetailScreen() {
               <Text style={s.sectionLabel}>ACTIVITEIT</Text>
               <View style={s.card}>
                 {/* Recent uren registraties as timeline */}
-                {medewerkerUren && medewerkerUren.registraties.length > 0 ? (
+                {medewerkerUren.totaalUren === null || medewerkerUren.registraties.length > 0 ? (
                   <>
                     <View style={s.activityHeader}>
                       <Text style={s.activityTotal}>
-                        {medewerkerUren.totaalUren.toFixed(1)} uur totaal
+                        {medewerkerUren.totaalUren === null ? 'Urenbron kiezen door kantoor' : `${medewerkerUren.totaalUren.toFixed(1)} uur totaal`}
                       </Text>
                     </View>
                     {medewerkerUren.registraties.slice(0, 5).map((reg: { datum: string; scope?: string; uren: number }, index: number) => (

@@ -5,6 +5,7 @@
  */
 
 import React, { useState } from 'react';
+import { useRouter } from 'expo-router';
 import { Linking, ScrollView, Text, View } from 'react-native';
 import { AlertTriangle, Phone } from 'lucide-react-native';
 import {
@@ -19,6 +20,7 @@ import { useBuitenModus } from './BuitenModus';
 
 export function NoodprotocolKnop({ tekst }: { tekst: string | null }) {
   const [open, setOpen] = useState(false);
+  const router = useRouter();
   const { kleuren } = useBuitenModus();
 
   const belAlarmnummer = () => {
@@ -57,6 +59,7 @@ export function NoodprotocolKnop({ tekst }: { tekst: string | null }) {
                 'Er is nog geen noodprotocol ingesteld. Kantoor beheert de inhoud via de veld-instellingen.'}
             </Text>
           </ScrollView>
+          <Button title="Protocollen en contacten" variant="outline" onPress={() => { setOpen(false); router.push('/werk/protocollen'); }} />
           <DialogFooter>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <View style={{ flex: 1 }}>

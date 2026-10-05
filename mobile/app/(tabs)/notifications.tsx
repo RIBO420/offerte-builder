@@ -68,6 +68,7 @@ type NotificationItem = {
   message: string;
   isRead: boolean;
   projectId?: string;
+  metadata?: Record<string, string | number | boolean | null>;
 };
 
 export default function NotificationsScreen() {
@@ -97,7 +98,9 @@ export default function NotificationsScreen() {
       }
 
       // Navigate to related content
-      if (notif.projectId) {
+      if (notif.type === "system_reminder" && notif.metadata?.route === "/uren") {
+        router.push({ pathname: "/werk/kantoor-uren", params: { datum: typeof notif.metadata.datum === "string" ? notif.metadata.datum : "" } });
+      } else if (notif.projectId) {
         router.push(`/project/${notif.projectId}`);
       }
     },

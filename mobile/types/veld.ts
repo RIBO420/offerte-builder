@@ -16,6 +16,8 @@ export type SegmentCategorie =
   | 'pauze'
   | 'reistijd'
   | 'teammeeting'
+  | 'loods'
+  | 'laden'
   | 'onderhoud_materiaal'
   | 'afvalverwerker_bes'
   | 'anders';
@@ -25,6 +27,8 @@ export const CATEGORIE_LABELS: Record<SegmentCategorie, string> = {
   pauze: 'Pauze',
   reistijd: 'Reistijd',
   teammeeting: 'Teammeeting',
+  loods: 'Loods',
+  laden: 'Laden',
   onderhoud_materiaal: 'Onderhoud materiaal',
   afvalverwerker_bes: 'Afvalverwerker (BES)',
   anders: 'Anders',
@@ -49,6 +53,7 @@ export interface VeldStop {
   adres: string | null;
   /** Vast klantkenmerk voor de hovenier ("hond los in de tuin"). */
   bijzonderheden: string | null;
+  uitvoeringsInstructie?: string;
   geplandeMinuten: number;
   taken: VeldTaak[];
   taakAfronding: unknown;
@@ -58,6 +63,7 @@ export interface VeldStop {
 /** Voorgesteld segment uit de dagkaart (§8.10: loggen wordt bevestigen). */
 export interface VoorstelSegment {
   categorie: SegmentCategorie;
+  werksoort?: import('../lib/werksoorten').Werksoort;
   beginTijd: string; // HH:MM
   eindTijd: string; // HH:MM
   werkitemId: Id<'projecten'> | null;
@@ -67,6 +73,7 @@ export interface VoorstelSegment {
 export interface VeldSegment {
   _id: Id<'urenSegmenten'>;
   categorie: SegmentCategorie;
+  werksoort?: import('../lib/werksoorten').Werksoort;
   beginTijd: string;
   eindTijd: string;
   werkitemId?: Id<'projecten'> | null;
@@ -81,6 +88,7 @@ export interface VeldDagData {
   medewerker: { _id: Id<'medewerkers'>; naam: string };
   datum: string;
   dagStatus: 'open' | 'ingediend';
+  revisie: number;
   ingediendOp: number | null;
   team: { _id: string; naam: string } | null;
   stops: VeldStop[];
@@ -92,6 +100,9 @@ export interface VeldDagData {
 
 /** Returnwaarde van api.materiaalDelta.getDeltaChecklist (§8.5). */
 export interface DeltaChecklistData {
+  suggesties?: { naam: string; soort: 'machine' | 'materiaal'; trefwoorden: string[] }[];
+  handmatigBenodigd?: { id: import('../convex/_generated/dataModel').Id<'werkitemBenodigdheden'>; naam: string; soort: 'machine' | 'materiaal'; bron: 'handmatig' | 'suggestie' }[];
+  kanVerwijderen?: boolean;
   voertuig: { merk: string; kenteken: string } | null;
   delta: {
     naam: string;

@@ -33,7 +33,7 @@ import { radius } from '../../theme/radius';
 import { typography } from '../../theme/typography';
 import type { Id } from '../../convex/_generated/dataModel';
 
-type UserRole = 'admin' | 'medewerker' | 'viewer';
+import { normalizeRole, ROLE_LABELS, USER_ROLES, type UserRole } from '../../lib/roles';
 
 interface User {
   _id: Id<'users'>;
@@ -59,11 +59,9 @@ interface Medewerker {
 }
 
 // Role display helpers
-const roleConfig: Record<UserRole, { label: string; variant: 'default' | 'secondary' | 'outline' }> = {
-  admin: { label: 'Beheerder', variant: 'default' },
-  medewerker: { label: 'Medewerker', variant: 'secondary' },
-  viewer: { label: 'Viewer', variant: 'outline' },
-};
+const roleConfig = Object.fromEntries(USER_ROLES.map(role => [role, {
+  label: ROLE_LABELS[role], variant: role === 'directie' ? 'default' : role === 'klant' ? 'outline' : 'secondary',
+}])) as Record<UserRole, { label: string; variant: 'default' | 'secondary' | 'outline' }>;
 
 // User Card Component
 function UserCard({
@@ -83,7 +81,8 @@ function UserCard({
   const [showRoleDialog, setShowRoleDialog] = useState(false);
   const [showLinkDialog, setShowLinkDialog] = useState(false);
 
-  const config = roleConfig[user.role] || roleConfig.viewer;
+  const canonicalRole = normalizeRole(user.role);
+  const config = canonicalRole === 'onbekend' ? { label: 'Onbekend', variant: 'outline' as const } : roleConfig[canonicalRole];
 
   // Available medewerkers for linking (active and not linked to someone else)
   const availableMedewerkers = useMemo(() => {
@@ -165,7 +164,7 @@ function UserCard({
           <View style={styles.roleOptions}>
             {(Object.keys(roleConfig) as UserRole[]).map((role) => {
               const roleInfo = roleConfig[role];
-              const isSelected = user.role === role;
+              const isSelected = canonicalRole === role;
               return (
                 <TouchableOpacity
                   key={role}
@@ -185,9 +184,13 @@ function UserCard({
                       {roleInfo.label}
                     </Text>
                     <Text style={[styles.roleOptionDesc, { color: colors.mutedForeground }]}>
-                      {role === 'admin' && 'Volledige toegang tot alle functies'}
+                      {role === 'directie' && 'Volledige toegang tot alle functies'}
                       {role === 'medewerker' && 'Alleen eigen uren en projecten'}
-                      {role === 'viewer' && 'Alleen lezen, geen wijzigingen'}
+                      {role === 'klant' && 'Toegang via het klantportaal'}
+                      {role === 'projectleider' && 'Projecten en planning beheren'}
+                      {role === 'voorman' && 'Eigen werkdag en ploeg begeleiden'}
+                      {role === 'onderaannemer_zzp' && 'Eigen uren en toegewezen werk'}
+                      {role === 'materiaalman' && 'Materieel en eigen werkdag'}
                     </Text>
                   </View>
                   {isSelected && (
@@ -306,8 +309,8 @@ export default function AdminScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   // Queries
-  const users = useQuery(api.mobile.adminListAllUsers);
-  const medewerkers = useQuery(api.mobile.adminListMedewerkers);
+  const users = useQuery(api.mobile.adminListAllUsers, roleLoaded && isAdmin ? {} : 'skip');
+  const medewerkers = useQuery(api.mobile.adminListMedewerkers, roleLoaded && isAdmin ? {} : 'skip');
 
   // Mutations
   const updateRole = useMutation(api.mobile.adminUpdateUserRole);
@@ -375,7 +378,7 @@ export default function AdminScreen() {
   }
 
   const userCount = users?.length || 0;
-  const adminCount = users?.filter((u: User) => u.role === 'admin').length || 0;
+  const adminCount = users?.filter((u: User) => normalizeRole(u.role) === 'directie').length || 0;
   const medewerkerCount = users?.filter((u: User) => u.role === 'medewerker').length || 0;
 
   return (

@@ -70,20 +70,6 @@ async function vraagCameraPermissie(): Promise<void> {
 }
 
 /**
- * Vraagt galerij-permissie aan de gebruiker.
- * Gooit een fout als de permissie geweigerd wordt.
- */
-async function vraagGalerĳPermissie(): Promise<void> {
-  const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (status !== 'granted') {
-    throw new Error(
-      'Toegang tot de fotobibliotheek is vereist. ' +
-      'Ga naar Instellingen → Top Tuinen → Foto\'s en schakel toegang in.'
-    );
-  }
-}
-
-/**
  * Probeert de huidige GPS-locatie op te halen.
  * Retourneert null als de permissie geweigerd is of locatie niet beschikbaar.
  */
@@ -148,11 +134,12 @@ async function comprimeerAfbeelding(
  */
 async function assetNaarCapturedPhoto(
   asset: ImagePicker.ImagePickerAsset,
-  type: FotoType
+  type: FotoType,
+  metLocatie = true
 ): Promise<CapturedPhoto> {
   // Parallel: haal locatie op en comprimeer foto
   const [locatie, gecomprimeerd] = await Promise.all([
-    haalLocatieOp(),
+    metLocatie ? haalLocatieOp() : Promise.resolve(null),
     comprimeerAfbeelding(asset.uri, asset.width),
   ]);
 
@@ -223,8 +210,10 @@ export function usePhotoCapture(): UsePhotoCaptureReturn {
     setError(null);
 
     try {
-      await vraagGalerĳPermissie();
-
+      // Expo54 gebruikt voor afbeeldingen zonder editor de systeempicker
+      // (PHPicker op iOS). Die geeft alleen de gekozen foto vrij, zonder brede
+      // fotobibliotheektoestemming. Video's en volledige bibliotheektoegang
+      // horen niet bij deze fotoactie.
       const resultaat = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: 'images',
         allowsEditing: false,
@@ -240,7 +229,7 @@ export function usePhotoCapture(): UsePhotoCaptureReturn {
       const asset = resultaat.assets[0];
       // Galerij-foto's krijgen type 'situatie' als standaard;
       // de aanroepende code kan het type achteraf aanpassen.
-      const foto = await assetNaarCapturedPhoto(asset, 'situatie');
+      const foto = await assetNaarCapturedPhoto(asset, 'situatie', false);
 
       setPhotos((vorige) => [...vorige, foto]);
       return foto;

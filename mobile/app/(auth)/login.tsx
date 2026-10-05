@@ -35,6 +35,8 @@ export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
+  const [password, setPassword] = useState('');
+  const [passwordMode, setPasswordMode] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [loginState, setLoginState] = useState<LoginState>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -221,37 +223,6 @@ export default function LoginScreen() {
         return;
       }
 
-      // Fallback naar email_link
-      const emailLinkFactor = supportedFirstFactors?.find(
-        (factor): factor is typeof factor & { strategy: 'email_link'; emailAddressId: string } =>
-          factor.strategy === 'email_link'
-      );
-
-      if (emailLinkFactor) {
-        // Genereer redirect URL voor de deep link
-        const redirectUrl = Linking.createURL('callback', {
-          scheme: 'toptuinen',
-        });
-
-        // Start email link flow
-        const { startEmailLinkFlow } = signIn.createEmailLinkFlow();
-
-        // Stuur magic link email
-        await startEmailLinkFlow({
-          emailAddressId: emailLinkFactor.emailAddressId,
-          redirectUrl: redirectUrl,
-        });
-
-        Alert.alert(
-          'Magic Link Verzonden',
-          `We hebben een inloglink verstuurd naar ${email}.\n\n` +
-          'Open de email en klik op de link om in te loggen.',
-          [{ text: 'OK' }]
-        );
-        setLoginState('idle');
-        return;
-      }
-
       // Geen ondersteunde methode gevonden
       setLoginState('error');
       setErrorMessage(
@@ -290,6 +261,26 @@ export default function LoginScreen() {
           error.message || 'Er ging iets mis. Probeer het opnieuw.'
         );
       }
+    }
+  };
+
+  const handlePasswordLogin = async () => {
+    if (!validateEmail(email) || !password || !signIn || !setActive) return;
+    setLoginState('sending');
+    setErrorMessage(null);
+    try {
+      const result = await signIn.create({ identifier: email.trim().toLowerCase(), password });
+      if (result.status === 'complete') {
+        setPassword('');
+        await setActive({ session: result.createdSessionId });
+        router.replace('/(auth)/biometric');
+      } else {
+        setLoginState('error');
+        setErrorMessage('Je account vraagt een extra verificatiestap. Gebruik een inlogcode of Google.');
+      }
+    } catch (error) {
+      setLoginState('error');
+      setErrorMessage(error instanceof Error ? error.message : 'Inloggen mislukt. Controleer je gegevens of gebruik een inlogcode.');
     }
   };
 
@@ -496,13 +487,20 @@ export default function LoginScreen() {
             selectionColor="#4ADE80"
           />
 
+          {passwordMode && <TextInput
+            style={styles.emailInput} value={password} onChangeText={setPassword}
+            placeholder="Wachtwoord" placeholderTextColor={colors.inactive}
+            secureTextEntry autoCapitalize="none" autoCorrect={false}
+            autoComplete="current-password" editable={loginState !== 'sending'}
+            accessibilityLabel="Wachtwoord"
+          />}
           {/* Email validatie fout */}
           {emailError && (
             <Text style={styles.errorText}>{emailError}</Text>
           )}
 
           {/* Server error message */}
-          {loginState === 'error' && errorMessage && (
+          {errorMessage && (
             <Text style={styles.errorText}>{errorMessage}</Text>
           )}
 
@@ -511,21 +509,25 @@ export default function LoginScreen() {
               styles.submitButton,
               (!email.trim() || !!emailError || loginState === 'sending') && styles.submitButtonDisabled,
             ]}
-            onPress={handleSendCode}
+            onPress={passwordMode ? handlePasswordLogin : handleSendCode}
             disabled={!email.trim() || !!emailError || loginState === 'sending'}
           >
             {loginState === 'sending' ? (
               <ActivityIndicator size="small" color="#4ADE80" style={{ marginRight: 8 }} />
             ) : null}
             <Text style={styles.submitButtonText}>
-              {loginState === 'sending' ? 'Verzenden...' : 'Stuur inlogcode'}
+              {loginState === 'sending' ? 'Even geduld...' : passwordMode ? 'Inloggen' : 'Stuur inlogcode'}
             </Text>
           </TouchableOpacity>
 
           <Text style={styles.hintText}>
-            We sturen een 6-cijferige code naar je e-mailadres.
+            {passwordMode ? 'Wachtwoord vergeten? Gebruik een inlogcode om je account te openen.' : 'We sturen een 6-cijferige code naar je e-mailadres.'}
           </Text>
 
+          <TouchableOpacity accessibilityRole="button" style={styles.changeEmailButton}
+            disabled={loginState === 'sending'} onPress={() => { setPasswordMode(!passwordMode); setPassword(''); setErrorMessage(null); }}>
+            <Text style={styles.changeEmailText}>{passwordMode ? 'Inloggen met een code' : 'Inloggen met wachtwoord'}</Text>
+          </TouchableOpacity>
           {/* Divider */}
           <View style={styles.dividerRow}>
             <View style={styles.dividerLine} />
