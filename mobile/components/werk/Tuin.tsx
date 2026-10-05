@@ -10,7 +10,6 @@ import React, { type ComponentType, type ReactNode } from 'react';
 import { Image, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Path } from 'react-native-svg';
 import { BrickWall, Check, Coffee, Leaf, Shovel, Sprout, Truck, Warehouse } from 'lucide-react-native';
 import { tekst, useColors } from '../../theme';
 import type { VeldDagData } from '../../types/veld';
@@ -28,6 +27,8 @@ export type Dagdeel = keyof typeof BEELDEN;
 
 export function dagdeelVan(nu = new Date()): Dagdeel {
   const uur = nu.getHours();
+  // Na middernacht is het nog avond, niet al ochtend.
+  if (uur < 5) return 'avond';
   if (uur < 11) return 'ochtend';
   if (uur < 18) return 'middag';
   return 'avond';
@@ -59,10 +60,13 @@ export function TuinKop({ titel, sub, rechts, hoogte = 196 }: { titel: string; s
         locations={[0, 0.6, 1]}
         style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top + 128 }}
       />
-      {/* De foto eindigt in een zachte boog; de Nu-kaart ligt daar half overheen. */}
-      <Svg width="100%" height={40} viewBox="0 0 100 40" preserveAspectRatio="none" style={{ position: 'absolute', left: 0, right: 0, bottom: -1 }}>
-        <Path d="M0 40 L0 26 Q50 -4 100 26 L100 40 Z" fill={kleuren.background} />
-      </Svg>
+      {/* Zachte overloop naar de achtergrond: een ease-out-curve in vijf stappen,
+          zodat de foto oplost in plaats van een grauwe band te vormen. */}
+      <LinearGradient
+        colors={[`${kleuren.background}00`, `${kleuren.background}26`, `${kleuren.background}80`, `${kleuren.background}D9`, kleuren.background]}
+        locations={[0, 0.3, 0.6, 0.85, 1]}
+        style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 128 }}
+      />
       <View style={{ paddingTop: insets.top + 6, paddingHorizontal: 16, gap: 6 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 }}>
           <View accessible accessibilityLabel="Top Tuinen" style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
