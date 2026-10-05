@@ -4,6 +4,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View, Text, Pressable } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ClerkProvider, ClerkLoaded } from '@clerk/clerk-expo';
 import { tokenCache } from '@clerk/clerk-expo/token-cache';
 import { SessieConvexProvider } from '../components/SessieConvexProvider';
@@ -244,6 +245,7 @@ export default function RootLayout() {
 
     // Fallback zonder Clerk (voor development zonder auth)
     return (
+      <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <ThemeProvider>
           <ToastProvider>
@@ -258,10 +260,12 @@ export default function RootLayout() {
           </ToastProvider>
         </ThemeProvider>
       </SafeAreaProvider>
+      </GestureHandlerRootView>
     );
   }
 
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <SafeAreaProvider>
       <ThemeProvider>
         {/* ToastProvider hoort op rootniveau, niet in InnerLayout: het Clerk-loze
@@ -283,5 +287,6 @@ export default function RootLayout() {
         </ToastProvider>
       </ThemeProvider>
     </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

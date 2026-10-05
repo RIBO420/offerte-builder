@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Dimensions, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, Pressable, Modal, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -7,7 +7,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import { springConfigs } from '../../theme/animations';
 import { tekst } from '../../theme/typography';
 import { useVeldKleuren } from '../veld/BuitenModus';
@@ -74,25 +74,35 @@ export function BottomSheet({
 
   if (!isOpen) return null;
 
+  // Als Modal over het hele scherm, waar het blad ook in de boom staat (bv. in een
+  // lijst binnen een ScrollView). Een Modal is een eigen root, dus hij krijgt een
+  // eigen GestureHandlerRootView. Vegen om te sluiten zit op de greep; de inhoud
+  // scrolt zelf en schuift mee met het toetsenbord.
   return (
-    <View style={styles.overlay}>
-      <Animated.View style={[styles.backdrop, { backgroundColor: kleuren.scrim }, backdropStyle]} accessibilityRole="none">
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Sluit paneel" />
-      </Animated.View>
-      <GestureDetector gesture={panGesture}>
-        <Animated.View
-          style={[styles.sheet, { backgroundColor: kleuren.card, borderColor: kleuren.border }, sheetStyle]}
-          accessibilityRole="summary"
-          accessibilityLabel={title ?? 'Paneel'}
-        >
-          <View style={styles.handleContainer}>
-            <View style={[styles.handle, { backgroundColor: kleuren.inactive }]} />
-          </View>
-          {title && <Text style={[tekst.kop, styles.title, { color: kleuren.foreground }]}>{title}</Text>}
-          <View style={styles.content}>{children}</View>
+    <Modal visible transparent animationType="none" statusBarTranslucent onRequestClose={onClose}>
+      <GestureHandlerRootView style={styles.overlay}>
+        <Animated.View style={[styles.backdrop, { backgroundColor: kleuren.scrim }, backdropStyle]} accessibilityRole="none">
+          <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Sluit paneel" />
         </Animated.View>
-      </GestureDetector>
-    </View>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <Animated.View
+            style={[styles.sheet, { backgroundColor: kleuren.card, borderColor: kleuren.border }, sheetStyle]}
+            accessibilityViewIsModal
+            accessibilityLabel={title ?? 'Paneel'}
+          >
+            <GestureDetector gesture={panGesture}>
+              <View>
+                <View style={styles.handleContainer}>
+                  <View style={[styles.handle, { backgroundColor: kleuren.inactive }]} />
+                </View>
+                {title && <Text accessibilityRole="header" style={[tekst.kop, styles.title, { color: kleuren.foreground }]}>{title}</Text>}
+              </View>
+            </GestureDetector>
+            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>{children}</ScrollView>
+          </Animated.View>
+        </KeyboardAvoidingView>
+      </GestureHandlerRootView>
+    </Modal>
   );
 }
 
@@ -130,5 +140,6 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 16,
+    paddingBottom: 8,
   },
 });
