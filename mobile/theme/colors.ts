@@ -58,6 +58,10 @@ export const colors = {
   danger: '#F87171',
   dangerSoft: 'rgba(248,113,113,0.14)',
 
+  // Verduistering achter modals en sheets. Gelijk in alle thema's (licht en
+  // buiten erven hem), dus bewust niet overschreven hieronder.
+  scrim: 'rgba(0,0,0,0.5)',
+
   // Scope Colors (Garden Theme - Brand Identity)
   scope: {
     grondwerk: '#8B7355',
@@ -117,8 +121,9 @@ export const lightColors: Partial<ColorScheme> = {
   input: '#F5F5F5',
   ring: '#2D5A27',
 
-  // Inactive (tab icons, placeholder text, disabled states)
-  inactive: '#888888',
+  // Inactive (tab icons, placeholder text, disabled states) — #6B6B6B haalt
+  // 5,1:1 op #FAFAF8; #888888 haalde maar 3,4:1 voor de tablabels.
+  inactive: '#6B6B6B',
 
   // Surface
   surface: '#FFFFFF',

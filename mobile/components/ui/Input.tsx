@@ -5,6 +5,7 @@ import {
   Text,
   TextInputProps,
   ActivityIndicator,
+  AccessibilityInfo,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -86,6 +87,11 @@ export const Input = forwardRef<TextInput, InputProps>(
 
     const displayMessage = error || hint;
 
+    // iOS kent geen live regions: lees een (nieuwe) foutmelding expliciet voor.
+    useEffect(() => {
+      if (error) AccessibilityInfo.announceForAccessibility(error);
+    }, [error]);
+
     return (
       <View className={cn('gap-1.5 mb-4', className)}>
         {label && (
@@ -149,6 +155,7 @@ export const Input = forwardRef<TextInput, InputProps>(
               onBlur?.(e);
             }}
             {...props}
+            accessibilityLabel={props.accessibilityLabel ?? label}
           />
 
           {rightIcon && <View style={{ marginLeft: 8, justifyContent: 'center', alignItems: 'center' }}>{rightIcon}</View>}
@@ -157,6 +164,7 @@ export const Input = forwardRef<TextInput, InputProps>(
         {displayMessage && (
           <Text
             accessibilityRole={error ? 'alert' : undefined}
+            accessibilityLiveRegion={error ? 'polite' : undefined}
             style={[tekst.voetnoot, { color: error ? kleuren.danger : kleuren.mutedForeground }]}
           >
             {displayMessage}

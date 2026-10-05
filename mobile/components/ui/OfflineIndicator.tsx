@@ -127,7 +127,8 @@ export function OfflineIndicator({ showWhenOnline = false, style }: OfflineIndic
             <Pressable
               onPress={handleRetry}
               disabled={isSyncing}
-              hitSlop={10}
+              // Kleine tekstknop: verticaal ruim uitbreiden tot een raakvlak van 44pt.
+              hitSlop={{ top: 14, bottom: 14, left: 10, right: 10 }}
               accessibilityRole="button"
               accessibilityLabel="Opnieuw proberen te synchroniseren"
               accessibilityState={{ disabled: isSyncing, busy: isSyncing }}

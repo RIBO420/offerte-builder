@@ -177,7 +177,7 @@ function MijnDag() {
             <Text accessibilityRole="header" style={[tekst.grootTitel, { color: kleuren.foreground }]} numberOfLines={1}>
               Mijn dag
             </Text>
-            <Text style={[tekst.sub, { color: kleuren.mutedForeground, marginTop: 2 }]} numberOfLines={1}>
+            <Text style={[tekst.sub, { color: kleuren.mutedForeground, marginTop: 2 }]} numberOfLines={2}>
               {dagLabel(datum)}{dag?.team ? ` · ${dag.team.naam}` : ''}
             </Text>
           </View>
@@ -186,7 +186,8 @@ function MijnDag() {
             haptic="selection"
             accessibilityLabel="Buiten-modus"
             accessibilityHint="Hoog contrast voor fel daglicht"
-            accessibilityState={{ selected: buiten }}
+            accessibilityRole="switch"
+            accessibilityState={{ checked: buiten }}
             style={{ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: buiten ? kleuren.primary : kleuren.muted }}
           >
             <Sun size={21} color={buiten ? kleuren.primaryForeground : kleuren.foreground} strokeWidth={2} />

@@ -6,6 +6,11 @@ import { useVeldOpdracht } from '../../hooks/use-veld-opdracht';
 import { IcoonTegel, Kaart, Melding, Scheiding, StatusPil } from '../werk/Bouwstenen';
 import { tekst } from '../../theme';
 import { useVeldKleuren } from './BuitenModus';
+import { korteDatum } from '../../lib/datum-labels';
+
+/** ISO-dag als "5 okt"; iets anders tonen we zoals het is. */
+const datumTekst = (datum: unknown) =>
+  typeof datum === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(datum) ? korteDatum(datum) : String(datum);
 
 const LABELS = { dagvoorstel: 'Uren', retour: 'Aanhangerretour', afronding: 'Klusafronding', delegatie: 'Overdracht aan collega', foto: 'Foto', intro: 'Introductie', afvoer: 'Afvoer bij klus', segmentToevoegen: 'Uren toevoegen', segmentWijzigen: 'Uren wijzigen' };
 export function VeldWachtrij() {
@@ -26,7 +31,7 @@ export function VeldWachtrij() {
         {i > 0 && <Scheiding />}
         <View style={{ gap: 6, paddingVertical: 8 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-            <Text style={[tekst.kop, { color: kleuren.foreground, flexShrink: 1 }]}>{LABELS[r.type]}{r.payload.datum ? <Text style={[tekst.cijfers, { color: kleuren.mutedForeground, fontWeight: '400' }]}> · {String(r.payload.datum)}</Text> : null}</Text>
+            <Text style={[tekst.kop, { color: kleuren.foreground, flexShrink: 1 }]}>{LABELS[r.type]}{r.payload.datum ? <Text style={[tekst.cijfers, { color: kleuren.mutedForeground, fontWeight: '400' }]}> · {datumTekst(r.payload.datum)}</Text> : null}</Text>
             <StatusPil label={r.status === 'conflict' ? 'Controle nodig' : 'Wacht op bevestiging'} toon={r.status === 'conflict' ? 'gemist' : 'wachten'} />
           </View>
           {typeof r.payload.keuze === 'string' && <Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>{r.payload.keuze.replaceAll('_', ' ')}</Text>}

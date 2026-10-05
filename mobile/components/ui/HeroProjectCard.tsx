@@ -80,7 +80,7 @@ export const HeroProjectCard = React.memo(function HeroProjectCard({
             elevation: 6,
           },
           {
-            transform: [{ scale: ingedrukt && !rustig ? 0.98 : 1 }],
+            transform: [{ scale: ingedrukt && !rustig ? 0.96 : 1 }],
             transitionProperty: 'transform',
             transitionDuration: 120,
             transitionTimingFunction: 'ease-out',

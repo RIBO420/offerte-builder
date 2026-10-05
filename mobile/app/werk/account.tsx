@@ -44,6 +44,7 @@ function WachtwoordFormulier() {
       ]).map(veld => <View key={veld.label} style={{ gap: 6 }}>
         <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground, fontWeight: '600', fontSize: 14, paddingHorizontal: 2 }]}>{veld.label}</Text>
         <TextInput accessibilityLabel={veld.label} secureTextEntry autoCapitalize="none" autoCorrect={false}
+          textContentType={veld.label === 'Huidig wachtwoord' ? 'password' : 'newPassword'} autoComplete={veld.label === 'Huidig wachtwoord' ? 'current-password' : 'new-password'}
           value={veld.waarde} onChangeText={veld.wijzigen} editable={!bezig}
           style={{ color: kleuren.foreground, backgroundColor: kleuren.muted, borderRadius: 12, minHeight: 48, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16 }} />
       </View>)}

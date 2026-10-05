@@ -21,6 +21,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Check, CircleAlert, FileText, Mic, Pause, Play, RotateCcw, Shield, Square } from 'lucide-react-native';
 import { useAudioRecording } from '../hooks/use-audio-recording';
 import { useTranscription } from '../hooks/use-transcription';
+import { useReducedMotion } from '../hooks/use-reduced-motion';
 import { tekst } from '../theme';
 import { useVeldKleuren } from './veld/BuitenModus';
 import { Drukvlak, Kaart, Melding, toonKleuren, type Toon } from './werk/Bouwstenen';
@@ -87,6 +88,8 @@ interface AudioBarsProps {
 
 function AudioBars({ isActief }: AudioBarsProps) {
   const kleuren = useVeldKleuren();
+  // Minder beweging: vaste balken op halve hoogte, geen golvende lus.
+  const rustig = useReducedMotion();
   // useMemo i.p.v. useRef(...).current: zelfde stabiele Animated.Value-array,
   // maar zonder ref-toegang tijdens render (react-hooks/refs).
   const barAnimaties = useMemo<Animated.Value[]>(
@@ -134,7 +137,10 @@ function AudioBars({ isActief }: AudioBarsProps) {
   }, [barAnimaties]);
 
   useEffect(() => {
-    if (isActief) {
+    if (rustig) {
+      animatieRefs.current.forEach((anim) => anim.stop());
+      barAnimaties.forEach((anim) => anim.setValue(isActief ? 0.5 : 0.2));
+    } else if (isActief) {
       startAnimaties();
     } else {
       stopAnimaties();
@@ -142,7 +148,7 @@ function AudioBars({ isActief }: AudioBarsProps) {
     return () => {
       animatieRefs.current.forEach((anim) => anim.stop());
     };
-  }, [isActief, startAnimaties, stopAnimaties]);
+  }, [isActief, rustig, barAnimaties, startAnimaties, stopAnimaties]);
 
   return (
     <View style={styles.audioBarsContainer}>
@@ -177,9 +183,14 @@ function OpnameKnop({ isOpname, isPaused, onPress, disabled }: OpnameKnopProps) 
   // eslint-disable-next-line react-hooks/refs -- RN Animated.Value refs are stable and safe to access during render
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const pulseAnimRef = useRef<Animated.CompositeAnimation | null>(null);
+  // Minder beweging: geen ademende puls tijdens opname.
+  const rustig = useReducedMotion();
 
   useEffect(() => {
-    if (isOpname && !isPaused) {
+    if (rustig) {
+      pulseAnimRef.current?.stop();
+      pulseAnim.setValue(1);
+    } else if (isOpname && !isPaused) {
       pulseAnimRef.current = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
@@ -208,7 +219,7 @@ function OpnameKnop({ isOpname, isPaused, onPress, disabled }: OpnameKnopProps) 
     return () => {
       pulseAnimRef.current?.stop();
     };
-  }, [isOpname, isPaused, pulseAnim]);
+  }, [isOpname, isPaused, rustig, pulseAnim]);
 
   const gepauzeerd = isOpname && isPaused;
   const knopKleur = gepauzeerd ? kleuren.warning : kleuren.destructive;

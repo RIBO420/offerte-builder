@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   label: {
-    fontSize: 11,
+    fontSize: 12,
     letterSpacing: 0.1,
   },
 });

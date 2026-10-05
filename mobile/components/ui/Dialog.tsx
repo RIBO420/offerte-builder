@@ -12,6 +12,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useReducedMotion } from 'react-native-reanimated';
 import { spacing } from '../../theme/spacing';
 import { shadows } from '../../theme/shadows';
 import { tekst } from '../../theme/typography';
@@ -58,8 +59,20 @@ export function Dialog({
   // maar zonder ref-toegang tijdens render (react-hooks/refs).
   const fadeAnim = useMemo(() => new Animated.Value(0), []);
   const scaleAnim = useMemo(() => new Animated.Value(0.9), []);
+  const kleuren = useVeldKleuren();
+  // Minder beweging: alleen vervagen, geen schaal-veer.
+  const rustig = useReducedMotion();
 
   useEffect(() => {
+    if (rustig) {
+      scaleAnim.setValue(1);
+      Animated.timing(fadeAnim, {
+        toValue: visible ? 1 : 0,
+        duration: animationDuration,
+        useNativeDriver: true,
+      }).start();
+      return;
+    }
     if (visible) {
       Animated.parallel([
         Animated.timing(fadeAnim, {
@@ -88,7 +101,7 @@ export function Dialog({
         }),
       ]).start();
     }
-  }, [visible, fadeAnim, scaleAnim, animationDuration]);
+  }, [visible, fadeAnim, scaleAnim, animationDuration, rustig]);
 
   const handleBackdropPress = () => {
     if (closeOnBackdropPress && onClose) {
@@ -119,7 +132,7 @@ export function Dialog({
                 right: 0,
                 bottom: 0,
                 opacity: fadeAnim,
-                backgroundColor: 'rgba(0,0,0,0.5)',
+                backgroundColor: kleuren.scrim,
               }}
             >
               <Pressable
@@ -184,7 +197,8 @@ export function DialogContent({ children, style, maxWidth }: DialogContentProps)
         style,
       ]}
       className="w-full mx-4 overflow-hidden"
-      accessible
+      // Geen `accessible`: dat voegt het hele venster samen tot één element en
+      // maakt de knoppen erin onbereikbaar voor VoiceOver.
       accessibilityViewIsModal
     >
       {children}

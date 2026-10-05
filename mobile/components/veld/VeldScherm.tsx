@@ -90,7 +90,7 @@ function Fout({ melding, opnieuw }: { melding: string; opnieuw: () => void }) {
   return (
     <View style={{ alignItems: 'center', gap: 12, paddingVertical: 48, paddingHorizontal: 12 }}>
       <IcoonTegel icoon={RefreshCw} toon="gemist" grootte={52} />
-      <Text style={[tekst.titel3, { color: kleuren.foreground, textAlign: 'center' }]}>Dit scherm kan niet laden</Text>
+      <Text accessibilityRole="header" style={[tekst.titel3, { color: kleuren.foreground, textAlign: 'center' }]}>Dit scherm kan niet laden</Text>
       <Text accessibilityRole="alert" style={[tekst.sub, { color: kleuren.mutedForeground, textAlign: 'center' }]}>{melding}</Text>
       <Button title="Opnieuw proberen" variant="outline" onPress={opnieuw} />
     </View>

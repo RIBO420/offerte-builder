@@ -13,6 +13,9 @@ interface SwitchProps {
   size?: SwitchSize;
   style?: ViewStyle;
   className?: string;
+  /** Naam van de instelling; de schakelstand leest de schermlezer zelf voor. */
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
 }
 
 // Size configuration for the switch
@@ -48,6 +51,8 @@ export function Switch({
   size = 'md',
   style,
   className,
+  accessibilityLabel,
+  accessibilityHint,
 }: SwitchProps) {
   const kleuren = useVeldKleuren();
   const donker = useIsDonker();
@@ -59,6 +64,9 @@ export function Switch({
   // Witte duim: op donker is dat de voorgrond, op licht het kaartvlak.
   const duimKleur = donker ? kleuren.foreground : kleuren.card;
   const duur = rustig ? 0 : 200;
+  // Raakvlak tot minstens 44pt, ook bij het kleine spoor.
+  const slopV = Math.max(8, Math.ceil((44 - config.trackHeight) / 2));
+  const slopH = Math.max(8, Math.ceil((44 - config.trackWidth) / 2));
 
   const handlePress = () => {
     if (!disabled) {
@@ -73,10 +81,11 @@ export function Switch({
       onPressIn={() => !disabled && setIngedrukt(true)}
       onPressOut={() => setIngedrukt(false)}
       disabled={disabled}
-      hitSlop={8}
+      hitSlop={{ top: slopV, bottom: slopV, left: slopH, right: slopH }}
       accessibilityRole="switch"
       accessibilityState={{ checked: value, disabled }}
-      accessibilityLabel={value ? 'Aan' : 'Uit'}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityHint={accessibilityHint}
       style={style}
       className={className}
     >

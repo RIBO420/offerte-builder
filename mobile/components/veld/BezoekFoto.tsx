@@ -4,15 +4,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X } from 'lucide-react-native';
 import { Drukvlak } from '../werk/Bouwstenen';
 import { tekst } from '../../theme';
-import { useVeldKleuren } from './BuitenModus';
+import { useIsDonker, useVeldKleuren } from './BuitenModus';
 
 export function BezoekFoto({ url, label }: { url: string; label: string }) {
   const [open, setOpen] = useState(false);
   const kleuren = useVeldKleuren();
+  const donker = useIsDonker();
   const insets = useSafeAreaInsets();
   return <>
     <Drukvlak accessibilityLabel={`Open ${label}`} onPress={() => setOpen(true)}>
-      <Image source={{ uri: url }} accessibilityLabel={label} style={{ width: '100%', height: 200, borderRadius: 14, backgroundColor: kleuren.muted }} resizeMode="cover" />
+      <Image source={{ uri: url }} accessibilityLabel={label} style={{ width: '100%', height: 200, borderRadius: 14, backgroundColor: kleuren.muted, borderWidth: 1, borderColor: donker ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }} resizeMode="cover" />
     </Drukvlak>
     <Modal visible={open} onRequestClose={() => setOpen(false)} animationType="fade">
       <View style={{ flex: 1, paddingTop: insets.top, paddingBottom: insets.bottom, backgroundColor: kleuren.background }}>

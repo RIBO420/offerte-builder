@@ -49,7 +49,7 @@ import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'ex
 import { BEELD_OVERLAY, FotoGalerij } from './FotoGalerij';
 import { Button } from './ui';
 import { useVeldKleuren } from './veld/BuitenModus';
-import { Drukvlak, IcoonTegel, Kaart, LegeStaat, Scheiding, SectieKop, toonKleuren, type Toon } from './werk/Bouwstenen';
+import { Drukvlak, IcoonTegel, Kaart, LegeStaat, Scheiding, SectieKop, StatusPil, toonKleuren, type Toon } from './werk/Bouwstenen';
 import { tekst } from '../theme';
 import { useOfflineQueue } from '@/hooks/use-offline-queue';
 import type { CapturedPhoto } from '@/hooks/use-photo-capture';
@@ -273,6 +273,7 @@ function ProjectDropdown({ projecten, geselecteerd, onSelecteer }: ProjectDropdo
               <Kaart padding={0} style={{ paddingHorizontal: 14, gap: 0 }}>
                 {gefilterd.map((project, index) => {
                   const actief = geselecteerd?.id === project.id;
+                  const statusLabel = project.status.charAt(0).toUpperCase() + project.status.slice(1);
                   return (
                     <View key={project.id}>
                       {index > 0 && <Scheiding />}
@@ -282,7 +283,7 @@ function ProjectDropdown({ projecten, geselecteerd, onSelecteer }: ProjectDropdo
                           setOpen(false);
                           setZoekterm('');
                         }}
-                        accessibilityLabel={`${project.naam}, ${project.klant}`}
+                        accessibilityLabel={`${project.naam}, ${project.klant}, ${statusLabel}`}
                         accessibilityState={{ selected: actief }}
                         style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 60, paddingVertical: 10 }}
                       >
@@ -292,10 +293,9 @@ function ProjectDropdown({ projecten, geselecteerd, onSelecteer }: ProjectDropdo
                           </Text>
                           <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground, fontSize: 14 }]} numberOfLines={1}>{project.klant}</Text>
                         </View>
-                        <View
-                          accessibilityElementsHidden
-                          style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: project.status === 'actief' ? kleuren.success : kleuren.mutedForeground }}
-                        />
+                        <View>
+                          <StatusPil label={statusLabel} toon={project.status === 'actief' ? 'succes' : 'neutraal'} />
+                        </View>
                         {actief && <Check size={18} color={kleuren.primary} strokeWidth={2.5} />}
                       </Drukvlak>
                     </View>
@@ -568,6 +568,7 @@ export function ProjectFotoUpload({
                 <Drukvlak
                   onPress={() => setQrScannerZichtbaar(true)}
                   accessibilityLabel="QR-code scannen"
+                  hitSlop={{ top: 4, bottom: 4 }}
                   style={{ flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 36, paddingHorizontal: 12, borderRadius: 999, backgroundColor: kleuren.primarySoft }}
                 >
                   <ScanQrCode size={16} color={kleuren.primary} strokeWidth={2.25} />

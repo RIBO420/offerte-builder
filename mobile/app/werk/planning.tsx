@@ -140,7 +140,7 @@ function KlusKaart({ stop, datum, vandaag, gelogd, gemist }: { stop: VeldStop; d
             onPress={() => { void Linking.openURL(routeUrl(stop.adres!)).catch(() => undefined); }}
             accessibilityLabel={`Route naar ${stop.adres}`}
             accessibilityHint="Opent kaarten"
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 32 }}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44 }}
           >
             <MapPin size={16} color={kleuren.mutedForeground} strokeWidth={2} />
             <Text style={[tekst.sub, { color: kleuren.foreground, flex: 1 }]} numberOfLines={2}>{stop.adres}</Text>

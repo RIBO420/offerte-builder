@@ -138,7 +138,7 @@ export default function NotificationsScreen() {
               style={{ flexDirection: 'row', alignItems: 'center', gap: 6, height: 44, paddingHorizontal: 14, borderRadius: 22, backgroundColor: kleuren.primarySoft }}
             >
               <CheckCheck size={18} color={kleuren.primary} strokeWidth={2.25} />
-              <Text style={[tekst.sub, { color: kleuren.primary, fontWeight: '600' }]}>Alles gelezen</Text>
+              <Text style={[tekst.sub, { color: kleuren.primary, fontWeight: '600' }]}>Markeer alles</Text>
             </Drukvlak>
           )}
         </View>
@@ -147,7 +147,7 @@ export default function NotificationsScreen() {
         <View>
           <Text accessibilityRole="header" style={[tekst.grootTitel, { color: kleuren.foreground }]}>Meldingen</Text>
           <Text style={[tekst.sub, tekst.cijfers, { color: kleuren.mutedForeground, marginTop: 2 }]}>
-            {totalUnread > 0 ? `${totalUnread} ongelezen` : 'Alles gelezen'}
+            {totalUnread > 0 ? `${totalUnread} ongelezen` : 'Geen ongelezen meldingen'}
           </Text>
         </View>
 

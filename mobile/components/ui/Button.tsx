@@ -4,8 +4,10 @@ import {
   ActivityIndicator,
   Pressable,
   View,
+  type AccessibilityState,
 } from 'react-native';
 import Animated from 'react-native-reanimated';
+import { Check } from 'lucide-react-native';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 import { usePressAnimation } from '../../hooks/use-spring-animation';
@@ -107,6 +109,16 @@ export interface ButtonProps extends VariantProps<typeof buttonVariants> {
   iconPosition?: 'left' | 'right';
   fullWidth?: boolean;
   children?: React.ReactNode;
+  /** Voorleesnaam; valt terug op `title`. Verplicht in de praktijk voor icoonknoppen. */
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
+  /** Extra status (bijv. `expanded`); disabled/checked vult de knop zelf. */
+  accessibilityState?: AccessibilityState;
+  /**
+   * Keuzeknop in een groep: maakt er een radio van met `checked`-status en
+   * zet een vinkje voor de titel als hij gekozen is.
+   */
+  geselecteerd?: boolean;
 }
 
 export function Button({
@@ -122,6 +134,10 @@ export function Button({
   iconPosition = 'left',
   fullWidth = false,
   children,
+  accessibilityLabel,
+  accessibilityHint,
+  accessibilityState,
+  geselecteerd,
 }: ButtonProps) {
   const { animatedStyle, onPressIn, onPressOut } = usePressAnimation();
 
@@ -152,6 +168,7 @@ export function Button({
       return children;
     }
 
+    const vinkje = geselecteerd ? <Check size={16} color={tekstKleur} strokeWidth={2.5} /> : null;
     const hasIcon = !!icon;
     const hasTitle = !!title;
 
@@ -167,6 +184,7 @@ export function Button({
     // Title with optional icon
     return (
       <View className={cn('flex-row items-center justify-center', size !== 'icon' && iconSpacing[size || 'md'])}>
+        {hasTitle && vinkje}
         {hasIcon && iconPosition === 'left' && icon}
         {hasTitle && (
           <Text
@@ -199,9 +217,14 @@ export function Button({
           className
         )}
         style={containerKleur}
-        accessibilityRole="button"
-        accessibilityState={{ disabled: isDisabled }}
-        accessibilityLabel={title}
+        accessibilityRole={geselecteerd === undefined ? 'button' : 'radio'}
+        accessibilityState={{
+          ...accessibilityState,
+          disabled: isDisabled,
+          ...(geselecteerd === undefined ? null : { checked: geselecteerd }),
+        }}
+        accessibilityLabel={accessibilityLabel ?? title}
+        accessibilityHint={accessibilityHint}
       >
         {renderContent()}
       </Pressable>

@@ -85,7 +85,7 @@ function InstellingRegel({ icoon, toon = 'neutraal', label, uitleg, rechts }: {
 function AuthenticatedProfielScreen() {
   const router = useRouter();
   const kleuren = useColors();
-  const { mode, setMode } = useTheme();
+  const { mode, setMode, isDark } = useTheme();
   const { user } = useUser();
   const { signOut } = useClerk();
   const { roleDisplayName, roleBadgeVariant } = useUserRole();
@@ -173,7 +173,7 @@ function AuthenticatedProfielScreen() {
   const fullName = profile?.naam || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Gebruiker';
   const email = user?.primaryEmailAddress?.emailAddress || profile?.email || '';
   const functie = profile?.functie || profile?.medewerker?.functie || 'Medewerker';
-  const imageUrl = user?.imageUrl;
+  const imageUrl = user?.hasImage ? user.imageUrl : undefined;
 
   // Generate initials
   const initials = `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase() || 'U';
@@ -316,7 +316,7 @@ function AuthenticatedProfielScreen() {
               style={{ width: 68, height: 68, borderRadius: 34, alignItems: 'center', justifyContent: 'center' }}
             >
               {imageUrl ? (
-                <Image source={{ uri: imageUrl }} style={{ width: 62, height: 62, borderRadius: 31, borderWidth: 2, borderColor: kleuren.card }} accessibilityIgnoresInvertColors />
+                <Image source={{ uri: imageUrl }} style={{ width: 62, height: 62, borderRadius: 31, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }} accessibilityIgnoresInvertColors />
               ) : (
                 <View style={{ width: 62, height: 62, borderRadius: 31, backgroundColor: kleuren.primarySoft, borderWidth: 2, borderColor: kleuren.card, alignItems: 'center', justifyContent: 'center' }}>
                   <Text style={[tekst.titel2, { color: kleuren.primary }]}>{initials}</Text>
@@ -340,7 +340,7 @@ function AuthenticatedProfielScreen() {
               toon="primair"
               label={getBiometricLabel()}
               uitleg={biometricAvailable ? getBiometricDescription() : 'Niet beschikbaar op dit toestel'}
-              rechts={<Switch value={biometricEnabled} onValueChange={handleBiometricToggle} disabled={!biometricAvailable || biometricLoading} />}
+              rechts={<Switch accessibilityLabel={getBiometricLabel()} value={biometricEnabled} onValueChange={handleBiometricToggle} disabled={!biometricAvailable || biometricLoading} />}
             />
             <Scheiding />
             <LijstRegel icoon={KeyRound} toon="neutraal" titel="Wachtwoord" sub="Instellen of wijzigen" onPress={() => router.push('/werk/account')} />
@@ -348,11 +348,11 @@ function AuthenticatedProfielScreen() {
 
           <SectieKop titel="Meldingen" />
           <Kaart style={groep}>
-            <InstellingRegel icoon={BellRing} toon="info" label="Pushmeldingen" rechts={<Switch value={pushEnabled} disabled={!notificationPrefs} onValueChange={(val) => { saveNotificationPrefs({ push: val, chat: chatEnabled, projectUpdates: projectUpdatesEnabled }); }} />} />
+            <InstellingRegel icoon={BellRing} toon="info" label="Pushmeldingen" rechts={<Switch accessibilityLabel="Pushmeldingen" value={pushEnabled} disabled={!notificationPrefs} onValueChange={(val) => { saveNotificationPrefs({ push: val, chat: chatEnabled, projectUpdates: projectUpdatesEnabled }); }} />} />
             <Scheiding />
-            <InstellingRegel icoon={MessageCircle} toon="primair" label="Chatberichten" rechts={<Switch value={chatEnabled} disabled={!notificationPrefs} onValueChange={(val) => { saveNotificationPrefs({ push: pushEnabled, chat: val, projectUpdates: projectUpdatesEnabled }); }} />} />
+            <InstellingRegel icoon={MessageCircle} toon="primair" label="Chatberichten" rechts={<Switch accessibilityLabel="Chatberichten" value={chatEnabled} disabled={!notificationPrefs} onValueChange={(val) => { saveNotificationPrefs({ push: pushEnabled, chat: val, projectUpdates: projectUpdatesEnabled }); }} />} />
             <Scheiding />
-            <InstellingRegel icoon={Hammer} toon="wachten" label="Projectchat" rechts={<Switch value={projectUpdatesEnabled} disabled={!notificationPrefs} onValueChange={(val) => { saveNotificationPrefs({ push: pushEnabled, chat: chatEnabled, projectUpdates: val }); }} />} />
+            <InstellingRegel icoon={Hammer} toon="wachten" label="Projectchat" rechts={<Switch accessibilityLabel="Projectchat" value={projectUpdatesEnabled} disabled={!notificationPrefs} onValueChange={(val) => { saveNotificationPrefs({ push: pushEnabled, chat: chatEnabled, projectUpdates: val }); }} />} />
           </Kaart>
 
           <SectieKop titel="Weergave" />

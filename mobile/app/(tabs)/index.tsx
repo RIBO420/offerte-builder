@@ -198,7 +198,7 @@ function Dashboard() {
           titel="Meldingen"
           telling={totaalOngelezen}
           rechts={meldingen && meldingen.length > 0 ? (
-            <Drukvlak onPress={() => router.push('/(tabs)/notifications')} accessibilityLabel="Alle meldingen" style={{ minHeight: 32, justifyContent: 'center', paddingHorizontal: 4 }}>
+            <Drukvlak onPress={() => router.push('/(tabs)/notifications')} accessibilityLabel="Alle meldingen" hitSlop={{ top: 6, bottom: 6, left: 8, right: 8 }} style={{ minHeight: 32, justifyContent: 'center', paddingHorizontal: 4 }}>
               <Text style={[tekst.sub, { color: kleuren.primary, fontWeight: '600' }]}>Alle</Text>
             </Drukvlak>
           ) : undefined}
@@ -277,7 +277,7 @@ function VandaagVlak({ dag, gelogd }: { dag: VeldDagData | null; gelogd: number 
         </View>
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <View style={{ flex: 1 }}><Button title={ingediend ? 'Dag bekijken' : 'Mijn dag openen'} onPress={() => router.push('/(tabs)/uren')} fullWidth /></View>
-          <Button variant="secondary" size="icon" onPress={() => router.push('/werk/fotos')} icon={<Camera size={20} color={kleuren.primary} strokeWidth={2} />} title={undefined} />
+          <Button variant="secondary" size="icon" onPress={() => router.push('/werk/fotos')} icon={<Camera size={20} color={kleuren.primary} strokeWidth={2} />} accessibilityLabel="Foto's van mijn klussen" />
         </View>
       </Kaart>
       {overige.length > 0 && (
@@ -313,7 +313,7 @@ function KlusKop({ stop }: { stop: VeldStop }) {
           onPress={() => { void Linking.openURL(routeUrl(stop.adres!)).catch(() => undefined); }}
           accessibilityLabel={`Route naar ${stop.adres}`}
           accessibilityHint="Opent kaarten"
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 36 }}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44 }}
         >
           <Navigation size={16} color={kleuren.primary} strokeWidth={2.25} />
           <Text style={[tekst.sub, { color: kleuren.foreground, flex: 1 }]} numberOfLines={1}>{stop.adres}</Text>

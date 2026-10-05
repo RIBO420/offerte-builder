@@ -43,11 +43,16 @@ function Intro() {
 
   return <>
     <Kaart variant="natuur" padding={20}>
-      <IcoonTegel icoon={iconen[stap]} toon="primair" grootte={52} />
-      <View style={{ gap: 6 }}>
-        <Text style={[tekst.voetnoot, tekst.cijfers, { color: kleuren.mutedForeground, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.6 }]}>Stap {stap + 1} van {stappen.length}</Text>
-        <Text accessibilityRole="header" style={[tekst.titel2, { color: kleuren.foreground }]}>{stappen[stap][0]}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <IcoonTegel icoon={iconen[stap]} toon="primair" grootte={52} />
+        {/* Voortgang als stippen in plaats van een bovenkopje boven de titel. */}
+        <View accessible accessibilityLabel={`Stap ${stap + 1} van ${stappen.length}`} style={{ flexDirection: 'row', gap: 6 }}>
+          {stappen.map((_, i) => (
+            <View key={i} style={{ width: i === stap ? 20 : 8, height: 8, borderRadius: 4, backgroundColor: i <= stap ? kleuren.primary : kleuren.primarySoft }} />
+          ))}
+        </View>
       </View>
+      <Text accessibilityRole="header" style={[tekst.titel2, { color: kleuren.foreground }]}>{stappen[stap][0]}</Text>
       <Text style={[tekst.body, { color: kleuren.foreground, lineHeight: 25 }]}>{stappen[stap][1]}</Text>
     </Kaart>
 

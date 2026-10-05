@@ -45,7 +45,7 @@ interface TabsContentProps {
 
 // Trigger per variant: segment (default), pil, of onderstreping.
 function triggerStijl(k: ColorScheme, variant: TabsVariant, actief: boolean): ViewStyle {
-  const basis: ViewStyle = { flexDirection: 'row', alignItems: 'center', minHeight: 40, paddingHorizontal: 16 };
+  const basis: ViewStyle = { flexDirection: 'row', alignItems: 'center', minHeight: 44, paddingHorizontal: 16 };
   switch (variant) {
     case 'pills':
       return {

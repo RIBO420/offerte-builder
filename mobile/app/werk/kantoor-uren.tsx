@@ -2,14 +2,14 @@ import React, { Fragment, useState } from 'react';
 import { Text, TextInput, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useQuery } from 'convex/react';
-import { CalendarDays, CalendarX2, Lock, Search } from 'lucide-react-native';
+import { CalendarX2, Lock, Search } from 'lucide-react-native';
 import { api } from '../../convex/_generated/api';
 import { VeldScherm } from '../../components/veld/VeldScherm';
 import { useBuitenModus } from '../../components/veld/BuitenModus';
 import { useCurrentUser } from '../../hooks/use-current-user';
 import { isKantoorRole } from '../../lib/roles';
-import { Kaart, LegeStaat, Melding, PeriodeKiezer, SectieKop, StatusPil, type Toon } from '../../components/werk/Bouwstenen';
-import { vandaagAmsterdam, geldigeDag } from '../../lib/werk-periode';
+import { Kaart, LegeStaat, PeriodeKiezer, SectieKop, StatusPil, type Toon } from '../../components/werk/Bouwstenen';
+import { vandaagAmsterdam, geldigeDag, schuifDag } from '../../lib/werk-periode';
 import { korteDatum, weekdagNaam } from '../../lib/datum-labels';
 import { tekst } from '../../theme';
 
@@ -28,10 +28,8 @@ function Inhoud() {
   const [datum, setDatum] = useState(geldigeDag(params.datum) ? params.datum : vandaagAmsterdam());
   const [zoek, setZoek] = useState('');
   const kantoor = isKantoorRole(role);
-  const geldig = /^\d{4}-\d{2}-\d{2}$/.test(datum) && Number.isFinite(Date.parse(datum)) && new Date(datum).toISOString().slice(0, 10) === datum;
-  const data = useQuery(api.veldDekking.getPeriode, kantoor && geldig ? { van: datum, tot: datum } : 'skip');
+  const data = useQuery(api.veldDekking.getPeriode, kantoor ? { van: datum, tot: datum } : 'skip');
   if (!kantoor) return <LegeStaat icoon={Lock} titel="Alleen voor kantoor" uitleg="Urencontrole is alleen beschikbaar voor kantoor." />;
-  const verschuif = (n: number) => { if (geldig) setDatum(new Date(Date.parse(datum) + n * 86400000).toISOString().slice(0, 10)); };
   const vandaag = vandaagAmsterdam();
   const veld = { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8, backgroundColor: kleuren.muted, borderRadius: 12, minHeight: 44, paddingHorizontal: 12 };
   const invoer = { flex: 1, color: kleuren.foreground, fontSize: 16, minHeight: 44, paddingVertical: 10 };
@@ -40,27 +38,20 @@ function Inhoud() {
   return <>
     <Text style={[tekst.sub, { color: kleuren.mutedForeground, paddingHorizontal: 4 }]}>Bekijk indienstatus en ontbrekende klusregistraties. Correcties en exports staan in de kantooromgeving.</Text>
     <PeriodeKiezer
-      titel={geldig ? weekdagNaam(datum) : 'Ongeldige datum'}
-      ondertitel={geldig ? korteDatum(datum) : undefined}
+      titel={weekdagNaam(datum)}
+      ondertitel={korteDatum(datum)}
       vorigeLabel="Vorige dag"
       volgendeLabel="Volgende dag"
-      onVorige={() => verschuif(-1)}
-      onVolgende={() => verschuif(1)}
+      onVorige={() => setDatum(schuifDag(datum, -1))}
+      onVolgende={() => setDatum(schuifDag(datum, 1))}
       onVandaag={datum === vandaag ? undefined : () => setDatum(vandaag)}
     />
-    <View style={{ gap: 8 }}>
-      <View style={veld}>
-        <CalendarDays size={18} color={kleuren.mutedForeground} strokeWidth={2} />
-        <TextInput accessibilityLabel="Controledatum" value={datum} onChangeText={setDatum} placeholder="JJJJ-MM-DD" placeholderTextColor={kleuren.mutedForeground} style={[invoer, tekst.cijfers]} />
-      </View>
-      <View style={veld}>
-        <Search size={18} color={kleuren.mutedForeground} strokeWidth={2} />
-        <TextInput accessibilityLabel="Zoek medewerker" value={zoek} onChangeText={setZoek} placeholder="Zoek medewerker" placeholderTextColor={kleuren.mutedForeground} clearButtonMode="while-editing" style={invoer} />
-      </View>
+    <View style={veld}>
+      <Search size={18} color={kleuren.mutedForeground} strokeWidth={2} />
+      <TextInput accessibilityLabel="Zoek medewerker" value={zoek} onChangeText={setZoek} placeholder="Zoek medewerker" placeholderTextColor={kleuren.mutedForeground} clearButtonMode="while-editing" style={invoer} />
     </View>
 
-    {!geldig ? <Melding tekst="Vul een geldige datum in." toon="gemist" />
-      : data === undefined ? <Kaart variant="stil"><Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>Urencontrole laden…</Text></Kaart>
+    {data === undefined ? <Kaart variant="stil"><Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>Urencontrole laden…</Text></Kaart>
       : !data.length ? <LegeStaat icoon={CalendarX2} titel="Geen planning of uren" uitleg="Op deze dag is niets gepland of geregistreerd." />
       : !gefilterd.length ? <Text style={[tekst.sub, { color: kleuren.mutedForeground, textAlign: 'center', paddingVertical: 12 }]}>Geen medewerker gevonden voor “{zoek}”.</Text>
       : <View style={{ gap: 8 }}>

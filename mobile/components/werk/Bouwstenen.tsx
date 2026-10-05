@@ -7,8 +7,9 @@
  * uit `useVeldKleuren()`, dus licht, donker en buiten-modus kloppen vanzelf.
  */
 
-import React, { useState, type ComponentType, type ReactNode } from 'react';
+import React, { useEffect, useState, type ComponentType, type ReactNode } from 'react';
 import {
+  AccessibilityInfo,
   Pressable,
   Text,
   View,
@@ -44,7 +45,7 @@ export function toonKleuren(kleuren: ColorScheme, toon: Toon): { voor: string; a
 // ── Drukvlak ────────────────────────────────────────────────────────────────
 
 /**
- * Tikbaar vlak met fysieke drukfeedback: schaal 0,97 bij het indrukken (120 ms,
+ * Tikbaar vlak met fysieke drukfeedback: schaal 0,96 bij het indrukken (120 ms,
  * ease-out), haptic bij loslaten. Lay-out (flex, breedte) hoort op `buitenStijl`.
  */
 export function Drukvlak({
@@ -58,6 +59,7 @@ export function Drukvlak({
   accessibilityHint,
   accessibilityState,
   accessibilityRole = 'button',
+  hitSlop,
 }: {
   onPress?: () => void;
   children: ReactNode;
@@ -68,7 +70,9 @@ export function Drukvlak({
   accessibilityLabel?: string;
   accessibilityHint?: string;
   accessibilityState?: AccessibilityState;
-  accessibilityRole?: 'button' | 'tab' | 'link';
+  accessibilityRole?: 'button' | 'tab' | 'link' | 'switch' | 'radio';
+  /** Vergroot het raakvlak zonder de vorm te veranderen (doel: 44pt). */
+  hitSlop?: number | { top?: number; bottom?: number; left?: number; right?: number };
 }) {
   const [ingedrukt, setIngedrukt] = useState(false);
   const rustig = useReducedMotion();
@@ -82,6 +86,7 @@ export function Drukvlak({
       onPressIn={() => setIngedrukt(true)}
       onPressOut={() => setIngedrukt(false)}
       disabled={disabled}
+      hitSlop={hitSlop}
       pressRetentionOffset={{ top: 12, bottom: 12, left: 12, right: 12 }}
       accessibilityRole={accessibilityRole}
       accessibilityLabel={accessibilityLabel}
@@ -94,7 +99,7 @@ export function Drukvlak({
           style,
           {
             opacity: disabled ? 0.45 : 1,
-            transform: [{ scale: ingedrukt && !rustig && !disabled ? 0.97 : 1 }],
+            transform: [{ scale: ingedrukt && !rustig && !disabled ? 0.96 : 1 }],
             transitionProperty: 'transform',
             transitionDuration: 120,
             transitionTimingFunction: 'ease-out',
@@ -130,7 +135,7 @@ export function Kaart({
     return (
       <View
         style={[
-          { borderRadius: 22 },
+          { borderRadius: 26 },
           donker && {
             shadowColor: kleuren.primary,
             shadowOffset: { width: 0, height: 10 },
@@ -145,7 +150,7 @@ export function Kaart({
           colors={[kleuren.gradientStart, kleuren.gradientEnd]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={{ borderRadius: 22, borderWidth: 1, borderColor: kleuren.gradientBorder, padding, gap: 14 }}
+          style={{ borderRadius: 26, borderWidth: 1, borderColor: kleuren.gradientBorder, padding, gap: 14 }}
         >
           {children}
         </LinearGradient>
@@ -156,7 +161,8 @@ export function Kaart({
     <View
       style={[
         {
-          borderRadius: 18,
+          // Concentrisch: binnenvlakken (knoppen, 8) + padding (16) = 24.
+          borderRadius: 24,
           padding,
           gap: 12,
           backgroundColor: variant === 'stil' ? kleuren.muted : kleuren.card,
@@ -226,7 +232,7 @@ export function LegeStaat({ icoon, titel, uitleg, actie }: { icoon: Icoon; titel
   return (
     <Kaart variant="stil" style={{ alignItems: 'center', paddingVertical: 28, gap: 10 }}>
       <IcoonTegel icoon={icoon} toon="neutraal" grootte={48} />
-      <Text style={[tekst.kop, { color: kleuren.foreground, textAlign: 'center' }]}>{titel}</Text>
+      <Text accessibilityRole="header" style={[tekst.kop, { color: kleuren.foreground, textAlign: 'center' }]}>{titel}</Text>
       {uitleg && <Text style={[tekst.sub, { color: kleuren.mutedForeground, textAlign: 'center', maxWidth: 300 }]}>{uitleg}</Text>}
       {actie && <View style={{ marginTop: 4 }}>{actie}</View>}
     </Kaart>
@@ -258,9 +264,15 @@ export function Scheiding() {
 export function Melding({ tekst: t, toon = 'neutraal', icoon }: { tekst: string; toon?: Toon; icoon?: Icoon }) {
   const kleuren = useVeldKleuren();
   const { voor, achter } = toonKleuren(kleuren, toon);
+  const fout = toon === 'gemist';
+  // iOS kent geen live regions: een fout expliciet voorlezen zodra hij verschijnt of wijzigt.
+  useEffect(() => {
+    if (fout) AccessibilityInfo.announceForAccessibility(t);
+  }, [fout, t]);
   return (
     <View
-      accessibilityRole={toon === 'gemist' ? 'alert' : undefined}
+      accessibilityRole={fout ? 'alert' : undefined}
+      accessibilityLiveRegion={fout ? 'polite' : undefined}
       style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start', backgroundColor: achter, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12 }}
     >
       {icoon ? React.createElement(icoon, { size: 18, color: voor, strokeWidth: 2 }) : <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: voor, marginTop: 7 }} />}
@@ -288,6 +300,7 @@ export function Segment<T extends string>({
 }) {
   const kleuren = useVeldKleuren();
   const donker = useIsDonker();
+  const rustig = useReducedMotion();
   const [breedte, setBreedte] = useState(0);
   const index = Math.max(0, opties.findIndex(o => o.waarde === waarde));
   const segment = breedte > 0 ? (breedte - 6) / opties.length : 0;
@@ -296,7 +309,7 @@ export function Segment<T extends string>({
       accessibilityRole="tablist"
       accessibilityLabel={label}
       onLayout={e => setBreedte(e.nativeEvent.layout.width)}
-      style={{ flexDirection: 'row', backgroundColor: kleuren.muted, borderRadius: 14, padding: 3, minHeight: 44 }}
+      style={{ flexDirection: 'row', backgroundColor: kleuren.muted, borderRadius: 14, padding: 3, minHeight: 48 }}
     >
       {segment > 0 && (
         <Animated.View
@@ -318,7 +331,7 @@ export function Segment<T extends string>({
             elevation: donker ? 0 : 2,
             transform: [{ translateX: index * segment }],
             transitionProperty: 'transform',
-            transitionDuration: 200,
+            transitionDuration: rustig ? 0 : 200,
             transitionTimingFunction: 'ease-out',
           }}
         />
@@ -335,7 +348,9 @@ export function Segment<T extends string>({
               void hapticPatterns.selection();
               onChange(optie.waarde);
             }}
-            style={{ flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 38 }}
+            // 42 hoog in een balk van 48; hitSlop tilt het raakvlak naar 44.
+            hitSlop={{ top: 1, bottom: 1 }}
+            style={{ flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 42 }}
           >
             <Text style={[tekst.sub, { fontWeight: actief ? '600' : '500', color: actief ? kleuren.foreground : kleuren.mutedForeground }]}>{optie.label}</Text>
           </Pressable>
@@ -403,7 +418,9 @@ export type DagMarkering = 'gepland' | 'gelogd' | 'gemist' | 'ingediend';
 
 /**
  * Zeven dagen als tikbare kolommen. Gekozen dag = gevulde cirkel, vandaag =
- * ring, een stip eronder vertelt wat er die dag speelt.
+ * ring, een stip eronder vertelt wat er die dag speelt. De stip verschilt ook
+ * in vorm, niet alleen in kleur: gelogd = gevulde stip, gepland = open ring,
+ * gemist = grotere gevulde stip.
  */
 export function WeekStrook({
   dagen,
@@ -421,8 +438,12 @@ export function WeekStrook({
   labelVan: (datum: string) => { kort: string; nummer: number; voluit: string };
 }) {
   const kleuren = useVeldKleuren();
-  const stipKleur = (m?: DagMarkering) =>
-    m === 'gelogd' || m === 'ingediend' ? kleuren.success : m === 'gemist' ? kleuren.danger : m === 'gepland' ? kleuren.mutedForeground : 'transparent';
+  const stipStijl = (m?: DagMarkering): ViewStyle => {
+    if (m === 'gemist') return { width: 8, height: 8, borderRadius: 4, backgroundColor: kleuren.danger };
+    if (m === 'gelogd' || m === 'ingediend') return { width: 6, height: 6, borderRadius: 3, backgroundColor: kleuren.success };
+    if (m === 'gepland') return { width: 6, height: 6, borderRadius: 3, borderWidth: 1.5, borderColor: kleuren.mutedForeground, backgroundColor: 'transparent' };
+    return { width: 6, height: 6 };
+  };
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
       {dagen.map(dag => {
@@ -456,7 +477,9 @@ export function WeekStrook({
             >
               <Text style={[tekst.kop, tekst.cijfers, { color: isGekozen ? kleuren.primaryForeground : isVandaag ? kleuren.primary : kleuren.foreground }]}>{nummer}</Text>
             </View>
-            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: stipKleur(m) }} />
+            <View style={{ height: 8, justifyContent: 'center' }}>
+              <View style={stipStijl(m)} />
+            </View>
           </Drukvlak>
         );
       })}

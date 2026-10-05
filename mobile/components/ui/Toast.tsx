@@ -8,6 +8,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useReducedMotion } from 'react-native-reanimated';
 import { CircleCheck, CircleX, Info, TriangleAlert } from 'lucide-react-native';
 import { tekst } from '../../theme/typography';
 import type { ColorScheme } from '../../theme/colors';
@@ -62,6 +63,8 @@ export function Toast({
   const insets = useSafeAreaInsets();
   const kleuren = useVeldKleuren();
   const donker = useIsDonker();
+  // Minder beweging: toast verschijnt en verdwijnt alleen door te vervagen.
+  const rustig = useReducedMotion();
   // useMemo i.p.v. useRef(...).current: zelfde stabiele Animated.Value-instanties,
   // maar zonder ref-toegang tijdens render (react-hooks/refs).
   // position bepaalt alleen de startpositie; bewust eenmalig, zoals useRef deed.
@@ -78,6 +81,10 @@ export function Toast({
   const stackScale = 1 - index * 0.03;
 
   const dismiss = () => {
+    if (rustig) {
+      Animated.timing(opacity, { toValue: 0, duration: 200, useNativeDriver: true }).start(() => onDismiss(id));
+      return;
+    }
     Animated.parallel([
       Animated.timing(translateY, {
         toValue: position === 'top' ? -100 : 100,
@@ -94,25 +101,31 @@ export function Toast({
 
   useEffect(() => {
     // Animate in
-    Animated.parallel([
-      Animated.spring(translateY, {
-        toValue: 0,
-        useNativeDriver: true,
-        speed: 14,
-        bounciness: 4,
-      }),
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-      Animated.spring(scale, {
-        toValue: stackScale,
-        useNativeDriver: true,
-        speed: 14,
-        bounciness: 4,
-      }),
-    ]).start();
+    if (rustig) {
+      translateY.setValue(0);
+      scale.setValue(stackScale);
+      Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+    } else {
+      Animated.parallel([
+        Animated.spring(translateY, {
+          toValue: 0,
+          useNativeDriver: true,
+          speed: 14,
+          bounciness: 4,
+        }),
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scale, {
+          toValue: stackScale,
+          useNativeDriver: true,
+          speed: 14,
+          bounciness: 4,
+        }),
+      ]).start();
+    }
 
     // Auto-dismiss timer
     const timer = setTimeout(() => {
@@ -150,7 +163,9 @@ export function Toast({
           (position === 'top' && gestureState.dy < -SWIPE_THRESHOLD) ||
           (position === 'bottom' && gestureState.dy > SWIPE_THRESHOLD);
 
-        if (shouldDismissHorizontal) {
+        if (shouldDismissHorizontal && rustig) {
+          Animated.timing(opacity, { toValue: 0, duration: 200, useNativeDriver: true }).start(() => onDismiss(id));
+        } else if (shouldDismissHorizontal) {
           Animated.parallel([
             Animated.timing(translateX, {
               toValue: gestureState.dx > 0 ? SCREEN_WIDTH : -SCREEN_WIDTH,
@@ -165,6 +180,9 @@ export function Toast({
           ]).start(() => onDismiss(id));
         } else if (shouldDismissVertical) {
           dismiss();
+        } else if (rustig) {
+          translateX.setValue(0);
+          translateY.setValue(0);
         } else {
           // Snap back
           Animated.parallel([

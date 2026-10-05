@@ -333,7 +333,7 @@ function RouteDeltaSheet({
         </View>}
         <View style={{ gap: 8 }}>
           <Input label="Zelf een benodigdheid toevoegen" value={naam} onChangeText={setNaam} disabled={bezig} />
-          <View style={{ flexDirection: 'row', gap: 8 }}>{(['materiaal', 'machine'] as const).map(waarde => <Button key={waarde} title={waarde === 'materiaal' ? 'Materiaal' : 'Machine'} variant={soort === waarde ? 'secondary' : 'outline'} disabled={bezig} onPress={() => setSoort(waarde)} />)}</View>
+          <View style={{ flexDirection: 'row', gap: 8 }}>{(['materiaal', 'machine'] as const).map(waarde => <Button key={waarde} title={waarde === 'materiaal' ? 'Materiaal' : 'Machine'} variant={soort === waarde ? 'secondary' : 'outline'} geselecteerd={soort === waarde} disabled={bezig} onPress={() => setSoort(waarde)} />)}</View>
           <Button title="Toevoegen aan checklist" variant="outline" disabled={bezig || !naam.trim()} onPress={() => toevoegen({ naam: naam.trim(), soort, bron: 'handmatig' })} />
         </View>
         {delta?.kanVerwijderen && delta.handmatigBenodigd?.map(item => <Button key={item.id} title={`Verwijderen: ${item.naam}`} variant="ghost" disabled={bezig} onPress={() => Alert.alert('Benodigdheid verwijderen?', item.naam, [{ text: 'Annuleren', style: 'cancel' }, { text: 'Verwijderen', style: 'destructive', onPress: async () => { try { await verwijder({ id: item.id, datum }); } catch (fout) { toonFout(fout, 'Verwijderen mislukt'); } } }])} />)}
@@ -483,6 +483,7 @@ function AfrondSheet({
                     })
                   }
                   placeholder="Korte notitie (optioneel)"
+                  accessibilityLabel={`Notitie taak ${i + 1}`}
                 />
               )}
             </Kaart>

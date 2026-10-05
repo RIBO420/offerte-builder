@@ -203,7 +203,7 @@ function GesprekRegel({ gesprek, onPress }: { gesprek: DMConversation; onPress: 
       accessibilityLabel={`${gesprek.partnerName}${ongelezen ? `, ${gesprek.unreadCount} ongelezen` : ''}. ${gesprek.lastMessage}`}
       style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 72, paddingVertical: 12 }}
     >
-      <Avatar naam={gesprek.partnerName} grootte={44} online randKleur={kleuren.card} />
+      <Avatar naam={gesprek.partnerName} grootte={44} randKleur={kleuren.card} />
       <View style={{ flex: 1, gap: 2 }}>
         <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
           <Text style={[tekst.kop, { color: kleuren.foreground, flex: 1, fontWeight: ongelezen ? '600' : '500' }]} numberOfLines={1}>
@@ -470,7 +470,7 @@ function AuthenticatedChatScreen() {
     <View
       accessibilityRole="tablist"
       accessibilityLabel="Kanalen"
-      style={{ flexDirection: 'row', marginHorizontal: 16, marginBottom: 8, backgroundColor: kleuren.muted, borderRadius: 14, padding: 3, minHeight: 44 }}
+      style={{ flexDirection: 'row', marginHorizontal: 16, marginBottom: 8, backgroundColor: kleuren.muted, borderRadius: 14, padding: 3, minHeight: 48 }}
     >
       {tabs.map((tab) => {
         const isActive = activeTab === tab.key;
@@ -485,13 +485,15 @@ function AuthenticatedChatScreen() {
               void hapticPatterns.selection();
               setActiveTab(tab.key);
             }}
+            // 42 hoog in een balk van 48; hitSlop tilt het raakvlak naar 44.
+            hitSlop={{ top: 1, bottom: 1 }}
             style={{
               flexGrow: 1,
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'center',
               gap: 5,
-              minHeight: 38,
+              minHeight: 42,
               paddingHorizontal: 10,
               borderRadius: 11,
               backgroundColor: isActive ? (donker ? kleuren.surfaceElevated : kleuren.card) : 'transparent',
@@ -552,7 +554,7 @@ function AuthenticatedChatScreen() {
             >
               <ChevronLeft size={24} color={kleuren.foreground} strokeWidth={2.25} />
             </Drukvlak>
-            <Avatar naam={selectedDMConversation.partnerName} grootte={36} online />
+            <Avatar naam={selectedDMConversation.partnerName} grootte={36} />
             <Text accessibilityRole="header" style={[tekst.kop, { color: kleuren.foreground, flex: 1 }]} numberOfLines={1}>
               {selectedDMConversation.partnerName}
             </Text>
@@ -758,7 +760,7 @@ function AuthenticatedChatScreen() {
           onRequestClose={() => setShowNewDMModal(false)}
         >
           {/* Scrim onder het blad: blijft in beide thema's donker. */}
-          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+          <View style={{ flex: 1, backgroundColor: kleuren.scrim, justifyContent: 'flex-end' }}>
             <View
               style={{
                 backgroundColor: kleuren.background,

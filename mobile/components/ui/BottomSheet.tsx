@@ -76,7 +76,7 @@ export function BottomSheet({
 
   return (
     <View style={styles.overlay}>
-      <Animated.View style={[styles.backdrop, backdropStyle]} accessibilityRole="none">
+      <Animated.View style={[styles.backdrop, { backgroundColor: kleuren.scrim }, backdropStyle]} accessibilityRole="none">
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Sluit paneel" />
       </Animated.View>
       <GestureDetector gesture={panGesture}>
@@ -104,7 +104,6 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   sheet: {
     borderTopLeftRadius: 22,

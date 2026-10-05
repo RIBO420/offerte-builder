@@ -3,7 +3,7 @@ import { Text, View } from 'react-native';
 import { useAuth } from '@clerk/clerk-expo';
 import { Directory, File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import { CalendarX2, ChevronDown, ChevronRight, Share } from 'lucide-react-native';
+import { ChevronDown, ChevronRight, Share } from 'lucide-react-native';
 import { eigenUrenCsv } from '../../lib/eigen-uren-csv';
 import { useQuery } from 'convex/react';
 import { useVeldCache } from '../../hooks/use-veld-cache';
@@ -12,7 +12,7 @@ import { api } from '../../convex/_generated/api';
 import { VeldScherm } from '../../components/veld/VeldScherm';
 import { useBuitenModus } from '../../components/veld/BuitenModus';
 import { Button } from '../../components/ui';
-import { Drukvlak, Kaart, LegeStaat, Melding, PeriodeKiezer, Rij, Scheiding, SectieKop, Segment, StatusPil } from '../../components/werk/Bouwstenen';
+import { Drukvlak, Kaart, Melding, PeriodeKiezer, Rij, Scheiding, SectieKop, Segment, StatusPil } from '../../components/werk/Bouwstenen';
 import { vandaagAmsterdam, werkPeriode, schuifPeriode, urenLabel } from '../../lib/werk-periode';
 import { dagLabel, korteDatum, maandLabel, periodeLabel, weekNummer, weekdagNaam } from '../../lib/datum-labels';
 import { tekst } from '../../theme';
@@ -54,7 +54,7 @@ function OverzichtInhoud() {
       map.create({ intermediates: true, idempotent: true });
       const bestand = new File(map, `mijn-uren-${periode.van}-${periode.tot}.csv`);
       bestand.create({ overwrite: true }); bestand.write(csv);
-      await Sharing.shareAsync(bestand.uri, { mimeType: 'text/csv', UTI: 'public.comma-separated-values-text', dialogTitle: `Mijn uren ${periode.van} tot ${periode.tot}` });
+      await Sharing.shareAsync(bestand.uri, { mimeType: 'text/csv', UTI: 'public.comma-separated-values-text', dialogTitle: `Mijn uren ${korteDatum(periode.van)} – ${korteDatum(periode.tot)}` });
     } catch (error) { setExportFout(error instanceof Error ? error.message : 'Exporteren is mislukt.'); }
     finally { setExportBezig(false); }
   };
@@ -78,10 +78,12 @@ function OverzichtInhoud() {
       <Kaart variant="natuur" padding={18}>
         <View style={{ gap: 2 }}>
           <Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>Geregistreerd in deze {modus}</Text>
-          <Text accessibilityLabel={urenLabel(data.totalen.geregistreerd)} style={[tekst.grootTitel, tekst.cijfers, { color: kleuren.foreground, fontSize: 48, lineHeight: 56 }]}>
-            {Math.floor(data.totalen.geregistreerd / 60)}<Text style={[tekst.titel3, { color: kleuren.mutedForeground }]}>u </Text>
-            {Math.round(data.totalen.geregistreerd % 60).toString().padStart(2, '0')}<Text style={[tekst.titel3, { color: kleuren.mutedForeground }]}>m</Text>
-          </Text>
+          <View accessible accessibilityLabel={urenLabel(data.totalen.geregistreerd)} style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+            <Text style={[tekst.cijfers, { color: kleuren.foreground, fontSize: 48, lineHeight: 56, fontWeight: '700' }]}>{Math.floor(data.totalen.geregistreerd / 60)}</Text>
+            <Text style={[tekst.titel3, { color: kleuren.mutedForeground, marginLeft: 3, marginRight: 12 }]}>u</Text>
+            <Text style={[tekst.cijfers, { color: kleuren.foreground, fontSize: 48, lineHeight: 56, fontWeight: '700' }]}>{Math.round(data.totalen.geregistreerd % 60).toString().padStart(2, '0')}</Text>
+            <Text style={[tekst.titel3, { color: kleuren.mutedForeground, marginLeft: 3 }]}>m</Text>
+          </View>
         </View>
         <View style={{ gap: 2 }}>
           <Rij label="Werk bij klanten" waarde={urenLabel(data.totalen.klantwerk)} />
@@ -123,7 +125,7 @@ function OverzichtInhoud() {
       </View>}
 
       {!data.dagen.length ? (
-        <LegeStaat icoon={CalendarX2} titel="Geen geregistreerde uren" uitleg="In deze periode staan nog geen uren op je naam." />
+        <Text style={[tekst.sub, { color: kleuren.mutedForeground, paddingHorizontal: 4 }]}>Nog geen uren in deze {modus}. Uren schrijf je onder Mijn dag.</Text>
       ) : <View style={{ gap: 8 }}>
         <SectieKop titel="Per dag" telling={data.dagen.length} />
         <Kaart padding={0} style={{ gap: 0, overflow: 'hidden' }}>

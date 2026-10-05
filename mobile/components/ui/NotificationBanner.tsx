@@ -78,7 +78,7 @@ export function NotificationBanner({ icon, title, subtitle, time, isUnread = fal
               borderRadius: 18,
               paddingVertical: 12,
               paddingHorizontal: 14,
-              transform: [{ scale: ingedrukt && !rustig ? 0.98 : 1 }],
+              transform: [{ scale: ingedrukt && !rustig ? 0.96 : 1 }],
               transitionProperty: 'transform',
               transitionDuration: 120,
               transitionTimingFunction: 'ease-out',

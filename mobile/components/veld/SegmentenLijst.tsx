@@ -483,11 +483,7 @@ function SegmentFormSheet({
           placeholder="Korte toelichting"
         />
 
-        {tijdFout && (
-          <Text style={[tekst.sub, { color: kleuren.danger }]}>
-            {tijdFout}
-          </Text>
-        )}
+        {tijdFout && <Melding tekst={tijdFout} toon="gemist" />}
 
         <Button
           title={bewerkSegment ? 'Aanpassen' : 'Opslaan'}

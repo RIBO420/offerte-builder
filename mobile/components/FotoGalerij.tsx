@@ -203,6 +203,8 @@ const FotoItem = React.memo(({ foto, index, onTik, onVerwijder }: FotoItemProps)
       <Drukvlak
         onPress={handleVerwijder}
         accessibilityLabel="Foto verwijderen"
+        // 30 + 2×6 padding = 42; hitSlop brengt het raakvlak op 44+.
+        hitSlop={2}
         buitenStijl={{ position: 'absolute', top: 0, right: 0, padding: 6 }}
         style={[stijlen.rondOpBeeld, { position: 'relative', width: 30, height: 30, borderRadius: 15 }]}
       >
@@ -590,6 +592,7 @@ export function FotoGalerij({ maxFotos = 10, fotos: externeFootos, onChange }: F
           <Drukvlak
             onPress={() => setToevoegModalZichtbaar(true)}
             accessibilityLabel="Foto toevoegen"
+            hitSlop={{ top: 4, bottom: 4 }}
             style={{ flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 36, paddingHorizontal: 14, borderRadius: 999, backgroundColor: kleuren.primarySoft }}
           >
             <Plus size={16} color={kleuren.primary} strokeWidth={2.5} />

@@ -55,8 +55,8 @@ export function KlusKiezer({ datum, stops, waarde, wijzigen, disabled = false }:
         {gekozen && <Check size={18} color={kleuren.primary} strokeWidth={2.25} />}
       </Pressable>;
     })}
-    {nieuwWerk && !stops.some(s => s.werkitemId === nieuwWerk.werkitemId) && <Button title={`${waarde === nieuwWerk.werkitemId ? '✓ ' : ''}${nieuwWerk.naam}`} variant={waarde === nieuwWerk.werkitemId ? 'secondary' : 'outline'} onPress={() => selecteer(nieuwWerk.werkitemId)} />}
-    <Button title={open ? 'Andere klanten sluiten' : 'Andere klant of ongeplande klus'} variant="ghost" disabled={disabled || bezig} onPress={() => { setOpen(!open); setFout(null); }} icon={<Search size={16} color={kleuren.foreground} strokeWidth={2} />} />
+    {nieuwWerk && !stops.some(s => s.werkitemId === nieuwWerk.werkitemId) && <Button title={nieuwWerk.naam} variant={waarde === nieuwWerk.werkitemId ? 'secondary' : 'outline'} geselecteerd={waarde === nieuwWerk.werkitemId} onPress={() => selecteer(nieuwWerk.werkitemId)} />}
+    <Button title={open ? 'Andere klanten sluiten' : 'Andere klant of ongeplande klus'} variant="ghost" accessibilityState={{ expanded: open }} disabled={disabled || bezig} onPress={() => { setOpen(!open); setFout(null); }} icon={<Search size={16} color={kleuren.foreground} strokeWidth={2} />} />
     {open && <View style={{ gap: 10 }}>
       {!online && <Melding toon="wachten" icoon={CloudOff} tekst="Een nieuwe klant of klus aanmaken vraagt verbinding. Je kunt een bestaande geplande klus kiezen." />}
       {!klant && !nieuweKlant ? <>
@@ -76,7 +76,7 @@ export function KlusKiezer({ datum, stops, waarde, wijzigen, disabled = false }:
         <Text style={[tekst.kop, { color: kleuren.foreground }]}>{nieuweKlant ? 'Nieuwe klant en klus' : `Nieuwe klus bij ${klant?.naam}`}</Text>
         {nieuweKlant && [{ label: 'Naam klant', waarde: naam, setter: setNaam }, { label: 'Werkadres (optioneel)', waarde: adres, setter: setAdres }, { label: 'Postcode (optioneel)', waarde: postcode, setter: setPostcode }, { label: 'Plaats (optioneel)', waarde: plaats, setter: setPlaats }].map(v => <TextInput key={v.label} accessibilityLabel={v.label} placeholder={v.label} placeholderTextColor={kleuren.mutedForeground} value={v.waarde} onChangeText={v.setter} editable={!bezig} style={stijl} />)}
         <TextInput accessibilityLabel="Wat heb je bij deze klant gedaan?" placeholder="Omschrijving van het werk" placeholderTextColor={kleuren.mutedForeground} value={omschrijving} onChangeText={setOmschrijving} editable={!bezig} multiline style={stijl} />
-        <View style={{ flexDirection: 'row', gap: 8 }}>{(['onderhoud', 'aanleg'] as const).map(c => <View key={c} style={{ flex: 1 }}><Button title={c === 'onderhoud' ? 'Tuinonderhoud' : 'Tuinaanleg'} variant={categorie === c ? 'secondary' : 'outline'} disabled={bezig} onPress={() => setCategorie(c)} fullWidth /></View>)}</View>
+        <View style={{ flexDirection: 'row', gap: 8 }}>{(['onderhoud', 'aanleg'] as const).map(c => <View key={c} style={{ flex: 1 }}><Button title={c === 'onderhoud' ? 'Tuinonderhoud' : 'Tuinaanleg'} variant={categorie === c ? 'secondary' : 'outline'} geselecteerd={categorie === c} disabled={bezig} onPress={() => setCategorie(c)} fullWidth /></View>)}</View>
         <Text style={gedempt}>De klus wordt aan jouw werkdag toegevoegd. Vul daarna de tijden in en sla het urensegment op.</Text>
         <Button title="Klus toevoegen en selecteren" variant="outline" loading={bezig} disabled={!online || !omschrijving.trim() || (nieuweKlant && !naam.trim())} onPress={maak} />
         <Button title="Andere klant kiezen" variant="ghost" disabled={bezig} onPress={() => { setKlant(null); setNieuweKlant(false); }} />

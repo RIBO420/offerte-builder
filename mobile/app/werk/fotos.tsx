@@ -2,17 +2,17 @@ import React, { useState } from 'react';
 import { Text, TextInput, View } from 'react-native';
 import { useQuery } from 'convex/react';
 import { useRouter } from 'expo-router';
-import { CalendarDays, ImageOff, Search } from 'lucide-react-native';
+import { ImageOff, Search } from 'lucide-react-native';
 import { api } from '../../convex/_generated/api';
 import { VeldScherm } from '../../components/veld/VeldScherm';
 import { useBuitenModus } from '../../components/veld/BuitenModus';
 import { BezoekFoto } from '../../components/veld/BezoekFoto';
 import { Button } from '../../components/ui';
-import { Drukvlak, Kaart, LegeStaat, Melding, PeriodeKiezer, SectieKop, StatusPil } from '../../components/werk/Bouwstenen';
+import { Kaart, LegeStaat, Melding, PeriodeKiezer, StatusPil } from '../../components/werk/Bouwstenen';
 import { useVeldCache } from '../../hooks/use-veld-cache';
 import { useCurrentUser } from '../../hooks/use-current-user';
 import { isKantoorRole } from '../../lib/roles';
-import { vandaagAmsterdam, schuifDag, geldigeDag } from '../../lib/werk-periode';
+import { vandaagAmsterdam, schuifDag } from '../../lib/werk-periode';
 import { korteDatum, weekdagNaam } from '../../lib/datum-labels';
 import { tekst } from '../../theme';
 
@@ -20,12 +20,12 @@ type FotoDag = { bezoeken: { werkitemId: string; naam: string; klantNaam: string
 export default function FotoScherm() { return <VeldScherm titel="Foto’s van klussen"><Fotos /></VeldScherm>; }
 function Fotos() {
   const { kleuren } = useBuitenModus(); const router = useRouter(); const { role } = useCurrentUser();
-  const [datum, setDatum] = useState(vandaagAmsterdam); const [datumInvoer, setDatumInvoer] = useState(datum); const [zoek, setZoek] = useState('');
+  const [datum, setDatum] = useState(vandaagAmsterdam); const [zoek, setZoek] = useState('');
   const kantoor = isKantoorRole(role);
   const eigen = useQuery(api.werkbezoek.getVoorDag, kantoor ? 'skip' : { datum }) as FotoDag | undefined;
   const alle = useQuery(api.werkbezoek.getKantoorDag, kantoor ? { datum } : 'skip') as FotoDag | undefined;
   const { data, uitCache } = useVeldCache(`fotos:${kantoor ? 'kantoor' : 'eigen'}:${datum}`, kantoor ? alle : eigen);
-  const selecteer = (dag: string) => { setDatum(dag); setDatumInvoer(dag); };
+  const selecteer = (dag: string) => { setDatum(dag); };
   const bezoeken = data?.bezoeken.filter(b => `${b.klantNaam ?? ''} ${b.naam}`.toLowerCase().includes(zoek.toLowerCase()));
   const vandaag = vandaagAmsterdam();
   const veld = { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8, backgroundColor: kleuren.muted, borderRadius: 12, minHeight: 44, paddingHorizontal: 12 };
@@ -43,23 +43,9 @@ function Fotos() {
       onVandaag={datum === vandaag ? undefined : () => selecteer(vandaag)}
     />
 
-    <View style={{ gap: 8 }}>
-      <SectieKop
-        titel="Zoeken"
-        rechts={
-          <Drukvlak onPress={() => { setZoek(''); selecteer(vandaagAmsterdam()); }} haptic="selection" accessibilityLabel="Filters herstellen" style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: 4 }}>
-            <Text style={[tekst.sub, { color: kleuren.primary, fontWeight: '600' }]}>Herstellen</Text>
-          </Drukvlak>
-        }
-      />
-      <View style={veld}>
-        <Search size={18} color={kleuren.mutedForeground} strokeWidth={2} />
-        <TextInput accessibilityLabel="Zoek klant of klus" value={zoek} onChangeText={setZoek} placeholder="Zoek klant of klus" placeholderTextColor={kleuren.mutedForeground} clearButtonMode="while-editing" style={invoer} />
-      </View>
-      <View style={veld}>
-        <CalendarDays size={18} color={kleuren.mutedForeground} strokeWidth={2} />
-        <TextInput accessibilityLabel="Klusdatum (jaar-maand-dag)" value={datumInvoer} onChangeText={setDatumInvoer} onEndEditing={() => { if (geldigeDag(datumInvoer)) setDatum(datumInvoer); }} placeholder="JJJJ-MM-DD" placeholderTextColor={kleuren.mutedForeground} style={[invoer, tekst.cijfers]} />
-      </View>
+    <View style={veld}>
+      <Search size={18} color={kleuren.mutedForeground} strokeWidth={2} />
+      <TextInput accessibilityLabel="Zoek klant of klus" value={zoek} onChangeText={setZoek} placeholder="Zoek klant of klus" placeholderTextColor={kleuren.mutedForeground} clearButtonMode="while-editing" returnKeyType="search" style={invoer} />
     </View>
 
     {uitCache && <Melding tekst="Laatst geladen overzicht. Foto’s openen vraagt mogelijk verbinding." />}

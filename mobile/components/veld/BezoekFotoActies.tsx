@@ -28,7 +28,7 @@ export function BezoekFotoActies({ werkitemId, datum }: { werkitemId: string; da
   return <View style={{ gap: 10, width: '100%' }}>
     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
       <Text style={[tekst.kop, { color: kleuren.foreground }]}>Foto van het bezoek</Text>
-      <View style={{ flexDirection: 'row', gap: 6 }}><Button title="Voor" size="sm" variant={fase === 'voor' ? 'secondary' : 'ghost'} disabled={bezig} onPress={() => setFase('voor')} /><Button title="Na" size="sm" variant={fase === 'na' ? 'secondary' : 'ghost'} disabled={bezig} onPress={() => setFase('na')} /></View>
+      <View style={{ flexDirection: 'row', gap: 6 }}><Button title="Voor" size="sm" variant={fase === 'voor' ? 'secondary' : 'ghost'} geselecteerd={fase === 'voor'} disabled={bezig} onPress={() => setFase('voor')} /><Button title="Na" size="sm" variant={fase === 'na' ? 'secondary' : 'ghost'} geselecteerd={fase === 'na'} disabled={bezig} onPress={() => setFase('na')} /></View>
     </View>
     <View style={{ flexDirection: 'row', gap: 8 }}>
       <View style={{ flex: 1 }}><Button title="Maak foto" variant="outline" loading={bezig} onPress={() => kiesFoto(true)} icon={<Camera size={16} color={kleuren.foreground} strokeWidth={2} />} fullWidth /></View>

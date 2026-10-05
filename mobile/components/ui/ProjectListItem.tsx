@@ -47,7 +47,7 @@ export const ProjectListItem = React.memo(function ProjectListItem({
           borderColor: kleuren.border,
           padding: 14,
           gap: 12,
-          transform: [{ scale: ingedrukt && !rustig ? 0.98 : 1 }],
+          transform: [{ scale: ingedrukt && !rustig ? 0.96 : 1 }],
           transitionProperty: 'transform',
           transitionDuration: 120,
           transitionTimingFunction: 'ease-out',
