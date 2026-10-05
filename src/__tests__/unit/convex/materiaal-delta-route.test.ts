@@ -41,7 +41,8 @@ function wereld(
 ) {
   const store = new MockConvexStore();
   const orgId = seedMockOrganisatie(store);
-  const userId = store.insert("users", createMockUser({ role: "voorman" }));
+  const medewerkerId = store.insert("medewerkers", { orgId, naam: "Monteur", isActief: true });
+  const userId = store.insert("users", { ...createMockUser({ role: "voorman" }), linkedMedewerkerId: medewerkerId });
   const klantId = store.insert(
     "klanten",
     createMockKlant(userId, { orgId, ...HOOFD, ...klantVelden })
@@ -50,6 +51,7 @@ function wereld(
     orgId,
     userId,
     type: "onderhoudsbeurt",
+    toegewezenMedewerkerIds: [medewerkerId],
     klantId,
     naam: "Snoeibeurt",
     status: "gepland",

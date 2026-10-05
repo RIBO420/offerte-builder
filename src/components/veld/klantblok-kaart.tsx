@@ -157,6 +157,17 @@ function RouteMetDeltaKnop({ stop, datum }: { stop: VeldStop; datum: string }) {
   );
   const vinkAf = useMutation(api.materiaalDelta.vinkAf);
 
+  const toevoegen = useMutation(api.materiaalDelta.voegBenodigdheidToe);
+  const verwijderen = useMutation(api.materiaalDelta.verwijderBenodigdheid);
+  const [handmatig, setHandmatig] = useState("");
+  const [bezig, setBezig] = useState(false);
+  const voegToe = async (naam: string, soort: "machine" | "materiaal", bron: "handmatig" | "suggestie") => {
+    setBezig(true);
+    try { await toevoegen({ werkitemId: stop.werkitemId, datum, naam, soort, bron }); setHandmatig(""); }
+    catch (fout) { toast.error(fout instanceof Error ? fout.message : "Toevoegen mislukt"); }
+    finally { setBezig(false); }
+  };
+
   const handleVink = async (item: string, ongedaan: boolean) => {
     try {
       await vinkAf({ werkitemId: stop.werkitemId, datum, item, ongedaan });
@@ -190,6 +201,9 @@ function RouteMetDeltaKnop({ stop, datum }: { stop: VeldStop; datum: string }) {
                 Bus: {delta.voertuig.merk} ({delta.voertuig.kenteken})
               </p>
             )}
+            {!!delta.suggesties.length && <div className="grid gap-2 rounded-md border border-dashed p-3"><p className="text-sm font-medium">Suggesties bij de werkzaamheden</p><p className="text-xs text-muted-foreground">Controleer wat nodig is. Toevoegen zet het op deze checklist.</p>{delta.suggesties.map(s => <div key={s.naam} className="flex items-center justify-between gap-2 text-sm"><span>{s.naam}<span className="block text-xs text-muted-foreground">Bij: {s.trefwoorden.join(", ")}</span></span><Button size="sm" variant="outline" disabled={bezig} onClick={() => voegToe(s.naam, s.soort, "suggestie")}>Toevoegen</Button></div>)}</div>}
+            <form className="flex gap-2" onSubmit={e => { e.preventDefault(); if (handmatig.trim()) void voegToe(handmatig, "materiaal", "handmatig"); }}><Input aria-label="Extra benodigdheid" placeholder="Zelf een benodigdheid toevoegen" value={handmatig} onChange={e => setHandmatig(e.target.value)} maxLength={160} /><Button type="submit" variant="outline" size="sm" disabled={bezig || !handmatig.trim()}>Toevoegen</Button></form>
+            {delta.kanVerwijderen && !!delta.handmatigBenodigd.length && <details className="text-xs"><summary className="cursor-pointer">Toegevoegde benodigdheden beheren</summary>{delta.handmatigBenodigd.map(b => <div key={b.id} className="flex items-center justify-between gap-2 py-1"><span>{b.naam} · {b.bron}</span><Button variant="ghost" size="sm" onClick={() => verwijderen({ id: b.id, datum }).catch(e => toast.error(e instanceof Error ? e.message : "Verwijderen mislukt"))}>Verwijderen</Button></div>)}</details>}
             {delta.delta.length === 0 ? (
               <p className="text-sm">
                 Alles voor deze klus zit in de standaardinventaris. Goede reis!
