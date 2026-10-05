@@ -23,7 +23,7 @@ const routeIcons: Record<string, React.ComponentType<any>> = {
 };
 
 const routeLabels: Record<string, string> = {
-  index: 'Home',
+  index: 'Vandaag',
   fotos: "Foto's",
   uren: 'Uren',
   chat: 'Chat',

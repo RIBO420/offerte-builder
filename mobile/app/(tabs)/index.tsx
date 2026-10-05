@@ -1,13 +1,14 @@
 /**
- * Home — "jouw dag". Bovenaan wat er vandaag speelt (het natuurvlak), daaronder
- * de werktegels met live status, dan meldingen. Voor kantoor zonder eigen
- * planning toont het natuurvlak het eerste actieve project.
+ * Home ("Vandaag", Tuinvenster): tuinbeeld van het dagdeel met de groet, de
+ * Nu-kaart half eroverheen, je dag als tijdlijn, dan de werklijst en meldingen.
+ * Kantoor zonder eigen planning ziet in de Nu-kaart het eerste actieve project.
  */
 
 import { useCallback, useState, type ComponentType } from 'react';
 import { Linking, Platform, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { setStatusBarStyle } from 'expo-status-bar';
 import { useMutation, useQuery } from 'convex/react';
 import {
   Bell,
@@ -21,7 +22,6 @@ import {
   Leaf,
   MapPin,
   MessageCircle,
-  Navigation,
   ShieldPlus,
   UserPlus,
 } from 'lucide-react-native';
@@ -30,10 +30,11 @@ import { useCurrentUser } from '../../hooks/use-current-user';
 import { useUserRole } from '../../hooks/use-user-role';
 import { vandaagAmsterdam, urenLabel } from '../../lib/werk-periode';
 import { dagLabel, weekNummer } from '../../lib/datum-labels';
-import { tekst, useColors } from '../../theme';
+import { tekst, useColors, useTheme } from '../../theme';
 import { Button, NotificationBanner, Skeleton, SkeletonCard } from '../../components/ui';
-import { Drukvlak, IcoonTegel, Kaart, LijstRegel, SectieKop, StatusPil, type Toon } from '../../components/werk/Bouwstenen';
-import type { VeldDagData, VeldSegment, VeldStop } from '../../types/veld';
+import { Drukvlak, IcoonTegel, Kaart, LijstRegel, Scheiding, StatusPil, type Toon } from '../../components/werk/Bouwstenen';
+import { DagTijdlijn, TuinKop, dagItemsVan, dagdeelVan, groetVan } from '../../components/werk/Tuin';
+import type { VeldDagData, VeldSegment } from '../../types/veld';
 
 type Icoon = ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
 
@@ -86,6 +87,7 @@ export default function HomeScherm() {
 
 function Dashboard() {
   const kleuren = useColors();
+  const { isDark } = useTheme();
   const router = useRouter();
   const { isMedewerker, role } = useUserRole();
   const { user } = useCurrentUser();
@@ -99,6 +101,12 @@ function Dashboard() {
   const markeerGelezen = useMutation(api.notifications.markAsRead);
   const verberg = useMutation(api.notifications.dismiss);
 
+  // Over het tuinbeeld hoort een lichte statusbalk, ook in het lichte thema.
+  useFocusEffect(useCallback(() => {
+    setStatusBarStyle('light');
+    return () => setStatusBarStyle(isDark ? 'light' : 'dark');
+  }, [isDark]));
+
   const voornaam = (user?.name || 'collega').split(' ')[0];
   const totaalOngelezen = ongelezen?.total || 0;
   const onRefresh = useCallback(async () => {
@@ -110,137 +118,128 @@ function Dashboard() {
   const kantoor = ['directie', 'projectleider'].includes(role);
   const leiding = kantoor || role === 'voorman';
   const gelogdVandaag = eigenDag ? eigenDag.segmenten.filter(s => s.categorie !== 'pauze').reduce((som, s) => som + minuten(s), 0) : 0;
+  const aantalKlussen = eigenDag?.stops.length ?? 0;
+  const subRegel = [
+    dagLabel(vandaag),
+    eigenDag?.team?.naam,
+    aantalKlussen ? (aantalKlussen === 1 ? '1 klus' : `${aantalKlussen} klussen`) : null,
+  ].filter(Boolean).join(' · ');
 
-  const tegels: { titel: string; sub: string; icoon: Icoon; toon: Toon; naar: Parameters<typeof router.push>[0] }[] = [
-    {
-      titel: 'Mijn dag',
-      sub: eigenDag ? (eigenDag.dagStatus === 'ingediend' ? 'Ingediend' : `${urenLabel(gelogdVandaag)} vandaag`) : 'Uren schrijven',
-      icoon: Clock,
-      toon: eigenDag?.dagStatus === 'ingediend' ? 'succes' : 'primair',
-      naar: '/(tabs)/uren',
-    },
-    { titel: 'Planning', sub: `Week ${weekNummer(vandaag)}`, icoon: CalendarDays, toon: 'info', naar: '/werk/planning' },
-    { titel: 'Mijn uren', sub: 'Week en maand', icoon: ChartColumn, toon: 'primair', naar: '/werk/urenoverzicht' },
-    { titel: 'Protocollen', sub: 'Werk en nood', icoon: ShieldPlus, toon: 'gemist', naar: '/werk/protocollen' },
-    { titel: "Foto's", sub: 'Voor en na', icoon: Camera, toon: 'neutraal', naar: '/werk/fotos' },
-    ...(leiding ? [{ titel: 'Losse krachten', sub: 'Zonder account', icoon: UserPlus, toon: 'wachten' as Toon, naar: '/werk/losse-krachten' as const }] : []),
-    ...(kantoor ? [{ titel: 'Kantoorcontrole', sub: 'Dagen nakijken', icoon: ClipboardCheck, toon: 'info' as Toon, naar: '/werk/kantoor-uren' as const }] : []),
+  const werk: { titel: string; sub?: string; icoon: Icoon; naar: Parameters<typeof router.push>[0] }[] = [
+    { titel: 'Mijn dag', sub: eigenDag ? (eigenDag.dagStatus === 'ingediend' ? 'Ingediend' : `${urenLabel(gelogdVandaag)} geschreven`) : 'Uren schrijven', icoon: Clock, naar: '/(tabs)/uren' },
+    { titel: 'Planning', sub: `Week ${weekNummer(vandaag)}`, icoon: CalendarDays, naar: '/werk/planning' },
+    { titel: 'Mijn uren', sub: 'Week en maand', icoon: ChartColumn, naar: '/werk/urenoverzicht' },
+    { titel: 'Protocollen', sub: 'Werk en nood', icoon: ShieldPlus, naar: '/werk/protocollen' },
+    { titel: "Foto's", sub: 'Voor en na', icoon: Camera, naar: '/werk/fotos' },
+    ...(leiding ? [{ titel: 'Losse krachten', sub: 'Zonder account', icoon: UserPlus, naar: '/werk/losse-krachten' as const }] : []),
+    ...(kantoor ? [{ titel: 'Kantoorcontrole', sub: 'Dagen nakijken', icoon: ClipboardCheck, naar: '/werk/kantoor-uren' as const }] : []),
   ];
-  const rijen: (typeof tegels)[] = [];
-  for (let i = 0; i < tegels.length; i += 2) rijen.push(tegels.slice(i, i + 2));
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: kleuren.background }} edges={['top']}>
+    <View style={{ flex: 1, backgroundColor: kleuren.background }}>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 140, gap: 14 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 140 }}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={verversen} onRefresh={onRefresh} tintColor={kleuren.primary} />}
+        refreshControl={<RefreshControl refreshing={verversen} onRefresh={onRefresh} tintColor="#FFFFFF" />}
       >
-        {/* Kop */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 2 }}>
-          <View style={{ flex: 1 }}>
-            <Text accessibilityRole="header" style={[tekst.grootTitel, { color: kleuren.foreground }]} numberOfLines={1}>Hoi {voornaam}</Text>
-            <Text style={[tekst.sub, { color: kleuren.mutedForeground, marginTop: 2 }]} numberOfLines={1}>
-              {dagLabel(vandaag)}{eigenDag?.team ? ` · ${eigenDag.team.naam}` : ''}
-            </Text>
-          </View>
-          <Drukvlak
-            onPress={() => router.push('/(tabs)/notifications')}
-            accessibilityLabel={totaalOngelezen > 0 ? `Meldingen, ${totaalOngelezen} nieuw` : 'Meldingen'}
-            style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: kleuren.muted, alignItems: 'center', justifyContent: 'center' }}
-          >
-            <Bell size={21} color={kleuren.foreground} strokeWidth={2} />
-            {totaalOngelezen > 0 && (
-              <View style={{ position: 'absolute', top: 9, right: 10, width: 10, height: 10, borderRadius: 5, backgroundColor: kleuren.primary, borderWidth: 2, borderColor: kleuren.muted }} />
-            )}
-          </Drukvlak>
-        </View>
-
-        {/* Vandaag */}
-        {isMedewerker ? (
-          eigenDag === undefined ? <SkeletonCard lines={4} /> : <VandaagVlak dag={eigenDag} gelogd={gelogdVandaag} />
-        ) : actieveProjecten === undefined ? (
-          <SkeletonCard lines={3} />
-        ) : actieveProjecten.length ? (
-          <ProjectVlak projecten={actieveProjecten} />
-        ) : (
-          <RustigeDag titel="Geen actieve projecten" uitleg="Zodra er een project in uitvoering gaat, staat het hier." />
-        )}
-
-        {/* Werktegels */}
-        <SectieKop titel="Werk" />
-        <View style={{ gap: 10 }}>
-          {rijen.map((rij, i) => (
-            <View key={i} style={{ flexDirection: 'row', gap: 10 }}>
-              {rij.map(t => (
-                <Drukvlak
-                  key={t.titel}
-                  onPress={() => router.push(t.naar)}
-                  accessibilityLabel={`${t.titel}, ${t.sub}`}
-                  buitenStijl={{ flex: 1 }}
-                  style={{ backgroundColor: kleuren.card, borderWidth: 1, borderColor: kleuren.border, borderRadius: 18, paddingVertical: 12, paddingHorizontal: 12, gap: 10, minHeight: 68, flexDirection: 'row', alignItems: 'center' }}
-                >
-                  <IcoonTegel icoon={t.icoon} toon={t.toon} grootte={38} />
-                  <View style={{ flex: 1, gap: 1 }}>
-                    <Text style={[tekst.kop, { color: kleuren.foreground, fontSize: 16 }]} numberOfLines={1}>{t.titel}</Text>
-                    <Text style={[tekst.voetnoot, tekst.cijfers, { color: kleuren.mutedForeground }]} numberOfLines={1}>{t.sub}</Text>
-                  </View>
-                </Drukvlak>
-              ))}
-              {rij.length === 1 && <View style={{ flex: 1 }} />}
-            </View>
-          ))}
-        </View>
-
-        {/* Meldingen */}
-        <SectieKop
-          titel="Meldingen"
-          telling={totaalOngelezen}
-          rechts={meldingen && meldingen.length > 0 ? (
-            <Drukvlak onPress={() => router.push('/(tabs)/notifications')} accessibilityLabel="Alle meldingen" hitSlop={{ top: 6, bottom: 6, left: 8, right: 8 }} style={{ minHeight: 32, justifyContent: 'center', paddingHorizontal: 4 }}>
-              <Text style={[tekst.sub, { color: kleuren.primary, fontWeight: '600' }]}>Alle</Text>
+        <TuinKop
+          titel={`${groetVan(dagdeelVan())}, ${voornaam}`}
+          sub={subRegel}
+          rechts={
+            <Drukvlak
+              onPress={() => router.push('/(tabs)/notifications')}
+              accessibilityLabel={totaalOngelezen > 0 ? `Meldingen, ${totaalOngelezen} nieuw` : 'Meldingen'}
+              style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <Bell size={20} color="#FFFFFF" strokeWidth={2} />
+              {totaalOngelezen > 0 && (
+                <View style={{ position: 'absolute', top: 10, right: 11, width: 9, height: 9, borderRadius: 5, backgroundColor: kleuren.primary, borderWidth: 1.5, borderColor: '#FFFFFF' }} />
+              )}
             </Drukvlak>
-          ) : undefined}
+          }
         />
-        {meldingen === undefined ? (
-          <SkeletonCard lines={1} />
-        ) : meldingen.length ? (
-          <View style={{ gap: 8 }}>
-            {meldingen.slice(0, 5).map(m => {
-              const { icoon, toon } = meldingIcoon(m.type);
-              return (
-                <NotificationBanner
-                  key={m._id}
-                  icon={<IcoonTegel icoon={icoon} toon={toon} grootte={36} />}
-                  title={m.title}
-                  subtitle={m.message}
-                  time={tijdGeleden(m._creationTime)}
-                  isUnread={!m.isRead}
-                  onPress={() => {
-                    void markeerGelezen({ notificationId: m._id });
-                    if (m.projectId) router.push(`/project/${m.projectId}`);
-                  }}
-                  onDismiss={() => { void verberg({ notificationId: m._id }); }}
-                />
-              );
-            })}
+
+        {/* De eerste kaart ligt half over het tuinbeeld. */}
+        <View style={{ marginTop: -48, gap: 22 }}>
+          {isMedewerker ? (
+            eigenDag === undefined ? <SkeletonCard lines={4} /> : <NuKaart dag={eigenDag} gelogd={gelogdVandaag} />
+          ) : actieveProjecten === undefined ? (
+            <SkeletonCard lines={3} />
+          ) : actieveProjecten.length ? (
+            <ProjectVlak projecten={actieveProjecten} />
+          ) : (
+            <RustigeDag titel="Geen actieve projecten" uitleg="Zodra er een project in uitvoering gaat, staat het hier." />
+          )}
+
+          {isMedewerker && eigenDag ? <JeDag dag={eigenDag} gelogd={gelogdVandaag} /> : null}
+
+          <View style={{ gap: 10 }}>
+            <Text accessibilityRole="header" style={[tekst.titel3, { color: kleuren.foreground, paddingHorizontal: 2 }]}>Werk</Text>
+            <Kaart padding={4} style={{ paddingHorizontal: 14 }}>
+              {werk.map((w, i) => (
+                <View key={w.titel}>
+                  {i > 0 && <Scheiding />}
+                  <LijstRegel icoon={w.icoon} toon="neutraal" titel={w.titel} sub={w.sub} onPress={() => router.push(w.naar)} />
+                </View>
+              ))}
+            </Kaart>
           </View>
-        ) : (
-          <Text style={[tekst.sub, { color: kleuren.mutedForeground, paddingHorizontal: 4 }]}>Geen nieuwe meldingen.</Text>
-        )}
+
+          {meldingen && meldingen.length > 0 && (
+            <View style={{ gap: 10 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 2 }}>
+                <Text accessibilityRole="header" style={[tekst.titel3, { color: kleuren.foreground }]}>Meldingen</Text>
+                <Drukvlak onPress={() => router.push('/(tabs)/notifications')} accessibilityLabel="Alle meldingen" hitSlop={{ top: 6, bottom: 6, left: 8, right: 8 }} style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: 4 }}>
+                  <Text style={[tekst.sub, { color: kleuren.primary, fontWeight: '600' }]}>Alle</Text>
+                </Drukvlak>
+              </View>
+              {meldingen.slice(0, 3).map(m => {
+                const { icoon, toon } = meldingIcoon(m.type);
+                return (
+                  <NotificationBanner
+                    key={m._id}
+                    icon={<IcoonTegel icoon={icoon} toon={toon} grootte={36} />}
+                    title={m.title}
+                    subtitle={m.message}
+                    time={tijdGeleden(m._creationTime)}
+                    isUnread={!m.isRead}
+                    onPress={() => {
+                      void markeerGelezen({ notificationId: m._id });
+                      if (m.projectId) router.push(`/project/${m.projectId}`);
+                    }}
+                    onDismiss={() => { void verberg({ notificationId: m._id }); }}
+                  />
+                );
+              })}
+            </View>
+          )}
+        </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
-// ── Vandaag (veld) ──────────────────────────────────────────────────────────
+// ── Nu (veld) ───────────────────────────────────────────────────────────────
 
-function VandaagVlak({ dag, gelogd }: { dag: VeldDagData | null; gelogd: number }) {
+function NuKaart({ dag, gelogd }: { dag: VeldDagData | null; gelogd: number }) {
   const kleuren = useColors();
   const router = useRouter();
   if (dag === null) {
     return <RustigeDag titel="Account niet gekoppeld" uitleg="Je account is nog niet aan een medewerker gekoppeld. Vraag kantoor om dit te regelen." />;
+  }
+  if (dag.dagStatus === 'ingediend') {
+    return (
+      <Kaart variant="natuur" padding={18}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>Vandaag</Text>
+          <StatusPil label="Ingediend" toon="succes" />
+        </View>
+        <Text style={[tekst.grootTitel, tekst.cijfers, { color: kleuren.foreground }]}>{urenLabel(gelogd)}</Text>
+        <Text style={[tekst.sub, { color: kleuren.mutedForeground, marginTop: -8 }]}>geschreven en ingediend</Text>
+        <Button title="Dag bekijken" variant="secondary" onPress={() => router.push('/(tabs)/uren')} fullWidth />
+      </Kaart>
+    );
   }
   if (!dag.stops.length) {
     return (
@@ -252,73 +251,56 @@ function VandaagVlak({ dag, gelogd }: { dag: VeldDagData | null; gelogd: number 
     );
   }
   const gelogdeKlussen = dag.stops.filter(stop => dag.segmenten.some(s => s.werkitemId === stop.werkitemId && s.categorie === 'werken')).length;
-  const eerste = dag.stops.find(stop => !dag.segmenten.some(s => s.werkitemId === stop.werkitemId && s.categorie === 'werken')) ?? dag.stops[0];
-  const overige = dag.stops.filter(stop => stop !== eerste);
-  const voortgang = dag.stops.length ? gelogdeKlussen / dag.stops.length : 0;
-  const ingediend = dag.dagStatus === 'ingediend';
-
+  const huidige = dag.stops.find(stop => !dag.segmenten.some(s => s.werkitemId === stop.werkitemId && s.categorie === 'werken')) ?? dag.stops[0];
+  const voortgang = gelogdeKlussen / dag.stops.length;
+  const soort = huidige.type === 'onderhoudsbeurt' ? 'Onderhoud' : 'Aanleg';
   return (
-    <View style={{ gap: 10 }}>
-      <Kaart variant="natuur" padding={18}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-          <StatusPil label={ingediend ? 'Dag ingediend' : gelogdeKlussen === dag.stops.length ? 'Alles gelogd' : 'Vandaag'} toon={ingediend || gelogdeKlussen === dag.stops.length ? 'succes' : 'primair'} />
-          <Text style={[tekst.voetnoot, tekst.cijfers, { color: kleuren.mutedForeground, fontSize: 14 }]}>
-            {dag.stops.length === 1 ? '1 klus' : `${dag.stops.length} klussen`} · {urenLabel(dag.stops.reduce((s, k) => s + k.geplandeMinuten, 0))}
-          </Text>
+    <Kaart variant="natuur" padding={18}>
+      <Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>{gelogdeKlussen === dag.stops.length ? 'Alles gelogd' : gelogdeKlussen ? 'Volgende' : 'Nu'}</Text>
+      <View style={{ gap: 2, marginTop: -6 }}>
+        <Text style={[tekst.titel2, { color: kleuren.foreground }]} numberOfLines={2}>{huidige.klantNaam ?? huidige.naam}</Text>
+        <Text style={[tekst.sub, { color: kleuren.mutedForeground }]} numberOfLines={2}>
+          {[soort, huidige.adres].filter(Boolean).join(' · ')}
+        </Text>
+      </View>
+      <View style={{ gap: 6 }}>
+        <View style={{ height: 4, borderRadius: 2, backgroundColor: kleuren.primarySoft, overflow: 'hidden' }}>
+          <View style={{ width: `${Math.max(4, Math.round(voortgang * 100))}%`, height: 4, borderRadius: 2, backgroundColor: kleuren.primary }} />
         </View>
-        <KlusKop stop={eerste} />
-        <View style={{ gap: 8 }}>
-          <View style={{ height: 6, borderRadius: 3, backgroundColor: kleuren.primarySoft, overflow: 'hidden' }}>
-            <View style={{ width: `${Math.round(voortgang * 100)}%`, height: 6, borderRadius: 3, backgroundColor: kleuren.primary }} />
-          </View>
-          <Text style={[tekst.voetnoot, tekst.cijfers, { color: kleuren.mutedForeground, fontSize: 14 }]}>
-            {gelogdeKlussen} van {dag.stops.length} gelogd · {urenLabel(gelogd)} geschreven
-          </Text>
-        </View>
-        <View style={{ flexDirection: 'row', gap: 10 }}>
-          <View style={{ flex: 1 }}><Button title={ingediend ? 'Dag bekijken' : 'Mijn dag openen'} onPress={() => router.push('/(tabs)/uren')} fullWidth /></View>
-          <Button variant="secondary" size="icon" onPress={() => router.push('/werk/fotos')} icon={<Camera size={20} color={kleuren.primary} strokeWidth={2} />} accessibilityLabel="Foto's van mijn klussen" />
-        </View>
-      </Kaart>
-      {overige.length > 0 && (
-        <Kaart padding={6} style={{ paddingHorizontal: 12 }}>
-          {overige.map((stop, i) => (
-            <View key={String(stop.werkitemId)}>
-              {i > 0 && <View style={{ height: 1, backgroundColor: kleuren.border }} />}
-              <LijstRegel
-                icoon={MapPin}
-                toon="neutraal"
-                titel={stop.klantNaam ?? stop.naam}
-                sub={`${stop.adres ?? stop.naam} · ${urenLabel(stop.geplandeMinuten)}`}
-                onPress={() => router.push('/werk/planning')}
-              />
-            </View>
-          ))}
-        </Kaart>
-      )}
-    </View>
+        <Text style={[tekst.voetnoot, tekst.cijfers, { color: kleuren.mutedForeground }]}>
+          {gelogdeKlussen} van {dag.stops.length} klussen gelogd · {urenLabel(huidige.geplandeMinuten)} gepland
+        </Text>
+      </View>
+      <View style={{ flexDirection: 'row', gap: 10 }}>
+        <View style={{ flex: 1 }}><Button title="Mijn dag" onPress={() => router.push('/(tabs)/uren')} fullWidth /></View>
+        {huidige.adres ? (
+          <Drukvlak
+            onPress={() => { void Linking.openURL(routeUrl(huidige.adres!)).catch(() => undefined); }}
+            accessibilityLabel={`Route naar ${huidige.adres}`}
+            accessibilityHint="Opent kaarten"
+            style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: kleuren.primarySoft, alignItems: 'center', justifyContent: 'center' }}
+          >
+            <MapPin size={20} color={kleuren.primary} strokeWidth={2.25} />
+          </Drukvlak>
+        ) : null}
+      </View>
+    </Kaart>
   );
 }
 
-function KlusKop({ stop }: { stop: VeldStop }) {
+function JeDag({ dag, gelogd }: { dag: VeldDagData; gelogd: number }) {
   const kleuren = useColors();
+  const items = dagItemsVan(dag, true);
+  if (!items.length) return null;
+  const gepland = dag.stops.reduce((som, s) => som + s.geplandeMinuten, 0);
+  const rest = Math.max(0, gepland - gelogd);
   return (
-    <View style={{ gap: 6 }}>
-      <View style={{ gap: 2 }}>
-        <Text style={[tekst.titel1, { color: kleuren.foreground }]} numberOfLines={2}>{stop.klantNaam ?? stop.naam}</Text>
-        {stop.klantNaam && <Text style={[tekst.callout, { color: kleuren.mutedForeground }]} numberOfLines={1}>{stop.naam}</Text>}
-      </View>
-      {stop.adres && (
-        <Drukvlak
-          onPress={() => { void Linking.openURL(routeUrl(stop.adres!)).catch(() => undefined); }}
-          accessibilityLabel={`Route naar ${stop.adres}`}
-          accessibilityHint="Opent kaarten"
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44 }}
-        >
-          <Navigation size={16} color={kleuren.primary} strokeWidth={2.25} />
-          <Text style={[tekst.sub, { color: kleuren.foreground, flex: 1 }]} numberOfLines={1}>{stop.adres}</Text>
-        </Drukvlak>
-      )}
+    <View style={{ gap: 12 }}>
+      <Text accessibilityRole="header" style={[tekst.titel3, { color: kleuren.foreground, paddingHorizontal: 2 }]}>Je dag</Text>
+      <DagTijdlijn items={items} />
+      <Text style={[tekst.sub, tekst.cijfers, { color: kleuren.mutedForeground, textAlign: 'center' }]}>
+        <Text style={{ color: kleuren.foreground, fontWeight: '600' }}>{urenLabel(gelogd)}</Text> geschreven{rest > 0 ? ` · nog ${urenLabel(rest)}` : ''}
+      </Text>
     </View>
   );
 }

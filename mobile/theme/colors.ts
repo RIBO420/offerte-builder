@@ -1,62 +1,66 @@
 // theme/colors.ts
+/**
+ * "Tuinvenster" (okt 2026): de veldapp van Top Tuinen. Licht = bosgroen op warm
+ * gebroken wit; donker = zacht bladgroen op diep groenzwart. Kleur draagt betekenis:
+ * het merkgroen is actie en status, de aardetinten (`werk*`) zijn de soort werk in
+ * de tijdlijn. Het tuinbeeld bovenaan Home (assets/tuin) is de enige sfeerlaag.
+ */
 export const colors = {
-  // Base Colors (Dark Mode - Primary)
-  background: '#0A0A0A',
-  foreground: '#FAFAFA',
-  card: '#111111',
-  cardForeground: '#E8E8E8',
+  // Basis (donker)
+  background: '#0E1210',
+  foreground: '#EEF2EE',
+  card: '#171C19',
+  cardForeground: '#E6EBE6',
 
-  // Primary
-  primary: '#4ADE80',
-  primaryForeground: '#0A0A0A',
+  primary: '#7BD389',
+  primaryForeground: '#0E1210',
 
-  // Secondary
-  secondary: '#1A2E1A',
-  secondaryForeground: '#8BAF8B', // WCAG AA: 5.2:1 on #0A0A0A (was #6B8F6B ~4.0:1)
+  secondary: '#1D2621',
+  secondaryForeground: '#A8C9AE',
 
-  // Muted
-  muted: '#1A1A1A',
-  mutedForeground: '#999999', // WCAG AA: 6.3:1 on #0A0A0A (was #888888 ~5.4:1)
+  muted: '#1C221E',
+  mutedForeground: '#9AA59D',
 
-  // Accent
-  accent: '#2D5A27',
-  accentForeground: '#4ADE80',
+  accent: '#22302A',
+  accentForeground: '#7BD389',
 
-  // Destructive
-  destructive: '#DC2626',
-  destructiveForeground: '#FAFAFA',
+  destructive: '#E5484D',
+  destructiveForeground: '#FFFFFF',
 
-  // Border & Input
-  border: '#222222',
-  input: '#1A1A1A',
-  ring: '#4ADE80',
+  border: '#262D28',
+  input: '#1C221E',
+  ring: '#7BD389',
 
-  // Inactive (tab icons, placeholder text, disabled states)
-  inactive: '#888888', // WCAG AA: 5.4:1 on #0A0A0A (replaces hardcoded #555555 ~2.5:1)
+  // Tabiconen, placeholders, uitgeschakeld
+  inactive: '#8B958E',
 
-  // Surface
-  surface: '#111111',
-  surfaceElevated: '#1A1A1A',
-  surfaceOverlay: '#1A1A1AEE',
+  surface: '#171C19',
+  surfaceElevated: '#1E2520',
+  surfaceOverlay: '#171C19EE',
 
-  // Nature
-  natureDark: '#1A2E1A',
-  natureLight: '#0D1F0D',
+  natureDark: '#1D2621',
+  natureLight: '#121815',
 
-  // Premium Organic-veldtokens (okt 2026): zachte primaire tint voor pillen en
-  // icoontegels, het natuurverloop van het heldvlak en de statusfamilie.
-  primarySoft: 'rgba(74,222,128,0.12)',
-  gradientStart: '#1C331C',
-  gradientEnd: '#0C1A0D',
-  gradientBorder: 'rgba(74,222,128,0.18)',
-  success: '#4ADE80',
-  successSoft: 'rgba(74,222,128,0.12)',
-  warning: '#FBBF24',
-  warningSoft: 'rgba(251,191,36,0.14)',
-  info: '#7DB4FA',
-  infoSoft: 'rgba(96,165,250,0.14)',
-  danger: '#F87171',
-  dangerSoft: 'rgba(248,113,113,0.14)',
+  primarySoft: 'rgba(123,211,137,0.14)',
+  gradientStart: '#1A221E',
+  gradientEnd: '#171C19',
+  gradientBorder: '#2B342E',
+  success: '#7BD389',
+  successSoft: 'rgba(123,211,137,0.14)',
+  warning: '#E9B949',
+  warningSoft: 'rgba(233,185,73,0.14)',
+  info: '#8DB8E8',
+  infoSoft: 'rgba(141,184,232,0.14)',
+  danger: '#F07A7E',
+  dangerSoft: 'rgba(240,122,126,0.14)',
+
+  // Soort werk in de dagtijdlijn (witte tekst erop).
+  werkAanleg: '#9C5233',
+  werkOnderhoud: '#47704D',
+  werkBestrating: '#53677A',
+  werkLoods: '#5E5A53',
+  werkReis: '#4F5E56',
+  werkPauze: '#232A25',
 
   // Verduistering achter modals en sheets. Gelijk in alle thema's (licht en
   // buiten erven hem), dus bewust niet overschreven hieronder.
@@ -103,49 +107,53 @@ export const colors = {
  * basiswaarden gelden.
  */
 export const lightColors: Partial<ColorScheme> = {
-  background: '#FAFAF8',
-  foreground: '#1A1A1A',
+  background: '#F6F7F2',
+  foreground: '#18201B',
   card: '#FFFFFF',
-  cardForeground: '#2D2D2D',
-  primary: '#2D5A27',
+  cardForeground: '#222A25',
+  primary: '#1F5D3A',
   primaryForeground: '#FFFFFF',
-  secondary: '#F0EDE4',
-  secondaryForeground: '#6B8F6B',
-  muted: '#F5F5F5',
-  mutedForeground: '#666666',
-  accent: '#1A2E1A',
-  accentForeground: '#2D5A27',
-  destructive: '#DC2626',
-  destructiveForeground: '#FAFAFA',
-  border: '#E8E4DC',
-  input: '#F5F5F5',
-  ring: '#2D5A27',
+  secondary: '#EAF0E8',
+  secondaryForeground: '#1F5D3A',
+  muted: '#EEF1EA',
+  mutedForeground: '#5E6A62',
+  accent: '#E3ECE2',
+  accentForeground: '#1F5D3A',
+  destructive: '#C2362F',
+  destructiveForeground: '#FFFFFF',
+  border: '#E1E6DD',
+  input: '#EEF1EA',
+  ring: '#1F5D3A',
 
-  // Inactive (tab icons, placeholder text, disabled states) — #6B6B6B haalt
-  // 5,1:1 op #FAFAF8; #888888 haalde maar 3,4:1 voor de tablabels.
-  inactive: '#6B6B6B',
+  // Tabiconen en placeholders: ≥4,5:1 op de achtergrond.
+  inactive: '#66706A',
 
-  // Surface
   surface: '#FFFFFF',
-  surfaceElevated: '#F5F5F5',
+  surfaceElevated: '#F1F4EE',
   surfaceOverlay: '#FFFFFFEE',
 
-  // Nature
-  natureDark: '#E8F5E9',
-  natureLight: '#F1F8F1',
+  natureDark: '#E3ECE2',
+  natureLight: '#F1F5EF',
 
-  primarySoft: 'rgba(45,90,39,0.09)',
-  gradientStart: '#E2F0E0',
-  gradientEnd: '#F6FAF4',
-  gradientBorder: 'rgba(45,90,39,0.16)',
-  success: '#2D7A3E',
-  successSoft: 'rgba(45,122,62,0.10)',
-  warning: '#A15C07',
-  warningSoft: 'rgba(217,119,6,0.12)',
-  info: '#2C6FA0',
-  infoSoft: 'rgba(44,111,160,0.10)',
-  danger: '#B91C1C',
-  dangerSoft: 'rgba(185,28,28,0.09)',
+  primarySoft: 'rgba(31,93,58,0.09)',
+  gradientStart: '#FFFFFF',
+  gradientEnd: '#FFFFFF',
+  gradientBorder: '#E1E6DD',
+  success: '#2C7A47',
+  successSoft: 'rgba(44,122,71,0.10)',
+  warning: '#94570A',
+  warningSoft: 'rgba(217,141,6,0.12)',
+  info: '#2B6496',
+  infoSoft: 'rgba(43,100,150,0.10)',
+  danger: '#B42F29',
+  dangerSoft: 'rgba(180,47,41,0.09)',
+
+  werkAanleg: '#A9552F',
+  werkOnderhoud: '#4C7A52',
+  werkBestrating: '#5A6E80',
+  werkLoods: '#76716A',
+  werkReis: '#5D6B63',
+  werkPauze: '#ECEFE8',
 
   // Scope-kleuren, verdonkerd voor leesbaarheid op #FAFAF8.
   // De vorige waarden hier waren de dark-mode varianten (+0.1 lightness) en haalden op
@@ -209,4 +217,10 @@ export const buitenColors: Partial<ColorScheme> = {
   infoSoft: '#E6ECFA',
   danger: '#B91C1C',
   dangerSoft: '#FBE7E7',
+  werkAanleg: '#7A3B1E',
+  werkOnderhoud: '#14532D',
+  werkBestrating: '#1E3A5F',
+  werkLoods: '#3F3B36',
+  werkReis: '#334038',
+  werkPauze: '#F2F2F2',
 };

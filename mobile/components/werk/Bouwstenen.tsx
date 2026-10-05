@@ -136,12 +136,14 @@ export function Kaart({
       <View
         style={[
           { borderRadius: 26 },
-          donker && {
-            shadowColor: kleuren.primary,
-            shadowOffset: { width: 0, height: 10 },
-            shadowOpacity: 0.16,
-            shadowRadius: 24,
-            elevation: 6,
+          // Tuinvenster: in licht draagt een zachte schaduw de diepte, in donker
+          // een haarlijn. Geen gekleurde gloed.
+          !donker && {
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 8 },
+            shadowOpacity: 0.08,
+            shadowRadius: 22,
+            elevation: 4,
           },
           style,
         ]}
@@ -150,7 +152,7 @@ export function Kaart({
           colors={[kleuren.gradientStart, kleuren.gradientEnd]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={{ borderRadius: 26, borderWidth: 1, borderColor: kleuren.gradientBorder, padding, gap: 14 }}
+          style={{ borderRadius: 26, borderWidth: donker ? 1 : 0, borderColor: kleuren.gradientBorder, padding, gap: 14 }}
         >
           {children}
         </LinearGradient>
@@ -166,8 +168,16 @@ export function Kaart({
           padding,
           gap: 12,
           backgroundColor: variant === 'stil' ? kleuren.muted : kleuren.card,
-          borderWidth: variant === 'stil' ? 0 : 1,
+          // Schaduw voor hoogte in licht, haarlijn voor structuur in donker.
+          borderWidth: variant === 'stil' || !donker ? 0 : 1,
           borderColor: kleuren.border,
+        },
+        variant === 'standaard' && !donker && {
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.05,
+          shadowRadius: 14,
+          elevation: 2,
         },
         style,
       ]}
