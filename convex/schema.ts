@@ -824,6 +824,11 @@ export default defineSchema({
   // Note: "voorcalculatie" is deprecated but kept for backwards compatibility during migration
   projecten: defineTable({
     orgId: v.id("organisaties"),
+    uitvoeringsInstructie: v.optional(v.string()),
+    uitvoeringCategorie: v.optional(v.union(v.literal("aanleg"), v.literal("onderhoud"))),
+    urenBron: v.optional(v.union(v.literal("segmenten"), v.literal("legacy"))),
+    urenBronGewijzigdDoor: v.optional(v.id("users")),
+    urenBronGewijzigdOp: v.optional(v.number()),
     // Discriminator (B1 stap 1): optioneel tijdens migratie; na backfill (stap 2)
     // verplicht maken (stap 3). Semantiek: undefined === "project".
     type: v.optional(
@@ -1200,6 +1205,10 @@ export default defineSchema({
   // functie: bijv. "Hovenier", "Voorman", "Leerling", etc.
   medewerkers: defineTable({
     orgId: v.id("organisaties"),
+    losseKracht: v.optional(v.boolean()),
+    losseKrachtBeheerderId: v.optional(v.id("users")),
+    herkomstPlatform: v.optional(v.string()),
+    losseKrachtSleutel: v.optional(v.string()),
     naam: v.string(),
     email: v.optional(v.string()),
     telefoon: v.optional(v.string()),
@@ -1310,7 +1319,9 @@ export default defineSchema({
     .index("by_org_actief", ["orgId", "isActief"])
     .index("by_status", ["status"])
     .index("by_clerk_id", ["clerkUserId"]) // App: medewerker opzoeken via Clerk ID
-    .index("by_uitnodiging_email", ["uitnodigingEmail"]), // Invite-koppeling bij login,
+    .index("by_uitnodiging_email", ["uitnodigingEmail"])
+    .index("by_org_losse_beheerder", ["orgId", "losseKrachtBeheerderId"])
+    .index("by_org_losse_sleutel", ["orgId", "losseKrachtBeheerderId", "losseKrachtSleutel"]),
 
   // UrenRegistraties - Time registrations (imported or manual)
   urenRegistraties: defineTable({
@@ -1377,6 +1388,8 @@ export default defineSchema({
       v.literal("pauze"),
       v.literal("reistijd"),
       v.literal("teammeeting"),
+      v.literal("loods"),
+      v.literal("laden"),
       v.literal("onderhoud_materiaal"),
       v.literal("afvalverwerker_bes"),
       v.literal("anders")
@@ -1394,6 +1407,13 @@ export default defineSchema({
     ),
     bron: v.union(v.literal("voorstel"), v.literal("handmatig")),
     notitie: v.optional(v.string()),
+    geplandeBeginTijd: v.optional(v.string()),
+    geplandeEindTijd: v.optional(v.string()),
+    afwijkingMinuten: v.optional(v.number()),
+    afwijkingReden: v.optional(v.string()),
+    afwijkingOvergeslagen: v.optional(v.boolean()),
+    ingevoerdDoor: v.optional(v.id("users")),
+    werksoort: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -1409,6 +1429,7 @@ export default defineSchema({
     medewerkerId: v.id("medewerkers"),
     datum: v.string(), // YYYY-MM-DD
     status: v.union(v.literal("open"), v.literal("ingediend")),
+    revisie: v.optional(v.number()),
     ingediendOp: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -1433,6 +1454,7 @@ export default defineSchema({
       v.literal("dag_ingediend"),
       v.literal("dag_heropend"),
       v.literal("segment_gecorrigeerd"),
+      v.literal("notitie_gewijzigd"),
       v.literal("dag_akkoord")
     ),
     // Mensleesbare samenvatting, bv. "Dag 2026-07-10 heropend door kantoor"
@@ -1445,6 +1467,32 @@ export default defineSchema({
     // Tenant-scope + werkdag: de Controlekamer leest per dag het hele bedrijf
     // (kwijtingen en heropeningen van een week) zonder full table scan.
     .index("by_org_datum", ["orgId", "datum"]),
+
+  // Transactionele receipts voor urencommando's: dezelfde sleutel + payload
+  // wordt eenmaal verwerkt, ook wanneer een client de bevestiging miste.
+  urenOpdrachten: defineTable({
+    orgId: v.id("organisaties"),
+    userId: v.id("users"),
+    medewerkerId: v.id("medewerkers"),
+    datum: v.string(),
+    sleutel: v.string(),
+    payload: v.string(),
+    segmentIds: v.array(v.id("urenSegmenten")),
+    revisie: v.number(),
+    createdAt: v.number(),
+  }).index("by_org_user_sleutel", ["orgId", "userId", "sleutel"]),
+
+  // Een veldmedewerker kan een echte ongeplande klus vastleggen; retries
+  // maken geen tweede klant of klus. Geen uren- of factuurcommando.
+  veldKlantOpdrachten: defineTable({
+    orgId: v.id("organisaties"),
+    userId: v.id("users"),
+    sleutel: v.string(),
+    inhoud: v.string(),
+    klantId: v.id("klanten"),
+    werkitemId: v.id("projecten"),
+    createdAt: v.number(),
+  }).index("by_org_user_sleutel", ["orgId", "userId", "sleutel"]),
 
   // MateriaalChecks — afvink-log van de materiaaldelta-checklist (§8.5):
   // wie heeft welk delta-item wanneer afgevinkt vóór vertrek (route-knop).
@@ -1939,6 +1987,133 @@ export default defineSchema({
     .index("by_werkitem", ["werkitemId"])
     .index("by_org_datum", ["orgId", "datum"])
     .index("by_sleutel_datum", ["middelSleutel", "datum"]),
+
+  // Retourvulling is een waarneming per fysieke rit; GEEN afvalkostenregel.
+  // Een gedeelde retourId blijft stabiel voor alle bemanningsleden en retries.
+  aanhangerRetouren: defineTable({
+    orgId: v.id("organisaties"),
+    retourId: v.string(),
+    datum: v.string(),
+    teamId: v.optional(v.id("teams")),
+    verantwoordelijkeMedewerkerId: v.id("medewerkers"),
+    voertuigId: v.optional(v.id("voertuigen")),
+    keuze: v.union(v.literal("geen_aanhanger"), v.literal("leeg"), v.literal("kwart"), v.literal("half"), v.literal("driekwart"), v.literal("vol")),
+    waargenomenOp: v.number(),
+    gemeldDoor: v.id("users"), // oorspronkelijke melder blijft behouden
+    laatstGewijzigdDoor: v.id("users"),
+    notitie: v.optional(v.string()),
+    revision: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_org_retour", ["orgId", "retourId"])
+    .index("by_org_datum", ["orgId", "datum"])
+    .index("by_voertuig_waargenomen", ["voertuigId", "waargenomenOp"]),
+
+  // Elke correctie bewaart volledige voor/na-waarden; geen stil overschrijven.
+  aanhangerRetourHistorie: defineTable({
+    orgId: v.id("organisaties"),
+    retourId: v.id("aanhangerRetouren"),
+    revision: v.number(),
+    door: v.id("users"),
+    reden: v.string(),
+    voor: v.optional(v.string()), // JSON snapshot van het vorige record
+    na: v.string(), // JSON snapshot van de vastgelegde waarden
+    createdAt: v.number(),
+  }).index("by_org", ["orgId"]).index("by_retour", ["retourId"]),
+
+  aanhangerRetourOpdrachten: defineTable({
+    orgId: v.id("organisaties"),
+    userId: v.id("users"),
+    sleutel: v.string(),
+    payload: v.string(),
+    retourId: v.id("aanhangerRetouren"),
+    revision: v.number(),
+    createdAt: v.number(),
+  }).index("by_org_user_sleutel", ["orgId", "userId", "sleutel"]),
+
+  protocollen: defineTable({
+    orgId: v.id("organisaties"),
+    titel: v.string(), wanneer: v.string(), stappen: v.array(v.string()),
+    icoon: v.optional(v.string()), spoed: v.optional(v.boolean()), volgorde: v.optional(v.number()),
+    waarschuwing: v.optional(v.string()), doelgroepen: v.array(userRoleValidator),
+    contactNaam: v.optional(v.string()), contactTelefoon: v.optional(v.string()),
+    actief: v.boolean(), revision: v.number(), door: v.id("users"),
+    createdAt: v.number(), updatedAt: v.number(),
+  }).index("by_org", ["orgId"]),
+  protocolHistorie: defineTable({
+    orgId: v.id("organisaties"), protocolId: v.id("protocollen"),
+    revision: v.number(), door: v.id("users"), snapshot: v.string(), createdAt: v.number(),
+  }).index("by_org", ["orgId"]).index("by_protocol", ["protocolId"]),
+  protocolContacten: defineTable({
+    orgId: v.id("organisaties"), naam: v.string(), telefoon: v.string(),
+    spoed: v.boolean(), volgorde: v.number(), actief: v.boolean(), revision: v.number(),
+    door: v.id("users"), createdAt: v.number(), updatedAt: v.number(),
+  }).index("by_org", ["orgId"]),
+  werkbezoekAntwoorden: defineTable({
+    orgId: v.id("organisaties"), werkitemId: v.id("projecten"), datum: v.string(),
+    afgerond: v.boolean(), reden: v.optional(v.string()), resterendMinuten: v.optional(v.number()),
+    revision: v.number(), door: v.id("users"), createdAt: v.number(), updatedAt: v.number(),
+  }).index("by_werkitem_datum", ["werkitemId", "datum"]).index("by_org_datum", ["orgId", "datum"]),
+  werkbezoekHistorie: defineTable({
+    orgId: v.id("organisaties"), werkitemId: v.id("projecten"), datum: v.string(),
+    actie: v.string(), door: v.id("users"), voor: v.optional(v.string()), na: v.string(), createdAt: v.number(),
+  }).index("by_org", ["orgId"]).index("by_werkitem_datum", ["werkitemId", "datum"]),
+  werkbezoekDelegaties: defineTable({
+    orgId: v.id("organisaties"), werkitemId: v.id("projecten"), datum: v.string(),
+    onderdeel: v.union(v.literal("foto"), v.literal("afronding"), v.literal("aanhanger"), v.literal("afvoer")),
+    medewerkerId: v.id("medewerkers"), naarMedewerkerId: v.optional(v.id("medewerkers")),
+    door: v.id("users"), createdAt: v.number(),
+  }).index("by_org", ["orgId"]).index("by_org_datum", ["orgId", "datum"]).index("by_werkitem_datum", ["werkitemId", "datum"]),
+  werkbezoekAfvoer: defineTable({
+    orgId: v.id("organisaties"), werkitemId: v.id("projecten"), datum: v.string(),
+    keuze: v.union(v.literal("geen"), v.literal("kwart"), v.literal("half"), v.literal("driekwart"), v.literal("vol")),
+    bedragCent: v.optional(v.number()), volTariefCent: v.optional(v.number()), tariefId: v.optional(v.id("afvoerTarieven")),
+    bedragDoor: v.optional(v.id("users")), revision: v.number(), door: v.id("users"), createdAt: v.number(), updatedAt: v.number(),
+  }).index("by_werkitem_datum", ["werkitemId", "datum"]).index("by_org_datum", ["orgId", "datum"]),
+  afvoerTarieven: defineTable({
+    orgId: v.id("organisaties"), geldigVanaf: v.string(), volTariefCent: v.number(),
+    door: v.id("users"), createdAt: v.number(),
+  }).index("by_org_geldigVanaf", ["orgId", "geldigVanaf"]),
+  veldHerinnerInstellingen: defineTable({
+    orgId: v.id("organisaties"), actief: v.boolean(), uurAmsterdam: v.number(),
+    ookEmail: v.optional(v.boolean()),
+    dagOffset: v.union(v.literal(0), v.literal(-1)), weekdagen: v.array(v.number()),
+    ontvangerIds: v.array(v.id("users")), updatedAt: v.number(), door: v.id("users"),
+  }).index("by_org", ["orgId"]),
+  veldHerinnerRuns: defineTable({
+    orgId: v.id("organisaties"), datum: v.string(), sleutel: v.string(),
+    emailStatus: v.optional(v.union(v.literal("gepland"), v.literal("verzonden"), v.literal("onderdrukt"), v.literal("mislukt"))), emailFout: v.optional(v.string()),
+    ontvangers: v.number(), openDagen: v.number(), createdAt: v.number(),
+  }).index("by_org_sleutel", ["orgId", "sleutel"]),
+  werkitemBenodigdheden: defineTable({
+    orgId: v.id("organisaties"), werkitemId: v.id("projecten"), naam: v.string(),
+    soort: v.union(v.literal("materiaal"), v.literal("machine")), bron: v.union(v.literal("handmatig"), v.literal("suggestie")),
+    door: v.id("users"), createdAt: v.number(), verwijderdOp: v.optional(v.number()),
+  }).index("by_org", ["orgId"]).index("by_werkitem", ["werkitemId"]),
+  materiaalSuggestieRegels: defineTable({
+    orgId: v.id("organisaties"), trefwoord: v.string(), naam: v.string(),
+    soort: v.union(v.literal("materiaal"), v.literal("machine")), actief: v.boolean(),
+    door: v.id("users"), createdAt: v.number(), updatedAt: v.number(),
+  }).index("by_org", ["orgId"]),
+  appIntroVoorkeuren: defineTable({
+    orgId: v.id("organisaties"), userId: v.id("users"), overgeslagen: v.boolean(), gezienOp: v.number(),
+  }).index("by_org_user", ["orgId", "userId"]),
+  werkbezoekFotos: defineTable({
+    orgId: v.id("organisaties"), werkitemId: v.id("projecten"), datum: v.string(),
+    fase: v.union(v.literal("voor"), v.literal("na")), storageId: v.id("_storage"),
+    door: v.id("users"), tijdlijnId: v.optional(v.id("klantTijdlijn")), createdAt: v.number(),
+    verwijderdOp: v.optional(v.number()), verwijderdDoor: v.optional(v.id("users")),
+  }).index("by_org", ["orgId"]).index("by_org_datum", ["orgId", "datum"]).index("by_werkitem_datum", ["werkitemId", "datum"]).index("by_storage", ["storageId"]),
+  werkbezoekUploads: defineTable({
+    orgId: v.id("organisaties"), werkitemId: v.id("projecten"), datum: v.string(),
+    userId: v.id("users"), sha256: v.string(), createdAt: v.number(),
+    storageId: v.optional(v.id("_storage")),
+  }).index("by_org_user", ["orgId", "userId"]),
+  werkbezoekOpdrachten: defineTable({
+    orgId: v.id("organisaties"), userId: v.id("users"), sleutel: v.string(),
+    payload: v.string(), resultaat: v.string(), createdAt: v.number(),
+  }).index("by_org_user_sleutel", ["orgId", "userId", "sleutel"]),
 
   // VervalItems — generieke vervallogica-engine (PRD §3.3). BEWUST generiek:
   // geen voertuig-specifieke velden in de kern, zodat dezelfde engine in

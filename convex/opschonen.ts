@@ -122,6 +122,15 @@ export const WIS_TABELLEN: TableNames[] = ENTRIES.filter(
  * tabel dat de hier genoemde index bestaat én op orgId begint.
  */
 export const ORG_INDEX: Partial<Record<TableNames, string>> = {
+  urenOpdrachten: "by_org_user_sleutel",
+  veldKlantOpdrachten: "by_org_user_sleutel",
+  aanhangerRetouren: "by_org_datum",
+  aanhangerRetourOpdrachten: "by_org_user_sleutel",
+  werkbezoekAntwoorden: "by_org_datum",
+  werkbezoekAfvoer: "by_org_datum",
+  werkbezoekUploads: "by_org_user",
+  werkbezoekOpdrachten: "by_org_user_sleutel",
+  veldHerinnerRuns: "by_org_sleutel",
   conceptMails: "by_org_status",
   teamBemanning: "by_org_datum",
   afwezigheidsblokken: "by_org_start",

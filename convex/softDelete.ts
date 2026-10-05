@@ -1,3 +1,4 @@
+import { heeftWerkitemHistorie } from "./lib/werkitemHistorie";
 /**
  * Soft Delete Functions
  *
@@ -158,6 +159,11 @@ export const permanentlyDeleteProject = internalMutation({
   },
   handler: async (ctx, args) => {
     bewaakOrgVanDocument(await ctx.db.get(args.id), args.orgId, "project");
+
+    if (await heeftWerkitemHistorie(ctx, args.id)) {
+      await ctx.db.patch(args.id, { isArchived: true, archivedAt: Date.now(), deletedAt: undefined, updatedAt: Date.now() });
+      return;
+    }
 
     // Delete related voorcalculaties
     const voorcalculaties = await ctx.db

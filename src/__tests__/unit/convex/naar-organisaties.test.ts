@@ -27,6 +27,7 @@ import {
   EIGENAAR_TABELLEN,
   TENANTLOZE_TABELLEN,
   KIND_ZONDER_ORGID,
+  REEDS_ORG_TABELLEN,
   SYSTEEMDEFAULT_TABELLEN,
   WIS_TABELLEN,
   ORG_INDEX,
@@ -476,6 +477,7 @@ describe("naarOrganisaties — tabelindeling tegen convex/schema.ts", () => {
       ...EIGENAAR_TABELLEN,
       ...TENANTLOZE_TABELLEN,
       ...KIND_ZONDER_ORGID,
+      ...REEDS_ORG_TABELLEN,
     ];
     expect(new Set(ingedeeld).size).toBe(ingedeeld.length);
     expect([...ingedeeld].sort()).toEqual([...BEWAARTABELLEN].sort());

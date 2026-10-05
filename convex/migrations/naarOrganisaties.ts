@@ -187,6 +187,13 @@ export const TENANTLOZE_TABELLEN: TableNames[] = [
  */
 export const KIND_ZONDER_ORGID: TableNames[] = ["leadActiviteiten"];
 
+/** Na de org-migratie ingevoerd. Deze rijen waren altijd al org-gescopeerd;
+ * historische tenantconversie en stripLegacyVelden mogen ze nooit wijzigen. */
+export const REEDS_ORG_TABELLEN: TableNames[] = [
+  "protocollen", "protocolContacten", "afvoerTarieven", "veldHerinnerInstellingen",
+  "appIntroVoorkeuren", "materiaalSuggestieRegels",
+];
+
 /**
  * Tabellen met systeembrede defaults: rijen zónder `userId` zijn geen
  * tenantdata. Ze houden hun lege `userId` én krijgen geen `orgId` — dat

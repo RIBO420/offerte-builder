@@ -87,6 +87,14 @@ const PERSOONLIJKE_ONTVANGER = [
   // de tenant; die staat er als verplichte `orgId` naast, en de index
   // by_org_user_datum begint dan ook op orgId.
   "dagLogboek",
+  // Gebruiker is actor/eigenaar van een org-gebonden opdracht, nooit tenant.
+  // De org-index en verplichte orgId blijven hierboven afzonderlijk getest.
+  "appIntroVoorkeuren",
+  "werkbezoekUploads",
+  "werkbezoekOpdrachten",
+  "urenOpdrachten",
+  "veldKlantOpdrachten",
+  "aanhangerRetourOpdrachten",
 ] satisfies TableNames[];
 
 describe("org-gescopeerde tabellen hebben orgId + een org-index", () => {

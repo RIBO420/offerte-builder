@@ -45,6 +45,12 @@ export const TABEL_CLASSIFICATIE = {
   emailTemplates: "bewaren",
   garantiePakketten: "bewaren",
   boekhoudInstellingen: "bewaren",
+  protocollen: "bewaren",
+  materiaalSuggestieRegels: "bewaren",
+  appIntroVoorkeuren: "bewaren",
+  veldHerinnerInstellingen: "bewaren",
+  protocolContacten: "bewaren",
+  afvoerTarieven: "bewaren",
 
   // ── bewaren: stamdata ──────────────────────────────────────────────────────
   medewerkers: "bewaren",
@@ -78,6 +84,16 @@ export const TABEL_CLASSIFICATIE = {
 
   // ── wissen: projecten & planning ───────────────────────────────────────────
   projecten: "wissen",
+  protocolHistorie: "wissen",
+  werkitemBenodigdheden: "wissen",
+  veldHerinnerRuns: "wissen",
+  werkbezoekAntwoorden: "wissen",
+  werkbezoekHistorie: "wissen",
+  werkbezoekDelegaties: "wissen",
+  werkbezoekFotos: "wissen",
+  werkbezoekUploads: "wissen",
+  werkbezoekOpdrachten: "wissen",
+  werkbezoekAfvoer: "wissen",
   planningTaken: "wissen",
   weekPlanning: "wissen",
   teamBemanning: "wissen",
@@ -94,6 +110,8 @@ export const TABEL_CLASSIFICATIE = {
   urenSegmenten: "wissen",
   urenDagen: "wissen",
   urenLogboek: "wissen",
+  urenOpdrachten: "wissen",
+  veldKlantOpdrachten: "wissen",
   urenRegistraties: "wissen",
   voorcalculaties: "wissen",
   nacalculaties: "wissen",
@@ -106,6 +124,9 @@ export const TABEL_CLASSIFICATIE = {
   kilometerStanden: "wissen",
   brandstofRegistratie: "wissen",
   voertuigSchades: "wissen",
+  aanhangerRetouren: "wissen",
+  aanhangerRetourHistorie: "wissen",
+  aanhangerRetourOpdrachten: "wissen",
 
   // ── wissen: inkoop & voorraad ──────────────────────────────────────────────
   inkooporders: "wissen",
