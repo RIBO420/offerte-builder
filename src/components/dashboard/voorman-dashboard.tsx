@@ -89,7 +89,7 @@ export function VoormanDashboard() {
                             <p className="text-[10px] text-muted-foreground">{lid.functie}</p>
                           )}
                         </div>
-                        {lid.heeftUren ? (
+                        {lid.heeftUren === null ? <span className="text-[10px] text-muted-foreground">Bron kiezen door kantoor</span> : lid.heeftUren ? (
                           <CheckCircle2 className="h-3.5 w-3.5 text-green-500 dark:text-green-400 shrink-0" />
                         ) : (
                           <XCircle className="h-3.5 w-3.5 text-red-400 dark:text-red-300 shrink-0" />
@@ -161,10 +161,10 @@ export function VoormanDashboard() {
                       <p className="text-[10px] text-muted-foreground">{mw.functie}</p>
                     </div>
                     <Badge
-                      variant={mw.ingevuld ? "default" : "destructive"}
+                      variant={mw.ingevuld === null ? "secondary" : mw.ingevuld ? "default" : "destructive"}
                       className="text-[10px] shrink-0"
                     >
-                      {mw.ingevuld ? "Ingevuld" : "Niet ingevuld"}
+                      {mw.ingevuld === null ? "Bron kiezen door kantoor" : mw.ingevuld ? "Ingevuld" : "Niet ingevuld"}
                     </Badge>
                   </div>
                 ))}

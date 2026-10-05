@@ -9,8 +9,8 @@
  *    welke dag, wat ermee gebeurde. Dit is het terugzoek-archief van de nieuwe
  *    engine (`urenSegmenten` + `urenDagen`).
  * 2. **Projectregistraties** — de oude engine (`urenRegistraties`), in compacte
- *    vorm, met een periode-kiezer. Dit is de bron waar nacalculatie en de
- *    loonexport op draaien.
+ *    vorm, met een periode-kiezer. De projecturenbron voor nacalculatie wordt
+ *    per project gekozen; de nieuwe veldexport gebruikt dagsegmenten.
  *
  * **De twee worden nooit opgeteld.** Dat is de bindende regel uit onderzoek §6
  * ("geen twee waarheden"): dezelfde uren kunnen in beide bronnen staan, en één
@@ -222,7 +222,7 @@ export function ArchiefBlok({
         kopbalk
         titel="Projectregistraties"
         icoon={<FolderKanban aria-hidden />}
-        uitleg="De oude urenbron per project (urenRegistraties), waar nacalculatie en de loonexport op draaien. Deze uren worden nooit bij de dagen hierboven opgeteld: dezelfde uren kunnen in beide bronnen staan."
+        uitleg="Historische projectregistraties. Kantoor kiest per project welke urenbron meetelt in de nacalculatie. Deze uren worden niet bij de dagsegmenten opgeteld, omdat dezelfde uren in beide bronnen kunnen staan."
         {...(gesorteerdeRegistraties.length === 0
           ? {
               legeRegel: {

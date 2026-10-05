@@ -29,6 +29,8 @@ export type SegmentCategorie =
   | "pauze"
   | "reistijd"
   | "teammeeting"
+  | "loods"
+  | "laden"
   | "onderhoud_materiaal"
   | "afvalverwerker_bes"
   | "anders";
@@ -119,6 +121,25 @@ export function isGeldigSegmentTijdvak(
 /** Duur van een segment in minuten. */
 export function segmentMinuten(seg: OpgeslagenSegmentTijd): number {
   return naarMinuten(seg.eindTijd) - naarMinuten(seg.beginTijd);
+}
+
+/** Bronduurverschil: een verschoven start met gelijke duur is geen afwijking. */
+export function duurAfwijking(
+  werkelijk: OpgeslagenSegmentTijd,
+  gepland: OpgeslagenSegmentTijd
+): { minuten: number; redenNodig: boolean } {
+  const minuten = segmentMinuten(werkelijk) - segmentMinuten(gepland);
+  return { minuten, redenNodig: Math.abs(minuten) > 15 };
+}
+
+/** Bronwaarden blijven expliciet: loods is niet automatisch teammeeting. */
+export function bronCategorieNaarSegment(bron: string): SegmentCategorie | null {
+  const mapping: Record<string, SegmentCategorie> = {
+    werken: "werken", rijden: "reistijd", pauze: "pauze", loods: "loods",
+    laden: "laden", bes: "afvalverwerker_bes", onderhoud: "onderhoud_materiaal",
+    anders: "anders",
+  };
+  return Object.prototype.hasOwnProperty.call(mapping, bron) ? mapping[bron] : null;
 }
 
 // ============================================

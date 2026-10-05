@@ -37,6 +37,7 @@ import { Daginspector, type InspectorDag } from "./daginspector";
 import { KanDoorBlok } from "./kan-door-blok";
 import { WieIsAchterBlok } from "./wie-is-achter-blok";
 import { useWeekKeuze, weekLabelVan } from "./week";
+import { VeldRapportagePaneel } from "./veld-rapportage-paneel";
 
 /**
  * De backend levert één `weekLabel` ("Week 33 · 10 t/m 16 augustus"); de kop
@@ -70,9 +71,8 @@ export function KantoorControlekamer({
 
   const week = useQuery(getControleWeekRef, { weekStart });
 
-  // Export blijft op de oude bron (`export.exportUren`): dat is de bron waar de
-  // loonadministratie op draait. Bewust niet gemengd met de dagcontrole — één
-  // export, één waarheid (onderzoek §6).
+  // Historische projectregistraties hebben een herkenbare eigen export.
+  // De velduren en salarissjablonen staan in VeldRapportagePaneel.
   const exportData = useQuery(api.export.exportUren, isKantoor ? {} : "skip");
 
   const { weekLabel, periodeLabel } = splitsWeekLabel(week?.weekLabel, weekStart);
@@ -89,7 +89,7 @@ export function KantoorControlekamer({
           columns={urenExportColumns}
           filename={`uren-${weekStart}`}
           sheetName="Uren"
-          buttonLabel="Export naar loon"
+          buttonLabel="Projecturen exporteren"
           buttonVariant={variant}
           buttonSize="sm"
           className="h-8"
@@ -216,6 +216,7 @@ export function KantoorControlekamer({
         </div>
       )}
 
+      {isKantoor && <VeldRapportagePaneel weekStart={weekStart} />}
       <Daginspector dag={inspector} onSluit={() => setInspector(null)} />
     </div>
   );

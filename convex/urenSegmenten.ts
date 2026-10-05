@@ -1,3 +1,5 @@
+import { werkitemsVoorMedewerkerDag } from "./lib/bezoekBemanning";
+import { assertDagGereed } from "./werkbezoek";
 /**
  * Urensegmenten + dag indienen/heropenen + "Wie is achter" — veld-rol
  * (PRD §2.6 + bijlage C, fase 1 stap 9a; §8.5 rolchecks, §8.10 voorinvulling).
@@ -44,6 +46,7 @@ import { werkitemOpDag } from "./planbordLogica";
 import { getType, type WerkItem } from "./werkitems";
 import {
   beoordeelBezoek,
+  duurAfwijking,
   blokkenNaarVoorstellen,
   DEFAULT_AFWIJKING_DREMPELS,
   filterVoorstellen,
@@ -71,6 +74,8 @@ export const segmentCategorieValidator = v.union(
   v.literal("pauze"),
   v.literal("reistijd"),
   v.literal("teammeeting"),
+  v.literal("loods"),
+  v.literal("laden"),
   v.literal("onderhoud_materiaal"),
   v.literal("afvalverwerker_bes"),
   v.literal("anders")
@@ -133,7 +138,7 @@ async function resolveDoelMedewerker(
 }
 
 function assertGeldigeDatum(datum: string): void {
-  if (!DATUM_PATROON.test(datum)) {
+  if (!DATUM_PATROON.test(datum) || Number.isNaN(Date.parse(`${datum}T00:00:00Z`)) || new Date(`${datum}T00:00:00Z`).toISOString().slice(0, 10) !== datum) {
     throw new ConvexError("Ongeldige datum (verwacht YYYY-MM-DD)");
   }
 }
@@ -235,6 +240,7 @@ export interface VeldStop {
   adres: string | null;
   /** Vast klantkenmerk voor de hovenier ("hond los in de tuin"). */
   bijzonderheden: string | null;
+  uitvoeringsInstructie?: string;
   geplandeMinuten: number;
   taken: {
     omschrijving: string;
@@ -255,11 +261,12 @@ export interface VeldStop {
 export async function dagkaartVoorstellen(
   db: QueryCtx["db"],
   orgId: Id<"organisaties">,
-  teamId: Id<"teams">,
-  datum: string
+  teamId: Id<"teams"> | undefined,
+  datum: string,
+  medewerkerId?: Id<"medewerkers">
 ) {
   const [items, config] = await Promise.all([
-    werkitemsVoorTeamDag(db, orgId, teamId, datum),
+    medewerkerId ? werkitemsVoorMedewerkerDag(db, orgId, medewerkerId, datum) : teamId ? werkitemsVoorTeamDag(db, orgId, teamId, datum) : Promise.resolve([]),
     dagkaartStandaardenVoor(db, orgId, teamId, datum),
   ]);
 
@@ -326,6 +333,7 @@ export async function dagkaartVoorstellen(
       klantNaam: klant?.naam ?? null,
       adres,
       bijzonderheden: klant?.bijzonderheden ?? null,
+      uitvoeringsInstructie: item.uitvoeringsInstructie,
       geplandeMinuten: stopDuurMinuten(item),
       taken,
       taakAfronding: item.taakAfronding ?? null,
@@ -380,12 +388,13 @@ export const getVeldDag = query({
 
     let stops: VeldStop[] = [];
     let voorstellen: ReturnType<typeof blokkenNaarVoorstellen> = [];
-    if (team) {
+    {
       const afgeleid = await dagkaartVoorstellen(
         ctx.db,
         veld.orgId,
-        team._id,
-        args.datum
+        team?._id,
+        args.datum,
+        medewerker._id
       );
       stops = afgeleid.stops;
       // Voorstel = afgeleid tot bevestigd: opgeslagen segmenten winnen (§8.10)
@@ -396,6 +405,7 @@ export const getVeldDag = query({
       medewerker: { _id: medewerker._id, naam: medewerker.naam },
       datum: args.datum,
       dagStatus: dagRij?.status ?? ("open" as const),
+      revisie: dagRij?.revisie ?? 0,
       ingediendOp: dagRij?.ingediendOp ?? null,
       team: team ? { _id: team._id, naam: team.naam } : null,
       stops,
@@ -459,8 +469,87 @@ async function logUrenActie(
   });
 }
 
+/** Elke daadwerkelijke wijziging verhoogt dezelfde dagrevisie, ook oudere API's. */
+async function verhoogDagRevisie(ctx: MutationCtx, veld: VeldContext,
+  medewerkerId: Id<"medewerkers">, datum: string): Promise<number> {
+  const dag = await dagStatusVoor(ctx.db, veld.orgId, medewerkerId, datum);
+  const revisie = (dag?.revisie ?? 0) + 1;
+  const now = Date.now();
+  if (dag) await ctx.db.patch(dag._id, { revisie, updatedAt: now });
+  else await ctx.db.insert("urenDagen", {
+    orgId: veld.orgId, medewerkerId, datum, status: "open", revisie,
+    createdAt: now, updatedAt: now,
+  });
+  return revisie;
+}
+
+async function controleerRevisie(ctx: MutationCtx, veld: VeldContext,
+  medewerkerId: Id<"medewerkers">, datum: string, verwacht?: number) {
+  const dag = await dagStatusVoor(ctx.db, veld.orgId, medewerkerId, datum);
+  if (verwacht !== undefined && (!Number.isSafeInteger(verwacht) || verwacht < 0 || verwacht !== (dag?.revisie ?? 0))) {
+    throw new ConvexError("De dag is intussen gewijzigd. Ververs en controleer je invoer opnieuw.");
+  }
+  return dag;
+}
+
+export const werksoortValidator = v.union(v.literal("Tuinaanleg"), v.literal("Tuinonderhoud"), v.literal("Winkel"), v.literal("Loods opruimen"), v.literal("Vergadering"), v.literal("Administratie"), v.literal("Bezichtiging"), v.literal("Inspectie"));
+export const ANDERS_WERKSOORTEN = ["Winkel", "Loods opruimen", "Vergadering", "Administratie", "Bezichtiging", "Inspectie"] as const;
+async function bepaalWerksoort(ctx: QueryCtx | MutationCtx, orgId: Id<"organisaties">, categorie: string, werkitemId?: Id<"projecten">, gekozen?: string) {
+  if (categorie === "anders") {
+    if (gekozen && !(ANDERS_WERKSOORTEN as readonly string[]).includes(gekozen)) throw new ConvexError("Kies een geldige activiteit voor Overig");
+    return gekozen;
+  }
+  if (categorie !== "werken") {
+    if (gekozen) throw new ConvexError("Deze categorie heeft geen aparte werksoort");
+    return undefined;
+  }
+  if (gekozen && !["Tuinaanleg", "Tuinonderhoud"].includes(gekozen)) throw new ConvexError("Ongeldige werksoort voor klantwerk");
+  const project = werkitemId ? await ctx.db.get(werkitemId) : null;
+  if (!project || project.orgId !== orgId) throw new ConvexError("Werkitem niet gevonden");
+  const offerte = project.offerteId ? await ctx.db.get(project.offerteId) : null;
+  const categorieProject = project.uitvoeringCategorie ?? (project.type === "onderhoudsbeurt" ? "onderhoud" : offerte?.orgId === orgId ? offerte.type : undefined);
+  const afgeleid = categorieProject === "aanleg" ? "Tuinaanleg" : categorieProject === "onderhoud" ? "Tuinonderhoud" : undefined;
+  if (gekozen && afgeleid && gekozen !== afgeleid) throw new ConvexError("De werksoort wordt bepaald door de klus");
+  return afgeleid ?? gekozen;
+}
+
+const geplandeVelden = {
+  geplandeBeginTijd: v.optional(v.string()),
+  geplandeEindTijd: v.optional(v.string()),
+  afwijkingReden: v.optional(v.string()),
+  afwijkingOvergeslagen: v.optional(v.boolean()),
+};
+
+type DuurInvoer = {
+  beginTijd: string; eindTijd: string;
+  geplandeBeginTijd?: string; geplandeEindTijd?: string;
+  afwijkingReden?: string; afwijkingOvergeslagen?: boolean;
+};
+
+function afwijkingVelden(args: DuurInvoer) {
+  if (!args.geplandeBeginTijd && !args.geplandeEindTijd) return {};
+  if (!args.geplandeBeginTijd || !args.geplandeEindTijd ||
+      !isGeldigSegmentTijdvak(args.geplandeBeginTijd, args.geplandeEindTijd)) {
+    throw new ConvexError("Vul een geldig gepland begin en einde in.");
+  }
+  const afwijking = duurAfwijking(args, {
+    beginTijd: args.geplandeBeginTijd, eindTijd: args.geplandeEindTijd,
+  });
+  const reden = args.afwijkingReden?.trim();
+  if (afwijking.redenNodig && !reden && !args.afwijkingOvergeslagen) {
+    throw new ConvexError("De werkduur wijkt meer dan 15 minuten af. Geef een reden of kies expliciet overslaan.");
+  }
+  return {
+    geplandeBeginTijd: args.geplandeBeginTijd,
+    geplandeEindTijd: args.geplandeEindTijd,
+    afwijkingMinuten: afwijking.minuten,
+    afwijkingReden: afwijking.redenNodig ? reden : undefined,
+    afwijkingOvergeslagen: afwijking.redenNodig && !reden ? !!args.afwijkingOvergeslagen : false,
+  };
+}
+
 /** Gedeelde validatie + insert van één segment. */
-async function voegSegmentToe(
+export async function voegSegmentToe(
   ctx: MutationCtx,
   veld: VeldContext,
   medewerker: Doc<"medewerkers">,
@@ -472,7 +561,12 @@ async function voegSegmentToe(
     werkitemId?: Id<"projecten">;
     klantId?: Id<"klanten">;
     notitie?: string;
+    werksoort?: string;
     bron: "voorstel" | "handmatig";
+    geplandeBeginTijd?: string;
+    geplandeEindTijd?: string;
+    afwijkingReden?: string;
+    afwijkingOvergeslagen?: boolean;
   }
 ): Promise<Id<"urenSegmenten">> {
   if (!isGeldigSegmentTijdvak(args.beginTijd, args.eindTijd)) {
@@ -523,12 +617,15 @@ async function voegSegmentToe(
     args.datum
   );
 
+  const afwijking = afwijkingVelden(args);
+  const werksoort = await bepaalWerksoort(ctx, veld.orgId, args.categorie, args.werkitemId, args.werksoort);
   const now = Date.now();
   const id = await ctx.db.insert("urenSegmenten", {
     orgId: veld.orgId,
     medewerkerId: medewerker._id,
     datum: args.datum,
     categorie: args.categorie,
+    werksoort,
     beginTijd: args.beginTijd,
     eindTijd: args.eindTijd,
     werkitemId: args.werkitemId,
@@ -537,6 +634,8 @@ async function voegSegmentToe(
     status: kantoorCorrectie ? "ingediend" : "bevestigd",
     bron: args.bron,
     notitie: args.notitie,
+    ...afwijking,
+    ingevoerdDoor: veld.user._id,
     createdAt: now,
     updatedAt: now,
   });
@@ -551,6 +650,7 @@ async function voegSegmentToe(
       door: veld.user._id,
     });
   }
+  await verhoogDagRevisie(ctx, veld, medewerker._id, args.datum);
   return id;
 }
 
@@ -558,10 +658,29 @@ async function voegSegmentToe(
  * Eén segment bevestigen of handmatig toevoegen ("loggen wordt bevestigen",
  * §8.10). Een voorstel bevestigen = dit met bron "voorstel" opslaan.
  */
+async function enkelOpdracht(ctx: MutationCtx, veld: VeldContext, medewerkerId: Id<"medewerkers">, datum: string, actie: string, args: Record<string, unknown>) {
+  const sleutel = args.sleutel as string | undefined;
+  if (sleutel === undefined) return null;
+  if (!/^[a-zA-Z0-9_-]{8,128}$/.test(sleutel)) throw new ConvexError("Ongeldige opdrachtsleutel.");
+  if (args.verwachteRevisie === undefined) throw new ConvexError("Een offline opdracht vereist een dagrevisie.");
+  const payload = JSON.stringify({ actie, medewerkerId, datum, invoer: Object.fromEntries(Object.entries(args).sort(([a], [b]) => a.localeCompare(b))) });
+  const key = `${actie}:${sleutel}`;
+  const eerder = await ctx.db.query("urenOpdrachten").withIndex("by_org_user_sleutel", q => q.eq("orgId", veld.orgId).eq("userId", veld.user._id).eq("sleutel", key)).unique();
+  if (eerder && eerder.payload !== payload) throw new ConvexError("Deze opdrachtsleutel is al gebruikt voor andere invoer.");
+  return { eerder, async bewaar(id: Id<"urenSegmenten">) {
+    const dag = await dagStatusVoor(ctx.db, veld.orgId, medewerkerId, datum);
+    await ctx.db.insert("urenOpdrachten", { orgId: veld.orgId, userId: veld.user._id, medewerkerId, datum, sleutel: key, payload, segmentIds: [id], revisie: dag?.revisie ?? 0, createdAt: Date.now() });
+  } };
+}
+
 export const bevestigSegment = mutation({
   args: {
     datum: v.string(),
     categorie: segmentCategorieValidator,
+    ...geplandeVelden,
+    werksoort: v.optional(werksoortValidator),
+    verwachteRevisie: v.optional(v.number()),
+    sleutel: v.optional(v.string()),
     beginTijd: v.string(), // HH:MM
     eindTijd: v.string(), // HH:MM
     werkitemId: v.optional(v.id("projecten")),
@@ -574,7 +693,10 @@ export const bevestigSegment = mutation({
     assertGeldigeDatum(args.datum);
     const veld = await veldContext(ctx);
     const medewerker = await resolveDoelMedewerker(ctx, veld, args.medewerkerId);
-    return await voegSegmentToe(ctx, veld, medewerker, {
+    const opdracht = await enkelOpdracht(ctx, veld, medewerker._id, args.datum, "segment-toevoegen", args);
+    if (opdracht?.eerder) return opdracht.eerder.segmentIds[0];
+    await controleerRevisie(ctx, veld, medewerker._id, args.datum, args.verwachteRevisie);
+    const id = await voegSegmentToe(ctx, veld, medewerker, {
       datum: args.datum,
       categorie: args.categorie,
       beginTijd: args.beginTijd,
@@ -582,8 +704,28 @@ export const bevestigSegment = mutation({
       werkitemId: args.werkitemId,
       klantId: args.klantId,
       notitie: args.notitie,
+      werksoort: args.werksoort,
       bron: args.bron ?? "handmatig",
+      geplandeBeginTijd: args.geplandeBeginTijd,
+      geplandeEindTijd: args.geplandeEindTijd,
+      afwijkingReden: args.afwijkingReden,
+      afwijkingOvergeslagen: args.afwijkingOvergeslagen,
     });
+    await opdracht?.bewaar(id);
+    return id;
+  },
+});
+
+/** Draft recovery after a confirmed enqueue: only the caller's own segment receipt. */
+export const getEigenOpdracht = query({
+  args: { sleutel: v.string(), actie: v.optional(v.union(v.literal("toevoegen"), v.literal("wijzigen"))) },
+  handler: async (ctx, args) => {
+    if (!/^[a-zA-Z0-9_-]{8,128}$/.test(args.sleutel)) throw new ConvexError("Ongeldige opdrachtsleutel.");
+    const veld = await veldContext(ctx);
+    if (veld.rol === "klant" || !veld.eigenMedewerker || veld.eigenMedewerker.orgId !== veld.orgId || veld.eigenMedewerker.isActief === false) throw new ConvexError("Alleen een actieve gekoppelde medewerker kan eigen opdrachten bekijken");
+    const receipt = await ctx.db.query("urenOpdrachten").withIndex("by_org_user_sleutel", q => q.eq("orgId", veld.orgId).eq("userId", veld.user._id).eq("sleutel", `segment-${args.actie ?? "toevoegen"}:${args.sleutel}`)).unique();
+    if (!receipt || receipt.medewerkerId !== veld.eigenMedewerker._id) return null;
+    return { segmentIds: receipt.segmentIds, revisie: receipt.revisie, datum: receipt.datum };
   },
 });
 
@@ -683,11 +825,8 @@ export const bevestigAlleVoorstellen = mutation({
       medewerker._id,
       args.datum
     );
-    if (!team) {
-      throw new ConvexError("Geen geplande team-dag gevonden voor deze datum");
-    }
     const [afgeleid, bestaand] = await Promise.all([
-      dagkaartVoorstellen(ctx.db, veld.orgId, team._id, args.datum),
+      dagkaartVoorstellen(ctx.db, veld.orgId, team?._id, args.datum, medewerker._id),
       segmentenVoorDag(ctx.db, veld.orgId, medewerker._id, args.datum),
     ]);
     const teBevestigen = filterVoorstellen(afgeleid.voorstellen, bestaand);
@@ -709,11 +848,82 @@ export const bevestigAlleVoorstellen = mutation({
   },
 });
 
+/** Eén herhaalbaar commando voor een door de medewerker aangepast dagvoorstel.
+ * Convex voert segmenten, revisies, audit en ontvangstbewijs atomair uit.
+ * De sleutel hoort bij actor + organisatie; hergebruik met andere inhoud faalt.
+ */
+export const slaDagvoorstelOp = mutation({
+  args: {
+    datum: v.string(), medewerkerId: v.optional(v.id("medewerkers")),
+    verwachteRevisie: v.number(), sleutel: v.string(),
+    segmenten: v.array(v.object({
+      categorie: segmentCategorieValidator, beginTijd: v.string(), eindTijd: v.string(),
+      werkitemId: v.optional(v.id("projecten")), klantId: v.optional(v.id("klanten")),
+      notitie: v.optional(v.string()), werksoort: v.optional(werksoortValidator), ...geplandeVelden,
+    })),
+  },
+  handler: async (ctx, args) => {
+    assertGeldigeDatum(args.datum);
+    const veld = await veldContext(ctx);
+    const medewerker = await resolveDoelMedewerker(ctx, veld, args.medewerkerId);
+    if (!/^[a-zA-Z0-9_-]{8,128}$/.test(args.sleutel)) throw new ConvexError("Ongeldige opdrachtsleutel.");
+    if (!args.segmenten.length || args.segmenten.length > 100) throw new ConvexError("Een dagvoorstel bevat 1 tot 100 segmenten.");
+    // Expliciete sleutelvolgorde: objectvolgorde van een client beïnvloedt replay niet.
+    const segmenten = args.segmenten.map((s) => ({
+      categorie: s.categorie, beginTijd: s.beginTijd, eindTijd: s.eindTijd,
+      werkitemId: s.werkitemId, klantId: s.klantId, notitie: s.notitie, werksoort: s.werksoort,
+      geplandeBeginTijd: s.geplandeBeginTijd, geplandeEindTijd: s.geplandeEindTijd,
+      afwijkingReden: s.afwijkingReden, afwijkingOvergeslagen: s.afwijkingOvergeslagen,
+    }));
+    const payload = JSON.stringify({ datum: args.datum, medewerkerId: medewerker._id,
+      verwachteRevisie: args.verwachteRevisie, segmenten });
+    const eerder = await ctx.db.query("urenOpdrachten").withIndex("by_org_user_sleutel", (q) =>
+      q.eq("orgId", veld.orgId).eq("userId", veld.user._id).eq("sleutel", args.sleutel)).unique();
+    if (eerder) {
+      if (eerder.payload !== payload) throw new ConvexError("Deze opdrachtsleutel is al gebruikt voor andere invoer.");
+      return { ids: eerder.segmentIds, revisie: eerder.revisie };
+    }
+    const dag = await controleerRevisie(ctx, veld, medewerker._id, args.datum, args.verwachteRevisie);
+    if (dag?.status === "ingediend") throw new ConvexError("Deze dag is ingediend. Heropen de dag voordat je een voorstel opslaat.");
+    const bestaand = await segmentenVoorDag(ctx.db, veld.orgId, medewerker._id, args.datum);
+    for (let i = 0; i < segmenten.length; i++) {
+      const seg = segmenten[i];
+      if (!isGeldigSegmentTijdvak(seg.beginTijd, seg.eindTijd)) throw new ConvexError("Ongeldig tijdvak in het dagvoorstel.");
+      if ([...bestaand, ...segmenten.slice(0, i)].some((s) => overlapt(s, seg))) throw new ConvexError("Het dagvoorstel bevat overlappende segmenten.");
+      afwijkingVelden(seg);
+      await bepaalWerksoort(ctx, veld.orgId, seg.categorie, seg.werkitemId, seg.werksoort);
+      if (seg.categorie === "werken" && !seg.werkitemId) throw new ConvexError("Koppel werk aan een werkitem.");
+      if (seg.werkitemId) {
+        const item = await ctx.db.get(seg.werkitemId);
+        if (!item || item.deletedAt || item.orgId !== veld.orgId) throw new ConvexError("Werkitem niet gevonden.");
+      }
+      if (seg.klantId) {
+        const klant = await ctx.db.get(seg.klantId);
+        if (!klant || klant.orgId !== veld.orgId) throw new ConvexError("Klant niet gevonden.");
+      }
+    }
+    const ids: Id<"urenSegmenten">[] = [];
+    for (const seg of segmenten) ids.push(await voegSegmentToe(ctx, veld, medewerker, {
+      ...seg, datum: args.datum, bron: "voorstel",
+    }));
+    const revisie = (await dagStatusVoor(ctx.db, veld.orgId, medewerker._id, args.datum))?.revisie ?? 0;
+    await ctx.db.insert("urenOpdrachten", {
+      orgId: veld.orgId, userId: veld.user._id, medewerkerId: medewerker._id,
+      datum: args.datum, sleutel: args.sleutel, payload, segmentIds: ids, revisie, createdAt: Date.now(),
+    });
+    return { ids, revisie };
+  },
+});
+
 /** Segment corrigeren (tijden/categorie/notitie/koppeling). */
 export const updateSegment = mutation({
   args: {
     id: v.id("urenSegmenten"),
     categorie: v.optional(segmentCategorieValidator),
+    ...geplandeVelden,
+    werksoort: v.optional(werksoortValidator),
+    verwachteRevisie: v.optional(v.number()),
+    sleutel: v.optional(v.string()),
     beginTijd: v.optional(v.string()),
     eindTijd: v.optional(v.string()),
     werkitemId: v.optional(v.union(v.id("projecten"), v.null())),
@@ -735,12 +945,26 @@ export const updateSegment = mutation({
     ) {
       throw new ConvexError("Je mag alleen je eigen segmenten bewerken");
     }
-    const kantoorCorrectie = await assertDagBewerkbaar(
-      ctx,
-      veld,
-      segment.medewerkerId,
-      segment.datum
-    );
+    const opdracht = await enkelOpdracht(ctx, veld, segment.medewerkerId, segment.datum, "segment-wijzigen", args);
+    if (opdracht?.eerder) return opdracht.eerder.segmentIds[0];
+    const dag = await controleerRevisie(ctx, veld, segment.medewerkerId, segment.datum, args.verwachteRevisie);
+    const alleenNotitie = args.notitie !== undefined && args.categorie === undefined && args.werksoort === undefined &&
+      args.beginTijd === undefined && args.eindTijd === undefined && args.werkitemId === undefined &&
+      args.klantId === undefined && args.geplandeBeginTijd === undefined && args.geplandeEindTijd === undefined &&
+      args.afwijkingReden === undefined && args.afwijkingOvergeslagen === undefined;
+    if (alleenNotitie) {
+      if (args.notitie === (segment.notitie ?? null)) { await opdracht?.bewaar(segment._id); return segment._id; }
+      await ctx.db.patch(segment._id, { notitie: args.notitie ?? undefined, updatedAt: Date.now() });
+      await logUrenActie(ctx, {
+        orgId: veld.orgId, medewerkerId: segment.medewerkerId, datum: segment.datum,
+        actie: "notitie_gewijzigd", details: `Notitie van segment ${segment._id} gewijzigd${dag?.status === "ingediend" ? " na indienen" : ""}`,
+        door: veld.user._id,
+      });
+      await verhoogDagRevisie(ctx, veld, segment.medewerkerId, segment.datum);
+      await opdracht?.bewaar(segment._id);
+      return segment._id;
+    }
+    const kantoorCorrectie = await assertDagBewerkbaar(ctx, veld, segment.medewerkerId, segment.datum);
 
     const beginTijd = args.beginTijd ?? segment.beginTijd;
     const eindTijd = args.eindTijd ?? segment.eindTijd;
@@ -770,6 +994,19 @@ export const updateSegment = mutation({
       }
     }
 
+    const klantId = args.klantId === undefined ? segment.klantId : (args.klantId ?? undefined);
+    if (klantId) {
+      const klant = await ctx.db.get(klantId);
+      if (!klant || klant.orgId !== veld.orgId) throw new ConvexError("Klant niet gevonden");
+    }
+    const afwijking = afwijkingVelden({
+      beginTijd, eindTijd,
+      geplandeBeginTijd: args.geplandeBeginTijd ?? segment.geplandeBeginTijd,
+      geplandeEindTijd: args.geplandeEindTijd ?? segment.geplandeEindTijd,
+      afwijkingReden: args.afwijkingReden ?? segment.afwijkingReden,
+      afwijkingOvergeslagen: args.afwijkingOvergeslagen ?? segment.afwijkingOvergeslagen,
+    });
+
     // Overlap-check tegen de andere segmenten van die dag
     const andere = (
       await segmentenVoorDag(
@@ -783,15 +1020,17 @@ export const updateSegment = mutation({
       throw new ConvexError("Dit tijdvak overlapt met een bestaand segment");
     }
 
+    const zelfdeActiviteit = categorie === segment.categorie && werkitemId === segment.werkitemId;
+    const werksoort = args.werksoort === undefined && zelfdeActiviteit && segment.werksoort
+      ? segment.werksoort : await bepaalWerksoort(ctx, veld.orgId, categorie, werkitemId, args.werksoort);
     await ctx.db.patch(segment._id, {
       categorie,
+      werksoort,
       beginTijd,
       eindTijd,
       werkitemId,
-      klantId:
-        args.klantId === undefined
-          ? segment.klantId
-          : (args.klantId ?? undefined),
+      klantId,
+      ...afwijking,
       notitie:
         args.notitie === undefined
           ? segment.notitie
@@ -799,7 +1038,8 @@ export const updateSegment = mutation({
       updatedAt: Date.now(),
     });
 
-    if (kantoorCorrectie) {
+    // Elke inhoudelijke correctie maakt eerdere kantoorbeoordeling ongeldig.
+    if (kantoorCorrectie || dag) {
       await logUrenActie(ctx, {
         orgId: veld.orgId,
         medewerkerId: segment.medewerkerId,
@@ -809,13 +1049,15 @@ export const updateSegment = mutation({
         door: veld.user._id,
       });
     }
+    await verhoogDagRevisie(ctx, veld, segment.medewerkerId, segment.datum);
+    await opdracht?.bewaar(segment._id);
     return segment._id;
   },
 });
 
 /** Segment verwijderen (eigen dag; kantoor ook op ingediende dagen, met log). */
 export const verwijderSegment = mutation({
-  args: { id: v.id("urenSegmenten") },
+  args: { id: v.id("urenSegmenten"), verwachteRevisie: v.optional(v.number()) },
   handler: async (ctx, args) => {
     const veld = await veldContext(ctx);
     const segment = await ctx.db.get(args.id);
@@ -831,6 +1073,7 @@ export const verwijderSegment = mutation({
     ) {
       throw new ConvexError("Je mag alleen je eigen segmenten verwijderen");
     }
+    await controleerRevisie(ctx, veld, segment.medewerkerId, segment.datum, args.verwachteRevisie);
     const kantoorCorrectie = await assertDagBewerkbaar(
       ctx,
       veld,
@@ -838,7 +1081,7 @@ export const verwijderSegment = mutation({
       segment.datum
     );
     await ctx.db.delete(segment._id);
-    if (kantoorCorrectie) {
+    if (kantoorCorrectie || segment.status !== "concept") {
       await logUrenActie(ctx, {
         orgId: veld.orgId,
         medewerkerId: segment.medewerkerId,
@@ -848,6 +1091,7 @@ export const verwijderSegment = mutation({
         door: veld.user._id,
       });
     }
+    await verhoogDagRevisie(ctx, veld, segment.medewerkerId, segment.datum);
     return null;
   },
 });
@@ -887,6 +1131,8 @@ export const dienDagIn = mutation({
       );
     }
 
+    await assertDagGereed(ctx, { orgId: veld.orgId, medewerkerId: medewerker._id, datum: args.datum });
+
     const now = Date.now();
     for (const segment of segmenten) {
       await ctx.db.patch(segment._id, { status: "ingediend", updatedAt: now });
@@ -895,6 +1141,7 @@ export const dienDagIn = mutation({
       await ctx.db.patch(dagRij._id, {
         status: "ingediend",
         ingediendOp: now,
+        revisie: (dagRij.revisie ?? 0) + 1,
         updatedAt: now,
       });
     } else {
@@ -904,6 +1151,7 @@ export const dienDagIn = mutation({
         datum: args.datum,
         status: "ingediend",
         ingediendOp: now,
+        revisie: 1,
         createdAt: now,
         updatedAt: now,
       });
@@ -947,7 +1195,7 @@ export const heropenDag = mutation({
     }
 
     const now = Date.now();
-    await ctx.db.patch(dagRij._id, { status: "open", updatedAt: now });
+    await ctx.db.patch(dagRij._id, { status: "open", revisie: (dagRij.revisie ?? 0) + 1, updatedAt: now });
     const segmenten = await segmentenVoorDag(
       ctx.db,
       veld.orgId,
@@ -1047,7 +1295,7 @@ export const getWieIsAchter = query({
         !item.deletedAt &&
         item.isArchived !== true &&
         item.status !== "vervallen" &&
-        item.teamId !== undefined &&
+        (item.toegewezenMedewerkerIds !== undefined ? item.toegewezenMedewerkerIds.length > 0 : item.teamId !== undefined) &&
         werkitemOpDag(item, args.datum)
     );
 

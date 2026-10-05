@@ -63,6 +63,7 @@ const INDEXEN: Record<string, Record<string, string[]>> = {
   voorraad: { by_org: ["orgId"], by_user: ["userId"] },
   kwaliteitsControles: { by_org: ["orgId"], by_user: ["userId"] },
   medewerkers: { by_org: ["orgId"], by_user: ["userId"] },
+  urenSegmenten: { by_werkitem: ["werkitemId"] },
   urenRegistraties: {
     by_datum: ["datum"],
     by_org_datum: ["orgId", "datum"],
@@ -466,13 +467,24 @@ describe("dashboard.getAdminDashboardData", () => {
     expect(data.facturenStats.totaal).toBe(1);
   });
 
-  it("telt de uren van deze maand op by_org_datum, niet op de bedrijfsoverstijgende by_datum", async () => {
+  it("telt de uren van deze maand uit de geselecteerde bronnen van eigen projecten", async () => {
     alsA();
     const data = await dashboard(ctx, {});
 
     // Beide bedrijven boekten 8 uur in dezelfde maand. Op `by_datum` zou hier
     // 16 staan; dat was de fout die deze test afvangt.
     expect(data.urenDezeMaand).toBe(8);
+  });
+
+  it("keeps dashboard available on mixed ledgers and never sums them", async () => {
+    alsA();
+    db.insertSync("urenSegmenten", { orgId: orgA, werkitemId: projectA, medewerkerId: "medewerker-a", datum: DEZE_MAAND, categorie: "werken", status: "bevestigd", beginTijd: "08:00", eindTijd: "10:00" });
+    const mixed = await dashboard(ctx, {});
+    expect(mixed.urenDezeMaand).toBeNull();
+    await db.patch(projectA, { urenBron: "segmenten" });
+    expect((await dashboard(ctx, {})).urenDezeMaand).toBe(2);
+    await db.patch(projectA, { urenBron: "legacy" });
+    expect((await dashboard(ctx, {})).urenDezeMaand).toBe(8);
   });
 
   it("telt materieel-, voorraad- en QC-signalen alleen voor de eigen organisatie", async () => {

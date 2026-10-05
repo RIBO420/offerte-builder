@@ -35,8 +35,8 @@ export interface LopendProject {
   _id: string;
   naam: string;
   klantNaam: string;
-  voortgang: number;
-  totaalUren: number;
+  voortgang: number | null;
+  totaalUren: number | null;
   begroteUren: number;
 }
 
@@ -65,11 +65,11 @@ export function LopendWerkPaneel({ projecten }: { projecten: LopendProject[] }) 
     >
       <ul className="divide-y divide-border/60">
         {zichtbaar.map((project) => {
-          const pct = Math.min(100, Math.max(0, project.voortgang));
+          const pct = project.voortgang === null ? null : Math.min(100, Math.max(0, project.voortgang));
           return (
             <li key={project._id}>
               <Link
-                href={`/projecten/${project._id}`}
+                href={`/projecten/${project._id}${pct === null ? "/nacalculatie" : ""}`}
                 className="block px-3 py-2 transition-colors hover:bg-accent/40"
               >
                 <div className="flex items-baseline justify-between gap-3">
@@ -81,26 +81,27 @@ export function LopendWerkPaneel({ projecten }: { projecten: LopendProject[] }) 
                     </span>
                   </p>
                   <span className="shrink-0 text-xs font-semibold tabular-nums">
-                    {pct}%
+                    {pct === null ? "Urenbron kiezen" : `${pct}%`}
                   </span>
                 </div>
                 {/* Voortgang in accent-warm (terracotta): werk onderweg is geen
                     succes — groen blijft voorbehouden aan "afgerond". */}
                 <div
                   className="mt-1 h-1 overflow-hidden rounded bg-accent-warm/15"
+                  hidden={pct === null}
                   role="progressbar"
-                  aria-valuenow={pct}
+                  aria-valuenow={pct ?? undefined}
                   aria-valuemin={0}
                   aria-valuemax={100}
                   aria-label={`Voortgang ${project.naam}`}
                 >
                   <div
                     className="h-full rounded bg-accent-warm transition-[width] duration-500"
-                    style={{ width: `${pct}%` }}
+                    style={{ width: `${pct ?? 0}%` }}
                   />
                 </div>
                 <p className="mt-0.5 text-[11px] leading-4 text-muted-foreground tabular-nums">
-                  {project.totaalUren} / {project.begroteUren} uur
+                  {project.totaalUren === null ? "Urenbron ontbreekt" : `${project.totaalUren} / ${project.begroteUren} uur`}
                 </p>
               </Link>
             </li>

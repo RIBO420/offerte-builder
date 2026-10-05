@@ -14,6 +14,10 @@ export default function DashboardError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const data = (error as Error & { data?: { code?: string; projectId?: string; projectNaam?: string } }).data;
+  const categorieenOntbreken = data?.code === "URENBRON_CATEGORIEEN_ONTBREKEN" || error.message.includes("URENBRON_CATEGORIEEN_ONTBREKEN");
+  const urenConflict = data?.code === "URENBRON_CONFLICT" || error.message.includes("URENBRON_CONFLICT") || categorieenOntbreken;
+  const herstelPad = data?.projectId && /^[a-zA-Z0-9]+$/.test(data.projectId) ? `/projecten/${data.projectId}/nacalculatie` : "/uren";
   useEffect(() => {
     // Log the error to Sentry
     Sentry.captureException(error, {
@@ -30,12 +34,13 @@ export default function DashboardError({
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
             <AlertTriangle className="h-6 w-6 text-destructive" />
           </div>
-          <CardTitle>Er is iets misgegaan</CardTitle>
+          <CardTitle>{urenConflict ? "Urenbron kiezen" : "Er is iets misgegaan"}</CardTitle>
           <CardDescription>
-            Er is een fout opgetreden bij het laden van deze pagina.
+            {categorieenOntbreken ? "De gekozen historische uren hebben geen activiteitstype. Projectkosten blijven beschikbaar; voor werk-, reis- en BES-normen zijn dagsegmenten nodig." : urenConflict ? "Een project heeft uren in twee bronnen. Kies welke bron meetelt voordat je deze rapportage opent." : "Er is een fout opgetreden bij het laden van deze pagina."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {urenConflict && <Button asChild className="w-full"><Link href={herstelPad}>Urenbron kiezen</Link></Button>}
           {process.env.NODE_ENV === "development" && (
             <div className="rounded-lg bg-muted p-3 text-sm">
               <div className="flex items-center gap-2 font-medium text-destructive">

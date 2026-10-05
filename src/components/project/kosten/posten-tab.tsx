@@ -61,6 +61,7 @@ interface KostEntry {
   omschrijving: string;
   scope: string;
   totaal: number;
+  bron?: string;
 }
 
 interface PostenTabProps {
@@ -110,7 +111,7 @@ const KostRow = React.memo(function KostRow({
         {formatCurrency(kost.totaal)}
       </TableCell>
       <TableCell>
-        <AlertDialog>
+        {kost.bron === "urenSegmenten" ? <Button asChild variant="ghost" size="sm"><a href="/uren" aria-label="Dagregistratie corrigeren">Uren</a></Button> : <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button
               variant="ghost"
@@ -136,7 +137,7 @@ const KostRow = React.memo(function KostRow({
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
-        </AlertDialog>
+        </AlertDialog>}
       </TableCell>
     </tr>
   );

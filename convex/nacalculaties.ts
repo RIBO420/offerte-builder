@@ -1,3 +1,4 @@
+import { projectUrenBron } from "./lib/projectUrenBron";
 /**
  * Nacalculaties Functions - Post-calculation module
  *
@@ -72,11 +73,12 @@ export const calculate = query({
       };
     }
 
-    // Get all urenRegistraties
-    const urenRegistraties = await ctx.db
-      .query("urenRegistraties")
-      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-      .collect();
+    const urenBron = await projectUrenBron(ctx, project);
+    if (urenBron.status === "conflict") return {
+      error: "Dit project heeft uren in twee bronnen. Kies eerst welke bron de nacalculatie gebruikt.",
+      data: null,
+    };
+    const urenRegistraties = urenBron.regels.map(r => ({ ...r, uren: r.minuten / 60 }));
 
     // Get all machineGebruik
     const machineGebruik = await ctx.db
@@ -169,6 +171,7 @@ export const calculate = query({
         teamGrootte: voorcalculatie.teamGrootte,
         effectieveUrenPerDag: voorcalculatie.effectieveUrenPerDag,
         aantalRegistraties: urenRegistraties.length,
+        urenBron: urenBron.bron,
       },
     };
   },
@@ -195,6 +198,13 @@ export const save = mutation({
     await requireNotViewer(ctx);
     // Verify ownership of project
     const project = await getOwnedProject(ctx, args.projectId);
+    const urenBron = await projectUrenBron(ctx, project);
+    if (urenBron.status === "conflict") throw new ConvexError("Kies eerst de urenbron voor dit project");
+    const bronUren = (urenBron.minuten ?? 0) / 60;
+    const bronDagen = new Set(urenBron.regels.map(r => r.datum)).size;
+    if (Math.abs(args.werkelijkeUren - bronUren) > 0.000001 || args.werkelijkeDagen !== bronDagen) {
+      throw new ConvexError("De projecturen zijn intussen gewijzigd. Vernieuw de nacalculatie en sla opnieuw op.");
+    }
     const now = Date.now();
 
     // Check if nacalculatie already exists
@@ -373,11 +383,10 @@ export const getWithDetails = query({
       voorcalculatie = await voorcalculatieVanProject(ctx, args.projectId);
     }
 
-    // Get uren registraties
-    const urenRegistraties = await ctx.db
-      .query("urenRegistraties")
-      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-      .collect();
+    const urenBron = await projectUrenBron(ctx, project);
+    const medewerkers = await Promise.all([...new Set(urenBron.regels.flatMap(r => r.medewerkerId ? [r.medewerkerId as Id<"medewerkers">] : []))].map(id => ctx.db.get(id)));
+    const namen = new Map(medewerkers.filter(m => m && m.orgId === project.orgId).map(m => [m!._id as string, m!.naam]));
+    const urenRegistraties = urenBron.regels.map(r => ({ ...r, _id: r.id, uren: r.minuten / 60, medewerker: r.medewerker ?? (r.medewerkerId ? namen.get(r.medewerkerId) : undefined) ?? "Onbekende medewerker" }));
 
     // Get machine gebruik
     const machineGebruik = await ctx.db
@@ -391,6 +400,8 @@ export const getWithDetails = query({
       voorcalculatie,
       nacalculatie,
       urenRegistraties,
+      urenBron: urenBron.bron,
+      urenBronConflict: urenBron.status === "conflict",
       machineGebruik,
     };
   },

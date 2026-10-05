@@ -320,7 +320,7 @@ export interface KwijtingEntry {
 }
 
 export interface KwijtingStatus {
-  /** Kantoor heeft deze dag akkoord verklaard en er is daarna niets heropend. */
+  /** Kantoor heeft deze dag akkoord verklaard en er is daarna niets inhoudelijk gewijzigd. */
   gekweten: boolean;
   /** De dag is ná het laatste akkoord (of zonder akkoord) heropend. */
   heropend: boolean;
@@ -329,22 +329,26 @@ export interface KwijtingStatus {
 /**
  * Kwijting is een logboek-gebeurtenis, geen status. Wie het laatst sprak,
  * heeft gelijk: een `dag_akkoord` ná een `dag_heropend` kweit de dag; een
- * heropening ná een akkoord zet hem terug in de wachtrij. Zo is "akkoord"
+ * heropening of segmentcorrectie ná een akkoord trekt dat akkoord in.
+ * Alleen een gewijzigde notitie laat de beoordeling van de uren intact. Zo is "akkoord"
  * idempotent (tweede klik verandert niets) zónder dat een heropende dag stil
  * uit het zicht verdwijnt.
  */
 export function bepaalKwijting(entries: KwijtingEntry[]): KwijtingStatus {
   let akkoordOp = -1;
   let heropendOp = -1;
+  let gecorrigeerdOp = -1;
   for (const entry of entries) {
     if (entry.actie === "dag_akkoord") {
       akkoordOp = Math.max(akkoordOp, entry.createdAt);
     } else if (entry.actie === "dag_heropend") {
       heropendOp = Math.max(heropendOp, entry.createdAt);
+    } else if (entry.actie === "segment_gecorrigeerd") {
+      gecorrigeerdOp = Math.max(gecorrigeerdOp, entry.createdAt);
     }
   }
   return {
-    gekweten: akkoordOp >= 0 && akkoordOp > heropendOp,
+    gekweten: akkoordOp >= 0 && akkoordOp > Math.max(heropendOp, gecorrigeerdOp),
     heropend: heropendOp >= 0 && heropendOp > akkoordOp,
   };
 }

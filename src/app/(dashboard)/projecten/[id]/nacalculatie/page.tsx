@@ -6,6 +6,7 @@ import { Id } from "../../../../../../convex/_generated/dataModel";
 import { useNacalculatie } from "@/hooks/use-nacalculatie";
 import { useLeerfeedback } from "@/hooks/use-leerfeedback";
 import { NacalculatieSummary } from "@/components/project/nacalculatie-summary";
+import { ProjectUrenBronSelector } from "@/components/uren/hub-export-dialog";
 import { AfwijkingenTabel } from "@/components/project/afwijkingen-tabel";
 import { VergelijkingChart, AfwijkingChart } from "@/components/project/vergelijking-chart";
 import { NormuurSuggestieCard } from "@/components/project/normuur-suggestie-card";
@@ -234,6 +235,7 @@ export default function NacalculatiePage({
       <PageHeader customLabels={{ [`/projecten/${id}`]: details?.project?.naam || "Project" }} />
 
       <div className="flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6 pb-28 md:pb-6">
+        <ProjectUrenBronSelector projectId={id as Id<"projecten">} />
         {/* Page Header */}
         <div className="flex flex-col gap-4">
           <div className="flex items-start gap-3">

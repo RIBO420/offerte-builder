@@ -1,3 +1,4 @@
+import { projectUrenBron, vereisProjectUrenRegistraties } from "./lib/projectUrenBron";
 /**
  * Beurt-nacalculatie — Convex-functies (PRD §3.4, slotstuk fase 2).
  *
@@ -138,6 +139,13 @@ async function verzamelBeurtNacalculatie(
   const bijdragenPerBeurt: BouwsteenBijdrage[][] = [];
 
   for (const beurt of relevant) {
+    const urenSelectie = await projectUrenBron(ctx, beurt);
+    if (urenSelectie.status === "conflict") await vereisProjectUrenRegistraties(ctx, beurt);
+    if (urenSelectie.bron === "legacy" && (urenSelectie.minuten ?? 0) > 0) {
+      throw new ConvexError({ code: "URENBRON_CATEGORIEEN_ONTBREKEN", projectId: beurt._id, projectNaam: beurt.naam,
+        message: `De gekozen historische uren van ${beurt.naam} hebben geen activiteitstype. Ze tellen mee bij projectkosten, maar kunnen niet worden gebruikt om werk-, reis- en BES-normen te leren.` });
+    }
+    if (urenSelectie.bron === "legacy") continue;
     // Werkelijke tijd uit bevestigde/ingediende segmenten (§2.6)
     const segmenten = await ctx.db
       .query("urenSegmenten")

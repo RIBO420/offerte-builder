@@ -1095,15 +1095,16 @@ export const getPloegDag = query({
         ) {
           return null;
         }
-        const [segmenten, dagRij] = await Promise.all([
+        const [segmenten, dagRij, persoonlijk] = await Promise.all([
           segmentenVoorDag(ctx.db, veld.orgId, lidId, datum),
           dagStatusVoor(ctx.db, veld.orgId, lidId, datum),
+          dagkaartVoorstellen(ctx.db, veld.orgId, team._id, datum, lidId),
         ]);
         return {
           medewerker,
           segmenten: sorteerSegmenten(segmenten),
           status: dagRij?.status ?? ("open" as const),
-          openVoorstellen: filterVoorstellen(afgeleid.voorstellen, segmenten)
+          openVoorstellen: filterVoorstellen(persoonlijk.voorstellen, segmenten)
             .length,
         };
       })

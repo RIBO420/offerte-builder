@@ -1,3 +1,5 @@
+import { heeftWerkitemHistorie } from "./lib/werkitemHistorie";
+import { vereisProjectUrenViaId, projectUrenBron } from "./lib/projectUrenBron";
 /**
  * Projecten Functions - Calculatie, Planning & Nacalculatie Add-on
  *
@@ -413,10 +415,7 @@ export const updateStatus = mutation({
 
     if (currentStatus === "in_uitvoering" && newStatus === "afgerond") {
       // Check if there are registered hours
-      const urenRegistraties = await ctx.db
-        .query("urenRegistraties")
-        .withIndex("by_project", (q) => q.eq("projectId", args.id))
-        .first();
+      const urenRegistraties = (await vereisProjectUrenViaId(ctx, args.id))[0];
 
       if (!urenRegistraties) {
         throw new ConvexError(
@@ -608,6 +607,10 @@ export const remove = mutation({
     await getOwnedProject(ctx, args.id);
     const now = Date.now();
 
+    if (await heeftWerkitemHistorie(ctx, args.id)) {
+      await ctx.db.patch(args.id, { isArchived: true, archivedAt: now, deletedAt: undefined, updatedAt: now });
+      return args.id;
+    }
     await ctx.db.patch(args.id, {
       deletedAt: now,
       updatedAt: now,
@@ -654,6 +657,8 @@ export const permanentlyDelete = mutation({
     await requireNotViewer(ctx);
     // Verify ownership before deleting
     await getOwnedProject(ctx, args.id);
+
+    if (await heeftWerkitemHistorie(ctx, args.id)) throw new ConvexError("Dit werkitem heeft uitvoeringshistorie. Archiveer het om uren, foto's en antwoorden te bewaren.");
 
     // Delete related voorcalculaties
     const voorcalculaties = await ctx.db
@@ -741,11 +746,7 @@ export const getWithDetails = query({
       .withIndex("by_project", (q) => q.eq("projectId", args.id))
       .unique();
 
-    // Get uren registraties count
-    const urenRegistraties = await ctx.db
-      .query("urenRegistraties")
-      .withIndex("by_project", (q) => q.eq("projectId", args.id))
-      .collect();
+    const urenSelectie = await projectUrenBron(ctx, project);
 
     // Get machine gebruik
     const machineGebruik = await ctx.db
@@ -759,11 +760,9 @@ export const getWithDetails = query({
       voorcalculatie,
       planningTaken: planningTaken.sort((a, b) => a.volgorde - b.volgorde),
       nacalculatie,
-      urenRegistratiesCount: urenRegistraties.length,
-      totaalGeregistreerdeUren: urenRegistraties.reduce(
-        (sum, u) => sum + u.uren,
-        0
-      ),
+      urenRegistratiesCount: urenSelectie.status === "conflict" ? null : urenSelectie.regels.length,
+      totaalGeregistreerdeUren: urenSelectie.minuten === null ? null : urenSelectie.minuten / 60,
+      urenBronConflict: urenSelectie.status === "conflict",
       machineGebruikCount: machineGebruik.length,
       totaalMachineKosten: machineGebruik.reduce((sum, m) => sum + m.kosten, 0),
     };
@@ -832,12 +831,14 @@ export const listForPlanning = query({
     // alleen in de filtering hieronder (directie ziet alles, medewerker alleen
     // de werkitems waar hij als teamlid op staat).
     let medewerkerNaam: string | null = null;
+    let medewerkerId: Id<"medewerkers"> | null = null;
 
     if (role !== "directie") {
       // Medewerker sees assigned projects
       const medewerker = await getLinkedMedewerker(ctx);
       if (!medewerker) return [];
       medewerkerNaam = medewerker.naam;
+      medewerkerId = medewerker._id;
     }
 
     // Fetch all active projects (filter archived/deleted at query level, not in memory)
@@ -885,7 +886,8 @@ export const listForPlanning = query({
       // For medewerker, filter to projects where they are in the team
       filteredProjects = activeProjects
         .map((p, i) => ({ project: p, voorcalc: getVoorcalculatie(i) }))
-        .filter(({ voorcalc }) => {
+        .filter(({ project, voorcalc }) => {
+          if (project.toegewezenMedewerkerIds !== undefined) return !!medewerkerId && project.toegewezenMedewerkerIds.includes(medewerkerId);
           const teamleden = voorcalc?.teamleden ?? [];
           return medewerkerNaam ? teamleden.includes(medewerkerNaam) : false;
         });
@@ -1130,10 +1132,7 @@ export const getActiveProjectsWithProgress = query({
       // Batch 4: Fetch urenRegistraties by project IDs
       Promise.all(
         projectIds.map((projectId) =>
-          ctx.db
-            .query("urenRegistraties")
-            .withIndex("by_project", (q) => q.eq("projectId", projectId))
-            .collect()
+          projectUrenBron(ctx, activeProjects.find(p => p._id === projectId)!)
         )
       ),
     ]);
@@ -1156,12 +1155,12 @@ export const getActiveProjectsWithProgress = query({
       const begroteUren = voorcalculatie?.normUrenTotaal || 0;
 
       // Get uren registraties for totaal uren
-      const urenRegistraties = urenByProject[index] || [];
-      const totaalUren = urenRegistraties.reduce((sum, u) => sum + u.uren, 0);
+      const urenSelectie = urenByProject[index];
+      const totaalUren = urenSelectie.minuten === null ? null : urenSelectie.minuten / 60;
 
       // Calculate voortgang percentage (0-100)
       let voortgang = 0;
-      if (begroteUren > 0) {
+      if (begroteUren > 0 && totaalUren !== null) {
         voortgang = Math.min(100, Math.round((totaalUren / begroteUren) * 100));
       }
 
@@ -1169,8 +1168,9 @@ export const getActiveProjectsWithProgress = query({
         _id: project._id,
         naam: project.naam,
         status: project.status,
-        voortgang,
-        totaalUren: Math.round(totaalUren * 10) / 10, // Round to 1 decimal
+        voortgang: totaalUren === null ? null : voortgang,
+        urenBronConflict: urenSelectie.status === "conflict",
+        totaalUren: totaalUren === null ? null : Math.round(totaalUren * 10) / 10, // Round to 1 decimal
         begroteUren: Math.round(begroteUren * 10) / 10,
         klantNaam,
       };

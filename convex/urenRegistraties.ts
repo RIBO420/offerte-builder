@@ -6,7 +6,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import {
   getLinkedMedewerker,
   isKantoorRol,
-  requireNotViewer,
+  requireKantoor,
 } from "./roles";
 
 /**
@@ -195,7 +195,7 @@ export const add = mutation({
     notities: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireNotViewer(ctx);
+    await requireKantoor(ctx);
     const orgId = await requireOrgId(ctx);
     await getProjectVanOrg(ctx, args.projectId, orgId); // org-eigendom afdwingen
 
@@ -229,7 +229,7 @@ export const importBatch = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    await requireNotViewer(ctx);
+    await requireKantoor(ctx);
     const orgId = await requireOrgId(ctx);
     await getProjectVanOrg(ctx, args.projectId, orgId); // org-eigendom afdwingen
 
@@ -270,7 +270,7 @@ export const update = mutation({
     notities: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireNotViewer(ctx);
+    await requireKantoor(ctx);
     const orgId = await requireOrgId(ctx);
 
     // Get entry and verify org-ownership through project
@@ -302,7 +302,7 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id("urenRegistraties") },
   handler: async (ctx, args) => {
-    await requireNotViewer(ctx);
+    await requireKantoor(ctx);
     const orgId = await requireOrgId(ctx);
 
     // Get entry and verify org-ownership through project

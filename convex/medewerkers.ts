@@ -1,3 +1,4 @@
+import { vereisProjectUrenRegistraties, vereisProjectUrenViaId } from "./lib/projectUrenBron";
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireOrgContext } from "./auth";
@@ -636,36 +637,6 @@ export const hardDelete = mutation({
 // ============================================
 
 /**
- * Bepaalt of een urenregistratie bij de opgegeven organisatie hoort (audit §2).
- *
- * Sinds de org-migratie draagt `urenRegistraties` een `orgId`. Rijen van vóór de
- * backfill hebben dat veld nog niet; daarvoor vallen we terug op de organisatie
- * van het gekoppelde project — dezelfde relatie waar de backfill de orgId uit
- * afleidt, dus beide routes geven hetzelfde antwoord.
- *
- * De cache voorkomt dat hetzelfde project per registratie opnieuw wordt opgehaald.
- */
-async function hoortRegistratieBijOrganisatie(
-  ctx: QueryCtx | MutationCtx,
-  registratie: Doc<"urenRegistraties">,
-  orgId: Id<"organisaties">,
-  projectTenantCache: Map<string, Id<"organisaties"> | null>
-): Promise<boolean> {
-  if (registratie.orgId) {
-    return registratie.orgId === orgId;
-  }
-
-  const key = registratie.projectId.toString();
-  let tenant = projectTenantCache.get(key);
-  if (tenant === undefined) {
-    const project = await ctx.db.get(registratie.projectId);
-    tenant = project?.orgId ?? null;
-    projectTenantCache.set(key, tenant);
-  }
-  return tenant === orgId;
-}
-
-/**
  * Haal medewerker op met gewerkte uren statistieken.
  * - Kantoor/voorman: elke medewerker van de eigen organisatie
  * - Veldrollen: alleen het eigen profiel
@@ -687,57 +658,9 @@ export const getWithStats = query({
       if (!isOwnProfile) return null;
     }
 
-    // Urenregistraties van déze medewerker (audit §2). Primair via de getypeerde
-    // koppeling `medewerkerId` — die is per definitie tenant-veilig, want de
-    // medewerker is hierboven al op organisatie gecontroleerd. Oude registraties
-    // hebben die koppeling nog niet; daarvoor matchen we op naam via de
-    // by_medewerker-index (geen full table scan meer) én controleren we expliciet
-    // dat de registratie bij deze organisatie hoort — anders deelden twee
-    // organisaties met een "Jan de Vries" elkaars uren.
-    const urenViaKoppeling = await ctx.db
-      .query("urenRegistraties")
-      .withIndex("by_medewerker_id", (q) => q.eq("medewerkerId", medewerker._id))
-      .collect();
-
-    const urenViaNaam = await ctx.db
-      .query("urenRegistraties")
-      .withIndex("by_medewerker", (q) => q.eq("medewerker", medewerker.naam))
-      .collect();
-
-    const projectTenantCache = new Map<string, Id<"organisaties"> | null>();
-
-    // Ook de koppeling-route langs de tenantcheck: `by_medewerker_id` is een
-    // globale index, en een registratie kan (bij een verkeerd doorgegeven id)
-    // uit een andere organisatie komen.
-    const medewerkerUren: Doc<"urenRegistraties">[] = [];
-    for (const registratie of urenViaKoppeling) {
-      if (
-        await hoortRegistratieBijOrganisatie(
-          ctx,
-          registratie,
-          orgId,
-          projectTenantCache
-        )
-      ) {
-        medewerkerUren.push(registratie);
-      }
-    }
-
-    for (const registratie of urenViaNaam) {
-      // Heeft de registratie al een medewerkerId, dan is ze hierboven meegenomen
-      // (of ze hoort bij een andere medewerker met dezelfde naam).
-      if (registratie.medewerkerId) continue;
-      if (
-        await hoortRegistratieBijOrganisatie(
-          ctx,
-          registratie,
-          orgId,
-          projectTenantCache
-        )
-      ) {
-        medewerkerUren.push(registratie);
-      }
-    }
+    const eigenProjecten = await ctx.db.query("projecten").withIndex("by_org", q => q.eq("orgId", orgId)).collect();
+    const alleUren = (await Promise.all(eigenProjecten.map(p => vereisProjectUrenRegistraties(ctx, p)))).flat();
+    const medewerkerUren = alleUren.filter(r => r.medewerkerId ? r.medewerkerId === medewerker._id : r.medewerker === medewerker.naam);
 
     // Bereken totaal gewerkte uren
     const totaalUren = medewerkerUren.reduce((sum, ur) => sum + ur.uren, 0);
@@ -819,52 +742,8 @@ export const getMedewerkersMetPrestaties = query({
       ? new Date(args.periode.tot).toISOString().slice(0, 10)
       : null;
 
-    // Urenregistraties van DEZE organisatie (audit §2). Voorheen werd de hele
-    // tabel gescand — over alle tenants heen. Nu via de by_org(_datum)-index,
-    // die de periode-filtering meteen meeneemt.
-    const urenRegistraties: Doc<"urenRegistraties">[] =
-      vanDatum !== null && totDatum !== null
-        ? await ctx.db
-            .query("urenRegistraties")
-            .withIndex("by_org_datum", (q) =>
-              q
-                .eq("orgId", orgId)
-                .gte("datum", vanDatum)
-                .lte("datum", totDatum)
-            )
-            .collect()
-        : await ctx.db
-            .query("urenRegistraties")
-            .withIndex("by_org", (q) => q.eq("orgId", orgId))
-            .collect();
-
-    // FALLBACK zolang de orgId-backfill op urenRegistraties niet gedraaid is:
-    // dan heeft géén enkele registratie een orgId en geeft de index hierboven leeg
-    // terug. We halen ze in dat geval per project van deze organisatie op — nog
-    // steeds tenant-veilig (projecten zijn al gescoped), alleen duurder. LET OP:
-    // draai de backfill in één keer af; tussen twee batches door kan dit rapport
-    // tijdelijk onvolledig zijn. Zodra de backfill klaar is, is dit pad dode code
-    // voor organisaties mét uren en kan het verwijderd worden.
-    if (urenRegistraties.length === 0) {
-      for (const project of projecten) {
-        const projectUren =
-          vanDatum !== null && totDatum !== null
-            ? await ctx.db
-                .query("urenRegistraties")
-                .withIndex("by_project_datum", (q) =>
-                  q
-                    .eq("projectId", project._id)
-                    .gte("datum", vanDatum)
-                    .lte("datum", totDatum)
-                )
-                .collect()
-            : await ctx.db
-                .query("urenRegistraties")
-                .withIndex("by_project", (q) => q.eq("projectId", project._id))
-                .collect();
-        urenRegistraties.push(...projectUren);
-      }
-    }
+    const urenRegistraties = (await Promise.all(projecten.map(p => vereisProjectUrenRegistraties(ctx, p)))).flat().filter(r =>
+      (!vanDatum || r.datum >= vanDatum) && (!totDatum || r.datum <= totDatum));
 
     // Voorcalculaties van DEZE organisatie (audit §2) — voorheen ook een
     // volledige tabelscan over alle tenants.
@@ -922,8 +801,8 @@ export const getMedewerkersMetPrestaties = query({
     // `urenRegistraties` hierboven al op deze organisatie gescoped is; eerder
     // liep hij over de héle tabel en telde hij de uren van een gelijknamige
     // collega bij een andere tenant mee.
-    const urenPerMedewerkerId = new Map<string, Doc<"urenRegistraties">[]>();
-    const urenPerNaam = new Map<string, Doc<"urenRegistraties">[]>();
+    const urenPerMedewerkerId = new Map<string, Awaited<ReturnType<typeof vereisProjectUrenViaId>>>();
+    const urenPerNaam = new Map<string, Awaited<ReturnType<typeof vereisProjectUrenViaId>>>();
     for (const ur of urenRegistraties) {
       if (ur.medewerkerId) {
         const key = ur.medewerkerId.toString();

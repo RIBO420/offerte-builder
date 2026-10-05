@@ -1,3 +1,4 @@
+import { projectUrenBron } from "./lib/projectUrenBron";
 /**
  * Consolidated Admin Dashboard Query
  *
@@ -54,7 +55,7 @@ export const getAdminDashboardData = query({
       allOffertes,
       allProjects,
       allFacturen,
-      urenDezeMaandRecords,
+
       voertuigen,
       machines,
       voorraad,
@@ -74,15 +75,6 @@ export const getAdminDashboardData = query({
         .query("facturen")
         .withIndex("by_org", (q) => q.eq("orgId", orgId))
         .order("desc")
-        .collect(),
-      // `by_datum` is bedrijfsoverstijgend: die index telde de uren van ELKE
-      // organisatie mee in "urenDezeMaand". `by_org_datum` heeft dezelfde
-      // datum-range als tweede veld, dus de maandgrens blijft een index-scan.
-      ctx.db
-        .query("urenRegistraties")
-        .withIndex("by_org_datum", (q) =>
-          q.eq("orgId", orgId).gte("datum", monthStartStr)
-        )
         .collect(),
       ctx.db
         .query("voertuigen")
@@ -201,6 +193,10 @@ export const getAdminDashboardData = query({
       }
     }
 
+    const projectUren = await Promise.all(allProjects.map(p => projectUrenBron(ctx, p)));
+    const urenBronnen = new Map(allProjects.map((p, i) => [p._id, projectUren[i]]));
+    const urenBronConflicten = allProjects.filter((_, i) => projectUren[i].status === "conflict").map(p => ({ projectId: p._id, naam: p.naam }));
+
     // === ACTIVE PROJECTS WITH PROGRESS ===
     // Pre-build offerte map for O(1) klant lookups (no N+1)
     const offerteMap = new Map(offertes.map((o) => [o._id.toString(), o]));
@@ -227,10 +223,7 @@ export const getAdminDashboardData = query({
         ),
         Promise.all(
           projectIds.map((projectId) =>
-            ctx.db
-              .query("urenRegistraties")
-              .withIndex("by_project", (q) => q.eq("projectId", projectId))
-              .collect()
+            Promise.resolve(urenBronnen.get(projectId)!)
           )
         ),
       ]);
@@ -246,11 +239,11 @@ export const getAdminDashboardData = query({
         voorcalculatiesByProject[index] || voorcalculatiesByOfferte[index];
       const begroteUren = voorcalculatie?.normUrenTotaal || 0;
 
-      const urenRegistraties = urenByProject[index] || [];
-      const totaalUren = urenRegistraties.reduce((sum, u) => sum + u.uren, 0);
+      const urenSelectie = urenByProject[index];
+      const totaalUren = urenSelectie.minuten === null ? null : urenSelectie.minuten / 60;
 
       let voortgang = 0;
-      if (begroteUren > 0) {
+      if (begroteUren > 0 && totaalUren !== null) {
         voortgang = Math.min(
           100,
           Math.round((totaalUren / begroteUren) * 100)
@@ -261,8 +254,9 @@ export const getAdminDashboardData = query({
         _id: project._id,
         naam: project.naam,
         status: project.status,
-        voortgang,
-        totaalUren: Math.round(totaalUren * 10) / 10,
+        voortgang: totaalUren === null ? null : voortgang,
+        urenBronConflict: urenSelectie.status === "conflict",
+        totaalUren: totaalUren === null ? null : Math.round(totaalUren * 10) / 10,
         begroteUren: Math.round(begroteUren * 10) / 10,
         klantNaam,
       };
@@ -341,10 +335,7 @@ export const getAdminDashboardData = query({
     };
 
     // Uren this month
-    const urenDezeMaand = urenDezeMaandRecords.reduce(
-      (sum, u) => sum + (u.uren ?? 0),
-      0
-    );
+    const urenDezeMaand = urenBronConflicten.length ? null : projectUren.flatMap(p => p.regels).filter(r => r.datum >= monthStartStr).reduce((n, r) => n + r.minuten / 60, 0);
 
     // Quarter comparison
     // §5.3b: concepten tellen niet mee in de kwartaal-KPI's van de pipeline.
@@ -444,6 +435,7 @@ export const getAdminDashboardData = query({
       // From getDirectieStats (unique data only)
       financieel,
       urenDezeMaand,
+      urenBronConflicten,
       kwartaalVergelijking,
 
       // From getMateriaalmanStats (summary only)

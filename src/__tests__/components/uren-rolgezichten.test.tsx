@@ -22,7 +22,15 @@ import { PloegDagGezicht } from "@/components/uren/ploegdag-gezicht";
 
 // ── Rol en URL zijn per test instelbaar ─────────────────────────────────────
 
+// JSDOM heeft geen layout-observer; Radix Checkbox leest hiermee zijn grootte.
+vi.stubGlobal("ResizeObserver", class {
+  observe() {} unobserve() {} disconnect() {}
+});
+
 let rol: string | null = "directie";
+vi.mock("@clerk/nextjs", () => ({
+  useAuth: () => ({ userId: "clerk_test_user_123", orgId: "org_test" }),
+}));
 vi.mock("@/hooks/use-users", () => ({
   useCurrentUserRole: () => rol,
   useIsKantoor: () =>
@@ -50,6 +58,7 @@ const bevestigAlleVoorstellen = vi.fn(
 vi.mock("convex/react", async () => {
   const { getFunctionName } = await import("convex/server");
   return {
+    useConvex: () => ({ query: vi.fn() }),
     useQuery: (fn: unknown, args?: unknown) => {
       const naam = getFunctionName(fn as never);
       const lijst = queryArgs.get(naam) ?? [];

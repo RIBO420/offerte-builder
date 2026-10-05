@@ -231,7 +231,7 @@ export default function DashboardPage() {
                           </div>
                           <div className="text-right">
                             <p className="text-sm font-medium text-orange-600 dark:text-orange-400">
-                              {project.voortgang}%
+                              {project.voortgang === null ? "Urenbron kiezen" : `${project.voortgang}%`}
                             </p>
                           </div>
                         </div>
@@ -239,14 +239,14 @@ export default function DashboardPage() {
                         <div
                           className="h-1.5 w-full bg-orange-200 dark:bg-orange-900/50 rounded-full overflow-hidden"
                           role="progressbar"
-                          aria-valuenow={project.voortgang}
+                          aria-valuenow={project.voortgang ?? undefined}
                           aria-valuemin={0}
                           aria-valuemax={100}
-                          aria-label={`Projectvoortgang: ${project.voortgang}%`}
+                          aria-label={`Projectvoortgang: ${project.voortgang === null ? "Urenbron kiezen" : `${project.voortgang}%`}`}
                         >
                           <div
                             className="h-full bg-orange-600 rounded-full transition-all duration-500"
-                            style={{ width: `${project.voortgang}%` }}
+                            style={{ width: `${project.voortgang === null ? "Urenbron kiezen" : `${project.voortgang}%`}` }}
                           />
                         </div>
                         <div className="flex justify-between mt-1.5 text-xs text-muted-foreground">

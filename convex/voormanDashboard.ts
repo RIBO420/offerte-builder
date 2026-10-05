@@ -1,3 +1,4 @@
+import { projectUrenRegistraties } from "./lib/projectUrenBron";
 /**
  * Voorman Dashboard Queries (SOD-002)
  *
@@ -30,14 +31,10 @@ export const getVoormanStats = query({
     // planningrijen en urenregistraties die aan een eigen project hangen,
     // tellen mee. (Niet via `urenRegistraties.by_org_datum`, want `orgId` is
     // daar optioneel en pre-backfill-rijen zouden stil wegvallen.)
-    const [dagPlanningRuw, urenVandaagRuw, eigenProjecten, allMedewerkers] =
+    const [dagPlanningRuw, eigenProjecten, allMedewerkers] =
       await Promise.all([
         ctx.db
           .query("weekPlanning")
-          .withIndex("by_datum", (q) => q.eq("datum", today))
-          .collect(),
-        ctx.db
-          .query("urenRegistraties")
           .withIndex("by_datum", (q) => q.eq("datum", today))
           .collect(),
         ctx.db
@@ -56,9 +53,10 @@ export const getVoormanStats = query({
     const dagPlanning = dagPlanningRuw.filter((p) =>
       eigenProjectIds.has(p.projectId.toString())
     );
-    const urenVandaag = urenVandaagRuw.filter((u) =>
-      eigenProjectIds.has(u.projectId.toString())
-    );
+    const bronnen = await Promise.all(eigenProjecten.map(p => projectUrenRegistraties(ctx, p)));
+    const conflictProjectIds = new Set(eigenProjecten.filter((_, i) => bronnen[i].status === "conflict").map(p => p._id));
+    const urenVandaag = bronnen.flatMap(b => b.registraties).filter(u => u.datum === today);
+
 
     // Get unique project IDs for today
     const projectIds = [...new Set(dagPlanning.map((p) => p.projectId))];
@@ -112,14 +110,13 @@ export const getVoormanStats = query({
           const heeftUren = urenVandaag.some(
             (u) =>
               u.projectId === projectId &&
-              (u.medewerkerId?.toString() === mId.toString() ||
-                (mw !== undefined && u.medewerker === mw.naam))
+              (u.medewerkerId ? u.medewerkerId === mId.toString() : (mw !== undefined && u.medewerker === mw.naam))
           );
           return {
             id: mId,
             naam: mw?.naam ?? "Onbekend",
             functie: mw?.functie ?? "",
-            heeftUren,
+            heeftUren: conflictProjectIds.has(projectId) ? null : heeftUren,
           };
         });
 
@@ -167,21 +164,21 @@ export const getVoormanStats = query({
         // Zelfde naam-vs-id-verwarring als hierboven: naam of getypte id.
         const ingevuld = urenVandaag.some(
           (u) =>
-            u.medewerkerId?.toString() === mw._id.toString() ||
-            u.medewerker === mw.naam
+            u.medewerkerId ? u.medewerkerId === mw._id.toString() : u.medewerker === mw.naam
         );
         return {
           id: mw._id,
           naam: mw.naam,
           functie: mw.functie ?? "",
           gepland,
-          ingevuld,
+          ingevuld: dagPlanning.some(p => p.medewerkerId === mw._id && conflictProjectIds.has(p.projectId)) ? null : ingevuld,
         };
       })
       .filter((m) => m.gepland); // Only show planned medewerkers
 
     return {
       datum: today,
+      urenBronConflicten: eigenProjecten.filter(p => conflictProjectIds.has(p._id)).map(p => ({ projectId: p._id, naam: p.naam })),
       projecten: projectOverzichten.filter(Boolean),
       urenOverzicht,
       totaalGepland: dagPlanning.length,

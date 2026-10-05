@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { VeldKlusKiezer } from "./veld-klus-kiezer";
 import {
   Dialog,
   DialogContent,
@@ -46,7 +47,10 @@ const CATEGORIE_LABELS: Record<string, string> = {
   onderhoud_materiaal: "Onderhoud materiaal",
   afvalverwerker_bes: "Afvalverwerker (BES)",
   anders: "Anders",
+  loods: "Loods",
+  laden: "Laden",
 };
+const ANDERS_WERKSOORTEN = ["Winkel", "Loods opruimen", "Vergadering", "Administratie", "Bezichtiging", "Inspectie"] as const;
 
 export function SegmentenLijst({
   dag,
@@ -208,6 +212,7 @@ export function SegmentenLijst({
                     „{segment.notitie}”
                   </span>
                 )}
+                {segment.werksoort && <span className="text-xs text-muted-foreground">{segment.werksoort}</span>}
                 {segment.status === "ingediend" && (
                   <Badge variant="outline">ingediend</Badge>
                 )}
@@ -247,8 +252,12 @@ function NieuwSegmentDialog({
   const [eindTijd, setEindTijd] = useState("08:00");
   const [werkitemId, setWerkitemId] = useState<string>("");
   const [notitie, setNotitie] = useState("");
+  const [werksoort, setWerksoort] = useState<(typeof ANDERS_WERKSOORTEN)[number] | undefined>();
+  const [opslaan, setOpslaan] = useState(false);
 
   const handleOpslaan = async () => {
+    if (opslaan) return;
+    setOpslaan(true);
     try {
       await bevestigSegment({
         datum,
@@ -259,6 +268,7 @@ function NieuwSegmentDialog({
           ? (werkitemId as Id<"projecten">)
           : undefined,
         notitie: notitie.trim() || undefined,
+        werksoort: categorie === "anders" ? werksoort : undefined,
         bron: "handmatig",
         ...medewerkerArg,
       });
@@ -266,7 +276,7 @@ function NieuwSegmentDialog({
       setNotitie("");
     } catch (fout) {
       toast.error(fout instanceof Error ? fout.message : "Opslaan is mislukt");
-    }
+    } finally { setOpslaan(false); }
   };
 
   return (
@@ -277,7 +287,7 @@ function NieuwSegmentDialog({
           Segment
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Segment toevoegen</DialogTitle>
         </DialogHeader>
@@ -297,6 +307,7 @@ function NieuwSegmentDialog({
               </SelectContent>
             </Select>
           </div>
+          {categorie === "anders" && <div className="grid gap-1.5"><Label htmlFor="segment-werksoort">Werksoort</Label><Select value={werksoort} onValueChange={v => setWerksoort(v as (typeof ANDERS_WERKSOORTEN)[number])}><SelectTrigger id="segment-werksoort"><SelectValue placeholder="Kies de activiteit" /></SelectTrigger><SelectContent>{ANDERS_WERKSOORTEN.map(w => <SelectItem key={w} value={w}>{w}</SelectItem>)}</SelectContent></Select></div>}
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5">
               <Label htmlFor="segment-begin">Begin</Label>
@@ -336,6 +347,8 @@ function NieuwSegmentDialog({
                   ))}
                 </SelectContent>
               </Select>
+              {werkitemId && !dag.stops.some(s => s.werkitemId === werkitemId) && <p className="text-xs text-muted-foreground">Nieuwe klus gekozen; deze verschijnt zo op je dagkaart.</p>}
+              {dag.isEigenDag && <VeldKlusKiezer datum={datum} onSelect={setWerkitemId} />}
             </div>
           )}
           <div className="grid gap-1.5">
@@ -349,7 +362,7 @@ function NieuwSegmentDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button onClick={handleOpslaan}>Opslaan</Button>
+          <Button disabled={opslaan || (categorie === "werken" && !werkitemId) || (categorie === "anders" && !werksoort)} onClick={handleOpslaan}>{opslaan ? "Opslaan…" : "Opslaan"}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -13,6 +13,7 @@
  * gedeelde link werkt in elk gezicht.
  */
 
+import { EigenUrenExport } from "./eigen-uren-export";
 import { useMemo } from "react";
 import Link from "next/link";
 import { useQuery } from "convex/react";
@@ -143,6 +144,7 @@ export function MijnWeekGezicht() {
         <GeenKoppeling />
       ) : (
         <div className="flex flex-col gap-4">
+          <EigenUrenExport weekStart={weekStart} />
           <SectiePaneel
             kopbalk
             titel="Jouw week"

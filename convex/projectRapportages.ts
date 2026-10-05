@@ -1,3 +1,4 @@
+import { vereisProjectUrenViaId } from "./lib/projectUrenBron";
 /**
  * Project Rapportages - Project reporting and analytics
  *
@@ -468,10 +469,7 @@ export const getProjectVoortgang = query({
       ]),
       Promise.all(
         projectIds.map((id) =>
-          ctx.db
-            .query("urenRegistraties")
-            .withIndex("by_project", (q) => q.eq("projectId", id))
-            .collect()
+          vereisProjectUrenViaId(ctx, id)
         )
       ),
       // offerteId kan ontbreken bij losse werkitems; positie behouden met null
@@ -734,10 +732,7 @@ export const getProjectTimeline = query({
     // Get all urenRegistraties for these projects
     const urenResults = await Promise.all(
       projectIds.map((id) =>
-        ctx.db
-          .query("urenRegistraties")
-          .withIndex("by_project", (q) => q.eq("projectId", id))
-          .collect()
+        vereisProjectUrenViaId(ctx, id)
       )
     );
 

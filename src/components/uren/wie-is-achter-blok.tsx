@@ -25,8 +25,8 @@ export function WieIsAchterBlok({ achter }: { achter: AchterloperRegel[] }) {
         titel="Wie is achter?"
         icoon={<UserCheck aria-hidden />}
         legeRegel={{
-          tekst: "Iedereen is bij.",
-          hint: "Elke werkdag van deze week is ingediend.",
+          tekst: "Geen achterstallige indieningen.",
+          hint: "Controleer hieronder ook geplande klussen zonder uren.",
         }}
         uitleg="Medewerkers met een werkdag in deze week waarvan de uren nog niet zijn ingediend."
       />

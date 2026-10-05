@@ -113,7 +113,7 @@ export async function werkitemsVoorTeamDag(
 export async function dagkaartStandaardenVoor(
   db: QueryDb,
   orgId: Id<"organisaties">,
-  teamId: Id<"teams">,
+  teamId: Id<"teams"> | undefined,
   datum: string
 ) {
   const [instellingen, afwijking] = await Promise.all([
@@ -121,12 +121,12 @@ export async function dagkaartStandaardenVoor(
       .query("instellingen")
       .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .unique(),
-    db
+    teamId ? db
       .query("dagkaartAfwijkingen")
       .withIndex("by_team_datum", (q) =>
         q.eq("teamId", teamId).eq("datum", datum)
       )
-      .unique(),
+      .unique() : Promise.resolve(null),
   ]);
   const geldigeAfwijking =
     afwijking && afwijking.orgId?.toString() === orgId.toString()

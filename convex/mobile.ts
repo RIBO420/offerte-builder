@@ -1,3 +1,4 @@
+import { projectUrenBron } from "./lib/projectUrenBron";
 /**
  * Mobile App Backend Functions
  *
@@ -180,7 +181,7 @@ export const getProjectDetailsForMedewerker = query({
 
     // Check if medewerker is in the team (admins bypass team check)
     const teamleden = voorcalculatie?.teamleden ?? [];
-    const isInTeam = medewerker ? teamleden.includes(medewerker.naam) : false;
+    const isInTeam = medewerker ? project.toegewezenMedewerkerIds !== undefined ? project.toegewezenMedewerkerIds.includes(medewerker._id) : teamleden.includes(medewerker.naam) : false;
 
     if (!isInTeam && !userIsAdmin) {
       throw new ConvexError("Je bent niet toegewezen aan dit project");
@@ -231,23 +232,11 @@ export const getProjectDetailsForMedewerker = query({
     // Sort tasks by volgorde
     const sortedTaken = planningTaken.sort((a, b) => a.volgorde - b.volgorde);
 
-    // Get uren registraties for this medewerker
-    const allUrenRegistraties = await ctx.db
-      .query("urenRegistraties")
-      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-      .collect();
-
-    // Filter to this medewerker's hours (admins see all hours)
-    const mijnUren = userIsAdmin && !medewerker
-      ? allUrenRegistraties
-      : allUrenRegistraties.filter(
-          (u) =>
-            u.medewerker === medewerker?.naam ||
-            u.medewerkerClerkId === user.clerkId
-        );
-
-    // Calculate total hours for this medewerker
-    const totaalUren = mijnUren.reduce((sum, u) => sum + u.uren, 0);
+    const urenBron = await projectUrenBron(ctx, project);
+    const mijnUren = (userIsAdmin && !medewerker ? urenBron.regels : urenBron.regels.filter(u =>
+      u.medewerkerId ? u.medewerkerId === medewerker?._id : ((medewerker && u.medewerker === medewerker.naam) || u.medewerkerClerkId === user.clerkId)
+    )).map(u => ({ ...u, _id: u.id, uren: u.minuten / 60 }));
+    const totaalUren = urenBron.status === "conflict" ? null : mijnUren.reduce((sum, u) => sum + u.uren, 0);
 
     // Voorcalculatie info (excluding any financial data, just scope and team info)
     const voorcalculatieInfo = voorcalculatie
@@ -266,6 +255,8 @@ export const getProjectDetailsForMedewerker = query({
       project: {
         _id: project._id,
         naam: project.naam,
+        startDatum: project.geplandeStart ?? null,
+        deadline: project.geplandeEind ?? null,
         status: project.status,
         createdAt: project.createdAt,
         updatedAt: project.updatedAt,
@@ -300,7 +291,9 @@ export const getProjectDetailsForMedewerker = query({
         notities: u.notities,
         bron: u.bron,
       })),
-      totaalUren: Math.round(totaalUren * 100) / 100,
+      totaalUren: totaalUren === null ? null : Math.round(totaalUren * 100) / 100,
+      urenBronConflict: urenBron.status === "conflict",
+      urenBron: urenBron.bron,
     };
   },
 });

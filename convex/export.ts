@@ -22,6 +22,7 @@ import { adresRegel } from "./lib/adres";
 import { klantVeld } from "./lib/offerteKlant";
 import { requireAdmin, requireKantoor } from "./roles";
 import { voorcalculatieVanProject, voorcalculatieVanOfferte } from "./lib/voorcalculatieLookup";
+import { vereisProjectUrenRegistraties } from "./lib/projectUrenBron";
 
 // ============================================
 // Status and Type Labels
@@ -196,6 +197,8 @@ export const exportProjecten = query({
         const offerte = project.offerteId
           ? await ctx.db.get(project.offerteId)
           : null;
+        const klant = project.klantId ? await ctx.db.get(project.klantId) : null;
+        const eigenKlant = klant?.orgId === orgId ? klant : null;
 
         // Get voorcalculatie for begrote uren
         let voorcalculatie = await voorcalculatieVanProject(ctx, project._id);
@@ -205,10 +208,7 @@ export const exportProjecten = query({
         }
 
         // Get totaal geregistreerde uren
-        const urenRegistraties = await ctx.db
-          .query("urenRegistraties")
-          .withIndex("by_project", (q) => q.eq("projectId", project._id))
-          .collect();
+        const urenRegistraties = await vereisProjectUrenRegistraties(ctx, project);
 
         const totaalGeregistreerdeUren = urenRegistraties.reduce(
           (sum, u) => sum + u.uren,
@@ -219,8 +219,8 @@ export const exportProjecten = query({
           projectNaam: project.naam,
           status: projectStatusLabels[project.status] ?? project.status,
           offerteNummer: offerte?.offerteNummer ?? "",
-          klantNaam: offerte?.klant?.naam ?? "",
-          klantPlaats: offerte?.klant?.plaats ?? "",
+          klantNaam: offerte?.klant?.naam ?? eigenKlant?.naam ?? "",
+          klantPlaats: offerte?.klant?.plaats ?? eigenKlant?.plaats ?? "",
           offerteBedrag: offerte?.totalen?.totaalInclBtw ?? 0,
           begroteUren: voorcalculatie?.normUrenTotaal ?? 0,
           geregistreerdeUren: Math.round(totaalGeregistreerdeUren * 10) / 10,
@@ -357,19 +357,12 @@ export const exportMedewerkers = query({
       .query("projecten")
       .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
-    const urenArrays = await Promise.all(
-      projecten.map((project) =>
-        ctx.db
-          .query("urenRegistraties")
-          .withIndex("by_project", (q) => q.eq("projectId", project._id))
-          .collect()
-      )
-    );
+    const urenArrays = await Promise.all(projecten.map(project => vereisProjectUrenRegistraties(ctx, project)));
     const urenRegistraties = urenArrays.flat();
 
     return medewerkers.map((medewerker) => {
       const medewerkerUren = urenRegistraties.filter(
-        (ur) => ur.medewerker === medewerker.naam
+        (ur) => ur.medewerkerId ? ur.medewerkerId === medewerker._id : ur.medewerker === medewerker.naam
       );
       const totaalUren = medewerkerUren.reduce((sum, ur) => sum + ur.uren, 0);
 

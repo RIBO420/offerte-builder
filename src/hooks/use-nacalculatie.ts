@@ -95,7 +95,7 @@ export function useNacalculatie(projectId: Id<"projecten"> | null) {
 
   // Client-side calculated result (for display purposes)
   const clientCalculation = useMemo((): NacalculatieResult | null => {
-    if (!details?.voorcalculatie || !details?.urenRegistraties) return null;
+    if (!details?.voorcalculatie || !details?.urenRegistraties || details.urenBronConflict) return null;
 
     return calculateNacalculatie({
       voorcalculatie: {

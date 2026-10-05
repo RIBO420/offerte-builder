@@ -8,6 +8,7 @@
  * de dagkaart zelf; hier staan de bedrijfsbrede standaarden.
  */
 
+import { MateriaalRegelsPaneel } from "@/components/veld/materiaal-regels-paneel";
 import { useState } from "react";
 import { useMutation } from "convex/react";
 import { toast } from "sonner";
@@ -67,7 +68,8 @@ export function DagkaartTab({
   };
 
   return (
-    <div>
+    <div className="space-y-4">
+      <MateriaalRegelsPaneel />
       <Card>
         <CardHeader>
           <CardTitle>Dagkaart — standaardblokken</CardTitle>

@@ -27,6 +27,8 @@ export type SegmentCategorie =
   | "pauze"
   | "reistijd"
   | "teammeeting"
+  | "loods"
+  | "laden"
   | "onderhoud_materiaal"
   | "afvalverwerker_bes"
   | "anders";
@@ -45,6 +47,8 @@ export const CATEGORIE_LABEL: Record<SegmentCategorie, string> = {
   pauze: "pauze",
   reistijd: "reistijd",
   teammeeting: "teammeeting",
+  loods: "loods",
+  laden: "laden",
   onderhoud_materiaal: "onderhoud materiaal",
   afvalverwerker_bes: "afvalverwerker (BES)",
   anders: "anders",

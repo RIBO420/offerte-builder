@@ -80,9 +80,9 @@ export function weekZin(weekLabel: string, stand: WeekStand): string {
  */
 export function exportRegel(stand: WeekStand): string {
   if (stand.afwijkend === 0 && stand.achter === 0) {
-    return "De week is compleet — de export naar loon kan door.";
+    return "Controleer ook open dagen en klusdekking vóór de loonexport.";
   }
-  return "De export naar loon kan zodra beide lijsten leeg zijn.";
+  return "Werk de controlelijsten bij en controleer de klusdekking vóór de loonexport.";
 }
 
 export function ControlekamerKop({

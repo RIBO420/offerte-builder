@@ -1,3 +1,4 @@
+import { vereisProjectUrenViaId } from "./lib/projectUrenBron";
 /**
  * Project Kosten Functions - Real-time project cost tracking
  *
@@ -69,10 +70,7 @@ async function calculateArbeidskosten(
   startDate?: string,
   endDate?: string
 ) {
-  const urenRegistraties = await ctx.db
-    .query("urenRegistraties")
-    .withIndex("by_project", (q) => q.eq("projectId", projectId))
-    .collect();
+  const urenRegistraties = await vereisProjectUrenViaId(ctx, projectId);
 
   // Get instellingen for uurtarief
   const instellingen = await instellingenVanOrg(ctx, orgId);
@@ -100,7 +98,7 @@ async function calculateArbeidskosten(
 
   // Calculate costs per entry
   const kostenItems = filteredUren.map((u) => {
-    const uurtarief = medewerkerTarieven.get(u.medewerker) || standaardUurtarief;
+    const uurtarief = (u.medewerkerId ? medewerkers.find(m => m._id === u.medewerkerId)?.uurtarief : medewerkerTarieven.get(u.medewerker)) ?? standaardUurtarief;
     return {
       id: u._id.toString(),
       type: "arbeid" as const,
@@ -111,7 +109,7 @@ async function calculateArbeidskosten(
       eenheid: "uur",
       prijsPerEenheid: uurtarief,
       totaal: u.uren * uurtarief,
-      bron: "urenRegistraties" as const,
+      bron: u.bronTabel,
       bronId: u._id.toString(),
       medewerker: u.medewerker,
       notities: u.notities,
@@ -331,28 +329,8 @@ export const getById = query({
     await getOwnedProject(ctx, args.projectId);
 
     if (args.type === "arbeid") {
-      const uren = await ctx.db.get(args.id as Id<"urenRegistraties">);
-      if (!uren || uren.projectId !== args.projectId) return null;
-
-      // Get instellingen for uurtarief
-      const instellingen = await instellingenVanOrg(ctx, orgId);
-      const uurtarief = instellingen?.uurtarief || 45;
-
-      return {
-        id: uren._id.toString(),
-        type: "arbeid" as const,
-        datum: uren.datum,
-        omschrijving: `${uren.medewerker} - ${uren.uren} uur`,
-        scope: uren.scope || "algemeen",
-        hoeveelheid: uren.uren,
-        eenheid: "uur",
-        prijsPerEenheid: uurtarief,
-        totaal: uren.uren * uurtarief,
-        medewerker: uren.medewerker,
-        notities: uren.notities,
-        bron: "urenRegistraties" as const,
-        bronId: uren._id.toString(),
-      };
+      const kosten = await calculateArbeidskosten(ctx, args.projectId, orgId);
+      return kosten.find(k => k.id === args.id) ?? null;
     }
 
     if (args.type === "machine") {
@@ -1287,10 +1265,7 @@ export const getBudgetStatus = query({
     if (budget <= 0) return { budget: 0, werkelijkeKosten: 0, percentage: 0, drempel80: false, drempel100: false };
 
     // Bereken werkelijke kosten uit uren + machines + projectKosten tabel
-    const uren = await ctx.db
-      .query("urenRegistraties")
-      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-      .collect();
+    const uren = await vereisProjectUrenViaId(ctx, args.projectId);
 
     const machines = await ctx.db
       .query("machineGebruik")
@@ -1354,10 +1329,7 @@ export const checkBudgetThreshold = mutation({
     if (budget <= 0) return;
 
     // Bereken werkelijke kosten
-    const uren = await ctx.db
-      .query("urenRegistraties")
-      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-      .collect();
+    const uren = await vereisProjectUrenViaId(ctx, args.projectId);
     const machines = await ctx.db
       .query("machineGebruik")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))

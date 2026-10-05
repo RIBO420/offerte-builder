@@ -1,3 +1,4 @@
+import { projectUrenBron } from "./lib/projectUrenBron";
 import { v, ConvexError } from "convex/values";
 import {
   mutation,
@@ -372,10 +373,7 @@ export const getFullDashboardData = query({
       // Batch 3: Fetch urenRegistraties by project IDs
       Promise.all(
         projectIds.map((projectId) =>
-          ctx.db
-            .query("urenRegistraties")
-            .withIndex("by_project", (q) => q.eq("projectId", projectId))
-            .collect()
+          projectUrenBron(ctx, activeProjectsRaw.find(p => p._id === projectId)!)
         )
       ),
     ]);
@@ -394,12 +392,12 @@ export const getFullDashboardData = query({
       const begroteUren = voorcalculatie?.normUrenTotaal || 0;
 
       // Get uren registraties for totaal uren
-      const urenRegistraties = urenByProject[index] || [];
-      const totaalUren = urenRegistraties.reduce((sum, u) => sum + u.uren, 0);
+      const urenSelectie = urenByProject[index];
+      const totaalUren = urenSelectie.minuten === null ? null : urenSelectie.minuten / 60;
 
       // Calculate voortgang percentage (0-100)
       let voortgang = 0;
-      if (begroteUren > 0) {
+      if (begroteUren > 0 && totaalUren !== null) {
         voortgang = Math.min(100, Math.round((totaalUren / begroteUren) * 100));
       }
 
@@ -407,8 +405,9 @@ export const getFullDashboardData = query({
         _id: project._id,
         naam: project.naam,
         status: project.status,
-        voortgang,
-        totaalUren: Math.round(totaalUren * 10) / 10,
+        voortgang: totaalUren === null ? null : voortgang,
+        urenBronConflict: urenSelectie.status === "conflict",
+        totaalUren: totaalUren === null ? null : Math.round(totaalUren * 10) / 10,
         begroteUren: Math.round(begroteUren * 10) / 10,
         klantNaam,
       };

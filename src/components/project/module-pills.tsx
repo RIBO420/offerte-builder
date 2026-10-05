@@ -23,7 +23,7 @@ interface ModulePillsProps {
   hasWerklocatie: boolean;
   werklocatieLabel: string;
   planningTaken: { total: number; done: number };
-  geregistreerdeUren: number;
+  geregistreerdeUren: number | null;
   normUrenTotaal: number | null;
   nacalculatieAfwijking: number | null;
   onWerklocatieClick: () => void;
@@ -62,7 +62,7 @@ export function ModulePills({
   // WS6-fusie: de pills Planning en Uitvoering zíjn de voortgangscards —
   // geen aparte rij focus-cards meer met dezelfde getallen.
   const urenPercentage =
-    normUrenTotaal && normUrenTotaal > 0
+    normUrenTotaal && normUrenTotaal > 0 && geregistreerdeUren !== null
       ? Math.round((geregistreerdeUren / normUrenTotaal) * 100)
       : 0;
   const planningPercentage =
@@ -86,11 +86,11 @@ export function ModulePills({
       key: "uitvoering",
       icon: Clock,
       label: "Uitvoering",
-      groot: geregistreerdeUren.toFixed(1),
-      klein: `/ ${normUrenTotaal?.toFixed(1) ?? "—"} uur`,
+      groot: geregistreerdeUren === null ? "Bron kiezen" : geregistreerdeUren.toFixed(1),
+      klein: geregistreerdeUren === null ? "" : `/ ${normUrenTotaal?.toFixed(1) ?? "—"} uur`,
       percentage: urenPercentage,
-      sub: `${geschatteDagen?.toFixed(1) ?? "—"} dagen geschat · ${teamGrootte ?? "—"} teamleden`,
-      href: `/projecten/${projectId}/uitvoering`,
+      sub: geregistreerdeUren === null ? "Kies welke urenbron meetelt" : `${geschatteDagen?.toFixed(1) ?? "—"} dagen geschat · ${teamGrootte ?? "—"} teamleden`,
+      href: `/projecten/${projectId}/${geregistreerdeUren === null ? "nacalculatie" : "uitvoering"}`,
       highlighted: effectiveStatus === "in_uitvoering",
     },
   ];
