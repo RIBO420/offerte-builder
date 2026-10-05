@@ -10,7 +10,7 @@
  * rapportage.ts schrijft, valt hij hier om.
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { getAdminDashboardData } from "../../../../convex/dashboard";
 import { getRapportage } from "../../../../convex/rapportage";
 import {
@@ -248,7 +248,15 @@ function maakFactuur(
   };
 }
 
+// Het dashboard rekent met de echte klok; zet die vast op NU, anders faalt de
+// kwartaalvergelijking zodra Q3 2026 voorbij is.
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(NU);
   db = new FakeDb();
   ctx = {
     db,

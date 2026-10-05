@@ -246,7 +246,7 @@ export default function DashboardPage() {
                         >
                           <div
                             className="h-full bg-orange-600 rounded-full transition-all duration-500"
-                            style={{ width: `${project.voortgang === null ? "Urenbron kiezen" : `${project.voortgang}%`}` }}
+                            style={{ width: `${project.voortgang ?? 0}%` }}
                           />
                         </div>
                         <div className="flex justify-between mt-1.5 text-xs text-muted-foreground">
