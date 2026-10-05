@@ -107,7 +107,7 @@ export default function LoginScreen() {
       if (!devLoginUrl) {
         throw new Error(
           'EXPO_PUBLIC_DEV_LOGIN_URL is niet geconfigureerd. ' +
-          'Stel een server-side dev-login endpoint in en voeg de URL toe aan .env.local.'
+          'Start `npm run dev:login -- --mobiel` en zet de geprinte URL in mobile/.env.local.'
         );
       }
 
@@ -128,8 +128,9 @@ export default function LoginScreen() {
       });
 
       if (result.status === 'complete') {
+        // Geen router.replace: OrgGate remount de stack na setActive en de
+        // isSignedIn-effect hierboven navigeert al (anders 'REPLACE not handled').
         await setActive({ session: result.createdSessionId });
-        router.replace('/(tabs)');
       } else {
         setLoginState('error');
         setErrorMessage('Dev login niet compleet: ' + result.status);

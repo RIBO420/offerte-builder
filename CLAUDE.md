@@ -34,7 +34,8 @@ Deploy: `git push origin main` = Vercel-productiebuild; Convex is een losse stap
 (`npx convex deploy`). Deploy Convex vanuit een schone werkboom, anders gaat
 ongecommit schema mee. Dev-deployment: `affable-rook-669`, prod: `impartial-dinosaur-829`.
 
-Mobiel: `cd mobile && npx expo start --ios`. `mobile/.npmrc` zet `legacy-peer-deps=true`
+Mobiel: `cd mobile && npx expo start --ios`; inloggen zonder wachtwoord via
+`npm run dev:login -- --mobiel` + de Dev Login-knop (→ docs/dev/dev-omgeving.md). `mobile/.npmrc` zet `legacy-peer-deps=true`
 — niet verwijderen, anders faalt `npm ci` (o.a. in EAS Build).
 
 ## Harde regels

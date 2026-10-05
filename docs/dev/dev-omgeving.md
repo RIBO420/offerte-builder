@@ -47,6 +47,14 @@ Twee valkuilen die je anders opnieuw ontdekt:
   `.json` in `public/` wordt door clerkMiddleware afgeschermd (307 naar `/`).
 
 Ander account: `npm run dev:login -- --email iemand@toptuinen.nl`.
+
+**Mobiele app (Expo):** `npm run dev:login -- --mobiel` start een token-server op
+`127.0.0.1:4599` (15 min) voor het account in `DEV_LOGIN_MOBIEL_EMAIL`. Zet
+`EXPO_PUBLIC_DEV_LOGIN_URL=http://127.0.0.1:4599` in `mobile/.env.local`, herstart Expo
+en tik op "Dev Login (medewerker)". Echte telefoon: `--mobiel --lan` en het geprinte
+LAN-adres. Lukt `npx expo start --ios` niet ("Can't determine id of Simulator app"):
+`xcrun simctl boot "iPhone 17 Pro"`, `npx expo start --go --localhost` en daarna
+`xcrun simctl launch booted host.exp.Exponent` (opent het laatste project).
 Achtergebleven ticket: `npm run dev:login -- --clean`.
 
 ## Demodata in de dev-deployment — `seed:demo` / `seed:clear`

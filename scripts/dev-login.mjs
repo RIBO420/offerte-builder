@@ -40,12 +40,26 @@
  * inloggen gebeurt via de gewone Clerk-sessie, alleen met een ticket in plaats
  * van een wachtwoord.
  *
+ * MOBIELE APP (`--mobiel`)
+ * ------------------------
+ * De Expo-app heeft een "Dev Login"-knop (alleen in __DEV__) die een token
+ * POST't naar `EXPO_PUBLIC_DEV_LOGIN_URL`. Een native app valt niet onder de
+ * web-CSP, dus hier wél een kortlevend servertje — nog steeds buiten `src/`,
+ * zodat er geen auth-omzeilende route in de webapp komt. Elke POST levert een
+ * vers token van 120 s voor het medewerkeraccount (`--email` of
+ * DEV_LOGIN_MOBIEL_EMAIL). Standaard alleen op 127.0.0.1 (simulator); `--lan`
+ * luistert ook op het netwerk voor een echte telefoon in hetzelfde wifi.
+ *
  * Gebruik:
  *   npm run dev:login                 # gebruikt E2E_CLERK_USER_EMAIL
  *   npm run dev:login -- --email x@y  # of expliciet een ander account
+ *   npm run dev:login -- --mobiel     # token-server voor de Expo-app (15 min)
+ *   npm run dev:login -- --mobiel --lan
  */
 
 import { readFileSync, writeFileSync, rmSync } from "node:fs";
+import { createServer } from "node:http";
+import { networkInterfaces } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -191,8 +205,8 @@ async function zoekGebruikerId(email) {
   const gebruiker = Array.isArray(lijst) ? lijst[0] : lijst?.data?.[0];
   if (!gebruiker) {
     throw new Error(
-      `Geen Clerk-gebruiker gevonden met e-mailadres uit E2E_CLERK_USER_EMAIL ` +
-        `(of --email). Controleer het account in het Clerk-dashboard.`,
+      `Geen Clerk-gebruiker gevonden met e-mailadres ${email}. ` +
+        `Controleer het account in het Clerk-dashboard.`,
     );
   }
   return gebruiker.id;
@@ -272,6 +286,62 @@ function legTicketKlaar(ticket) {
 }
 
 // ---------------------------------------------------------------------------
+// Mobiel: kortlevende token-server voor de Dev Login-knop van de Expo-app
+// ---------------------------------------------------------------------------
+
+const MOBIEL_POORT = Number(process.env.DEV_LOGIN_MOBIEL_POORT ?? 4599);
+const MOBIEL_TTL_MS = Number(process.env.DEV_LOGIN_MOBIEL_TTL_MS ?? 15 * 60_000);
+const MOBIEL_TOKEN_TTL_SECONDS = 120;
+
+function lanAdres() {
+  for (const lijst of Object.values(networkInterfaces())) {
+    for (const nic of lijst ?? []) {
+      if (nic.family === "IPv4" && !nic.internal) return nic.address;
+    }
+  }
+  return null;
+}
+
+function startMobieleServer(userId, email, lan) {
+  const server = createServer(async (req, res) => {
+    if (req.method !== "POST") {
+      res.writeHead(405).end();
+      return;
+    }
+    try {
+      const token = await clerkFetch("/sign_in_tokens", {
+        method: "POST",
+        body: JSON.stringify({ user_id: userId, expires_in_seconds: MOBIEL_TOKEN_TTL_SECONDS }),
+      });
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ token: token.token }));
+      console.log(`[dev-login] Token uitgegeven aan de app (${email}).`);
+    } catch (fout) {
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Token aanmaken mislukt" }));
+      console.error("[dev-login] Token aanmaken mislukt: " + fout.message);
+    }
+  });
+
+  const host = lan ? "0.0.0.0" : "127.0.0.1";
+  server.listen(MOBIEL_POORT, host, () => {
+    const adres = lan ? lanAdres() ?? "<lan-ip>" : "127.0.0.1";
+    console.log("");
+    console.log(`[dev-login] Mobiele token-server luistert op http://${adres}:${MOBIEL_POORT}`);
+    console.log("[dev-login] Zet in mobile/.env.local en herstart Expo:");
+    console.log(`  EXPO_PUBLIC_DEV_LOGIN_URL=http://${adres}:${MOBIEL_POORT}`);
+    console.log(
+      `[dev-login] Stopt vanzelf over ${Math.round(MOBIEL_TTL_MS / 60_000)} min (of Ctrl-C).`,
+    );
+  });
+
+  setTimeout(() => {
+    console.log("[dev-login] Mobiele token-server gestopt.");
+    process.exit(0);
+  }, MOBIEL_TTL_MS);
+}
+
+// ---------------------------------------------------------------------------
 
 async function main() {
   // `--clean` verwijdert alleen een achtergebleven ticketbestand.
@@ -283,14 +353,20 @@ async function main() {
 
   controleerLokaleOmgeving();
 
+  const mobiel = process.argv.includes("--mobiel");
   const argIndex = process.argv.indexOf("--email");
   const email =
-    argIndex !== -1 ? process.argv[argIndex + 1] : env("E2E_CLERK_USER_EMAIL");
+    argIndex !== -1
+      ? process.argv[argIndex + 1]
+      : mobiel
+        ? env("DEV_LOGIN_MOBIEL_EMAIL")
+        : env("E2E_CLERK_USER_EMAIL");
 
   if (!email) {
     console.error(
-      "[dev-login] Geen e-mailadres. Zet E2E_CLERK_USER_EMAIL in .env.local " +
-        "of geef --email <adres> mee.",
+      "[dev-login] Geen e-mailadres. Zet " +
+        (mobiel ? "DEV_LOGIN_MOBIEL_EMAIL" : "E2E_CLERK_USER_EMAIL") +
+        " in .env.local of geef --email <adres> mee.",
     );
     process.exit(1);
   }
@@ -298,6 +374,11 @@ async function main() {
   console.log("[dev-login] Clerk dev-instance OK. Gebruiker opzoeken…");
   const userId = await zoekGebruikerId(email);
   console.log("[dev-login] Gebruiker gevonden: " + userId);
+
+  if (mobiel) {
+    startMobieleServer(userId, email, process.argv.includes("--lan"));
+    return;
+  }
 
   const ticket = await maakSignInToken(userId);
   legTicketKlaar(ticket);
