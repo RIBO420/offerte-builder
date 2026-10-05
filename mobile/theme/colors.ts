@@ -43,6 +43,21 @@ export const colors = {
   natureDark: '#1A2E1A',
   natureLight: '#0D1F0D',
 
+  // Premium Organic-veldtokens (okt 2026): zachte primaire tint voor pillen en
+  // icoontegels, het natuurverloop van het heldvlak en de statusfamilie.
+  primarySoft: 'rgba(74,222,128,0.12)',
+  gradientStart: '#1C331C',
+  gradientEnd: '#0C1A0D',
+  gradientBorder: 'rgba(74,222,128,0.18)',
+  success: '#4ADE80',
+  successSoft: 'rgba(74,222,128,0.12)',
+  warning: '#FBBF24',
+  warningSoft: 'rgba(251,191,36,0.14)',
+  info: '#7DB4FA',
+  infoSoft: 'rgba(96,165,250,0.14)',
+  danger: '#F87171',
+  dangerSoft: 'rgba(248,113,113,0.14)',
+
   // Scope Colors (Garden Theme - Brand Identity)
   scope: {
     grondwerk: '#8B7355',
@@ -114,6 +129,19 @@ export const lightColors: Partial<ColorScheme> = {
   natureDark: '#E8F5E9',
   natureLight: '#F1F8F1',
 
+  primarySoft: 'rgba(45,90,39,0.09)',
+  gradientStart: '#E2F0E0',
+  gradientEnd: '#F6FAF4',
+  gradientBorder: 'rgba(45,90,39,0.16)',
+  success: '#2D7A3E',
+  successSoft: 'rgba(45,122,62,0.10)',
+  warning: '#A15C07',
+  warningSoft: 'rgba(217,119,6,0.12)',
+  info: '#2C6FA0',
+  infoSoft: 'rgba(44,111,160,0.10)',
+  danger: '#B91C1C',
+  dangerSoft: 'rgba(185,28,28,0.09)',
+
   // Scope-kleuren, verdonkerd voor leesbaarheid op #FAFAF8.
   // De vorige waarden hier waren de dark-mode varianten (+0.1 lightness) en haalden op
   // een lichte achtergrond geen WCAG AA.
@@ -164,4 +192,16 @@ export const buitenColors: Partial<ColorScheme> = {
   surface: '#FFFFFF',
   surfaceElevated: '#F2F2F2',
   surfaceOverlay: '#FFFFFFEE',
+  primarySoft: '#E3F0E6',
+  gradientStart: '#FFFFFF',
+  gradientEnd: '#FFFFFF',
+  gradientBorder: '#000000',
+  success: '#166534',
+  successSoft: '#E3F0E6',
+  warning: '#92400E',
+  warningSoft: '#FDF1E3',
+  info: '#1E40AF',
+  infoSoft: '#E6ECFA',
+  danger: '#B91C1C',
+  dangerSoft: '#FBE7E7',
 };

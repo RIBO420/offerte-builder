@@ -8,7 +8,7 @@ import { ClerkProvider, ClerkLoaded } from '@clerk/clerk-expo';
 import { tokenCache } from '@clerk/clerk-expo/token-cache';
 import { SessieConvexProvider } from '../components/SessieConvexProvider';
 import { CLERK_PUBLISHABLE_KEY } from '../lib/env';
-import { ThemeProvider } from '../theme';
+import { ThemeProvider, useTheme } from '../theme';
 import { useCurrentUser } from '../hooks/use-current-user';
 import { usePushNotifications } from '../hooks/use-push-notifications';
 import { RoleProvider } from '../contexts/RoleContext';
@@ -236,13 +236,19 @@ function PushNotificationsInitializer({ children }: { children: React.ReactNode 
  * en de rol-queries niet eens afvuren. Uitgelogd laat de gate alles door, zodat de
  * `(auth)`-loginschermen gewoon renderen.
  */
+/** Statusbalk volgt het thema: lichte tekst op donker, donkere op licht. */
+function ThemaStatusBar() {
+  const { isDark } = useTheme();
+  return <StatusBar style={isDark ? 'light' : 'dark'} />;
+}
+
 function InnerLayout() {
   return (
     <OrgGate>
       <UserSync>
         <RoleProvider>
           <PushNotificationsInitializer>
-            <StatusBar style="light" />
+            <ThemaStatusBar />
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="index" />
               <Stack.Screen name="(auth)" options={{ headerShown: false }} />

@@ -17,7 +17,7 @@ import React, {
 } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { buitenColors, type ColorScheme } from '../../theme/colors';
-import { useColors } from '../../theme';
+import { useColors, useTheme } from '../../theme';
 
 interface BuitenModusContextValue {
   /** Staat de buiten-modus aan? */
@@ -97,4 +97,21 @@ export function useBuitenModus(): BuitenModusContextValue {
     );
   }
   return context;
+}
+
+/**
+ * Actieve kleuren voor gedeelde UI-bouwstenen: binnen een veldscherm de
+ * buiten-modus-tokens, daarbuiten (Home, Profiel) gewoon het thema.
+ */
+export function useVeldKleuren(): ColorScheme {
+  const context = useContext(BuitenModusContext);
+  const themeKleuren = useColors();
+  return context?.kleuren ?? themeKleuren;
+}
+
+/** Donker canvas? Buiten-modus telt als licht. */
+export function useIsDonker(): boolean {
+  const context = useContext(BuitenModusContext);
+  const { isDark } = useTheme();
+  return isDark && !context?.buiten;
 }

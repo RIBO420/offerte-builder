@@ -1,15 +1,11 @@
-import React, { useCallback } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  runOnJS,
-} from 'react-native-reanimated';
+import React, { useCallback, useState } from 'react';
+import { View, Text, Pressable } from 'react-native';
+import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { usePressAnimation } from '../../hooks/use-spring-animation';
 import { hapticPatterns } from '../../theme/haptics';
-import { colors } from '../../theme/colors';
+import { tekst } from '../../theme/typography';
+import { useVeldKleuren } from '../veld/BuitenModus';
 
 interface NotificationBannerProps {
   icon: React.ReactNode;
@@ -21,119 +17,85 @@ interface NotificationBannerProps {
   onDismiss: () => void;
 }
 
-export function NotificationBanner({
-  icon,
-  title,
-  subtitle,
-  time,
-  isUnread = false,
-  onPress,
-  onDismiss,
-}: NotificationBannerProps) {
-  const { animatedStyle: pressStyle, onPressIn, onPressOut } = usePressAnimation();
+/**
+ * Melding als tikbare regel; naar rechts vegen verbergt hem. Een flick telt
+ * ook (snelheid óf afstand), en losgelaten veert hij met de vingersnelheid terug.
+ */
+export function NotificationBanner({ icon, title, subtitle, time, isUnread = false, onPress, onDismiss }: NotificationBannerProps) {
+  const kleuren = useVeldKleuren();
+  const rustig = useReducedMotion();
+  const [ingedrukt, setIngedrukt] = useState(false);
   const translateX = useSharedValue(0);
-  const opacity = useSharedValue(1);
 
-  const handleDismiss = useCallback(() => {
+  const verberg = useCallback(() => {
+    void hapticPatterns.tap();
     onDismiss();
   }, [onDismiss]);
 
-  const panGesture = Gesture.Pan()
-    .activeOffsetX(20)
-    .onUpdate((event) => {
-      if (event.translationX > 0) {
-        translateX.value = event.translationX;
-        opacity.value = 1 - event.translationX / 300;
-      }
+  const pan = Gesture.Pan()
+    .activeOffsetX(16)
+    .failOffsetY([-12, 12])
+    .onUpdate(e => {
+      // Naar links: rubberband, naar rechts: volgt de vinger.
+      translateX.set(e.translationX > 0 ? e.translationX : e.translationX * 0.2);
     })
-    .onEnd((event) => {
-      if (event.translationX > 120) {
-        translateX.value = withTiming(400, { duration: 200 });
-        opacity.value = withTiming(0, { duration: 200 }, () => {
-          runOnJS(handleDismiss)();
-        });
+    .onEnd(e => {
+      if (e.translationX > 110 || e.velocityX > 800) {
+        translateX.set(withTiming(420, { duration: 180 }, klaar => {
+          if (klaar) scheduleOnRN(verberg);
+        }));
       } else {
-        translateX.value = withTiming(0, { duration: 200 });
-        opacity.value = withTiming(1, { duration: 200 });
+        translateX.set(withSpring(0, { duration: 400, dampingRatio: 0.8, velocity: e.velocityX }));
       }
     });
 
-  const swipeStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: translateX.value }],
-    opacity: opacity.value,
+  const stijl = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.get() }],
+    opacity: 1 - Math.min(Math.max(translateX.get(), 0) / 360, 0.8),
   }));
 
-  const handlePress = () => {
-    hapticPatterns.tap();
-    onPress();
-  };
-
   return (
-    <GestureDetector gesture={panGesture}>
-      <Animated.View style={[pressStyle, swipeStyle]}>
+    <GestureDetector gesture={pan}>
+      <Animated.View style={stijl}>
         <Pressable
-          onPress={handlePress}
-          onPressIn={onPressIn}
-          onPressOut={onPressOut}
-          style={styles.container}
+          onPress={() => { void hapticPatterns.tap(); onPress(); }}
+          onPressIn={() => setIngedrukt(true)}
+          onPressOut={() => setIngedrukt(false)}
+          accessibilityRole="button"
+          accessibilityLabel={`${isUnread ? 'Nieuw: ' : ''}${title}. ${subtitle}`}
+          accessibilityHint="Veeg naar rechts om te verbergen"
+          accessibilityActions={[{ name: 'dismiss', label: 'Verbergen' }]}
+          onAccessibilityAction={e => { if (e.nativeEvent.actionName === 'dismiss') onDismiss(); }}
         >
-          {isUnread && <View style={styles.unreadDot} />}
-          <View style={styles.iconArea}>{icon}</View>
-          <View style={styles.content}>
-            <Text style={styles.title} numberOfLines={1}>
-              {title}
-            </Text>
-            <Text style={styles.subtitle} numberOfLines={1}>
-              {subtitle}
-            </Text>
-          </View>
-          <Text style={styles.time}>{time}</Text>
+          <Animated.View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 12,
+              backgroundColor: kleuren.card,
+              borderWidth: 1,
+              borderColor: kleuren.border,
+              borderRadius: 18,
+              paddingVertical: 12,
+              paddingHorizontal: 14,
+              transform: [{ scale: ingedrukt && !rustig ? 0.98 : 1 }],
+              transitionProperty: 'transform',
+              transitionDuration: 120,
+              transitionTimingFunction: 'ease-out',
+            }}
+          >
+            {icon}
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={[tekst.kop, { color: kleuren.foreground, fontSize: 16 }]} numberOfLines={1}>{title}</Text>
+              <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground, fontSize: 14, lineHeight: 19 }]} numberOfLines={2}>{subtitle}</Text>
+            </View>
+            <View style={{ alignItems: 'flex-end', gap: 6, alignSelf: 'flex-start', paddingTop: 2 }}>
+              <Text style={[tekst.bijschrift, tekst.cijfers, { color: kleuren.mutedForeground }]}>{time}</Text>
+              {isUnread && <View accessibilityElementsHidden style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: kleuren.primary }} />}
+            </View>
+          </Animated.View>
         </Pressable>
       </Animated.View>
     </GestureDetector>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1A1A1A',
-    borderWidth: 1,
-    borderColor: '#222',
-    borderRadius: 12,
-    padding: 12,
-    gap: 10,
-  },
-  unreadDot: {
-    position: 'absolute',
-    left: 6,
-    top: '50%',
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#EF4444',
-    marginTop: -3,
-  },
-  iconArea: {
-    marginLeft: 4,
-  },
-  content: {
-    flex: 1,
-    gap: 2,
-  },
-  title: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#E8E8E8',
-  },
-  subtitle: {
-    fontSize: 9,
-    color: '#888',
-  },
-  time: {
-    fontSize: 8,
-    color: colors.inactive,
-    textAlign: 'right',
-  },
-});

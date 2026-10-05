@@ -1,0 +1,498 @@
+/**
+ * Premium Organic-bouwstenen voor de veldapp (okt 2026).
+ *
+ * Eén vormtaal voor Home, Mijn dag en de werkschermen: kaarten op radius 18,
+ * het natuurverloop alleen voor "vandaag"-vlakken, statuspillen met stip,
+ * icoontegels als anker en drukfeedback op elk tikbaar vlak. Alle kleuren komen
+ * uit `useVeldKleuren()`, dus licht, donker en buiten-modus kloppen vanzelf.
+ */
+
+import React, { useState, type ComponentType, type ReactNode } from 'react';
+import {
+  Pressable,
+  Text,
+  View,
+  type AccessibilityState,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
+import Animated, { useReducedMotion } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+import { ChevronLeft, ChevronRight, ChevronRight as Pijl } from 'lucide-react-native';
+import { useIsDonker, useVeldKleuren } from '../veld/BuitenModus';
+import { hapticPatterns, tekst, type ColorScheme } from '../../theme';
+
+type Icoon = ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
+export type Toon = 'primair' | 'succes' | 'wachten' | 'gemist' | 'info' | 'neutraal';
+
+export function toonKleuren(kleuren: ColorScheme, toon: Toon): { voor: string; achter: string } {
+  switch (toon) {
+    case 'primair':
+    case 'succes':
+      return { voor: kleuren.success, achter: kleuren.successSoft };
+    case 'wachten':
+      return { voor: kleuren.warning, achter: kleuren.warningSoft };
+    case 'gemist':
+      return { voor: kleuren.danger, achter: kleuren.dangerSoft };
+    case 'info':
+      return { voor: kleuren.info, achter: kleuren.infoSoft };
+    default:
+      return { voor: kleuren.mutedForeground, achter: kleuren.muted };
+  }
+}
+
+// ── Drukvlak ────────────────────────────────────────────────────────────────
+
+/**
+ * Tikbaar vlak met fysieke drukfeedback: schaal 0,97 bij het indrukken (120 ms,
+ * ease-out), haptic bij loslaten. Lay-out (flex, breedte) hoort op `buitenStijl`.
+ */
+export function Drukvlak({
+  onPress,
+  children,
+  style,
+  buitenStijl,
+  disabled,
+  haptic = 'tap',
+  accessibilityLabel,
+  accessibilityHint,
+  accessibilityState,
+  accessibilityRole = 'button',
+}: {
+  onPress?: () => void;
+  children: ReactNode;
+  style?: StyleProp<ViewStyle>;
+  buitenStijl?: StyleProp<ViewStyle>;
+  disabled?: boolean;
+  haptic?: 'tap' | 'selection' | 'press' | null;
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
+  accessibilityState?: AccessibilityState;
+  accessibilityRole?: 'button' | 'tab' | 'link';
+}) {
+  const [ingedrukt, setIngedrukt] = useState(false);
+  const rustig = useReducedMotion();
+  return (
+    <Pressable
+      onPress={() => {
+        if (disabled || !onPress) return;
+        if (haptic) void hapticPatterns[haptic]();
+        onPress();
+      }}
+      onPressIn={() => setIngedrukt(true)}
+      onPressOut={() => setIngedrukt(false)}
+      disabled={disabled}
+      pressRetentionOffset={{ top: 12, bottom: 12, left: 12, right: 12 }}
+      accessibilityRole={accessibilityRole}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityHint={accessibilityHint}
+      accessibilityState={{ disabled, ...accessibilityState }}
+      style={buitenStijl}
+    >
+      <Animated.View
+        style={[
+          style,
+          {
+            opacity: disabled ? 0.45 : 1,
+            transform: [{ scale: ingedrukt && !rustig && !disabled ? 0.97 : 1 }],
+            transitionProperty: 'transform',
+            transitionDuration: 120,
+            transitionTimingFunction: 'ease-out',
+          },
+        ]}
+      >
+        {children}
+      </Animated.View>
+    </Pressable>
+  );
+}
+
+// ── Kaart ───────────────────────────────────────────────────────────────────
+
+/**
+ * `standaard`: kaartvlak met haarlijn. `natuur`: het groene verloop met gloed —
+ * uitsluitend voor wat vandaag speelt. `stil`: geen rand, verzonken vlak.
+ */
+export function Kaart({
+  children,
+  variant = 'standaard',
+  style,
+  padding = 16,
+}: {
+  children: ReactNode;
+  variant?: 'standaard' | 'natuur' | 'stil';
+  style?: StyleProp<ViewStyle>;
+  padding?: number;
+}) {
+  const kleuren = useVeldKleuren();
+  const donker = useIsDonker();
+  if (variant === 'natuur') {
+    return (
+      <View
+        style={[
+          { borderRadius: 22 },
+          donker && {
+            shadowColor: kleuren.primary,
+            shadowOffset: { width: 0, height: 10 },
+            shadowOpacity: 0.16,
+            shadowRadius: 24,
+            elevation: 6,
+          },
+          style,
+        ]}
+      >
+        <LinearGradient
+          colors={[kleuren.gradientStart, kleuren.gradientEnd]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={{ borderRadius: 22, borderWidth: 1, borderColor: kleuren.gradientBorder, padding, gap: 14 }}
+        >
+          {children}
+        </LinearGradient>
+      </View>
+    );
+  }
+  return (
+    <View
+      style={[
+        {
+          borderRadius: 18,
+          padding,
+          gap: 12,
+          backgroundColor: variant === 'stil' ? kleuren.muted : kleuren.card,
+          borderWidth: variant === 'stil' ? 0 : 1,
+          borderColor: kleuren.border,
+        },
+        style,
+      ]}
+    >
+      {children}
+    </View>
+  );
+}
+
+// ── Sectiekop ───────────────────────────────────────────────────────────────
+
+/** iOS-groepskop boven een blok: klein, gedempt, met optionele telling of actie. */
+export function SectieKop({ titel, telling, rechts }: { titel: string; telling?: number; rechts?: ReactNode }) {
+  const kleuren = useVeldKleuren();
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, paddingHorizontal: 4, minHeight: 28 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1 }}>
+        <Text accessibilityRole="header" style={[tekst.voetnoot, { color: kleuren.mutedForeground, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.6 }]}>
+          {titel}
+        </Text>
+        {telling !== undefined && telling > 0 && (
+          <View style={{ backgroundColor: kleuren.muted, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 1 }}>
+            <Text style={[tekst.bijschrift, tekst.cijfers, { color: kleuren.mutedForeground }]}>{telling}</Text>
+          </View>
+        )}
+      </View>
+      {rechts}
+    </View>
+  );
+}
+
+// ── Statuspil ───────────────────────────────────────────────────────────────
+
+/** Status altijd als pil mét stip: kleur draagt nooit alleen de betekenis. */
+export function StatusPil({ label, toon = 'neutraal' }: { label: string; toon?: Toon }) {
+  const kleuren = useVeldKleuren();
+  const { voor, achter } = toonKleuren(kleuren, toon);
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 6, backgroundColor: achter, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
+      <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: voor }} />
+      <Text style={[tekst.voetnoot, { color: voor, fontWeight: '600' }]}>{label}</Text>
+    </View>
+  );
+}
+
+// ── Icoontegel ──────────────────────────────────────────────────────────────
+
+export function IcoonTegel({ icoon: I, toon = 'primair', grootte = 40 }: { icoon: Icoon; toon?: Toon; grootte?: number }) {
+  const kleuren = useVeldKleuren();
+  const { voor, achter } = toonKleuren(kleuren, toon);
+  return (
+    <View style={{ width: grootte, height: grootte, borderRadius: grootte * 0.3, backgroundColor: achter, alignItems: 'center', justifyContent: 'center' }}>
+      <I size={Math.round(grootte * 0.5)} color={voor} strokeWidth={2} />
+    </View>
+  );
+}
+
+// ── Lege staat ──────────────────────────────────────────────────────────────
+
+export function LegeStaat({ icoon, titel, uitleg, actie }: { icoon: Icoon; titel: string; uitleg?: string; actie?: ReactNode }) {
+  const kleuren = useVeldKleuren();
+  return (
+    <Kaart variant="stil" style={{ alignItems: 'center', paddingVertical: 28, gap: 10 }}>
+      <IcoonTegel icoon={icoon} toon="neutraal" grootte={48} />
+      <Text style={[tekst.kop, { color: kleuren.foreground, textAlign: 'center' }]}>{titel}</Text>
+      {uitleg && <Text style={[tekst.sub, { color: kleuren.mutedForeground, textAlign: 'center', maxWidth: 300 }]}>{uitleg}</Text>}
+      {actie && <View style={{ marginTop: 4 }}>{actie}</View>}
+    </Kaart>
+  );
+}
+
+// ── Rij ─────────────────────────────────────────────────────────────────────
+
+/** Label links, waarde rechts in tabelcijfers. */
+export function Rij({ label, waarde, nadruk }: { label: string; waarde: string; nadruk?: boolean }) {
+  const kleuren = useVeldKleuren();
+  return (
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, minHeight: 28 }}>
+      <Text style={[tekst.sub, { color: nadruk ? kleuren.foreground : kleuren.mutedForeground, flexShrink: 1, fontWeight: nadruk ? '600' : '400' }]}>{label}</Text>
+      <Text style={[tekst.sub, tekst.cijfers, { color: kleuren.foreground, fontWeight: nadruk ? '700' : '500' }]}>{waarde}</Text>
+    </View>
+  );
+}
+
+/** Haarlijn tussen rijen in een kaart. */
+export function Scheiding() {
+  const kleuren = useVeldKleuren();
+  return <View style={{ height: 1, backgroundColor: kleuren.border, marginVertical: 2 }} />;
+}
+
+// ── Melding ─────────────────────────────────────────────────────────────────
+
+/** Rustige regel voor "opgeslagen gegevens" en fouten; geen modal, geen schreeuw. */
+export function Melding({ tekst: t, toon = 'neutraal', icoon }: { tekst: string; toon?: Toon; icoon?: Icoon }) {
+  const kleuren = useVeldKleuren();
+  const { voor, achter } = toonKleuren(kleuren, toon);
+  return (
+    <View
+      accessibilityRole={toon === 'gemist' ? 'alert' : undefined}
+      style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start', backgroundColor: achter, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12 }}
+    >
+      {icoon ? React.createElement(icoon, { size: 18, color: voor, strokeWidth: 2 }) : <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: voor, marginTop: 7 }} />}
+      <Text style={[tekst.voetnoot, { color: toon === 'neutraal' ? kleuren.foreground : voor, flex: 1, fontSize: 14, lineHeight: 19 }]}>{t}</Text>
+    </View>
+  );
+}
+
+// ── Segmentkeuze ────────────────────────────────────────────────────────────
+
+/**
+ * Segmentkeuze met glijdende pil (200 ms ease-out) en selectie-haptic. De pil is
+ * absoluut gepositioneerd en kinderloos: alleen `transform` beweegt.
+ */
+export function Segment<T extends string>({
+  opties,
+  waarde,
+  onChange,
+  label,
+}: {
+  opties: { waarde: T; label: string }[];
+  waarde: T;
+  onChange: (waarde: T) => void;
+  label: string;
+}) {
+  const kleuren = useVeldKleuren();
+  const donker = useIsDonker();
+  const [breedte, setBreedte] = useState(0);
+  const index = Math.max(0, opties.findIndex(o => o.waarde === waarde));
+  const segment = breedte > 0 ? (breedte - 6) / opties.length : 0;
+  return (
+    <View
+      accessibilityRole="tablist"
+      accessibilityLabel={label}
+      onLayout={e => setBreedte(e.nativeEvent.layout.width)}
+      style={{ flexDirection: 'row', backgroundColor: kleuren.muted, borderRadius: 14, padding: 3, minHeight: 44 }}
+    >
+      {segment > 0 && (
+        <Animated.View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            top: 3,
+            bottom: 3,
+            left: 3,
+            width: segment,
+            borderRadius: 11,
+            backgroundColor: donker ? kleuren.surfaceElevated : kleuren.card,
+            borderWidth: donker ? 1 : 0,
+            borderColor: kleuren.border,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: donker ? 0 : 0.08,
+            shadowRadius: 6,
+            elevation: donker ? 0 : 2,
+            transform: [{ translateX: index * segment }],
+            transitionProperty: 'transform',
+            transitionDuration: 200,
+            transitionTimingFunction: 'ease-out',
+          }}
+        />
+      )}
+      {opties.map(optie => {
+        const actief = optie.waarde === waarde;
+        return (
+          <Pressable
+            key={optie.waarde}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: actief }}
+            onPress={() => {
+              if (actief) return;
+              void hapticPatterns.selection();
+              onChange(optie.waarde);
+            }}
+            style={{ flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 38 }}
+          >
+            <Text style={[tekst.sub, { fontWeight: actief ? '600' : '500', color: actief ? kleuren.foreground : kleuren.mutedForeground }]}>{optie.label}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+// ── Periodekiezer ───────────────────────────────────────────────────────────
+
+/** Vorige/volgende met een leesbaar label in het midden; "Vandaag" als je weg bent. */
+export function PeriodeKiezer({
+  titel,
+  ondertitel,
+  onVorige,
+  onVolgende,
+  vorigeLabel,
+  volgendeLabel,
+  onVandaag,
+}: {
+  titel: string;
+  ondertitel?: string;
+  onVorige: () => void;
+  onVolgende: () => void;
+  vorigeLabel: string;
+  volgendeLabel: string;
+  /** Alleen meegeven als de gekozen periode niet de huidige is. */
+  onVandaag?: () => void;
+}) {
+  const kleuren = useVeldKleuren();
+  const knop = (richting: 'vorige' | 'volgende') => {
+    const I = richting === 'vorige' ? ChevronLeft : ChevronRight;
+    return (
+      <Drukvlak
+        onPress={richting === 'vorige' ? onVorige : onVolgende}
+        haptic="selection"
+        accessibilityLabel={richting === 'vorige' ? vorigeLabel : volgendeLabel}
+        style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: kleuren.muted, alignItems: 'center', justifyContent: 'center' }}
+      >
+        <I size={22} color={kleuren.foreground} strokeWidth={2.25} />
+      </Drukvlak>
+    );
+  };
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+      {knop('vorige')}
+      <View style={{ flex: 1, alignItems: 'center' }}>
+        <Text style={[tekst.kop, { color: kleuren.foreground }]} numberOfLines={1}>{titel}</Text>
+        {ondertitel && <Text style={[tekst.voetnoot, tekst.cijfers, { color: kleuren.mutedForeground }]} numberOfLines={1}>{ondertitel}</Text>}
+      </View>
+      {onVandaag ? (
+        <Drukvlak onPress={onVandaag} haptic="selection" accessibilityLabel="Naar vandaag" style={{ height: 44, paddingHorizontal: 14, borderRadius: 22, backgroundColor: kleuren.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={[tekst.voetnoot, { color: kleuren.primary, fontWeight: '700', fontSize: 14 }]}>Vandaag</Text>
+        </Drukvlak>
+      ) : null}
+      {knop('volgende')}
+    </View>
+  );
+}
+
+// ── Weekstrook ──────────────────────────────────────────────────────────────
+
+export type DagMarkering = 'gepland' | 'gelogd' | 'gemist' | 'ingediend';
+
+/**
+ * Zeven dagen als tikbare kolommen. Gekozen dag = gevulde cirkel, vandaag =
+ * ring, een stip eronder vertelt wat er die dag speelt.
+ */
+export function WeekStrook({
+  dagen,
+  gekozen,
+  vandaag,
+  onKies,
+  markering,
+  labelVan,
+}: {
+  dagen: string[];
+  gekozen: string;
+  vandaag: string;
+  onKies: (datum: string) => void;
+  markering?: Partial<Record<string, DagMarkering>>;
+  labelVan: (datum: string) => { kort: string; nummer: number; voluit: string };
+}) {
+  const kleuren = useVeldKleuren();
+  const stipKleur = (m?: DagMarkering) =>
+    m === 'gelogd' || m === 'ingediend' ? kleuren.success : m === 'gemist' ? kleuren.danger : m === 'gepland' ? kleuren.mutedForeground : 'transparent';
+  return (
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+      {dagen.map(dag => {
+        const { kort, nummer, voluit } = labelVan(dag);
+        const isGekozen = dag === gekozen;
+        const isVandaag = dag === vandaag;
+        const m = markering?.[dag];
+        return (
+          <Drukvlak
+            key={dag}
+            onPress={() => onKies(dag)}
+            haptic="selection"
+            accessibilityRole="tab"
+            accessibilityState={{ selected: isGekozen }}
+            accessibilityLabel={`${voluit}${isVandaag ? ', vandaag' : ''}${m === 'gemist' ? ', uren ontbreken' : m === 'gelogd' || m === 'ingediend' ? ', uren gelogd' : m === 'gepland' ? ', klussen gepland' : ''}`}
+            buitenStijl={{ flex: 1 }}
+            style={{ alignItems: 'center', gap: 6, paddingVertical: 4 }}
+          >
+            <Text style={[tekst.bijschrift, { color: isGekozen ? kleuren.foreground : kleuren.mutedForeground, textTransform: 'uppercase', letterSpacing: 0.4 }]}>{kort}</Text>
+            <View
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: isGekozen ? kleuren.primary : 'transparent',
+                borderWidth: isVandaag && !isGekozen ? 1.5 : 0,
+                borderColor: kleuren.primary,
+              }}
+            >
+              <Text style={[tekst.kop, tekst.cijfers, { color: isGekozen ? kleuren.primaryForeground : isVandaag ? kleuren.primary : kleuren.foreground }]}>{nummer}</Text>
+            </View>
+            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: stipKleur(m) }} />
+          </Drukvlak>
+        );
+      })}
+    </View>
+  );
+}
+
+// ── Lijstregel ──────────────────────────────────────────────────────────────
+
+/** Tikbare regel met icoontegel, titel, subregel en pijl — voor menu's en lijsten. */
+export function LijstRegel({
+  icoon,
+  toon = 'primair',
+  titel,
+  sub,
+  rechts,
+  onPress,
+}: {
+  icoon?: Icoon;
+  toon?: Toon;
+  titel: string;
+  sub?: string;
+  rechts?: ReactNode;
+  onPress?: () => void;
+}) {
+  const kleuren = useVeldKleuren();
+  const inhoud = (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingVertical: 10 }}>
+      {icoon && <IcoonTegel icoon={icoon} toon={toon} grootte={36} />}
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text style={[tekst.kop, { color: kleuren.foreground, fontWeight: '500' }]} numberOfLines={2}>{titel}</Text>
+        {sub && <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground, fontSize: 14 }]} numberOfLines={2}>{sub}</Text>}
+      </View>
+      {rechts}
+      {onPress && <Pijl size={18} color={kleuren.mutedForeground} strokeWidth={2} />}
+    </View>
+  );
+  return onPress ? <Drukvlak onPress={onPress} accessibilityLabel={sub ? `${titel}, ${sub}` : titel}>{inhoud}</Drukvlak> : inhoud;
+}

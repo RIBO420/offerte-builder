@@ -10,6 +10,8 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 import { usePressAnimation } from '../../hooks/use-spring-animation';
 import { hapticPatterns } from '../../theme/haptics';
+import type { ColorScheme } from '../../theme/colors';
+import { useVeldKleuren } from '../veld/BuitenModus';
 
 // Button container variants
 const buttonVariants = cva(
@@ -67,37 +69,24 @@ const buttonTextVariants = cva(
   }
 );
 
-// Inline style colors per variant
-const variantContainerStyles: Record<string, { backgroundColor?: string; borderWidth?: number; borderColor?: string }> = {
-  primary: { backgroundColor: '#4ADE80' },
-  secondary: { backgroundColor: '#1A2E1A' },
-  outline: { borderWidth: 1, borderColor: '#222222' },
-  destructive: {},
-  ghost: {},
-  link: {},
-  nature: { backgroundColor: '#1A2E1A' },
-};
-
-const variantTextColors: Record<string, string> = {
-  primary: '#0A0A0A',
-  secondary: '#6B8F6B',
-  outline: '#E8E8E8',
-  destructive: '#FAFAFA',
-  ghost: '#E8E8E8',
-  link: '#4ADE80',
-  nature: '#4ADE80',
-};
-
-// Loader color mapping
-const loaderColors: Record<string, string> = {
-  primary: '#0A0A0A',
-  secondary: '#6B8F6B',
-  outline: '#E8E8E8',
-  destructive: '#FFFFFF',
-  ghost: '#E8E8E8',
-  link: '#4ADE80',
-  nature: '#4ADE80',
-};
+// Kleuren per variant komen uit het actieve thema (licht/donker/buiten).
+function variantKleuren(k: ColorScheme, variant: string) {
+  switch (variant) {
+    case 'primary':
+      return { container: { backgroundColor: k.primary }, tekst: k.primaryForeground };
+    case 'secondary':
+    case 'nature':
+      return { container: { backgroundColor: k.primarySoft }, tekst: k.primary };
+    case 'outline':
+      return { container: { borderWidth: 1, borderColor: k.border, backgroundColor: k.card }, tekst: k.foreground };
+    case 'destructive':
+      return { container: { backgroundColor: k.destructive }, tekst: k.destructiveForeground };
+    case 'link':
+      return { container: {}, tekst: k.primary };
+    default:
+      return { container: {}, tekst: k.foreground };
+  }
+}
 
 // Icon spacing mapping
 const iconSpacing = {
@@ -138,6 +127,8 @@ export function Button({
 
   const isDisabled = disabled || loading;
   const variantKey = variant || 'primary';
+  const kleuren = useVeldKleuren();
+  const { container: containerKleur, tekst: tekstKleur } = variantKleuren(kleuren, variantKey);
 
   const handlePress = () => {
     if (!isDisabled) {
@@ -151,7 +142,7 @@ export function Button({
       return (
         <ActivityIndicator
           size="small"
-          color={loaderColors[variantKey]}
+          color={tekstKleur}
         />
       );
     }
@@ -180,7 +171,7 @@ export function Button({
         {hasTitle && (
           <Text
             className={cn(buttonTextVariants({ variant, size }), textClassName)}
-            style={{ color: variantTextColors[variantKey] }}
+            style={{ color: tekstKleur }}
             numberOfLines={1}
           >
             {title}
@@ -207,7 +198,7 @@ export function Button({
           fullWidth && 'w-full',
           className
         )}
-        style={variantContainerStyles[variantKey]}
+        style={containerKleur}
         accessibilityRole="button"
         accessibilityState={{ disabled: isDisabled }}
         accessibilityLabel={title}

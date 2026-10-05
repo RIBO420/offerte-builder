@@ -2,11 +2,6 @@ import React from 'react';
 import { View, Pressable, StyleSheet, Text } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-} from 'react-native-reanimated';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import {
   Home,
@@ -16,11 +11,7 @@ import {
   User,
 } from 'lucide-react-native';
 import { hapticPatterns } from '../../theme/haptics';
-import { springConfigs } from '../../theme/animations';
-import { colors } from '../../theme/colors';
-
-const ACTIVE_COLOR = colors.primary;
-const INACTIVE_COLOR = colors.inactive;
+import { useColors, useTheme } from '../../theme/ThemeProvider';
 const ICON_SIZE = 22;
 
 const routeIcons: Record<string, React.ComponentType<any>> = {
@@ -50,56 +41,33 @@ function TabItem({
   onPress: () => void;
   onLongPress: () => void;
 }) {
-  const scale = useSharedValue(1);
+  const kleuren = useColors();
   const IconComponent = routeIcons[route.name] ?? Home;
   const label = routeLabels[route.name] ?? route.name;
+  const kleur = isFocused ? kleuren.primary : kleuren.inactive;
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-
-  const handlePressIn = () => {
-    // eslint-disable-next-line react-hooks/immutability -- Reanimated shared values are mutable by design
-    scale.value = withSpring(0.85, springConfigs.snappy);
-  };
-
-  const handlePressOut = () => {
-    // eslint-disable-next-line react-hooks/immutability -- Reanimated shared values are mutable by design
-    scale.value = withSpring(1, springConfigs.snappy);
-  };
-
-  const handlePress = () => {
-    hapticPatterns.selection();
-    onPress();
-  };
-
+  // Tabwissels gebeuren tientallen keren per dag: geen schaalanimatie, alleen
+  // een selectie-haptic en een directe kleurwissel.
   return (
     <Pressable
-      onPress={handlePress}
+      onPress={() => { hapticPatterns.selection(); onPress(); }}
       onLongPress={onLongPress}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
       style={styles.tabButton}
       accessibilityRole="tab"
       accessibilityState={{ selected: isFocused }}
       accessibilityLabel={label}
     >
-      <Animated.View style={[styles.tabContent, animatedStyle]}>
-        <IconComponent
-          size={ICON_SIZE}
-          color={isFocused ? ACTIVE_COLOR : INACTIVE_COLOR}
-          strokeWidth={isFocused ? 2.2 : 1.8}
-        />
-        {isFocused && (
-          <Text style={styles.label}>{label}</Text>
-        )}
-      </Animated.View>
+      <View style={styles.tabContent}>
+        <IconComponent size={ICON_SIZE} color={kleur} strokeWidth={isFocused ? 2.2 : 1.8} />
+        <Text style={[styles.label, { color: kleur, fontWeight: isFocused ? '600' : '500' }]}>{label}</Text>
+      </View>
     </Pressable>
   );
 }
 
 export function FloatingTabBar({ state, navigation, descriptors }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const { colors: kleuren, isDark } = useTheme();
 
   // Routes met href:null verbergen. expo-router vertaalt dat naar tabBarButton:() => null,
   // wat de standaard React Navigation-balk respecteert maar deze custom balk niet —
@@ -110,9 +78,9 @@ export function FloatingTabBar({ state, navigation, descriptors }: BottomTabBarP
 
   return (
     <View style={[styles.wrapper, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-      <View style={styles.container}>
-        <BlurView intensity={40} tint="dark" style={styles.blur}>
-          <View style={styles.overlay}>
+      <View style={[styles.container, { borderColor: kleuren.border, shadowOpacity: isDark ? 0.4 : 0.1 }]}>
+        <BlurView intensity={isDark ? 40 : 60} tint={isDark ? 'dark' : 'light'} style={styles.blur}>
+          <View style={[styles.overlay, { backgroundColor: isDark ? 'rgba(17,17,17,0.82)' : 'rgba(255,255,255,0.78)' }]}>
             {zichtbareRoutes.map((route) => {
               // Vergelijk tegen de ORIGINELE index: state.index verwijst naar
               // state.routes, niet naar de gefilterde lijst.
@@ -165,18 +133,19 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   container: {
-    borderRadius: 20,
+    borderRadius: 24,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#262626',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowRadius: 24,
   },
   blur: {
     overflow: 'hidden',
   },
   overlay: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(17,17,17,0.85)',
-    paddingVertical: 10,
+    paddingVertical: 8,
   },
   tabButton: {
     flex: 1,
@@ -186,12 +155,11 @@ const styles = StyleSheet.create({
   tabContent: {
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 32,
+    minHeight: 44,
+    gap: 3,
   },
   label: {
-    fontSize: 9,
-    color: ACTIVE_COLOR,
-    marginTop: 2,
-    fontWeight: '600',
+    fontSize: 11,
+    letterSpacing: 0.1,
   },
 });
