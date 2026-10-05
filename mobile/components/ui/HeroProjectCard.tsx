@@ -1,11 +1,11 @@
-import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, Pressable } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated from 'react-native-reanimated';
+import Animated, { useReducedMotion } from 'react-native-reanimated';
 import { Camera, Clock } from 'lucide-react-native';
-import { usePressAnimation } from '../../hooks/use-spring-animation';
 import { hapticPatterns } from '../../theme/haptics';
-import { colors } from '../../theme/colors';
+import { tekst } from '../../theme/typography';
+import { useIsDonker, useVeldKleuren } from '../veld/BuitenModus';
 
 interface HeroProjectCardProps {
   projectName: string;
@@ -16,6 +16,10 @@ interface HeroProjectCardProps {
   onHoursPress: () => void;
 }
 
+/**
+ * Heldvlak voor het project van vandaag: het natuurverloop van de Kaart-
+ * bouwsteen, met de gloed alleen op een donker canvas.
+ */
 export const HeroProjectCard = React.memo(function HeroProjectCard({
   projectName,
   description,
@@ -24,7 +28,10 @@ export const HeroProjectCard = React.memo(function HeroProjectCard({
   onPhotoPress,
   onHoursPress,
 }: HeroProjectCardProps) {
-  const { animatedStyle, onPressIn, onPressOut } = usePressAnimation();
+  const kleuren = useVeldKleuren();
+  const donker = useIsDonker();
+  const rustig = useReducedMotion();
+  const [ingedrukt, setIngedrukt] = useState(false);
   const clampedProgress = Math.min(100, Math.max(0, progress));
 
   const handlePress = () => {
@@ -42,118 +49,95 @@ export const HeroProjectCard = React.memo(function HeroProjectCard({
     onHoursPress();
   };
 
+  const pil = {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 6,
+    minHeight: 36,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    backgroundColor: kleuren.card,
+    borderWidth: 1,
+    borderColor: kleuren.gradientBorder,
+  };
+
   return (
-    <Animated.View style={animatedStyle}>
-      <Pressable
-        onPress={handlePress}
-        onPressIn={onPressIn}
-        onPressOut={onPressOut}
-        accessibilityRole="button"
-        accessibilityLabel={`Project: ${projectName}`}
+    <Pressable
+      onPress={handlePress}
+      onPressIn={() => setIngedrukt(true)}
+      onPressOut={() => setIngedrukt(false)}
+      accessibilityRole="button"
+      accessibilityLabel={`Project: ${projectName}`}
+    >
+      <Animated.View
+        style={[
+          { borderRadius: 22 },
+          donker && {
+            shadowColor: kleuren.primary,
+            shadowOffset: { width: 0, height: 10 },
+            shadowOpacity: 0.16,
+            shadowRadius: 24,
+            elevation: 6,
+          },
+          {
+            transform: [{ scale: ingedrukt && !rustig ? 0.98 : 1 }],
+            transitionProperty: 'transform',
+            transitionDuration: 120,
+            transitionTimingFunction: 'ease-out',
+          },
+        ]}
       >
         <LinearGradient
-          colors={['#1A2E1A', '#0D1F0D']}
+          colors={[kleuren.gradientStart, kleuren.gradientEnd]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={styles.container}
+          style={{ borderRadius: 22, borderWidth: 1, borderColor: kleuren.gradientBorder, padding: 18 }}
         >
-          <Text style={styles.label}>VANDAAG OP LOCATIE</Text>
-          <Text style={styles.projectName}>{projectName}</Text>
-          <Text style={styles.description}>{description}</Text>
+          <Text
+            style={[
+              tekst.voetnoot,
+              { color: kleuren.primary, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 6 },
+            ]}
+          >
+            Vandaag op locatie
+          </Text>
+          <Text style={[tekst.titel3, { color: kleuren.foreground, marginBottom: 4 }]} numberOfLines={2}>
+            {projectName}
+          </Text>
+          <Text style={[tekst.sub, { color: kleuren.mutedForeground, marginBottom: 16 }]} numberOfLines={2}>
+            {description}
+          </Text>
 
-          <View style={styles.pillsRow}>
-            <Pressable onPress={handlePhotoPress} style={styles.pill} accessibilityRole="button" accessibilityLabel="Foto's toevoegen">
-              <Camera size={12} color="#4ADE80" />
-              <Text style={styles.pillTextGreen}>Foto&apos;s</Text>
+          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+            <Pressable onPress={handlePhotoPress} hitSlop={4} style={pil} accessibilityRole="button" accessibilityLabel="Foto's toevoegen">
+              <Camera size={16} color={kleuren.primary} />
+              <Text style={[tekst.voetnoot, { color: kleuren.primary, fontWeight: '600' }]}>Foto&apos;s</Text>
             </Pressable>
-            <Pressable onPress={handleHoursPress} style={styles.pill} accessibilityRole="button" accessibilityLabel="Start uren registratie">
-              <Clock size={12} color="#CCCCCC" />
-              <Text style={styles.pillTextGray}>Start uren</Text>
+            <Pressable onPress={handleHoursPress} hitSlop={4} style={pil} accessibilityRole="button" accessibilityLabel="Start uren registratie">
+              <Clock size={16} color={kleuren.foreground} />
+              <Text style={[tekst.voetnoot, { color: kleuren.foreground, fontWeight: '600' }]}>Start uren</Text>
             </Pressable>
           </View>
 
-          <View style={styles.progressContainer}>
-            <View style={styles.progressTrack}>
-              <LinearGradient
-                colors={['#2D5A27', '#4ADE80']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={[styles.progressFill, { width: `${clampedProgress}%` }]}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <View style={{ flex: 1, height: 6, backgroundColor: kleuren.primarySoft, borderRadius: 3, overflow: 'hidden' }}>
+              {/* Absolute, kindloze vulling */}
+              <View
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: `${clampedProgress}%`,
+                  backgroundColor: kleuren.primary,
+                  borderRadius: 3,
+                }}
               />
             </View>
-            <Text style={styles.progressText}>{clampedProgress}%</Text>
+            <Text style={[tekst.bijschrift, tekst.cijfers, { color: kleuren.mutedForeground }]}>{clampedProgress}%</Text>
           </View>
         </LinearGradient>
-      </Pressable>
-    </Animated.View>
+      </Animated.View>
+    </Pressable>
   );
-});
-
-const styles = StyleSheet.create({
-  container: {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(45,90,39,0.19)',
-    padding: 16,
-  },
-  label: {
-    fontSize: 9,
-    textTransform: 'uppercase',
-    letterSpacing: 1.5,
-    color: '#4ADE80',
-    marginBottom: 8,
-  },
-  projectName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#E8E8E8',
-    marginBottom: 4,
-  },
-  description: {
-    fontSize: 11,
-    color: '#6B8F6B',
-    marginBottom: 14,
-  },
-  pillsRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 14,
-  },
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(10,10,10,0.3)',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  pillTextGreen: {
-    fontSize: 11,
-    color: '#4ADE80',
-  },
-  pillTextGray: {
-    fontSize: 11,
-    color: '#CCCCCC',
-  },
-  progressContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  progressTrack: {
-    flex: 1,
-    height: 3,
-    backgroundColor: 'rgba(10,10,10,0.25)',
-    borderRadius: 1.5,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 1.5,
-  },
-  progressText: {
-    fontSize: 9,
-    color: colors.inactive,
-  },
 });

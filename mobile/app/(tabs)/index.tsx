@@ -28,7 +28,7 @@ import {
 import { api } from '../../convex/_generated/api';
 import { useCurrentUser } from '../../hooks/use-current-user';
 import { useUserRole } from '../../hooks/use-user-role';
-import { vandaagAmsterdam, urenLabel, werkPeriode } from '../../lib/werk-periode';
+import { vandaagAmsterdam, urenLabel } from '../../lib/werk-periode';
 import { dagLabel, weekNummer } from '../../lib/datum-labels';
 import { tekst, useColors } from '../../theme';
 import { Button, NotificationBanner, Skeleton, SkeletonCard } from '../../components/ui';

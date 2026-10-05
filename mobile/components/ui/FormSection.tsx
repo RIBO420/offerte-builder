@@ -2,6 +2,8 @@ import React, { ReactNode, useState } from 'react';
 import { View, Text, TouchableOpacity, LayoutAnimation, Platform, UIManager } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { cn } from '@/lib/utils';
+import { tekst } from '../../theme/typography';
+import { useVeldKleuren } from '../veld/BuitenModus';
 
 // Enable LayoutAnimation on Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -42,6 +44,7 @@ export function FormSection({
   collapsible = false,
   defaultExpanded = true,
 }: FormSectionProps) {
+  const kleuren = useVeldKleuren();
   const [expanded, setExpanded] = useState(defaultExpanded);
 
   const toggle = () => {
@@ -54,28 +57,30 @@ export function FormSection({
 
   return (
     <View
-      className="rounded-lg mb-4 overflow-hidden"
-      style={{ backgroundColor: 'transparent', borderWidth: 1, borderColor: '#222222' }}
+      className="mb-4 overflow-hidden"
+      style={{ backgroundColor: kleuren.card, borderRadius: 18, borderWidth: 1, borderColor: kleuren.border }}
     >
       <HeaderWrapper
         onPress={collapsible ? toggle : undefined}
         className="flex-row items-center justify-between py-4 px-4"
-        style={{ backgroundColor: '#1A1A1A', borderBottomWidth: 1, borderBottomColor: '#222222' }}
+        style={{ borderBottomWidth: expanded ? 1 : 0, borderBottomColor: kleuren.border }}
         activeOpacity={collapsible ? 0.7 : 1}
+        accessibilityRole={collapsible ? 'button' : undefined}
+        accessibilityState={collapsible ? { expanded } : undefined}
       >
         <View className="flex-row items-center flex-1">
           {icon && (
             <View
-              className="w-8 h-8 rounded-md items-center justify-center mr-3"
-              style={{ backgroundColor: '#111111' }}
+              className="w-9 h-9 items-center justify-center mr-3"
+              style={{ backgroundColor: kleuren.primarySoft, borderRadius: 11 }}
             >
-              <Feather name={icon} size={18} color="#4ADE80" />
+              <Feather name={icon} size={18} color={kleuren.primary} />
             </View>
           )}
           <View className="flex-1">
-            <Text className="font-sans text-base font-semibold" style={{ color: '#E8E8E8' }}>{title}</Text>
+            <Text style={[tekst.kop, { color: kleuren.foreground }]}>{title}</Text>
             {description && (
-              <Text className="font-sans text-sm mt-0.5" style={{ color: '#888888' }}>{description}</Text>
+              <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground, marginTop: 2 }]}>{description}</Text>
             )}
           </View>
         </View>
@@ -83,11 +88,11 @@ export function FormSection({
           <Feather
             name={expanded ? 'chevron-up' : 'chevron-down'}
             size={20}
-            color="#888888"
+            color={kleuren.mutedForeground}
           />
         )}
       </HeaderWrapper>
-      {expanded && <View className="gap-4 px-4">{children}</View>}
+      {expanded && <View className="gap-4 px-4 pt-4">{children}</View>}
     </View>
   );
 }
@@ -117,33 +122,39 @@ export function FieldGroup({
   required,
   children,
 }: FieldGroupProps) {
+  const kleuren = useVeldKleuren();
   return (
     <View className="mb-4">
       <View className="mb-2">
-        <Text className="font-sans text-sm font-medium" style={{ color: '#E8E8E8' }}>
+        <Text style={[tekst.sub, { color: kleuren.foreground, fontWeight: '600' }]}>
           {label}
-          {required && <Text style={{ color: '#EF4444' }}> *</Text>}
+          {required && <Text style={{ color: kleuren.danger }}> *</Text>}
         </Text>
         {description && (
-          <Text className="font-sans text-xs mt-0.5" style={{ color: '#888888' }}>{description}</Text>
+          <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground, marginTop: 2 }]}>{description}</Text>
         )}
       </View>
       {children}
-      {error && <Text className="font-sans text-xs mt-2" style={{ color: '#EF4444' }}>{error}</Text>}
+      {error && <Text accessibilityRole="alert" style={[tekst.voetnoot, { color: kleuren.danger, marginTop: 8 }]}>{error}</Text>}
     </View>
   );
 }
 
 export function FormDivider({ label }: FormDividerProps) {
+  const kleuren = useVeldKleuren();
   if (label) {
     return (
       <View className="flex-row items-center my-4">
-        <View className="flex-1 h-px" style={{ backgroundColor: '#1A1A1A' }} />
-        <Text className="font-sans text-xs px-3 uppercase tracking-wider" style={{ color: '#888888' }}>{label}</Text>
-        <View className="flex-1 h-px" style={{ backgroundColor: '#1A1A1A' }} />
+        <View className="flex-1 h-px" style={{ backgroundColor: kleuren.border }} />
+        <Text
+          style={[tekst.bijschrift, { color: kleuren.mutedForeground, paddingHorizontal: 12, textTransform: 'uppercase', letterSpacing: 0.6 }]}
+        >
+          {label}
+        </Text>
+        <View className="flex-1 h-px" style={{ backgroundColor: kleuren.border }} />
       </View>
     );
   }
 
-  return <View className="h-px my-4" style={{ backgroundColor: '#1A1A1A' }} />;
+  return <View className="h-px my-4" style={{ backgroundColor: kleuren.border }} />;
 }

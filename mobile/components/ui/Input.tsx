@@ -9,11 +9,15 @@ import {
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
+  useReducedMotion,
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
+import { Check, X } from 'lucide-react-native';
 import { cn } from '@/lib/utils';
-import { colors } from '../../theme/colors';
+import { tekst } from '../../theme/typography';
+import type { ColorScheme } from '../../theme/colors';
+import { useVeldKleuren } from '../veld/BuitenModus';
 
 export type InputStatus = 'idle' | 'valid' | 'invalid' | 'validating';
 
@@ -29,19 +33,14 @@ export interface InputProps extends Omit<TextInputProps, 'style'> {
   disabled?: boolean;
 }
 
-const STATUS_BORDER_COLORS: Record<InputStatus, string> = {
-  idle: '#222222',
-  valid: '#4ADE80',
-  invalid: '#EF4444',
-  validating: '#4ADE80',
-};
-
-const FOCUS_BORDER_COLORS: Record<InputStatus, string> = {
-  idle: '#4ADE80',
-  valid: '#4ADE80',
-  invalid: '#EF4444',
-  validating: '#4ADE80',
-};
+// Haarlijn in rust, primair bij focus, danger bij een fout.
+function randKleur(k: ColorScheme, status: InputStatus, focus: boolean, fout: boolean, disabled: boolean): string {
+  if (disabled) return k.border;
+  if (fout || status === 'invalid') return k.danger;
+  if (focus) return k.primary;
+  if (status === 'valid') return k.success;
+  return k.border;
+}
 
 export const Input = forwardRef<TextInput, InputProps>(
   (
@@ -56,34 +55,34 @@ export const Input = forwardRef<TextInput, InputProps>(
       inputClassName,
       disabled = false,
       multiline = false,
+      onFocus,
+      onBlur,
       ...props
     },
     ref
   ) => {
+    const kleuren = useVeldKleuren();
+    const rustig = useReducedMotion();
     const [isFocused, setIsFocused] = useState(false);
     const shakeX = useSharedValue(0);
 
-    // Shake animation when status becomes invalid
+    // Korte schud zodra de status ongeldig wordt
     useEffect(() => {
-      if (status === 'invalid') {
-        shakeX.value = withSequence(
-          withTiming(6, { duration: 50 }),
-          withTiming(-6, { duration: 50 }),
-          withTiming(6, { duration: 50 }),
-          withTiming(0, { duration: 50 })
+      if (status === 'invalid' && !rustig) {
+        shakeX.set(
+          withSequence(
+            withTiming(6, { duration: 50 }),
+            withTiming(-6, { duration: 50 }),
+            withTiming(6, { duration: 50 }),
+            withTiming(0, { duration: 50 })
+          )
         );
       }
-    }, [status, shakeX]);
+    }, [status, shakeX, rustig]);
 
     const shakeStyle = useAnimatedStyle(() => ({
-      transform: [{ translateX: shakeX.value }],
+      transform: [{ translateX: shakeX.get() }],
     }));
-
-    const getBorderColor = () => {
-      if (disabled) return '#222222';
-      if (isFocused) return FOCUS_BORDER_COLORS[status];
-      return STATUS_BORDER_COLORS[status];
-    };
 
     const displayMessage = error || hint;
 
@@ -91,66 +90,74 @@ export const Input = forwardRef<TextInput, InputProps>(
       <View className={cn('gap-1.5 mb-4', className)}>
         {label && (
           <Text
-            className={cn(
-              'text-sm font-medium',
-              disabled && 'opacity-50'
-            )}
-            style={{ color: disabled ? '#888888' : '#E8E8E8' }}
+            style={[
+              tekst.sub,
+              { color: kleuren.foreground, fontWeight: '600', opacity: disabled ? 0.5 : 1 },
+            ]}
           >
             {label}
           </Text>
         )}
 
         <Animated.View
-          className={cn(
-            'flex-row items-center rounded-lg px-3',
-            multiline ? 'min-h-[88px] items-start py-3' : 'min-h-[44px]',
-          )}
           style={[
             shakeStyle,
             {
-              backgroundColor: disabled ? '#111111' : '#1A1A1A',
+              flexDirection: 'row',
+              alignItems: multiline ? 'flex-start' : 'center',
+              minHeight: multiline ? 96 : 48,
+              paddingHorizontal: 12,
+              paddingVertical: multiline ? 4 : 0,
+              borderRadius: 12,
+              backgroundColor: kleuren.input,
               borderWidth: 1,
-              borderColor: getBorderColor(),
+              borderColor: randKleur(kleuren, status, isFocused, !!error, disabled),
+              opacity: disabled ? 0.6 : 1,
+              transitionProperty: 'borderColor',
+              transitionDuration: 120,
             },
           ]}
         >
-          {leftIcon && <View className="mr-2 justify-center items-center">{leftIcon}</View>}
+          {leftIcon && <View style={{ marginRight: 8, justifyContent: 'center', alignItems: 'center' }}>{leftIcon}</View>}
 
           <TextInput
             ref={ref}
-            className={cn(
-              'flex-1 text-base py-3 px-1',
-              leftIcon && 'pl-1',
-              rightIcon && 'pr-1',
-              multiline && 'min-h-[72px]',
-              inputClassName
-            )}
-            style={{
-              color: disabled ? '#888888' : '#E8E8E8',
-            }}
-            placeholderTextColor={colors.inactive}
+            className={cn(inputClassName)}
+            style={[
+              tekst.callout,
+              {
+                flex: 1,
+                // Geen lineHeight op een TextInput: iOS verschuift dan de cursor.
+                lineHeight: undefined,
+                color: kleuren.foreground,
+                paddingVertical: 12,
+                paddingHorizontal: 4,
+                minHeight: multiline ? 88 : undefined,
+              },
+            ]}
+            placeholderTextColor={kleuren.mutedForeground}
+            selectionColor={kleuren.primary}
             editable={!disabled}
             multiline={multiline}
             textAlignVertical={multiline ? 'top' : 'center'}
             onFocus={(e) => {
               setIsFocused(true);
-              props.onFocus?.(e);
+              onFocus?.(e);
             }}
             onBlur={(e) => {
               setIsFocused(false);
-              props.onBlur?.(e);
+              onBlur?.(e);
             }}
             {...props}
           />
 
-          {rightIcon && <View className="ml-2 justify-center items-center">{rightIcon}</View>}
+          {rightIcon && <View style={{ marginLeft: 8, justifyContent: 'center', alignItems: 'center' }}>{rightIcon}</View>}
         </Animated.View>
 
         {displayMessage && (
           <Text
-            className="text-xs mt-1"
-            style={{ color: error ? '#EF4444' : '#888888' }}
+            accessibilityRole={error ? 'alert' : undefined}
+            style={[tekst.voetnoot, { color: error ? kleuren.danger : kleuren.mutedForeground }]}
           >
             {displayMessage}
           </Text>
@@ -164,27 +171,23 @@ Input.displayName = 'Input';
 
 // Status icons for InputWithFeedback
 const StatusIcon: React.FC<{ status: InputStatus }> = ({ status }) => {
+  const kleuren = useVeldKleuren();
+  const rondje = { width: 20, height: 20, borderRadius: 10, justifyContent: 'center' as const, alignItems: 'center' as const };
   switch (status) {
     case 'valid':
       return (
-        <View className="w-5 h-5 rounded-full justify-center items-center" style={{ backgroundColor: '#4ADE80' }}>
-          <Text className="text-xs font-bold" style={{ color: '#0A0A0A' }}>✓</Text>
+        <View style={[rondje, { backgroundColor: kleuren.success }]}>
+          <Check size={13} color={kleuren.card} strokeWidth={3} />
         </View>
       );
     case 'invalid':
       return (
-        <View className="w-5 h-5 rounded-full bg-destructive justify-center items-center">
-          <Text className="text-xs font-bold" style={{ color: '#0A0A0A' }}>!</Text>
+        <View style={[rondje, { backgroundColor: kleuren.danger }]}>
+          <X size={13} color={kleuren.card} strokeWidth={3} />
         </View>
       );
     case 'validating':
-      return (
-        <ActivityIndicator
-          size="small"
-          color="#4ADE80"
-          className="w-5 h-5"
-        />
-      );
+      return <ActivityIndicator size="small" color={kleuren.primary} />;
     default:
       return null;
   }
@@ -196,11 +199,12 @@ export interface InputWithFeedbackProps extends InputProps {
 
 export const InputWithFeedback = forwardRef<TextInput, InputWithFeedbackProps>(
   ({ status = 'idle', feedbackMessage, rightIcon, ...props }, ref) => {
+    const kleuren = useVeldKleuren();
     const showStatusIcon = status !== 'idle';
 
     // Combine custom right icon with status icon
     const combinedRightIcon = (
-      <View className="flex-row items-center gap-2">
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         {rightIcon}
         {showStatusIcon && <StatusIcon status={status} />}
       </View>
@@ -209,17 +213,17 @@ export const InputWithFeedback = forwardRef<TextInput, InputWithFeedbackProps>(
     // Determine feedback message based on status
     const getFeedbackMessage = () => {
       if (feedbackMessage) return feedbackMessage;
-      if (status === 'validating') return 'Validating...';
+      if (status === 'validating') return 'Controleren…';
       return undefined;
     };
 
     const feedback = getFeedbackMessage();
     const feedbackColor =
       status === 'valid'
-        ? '#4ADE80'
+        ? kleuren.success
         : status === 'invalid'
-          ? '#EF4444'
-          : '#888888';
+          ? kleuren.danger
+          : kleuren.mutedForeground;
 
     return (
       <View>
@@ -230,7 +234,7 @@ export const InputWithFeedback = forwardRef<TextInput, InputWithFeedbackProps>(
           {...props}
         />
         {feedback && !props.error && !props.hint && (
-          <Text className="text-xs mt-1" style={{ color: feedbackColor }}>
+          <Text style={[tekst.voetnoot, { color: feedbackColor, marginTop: 4 }]}>
             {feedback}
           </Text>
         )}

@@ -1,42 +1,103 @@
 import { useCurrentUser } from '../../hooks/use-current-user';
 import { isInternalRole } from '../../lib/roles';
 import { GeenToegang } from '../../components/GeenToegang';
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { type ComponentType, type ReactNode } from 'react';
+import { View, Text } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Feather } from '@expo/vector-icons';
+import { Calendar, ChevronLeft, ChevronRight, CircleAlert, Clock, Flag, MapPin, Phone, SquareCheck } from 'lucide-react-native';
 import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { Id } from '../../convex/_generated/dataModel';
-import { useColors } from '../../theme';
-import { colors as themeColors } from '../../theme/colors';
+import { tekst } from '../../theme';
 import {
+  Button,
   ParallaxHeader,
   AnimatedNumber,
   ScopeTag,
   Skeleton,
 } from '../../components/ui';
+import { Drukvlak, IcoonTegel, Kaart, LegeStaat, SectieKop, Scheiding, StatusPil, type Toon } from '../../components/werk/Bouwstenen';
+import { useVeldKleuren } from '../../components/veld/BuitenModus';
 
-// Status color mapping
-const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  gepland: { bg: '#F59E0B33', text: '#F59E0B' },
-  in_uitvoering: { bg: '#4ADE8033', text: '#4ADE80' },
-  afgerond: { bg: '#3B82F633', text: '#3B82F6' },
-  on_hold: { bg: '#6B728033', text: '#6B7280' },
+type Icoon = ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
+
+// Projectstatus → pil
+const STATUS_PIL: Record<string, { label: string; toon: Toon }> = {
+  gepland: { label: 'Gepland', toon: 'wachten' },
+  in_uitvoering: { label: 'In uitvoering', toon: 'primair' },
+  afgerond: { label: 'Afgerond', toon: 'info' },
+  on_hold: { label: 'On hold', toon: 'neutraal' },
 };
+
+function statusPil(status: string): { label: string; toon: Toon } {
+  if (STATUS_PIL[status]) return STATUS_PIL[status];
+  const label = status.replace('_', ' ');
+  return { label: label.charAt(0).toUpperCase() + label.slice(1), toon: 'wachten' };
+}
+
+const datumLang = (datum: string | number) =>
+  new Date(datum).toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
 
 export default function ProjectDetailScreen() {
   const { role, isLoading } = useCurrentUser();
-  if (isLoading) return <View style={{ flex: 1 }}><Text>Project laden…</Text></View>;
+  const kleuren = useVeldKleuren();
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: kleuren.background, alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>Project laden…</Text>
+      </View>
+    );
+  }
   if (!isInternalRole(role)) return <GeenToegang uitleg="Dit projectscherm is alleen voor medewerkers. Gebruik als klant het klantportaal." />;
   return <ProjectDetailContent />;
+}
+
+/** Ronde terugknop; op een vast vlak zodat hij leesbaar blijft boven elke kop. */
+function TerugKnop({ onPress }: { onPress: () => void }) {
+  const kleuren = useVeldKleuren();
+  return (
+    <Drukvlak
+      onPress={onPress}
+      accessibilityLabel="Terug"
+      style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: kleuren.card, borderWidth: 1, borderColor: kleuren.border, alignItems: 'center', justifyContent: 'center' }}
+    >
+      <ChevronLeft size={24} color={kleuren.foreground} strokeWidth={2.25} />
+    </Drukvlak>
+  );
+}
+
+/** Detailregel: icoon, klein label en de waarde. */
+function DetailRegel({ icoon: I, label, waarde, sub, nadruk }: { icoon: Icoon; label?: string; waarde: string; sub?: string; nadruk?: boolean }) {
+  const kleuren = useVeldKleuren();
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 8 }}>
+      <View style={{ paddingTop: 2 }}>
+        <I size={18} color={kleuren.mutedForeground} strokeWidth={2} />
+      </View>
+      <View style={{ flex: 1, gap: 1 }}>
+        {label && <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground }]}>{label}</Text>}
+        <Text style={[tekst.callout, tekst.cijfers, { color: nadruk ? kleuren.primary : kleuren.foreground, fontWeight: nadruk ? '600' : '400' }]}>{waarde}</Text>
+        {sub && <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground }]}>{sub}</Text>}
+      </View>
+    </View>
+  );
+}
+
+function Sectie({ titel, children }: { titel: string; children: ReactNode }) {
+  return (
+    <View style={{ gap: 8 }}>
+      <SectieKop titel={titel} />
+      <Kaart>{children}</Kaart>
+    </View>
+  );
 }
 
 function ProjectDetailContent() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const colors = useColors();
+  const kleuren = useVeldKleuren();
+  const insets = useSafeAreaInsets();
 
   const projectData = useQuery(
     api.mobile.getProjectDetailsForMedewerker,
@@ -45,58 +106,50 @@ function ProjectDetailContent() {
 
   if (!id) {
     return (
-      <View style={s.emptyContainer}>
-        <Text style={s.emptyText}>Geen project ID</Text>
+      <View style={{ flex: 1, backgroundColor: kleuren.background, alignItems: 'center', justifyContent: 'center' }}>
+        <Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>Geen project ID</Text>
       </View>
     );
   }
 
   if (projectData === undefined) {
     return (
-      <View style={s.loadingContainer}>
-        <SafeAreaView style={s.flex1} edges={['top']}>
-          <View style={s.loadingHeader}>
-            <TouchableOpacity onPress={() => router.back()} style={s.backButton}>
-              <Feather name="arrow-left" size={24} color="#E8E8E8" />
-            </TouchableOpacity>
-            <Skeleton width={200} height={24} />
-          </View>
-          <View style={s.loadingBody}>
-            <Skeleton width="100%" height={150} className="rounded-2xl mb-3" />
-            <Skeleton width="100%" height={200} className="rounded-2xl mb-3" />
-            <Skeleton width="100%" height={150} className="rounded-2xl" />
-          </View>
-        </SafeAreaView>
-      </View>
+      <SafeAreaView style={{ flex: 1, backgroundColor: kleuren.background }} edges={['top']}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 8 }}>
+          <TerugKnop onPress={() => router.back()} />
+          <Skeleton width={200} height={24} />
+        </View>
+        <View style={{ flex: 1, padding: 16, gap: 12 }}>
+          <Skeleton width="100%" height={150} borderRadius={18} />
+          <Skeleton width="100%" height={200} borderRadius={18} />
+          <Skeleton width="100%" height={150} borderRadius={18} />
+        </View>
+      </SafeAreaView>
     );
   }
 
   if ('error' in projectData) {
     return (
-      <View style={s.loadingContainer}>
-        <SafeAreaView style={s.flex1} edges={['top']}>
-          <View style={s.loadingHeader}>
-            <TouchableOpacity onPress={() => router.back()} style={s.backButton}>
-              <Feather name="arrow-left" size={24} color="#E8E8E8" />
-            </TouchableOpacity>
-            <Text style={s.errorTitle}>Fout</Text>
-          </View>
-          <View style={s.errorBody}>
-            <Feather name="alert-circle" size={48} color={colors.destructive} />
-            <Text style={s.errorHeading}>Geen toegang</Text>
-            <Text style={s.errorMessage}>{typeof projectData.error === 'string' ? projectData.error : 'Dit project is niet beschikbaar.'}</Text>
-            <TouchableOpacity onPress={() => router.back()} style={s.errorButton}>
-              <Text style={s.errorButtonText}>Terug</Text>
-            </TouchableOpacity>
-          </View>
-        </SafeAreaView>
-      </View>
+      <SafeAreaView style={{ flex: 1, backgroundColor: kleuren.background }} edges={['top']}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 8 }}>
+          <TerugKnop onPress={() => router.back()} />
+          <Text accessibilityRole="header" style={[tekst.kop, { color: kleuren.foreground }]}>Fout</Text>
+        </View>
+        <View style={{ flex: 1, justifyContent: 'center', padding: 16 }}>
+          <LegeStaat
+            icoon={CircleAlert}
+            titel="Geen toegang"
+            uitleg={typeof projectData.error === 'string' ? projectData.error : 'Dit project is niet beschikbaar.'}
+            actie={<Button title="Terug" onPress={() => router.back()} />}
+          />
+        </View>
+      </SafeAreaView>
     );
   }
 
   const { project, offerte, voorcalculatie, planningTaken } = projectData;
   const medewerkerUren = { registraties: projectData.mijnUrenRegistraties, totaalUren: projectData.totaalUren };
-  const statusColor = STATUS_COLORS[project.status] || STATUS_COLORS.gepland;
+  const status = statusPil(project.status);
 
   // Calculate progress from planning tasks
   const totalTaken = planningTaken?.length || 0;
@@ -108,45 +161,55 @@ function ProjectDetailContent() {
     ? offerte.scopes.map((s: string) => s.charAt(0).toUpperCase() + s.slice(1)).join(' · ')
     : project.status.replace('_', ' ');
 
-  return (
-    <View style={s.container}>
-      <SafeAreaView style={s.flex1} edges={['top']}>
-        {/* Back button overlay */}
-        <View style={s.backOverlay}>
-          <TouchableOpacity onPress={() => router.back()} style={s.backButtonCircle}>
-            <Feather name="arrow-left" size={20} color="#E8E8E8" />
-          </TouchableOpacity>
-          <View style={[s.statusBadge, { backgroundColor: statusColor.bg }]}>
-            <Text style={[s.statusText, { color: statusColor.text }]}>
-              {project.status.replace('_', ' ')}
-            </Text>
-          </View>
-        </View>
+  const detailRegels: ReactNode[] = [];
+  if (offerte?.klant?.adres) {
+    detailRegels.push(
+      <DetailRegel key="adres" icoon={MapPin} waarde={offerte.klant.adres} sub={`${offerte.klant.postcode} ${offerte.klant.plaats}`} />
+    );
+  }
+  if (project.startDatum) {
+    detailRegels.push(<DetailRegel key="start" icoon={Calendar} label="Startdatum" waarde={datumLang(project.startDatum)} />);
+  }
+  if (project.deadline) {
+    detailRegels.push(<DetailRegel key="deadline" icoon={Flag} label="Deadline" waarde={datumLang(project.deadline)} />);
+  }
+  if (offerte?.klant?.telefoon) {
+    detailRegels.push(<DetailRegel key="telefoon" icoon={Phone} label="Telefoon" waarde={offerte.klant.telefoon} nadruk />);
+  }
 
-        <ParallaxHeader
-          title={project.naam}
-          subtitle={subtitleText}
-          height={200}
-        >
-          <View style={s.content}>
-            {/* Progress Section */}
-            <View style={s.progressSection}>
-              <View style={s.progressRow}>
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: kleuren.background }} edges={['top']}>
+      {/* Terugknop boven de kop */}
+      <View style={{ position: 'absolute', top: insets.top + 6, left: 16, zIndex: 10 }}>
+        <TerugKnop onPress={() => router.back()} />
+      </View>
+
+      <ParallaxHeader
+        title={project.naam}
+        subtitle={subtitleText}
+        height={200}
+      >
+        <View style={{ paddingHorizontal: 16, paddingTop: 8, gap: 14 }}>
+          {/* Voortgang */}
+          <Kaart>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
                 <AnimatedNumber
                   value={progressPercent}
                   suffix="%"
-                  style={s.progressNumber}
+                  style={[tekst.titel1, tekst.cijfers, { color: kleuren.primary }]}
                 />
-                <Text style={s.progressLabel}>voltooid</Text>
+                <Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>voltooid</Text>
               </View>
-              <View style={s.progressBarBg}>
-                <View style={[s.progressBarFill, { width: `${progressPercent}%` }]} />
-              </View>
+              <StatusPil label={status.label} toon={status.toon} />
+            </View>
+            <View style={{ height: 6, borderRadius: 3, backgroundColor: kleuren.primarySoft, overflow: 'hidden' }}>
+              <View style={{ width: `${progressPercent}%`, height: 6, borderRadius: 3, backgroundColor: kleuren.primary }} />
             </View>
 
             {/* Scope Tags Row */}
             {offerte?.scopes && offerte.scopes.length > 0 && (
-              <View style={s.scopeRow}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                 {offerte.scopes.map((scope: string) => (
                   <ScopeTag
                     key={scope}
@@ -156,496 +219,125 @@ function ProjectDetailContent() {
                 ))}
               </View>
             )}
+          </Kaart>
 
-            {/* Quick Actions Row
-                Alleen "Uren" is hier zinvol. "Foto's" verwees naar een scherm dat niet
-                bestaat (de Foto's-tab is een stub, zie docs/MOBILE-AUDIT.md B5) en
-                "Notities" dupliceerde de NOTITIES-sectie die hieronder al zichtbaar is.
-                Beide hadden geen onPress en deden dus niets. */}
-            <View style={s.quickActionsRow}>
-              <TouchableOpacity
-                style={s.quickAction}
-                onPress={() => router.push('/(tabs)/uren')}
-              >
-                <Feather name="clock" size={20} color="#6B8F6B" />
-                <Text style={s.quickActionLabel}>Uren</Text>
-              </TouchableOpacity>
+          {/* Quick Actions Row
+              Alleen "Uren" is hier zinvol. "Foto's" verwees naar een scherm dat niet
+              bestaat (de Foto's-tab is een stub, zie docs/MOBILE-AUDIT.md B5) en
+              "Notities" dupliceerde de NOTITIES-sectie die hieronder al zichtbaar is.
+              Beide hadden geen onPress en deden dus niets. */}
+          <Drukvlak
+            onPress={() => router.push('/(tabs)/uren')}
+            accessibilityLabel="Uren schrijven"
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 64, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 18, backgroundColor: kleuren.card, borderWidth: 1, borderColor: kleuren.border }}
+          >
+            <IcoonTegel icoon={Clock} toon="primair" grootte={38} />
+            <View style={{ flex: 1, gap: 1 }}>
+              <Text style={[tekst.kop, { color: kleuren.foreground }]}>Uren</Text>
+              <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground }]}>Naar mijn dag</Text>
             </View>
+            <ChevronRight size={18} color={kleuren.mutedForeground} strokeWidth={2} />
+          </Drukvlak>
 
-            {/* DETAILS Section */}
-            <View style={s.section}>
-              <Text style={s.sectionLabel}>DETAILS</Text>
-              <View style={s.card}>
-                {offerte?.klant?.adres && (
-                  <View style={s.detailRow}>
-                    <Feather name="map-pin" size={16} color={themeColors.inactive} />
-                    <View style={s.detailContent}>
-                      <Text style={s.detailText}>{offerte.klant.adres}</Text>
-                      <Text style={s.detailSubText}>
-                        {offerte.klant.postcode} {offerte.klant.plaats}
-                      </Text>
-                    </View>
+          {/* Details */}
+          {detailRegels.length > 0 && (
+            <Sectie titel="Details">
+              <View>
+                {detailRegels.map((regel, index) => (
+                  <View key={index}>
+                    {index > 0 && <Scheiding />}
+                    {regel}
                   </View>
-                )}
-                {project.startDatum && (
-                  <View style={[s.detailRow, offerte?.klant?.adres && s.detailRowBorder]}>
-                    <Feather name="calendar" size={16} color={themeColors.inactive} />
-                    <View style={s.detailContent}>
-                      <Text style={s.detailSubText}>Startdatum</Text>
-                      <Text style={s.detailText}>
-                        {new Date(project.startDatum).toLocaleDateString('nl-NL', {
-                          day: 'numeric',
-                          month: 'long',
-                          year: 'numeric',
-                        })}
-                      </Text>
-                    </View>
-                  </View>
-                )}
-                {project.deadline && (
-                  <View style={[s.detailRow, s.detailRowBorder]}>
-                    <Feather name="flag" size={16} color={themeColors.inactive} />
-                    <View style={s.detailContent}>
-                      <Text style={s.detailSubText}>Deadline</Text>
-                      <Text style={s.detailText}>
-                        {new Date(project.deadline).toLocaleDateString('nl-NL', {
-                          day: 'numeric',
-                          month: 'long',
-                          year: 'numeric',
-                        })}
-                      </Text>
-                    </View>
-                  </View>
-                )}
-                {offerte?.klant?.telefoon && (
-                  <View style={[s.detailRow, s.detailRowBorder]}>
-                    <Feather name="phone" size={16} color={themeColors.inactive} />
-                    <View style={s.detailContent}>
-                      <Text style={s.detailSubText}>Telefoon</Text>
-                      <Text style={[s.detailText, { color: '#4ADE80' }]}>
-                        {offerte.klant.telefoon}
-                      </Text>
-                    </View>
-                  </View>
-                )}
+                ))}
               </View>
-            </View>
+            </Sectie>
+          )}
 
-            {/* TEAM Section */}
-            {voorcalculatie && (
-              <View style={s.section}>
-                <Text style={s.sectionLabel}>TEAM</Text>
-                <View style={s.card}>
-                  <View style={s.teamGrid}>
-                    {(voorcalculatie.teamleden ?? []).map((naam: string, index: number) => (
-                      <View key={index} style={s.teamMember}>
-                        <View style={s.avatar}>
-                          <Text style={s.avatarText}>
-                            {naam.charAt(0).toUpperCase()}
-                          </Text>
-                        </View>
-                        <Text style={s.teamName} numberOfLines={1}>{naam}</Text>
-                      </View>
-                    ))}
+          {/* Team */}
+          {voorcalculatie && (
+            <Sectie titel="Team">
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+                {(voorcalculatie.teamleden ?? []).map((naam: string, index: number) => (
+                  <View key={index} style={{ alignItems: 'center', gap: 6, width: 68 }}>
+                    <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: kleuren.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={[tekst.kop, { color: kleuren.primary }]}>{naam.charAt(0).toUpperCase()}</Text>
+                    </View>
+                    <Text style={[tekst.bijschrift, { color: kleuren.foreground, textAlign: 'center' }]} numberOfLines={1}>{naam}</Text>
                   </View>
-                  {voorcalculatie.geschatteDagen && (
-                    <View style={s.teamFooter}>
-                      <Feather name="calendar" size={14} color="#888" />
-                      <Text style={s.teamFooterText}>
-                        Geschatte duur: {voorcalculatie.geschatteDagen} dagen
-                      </Text>
-                    </View>
-                  )}
-                </View>
+                ))}
               </View>
-            )}
-
-            {/* ACTIVITEIT Section */}
-            <View style={s.section}>
-              <Text style={s.sectionLabel}>ACTIVITEIT</Text>
-              <View style={s.card}>
-                {/* Recent uren registraties as timeline */}
-                {medewerkerUren.totaalUren === null || medewerkerUren.registraties.length > 0 ? (
-                  <>
-                    <View style={s.activityHeader}>
-                      <Text style={s.activityTotal}>
-                        {medewerkerUren.totaalUren === null ? 'Urenbron kiezen door kantoor' : `${medewerkerUren.totaalUren.toFixed(1)} uur totaal`}
-                      </Text>
-                    </View>
-                    {medewerkerUren.registraties.slice(0, 5).map((reg: { datum: string; scope?: string; uren: number }, index: number) => (
-                      <View
-                        key={index}
-                        style={[
-                          s.timelineItem,
-                          index < Math.min(medewerkerUren.registraties.length, 5) - 1 &&
-                            s.timelineItemBorder,
-                        ]}
-                      >
-                        <View style={s.timelineDot} />
-                        <View style={s.timelineContent}>
-                          <Text style={s.timelineDate}>
-                            {new Date(reg.datum).toLocaleDateString('nl-NL', {
-                              weekday: 'short',
-                              day: 'numeric',
-                              month: 'short',
-                            })}
-                          </Text>
-                          <Text style={s.timelineDetail}>
-                            {reg.scope} · {reg.uren} uur
-                          </Text>
-                        </View>
-                      </View>
-                    ))}
-                  </>
-                ) : (
-                  <Text style={s.emptyActivity}>Nog geen activiteit</Text>
-                )}
-
-                {/* Planning taken summary */}
-                {planningTaken && planningTaken.length > 0 && (
-                  <View style={s.takenSummary}>
-                    <Feather name="check-square" size={14} color="#888" />
-                    <Text style={s.takenSummaryText}>
-                      {completedTaken} / {totalTaken} taken voltooid
+              {voorcalculatie.geschatteDagen && (
+                <>
+                  <Scheiding />
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Calendar size={16} color={kleuren.mutedForeground} strokeWidth={2} />
+                    <Text style={[tekst.sub, tekst.cijfers, { color: kleuren.mutedForeground }]}>
+                      Geschatte duur: {voorcalculatie.geschatteDagen} dagen
                     </Text>
                   </View>
-                )}
-              </View>
-            </View>
+                </>
+              )}
+            </Sectie>
+          )}
 
-            {/* Notities */}
-            {offerte?.notities && (
-              <View style={s.section}>
-                <Text style={s.sectionLabel}>NOTITIES</Text>
-                <View style={s.card}>
-                  <Text style={s.notitiesText}>{offerte.notities}</Text>
-                </View>
+          {/* Activiteit */}
+          <Sectie titel="Activiteit">
+            {/* Recent uren registraties as timeline */}
+            {medewerkerUren.totaalUren === null || medewerkerUren.registraties.length > 0 ? (
+              <View>
+                <Text style={[tekst.kop, tekst.cijfers, { color: kleuren.primary, marginBottom: 4 }]}>
+                  {medewerkerUren.totaalUren === null ? 'Urenbron kiezen door kantoor' : `${medewerkerUren.totaalUren.toFixed(1)} uur totaal`}
+                </Text>
+                {medewerkerUren.registraties.slice(0, 5).map((reg: { datum: string; scope?: string; uren: number }, index: number) => (
+                  <View key={index}>
+                    {index > 0 && <Scheiding />}
+                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 8 }}>
+                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: kleuren.primary, marginTop: 7 }} />
+                      <View style={{ flex: 1, gap: 1 }}>
+                        <Text style={[tekst.callout, tekst.cijfers, { color: kleuren.foreground }]}>
+                          {new Date(reg.datum).toLocaleDateString('nl-NL', {
+                            weekday: 'short',
+                            day: 'numeric',
+                            month: 'short',
+                          })}
+                        </Text>
+                        <Text style={[tekst.voetnoot, tekst.cijfers, { color: kleuren.mutedForeground, textTransform: 'capitalize' }]}>
+                          {reg.scope} · {reg.uren} uur
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                ))}
               </View>
+            ) : (
+              <Text style={[tekst.sub, { color: kleuren.mutedForeground, textAlign: 'center', paddingVertical: 12 }]}>Nog geen activiteit</Text>
             )}
 
-            {/* Bottom padding for tab bar */}
-            <View style={{ height: 100 }} />
-          </View>
-        </ParallaxHeader>
-      </SafeAreaView>
-    </View>
+            {/* Planning taken summary */}
+            {planningTaken && planningTaken.length > 0 && (
+              <>
+                <Scheiding />
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <SquareCheck size={16} color={kleuren.mutedForeground} strokeWidth={2} />
+                  <Text style={[tekst.sub, tekst.cijfers, { color: kleuren.mutedForeground }]}>
+                    {completedTaken} / {totalTaken} taken voltooid
+                  </Text>
+                </View>
+              </>
+            )}
+          </Sectie>
+
+          {/* Notities */}
+          {offerte?.notities && (
+            <Sectie titel="Notities">
+              <Text style={[tekst.callout, { color: kleuren.foreground }]}>{offerte.notities}</Text>
+            </Sectie>
+          )}
+
+          {/* Ruimte onderaan */}
+          <View style={{ height: 100 }} />
+        </View>
+      </ParallaxHeader>
+    </SafeAreaView>
   );
 }
-
-const s = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0A0A0A',
-  },
-  flex1: {
-    flex: 1,
-  },
-  emptyContainer: {
-    flex: 1,
-    backgroundColor: '#0A0A0A',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyText: {
-    color: '#888',
-    fontSize: 14,
-  },
-  loadingContainer: {
-    flex: 1,
-    backgroundColor: '#0A0A0A',
-  },
-  loadingHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#222',
-  },
-  loadingBody: {
-    flex: 1,
-    padding: 16,
-  },
-  backButton: {
-    marginRight: 12,
-  },
-  errorTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#E8E8E8',
-  },
-  errorBody: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-  },
-  errorHeading: {
-    fontSize: 18,
-    fontWeight: '500',
-    color: '#E8E8E8',
-    marginTop: 16,
-  },
-  errorMessage: {
-    fontSize: 14,
-    color: '#888',
-    textAlign: 'center',
-    marginTop: 8,
-  },
-  errorButton: {
-    marginTop: 24,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    backgroundColor: '#4ADE80',
-    borderRadius: 8,
-  },
-  errorButtonText: {
-    color: '#0A0A0A',
-    fontWeight: '500',
-  },
-  backOverlay: {
-    position: 'absolute',
-    top: 50,
-    left: 16,
-    right: 16,
-    zIndex: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  backButtonCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(17,17,17,0.8)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusText: {
-    fontSize: 11,
-    fontWeight: '600',
-    textTransform: 'capitalize',
-  },
-  content: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-  },
-
-  // Progress Section
-  progressSection: {
-    marginBottom: 20,
-  },
-  progressRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    marginBottom: 8,
-  },
-  progressNumber: {
-    fontSize: 34,
-    fontWeight: '700',
-    color: '#4ADE80',
-  },
-  progressLabel: {
-    fontSize: 13,
-    color: '#888',
-    marginLeft: 6,
-  },
-  progressBarBg: {
-    height: 4,
-    backgroundColor: '#1A1A1A',
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: 4,
-    backgroundColor: '#4ADE80',
-    borderRadius: 2,
-  },
-
-  // Scope Tags Row
-  scopeRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 20,
-  },
-
-  // Quick Actions
-  quickActionsRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 24,
-  },
-  quickAction: {
-    flex: 1,
-    backgroundColor: '#1A1A1A',
-    borderWidth: 1,
-    borderColor: '#222',
-    borderRadius: 12,
-    padding: 12,
-    alignItems: 'center',
-    gap: 6,
-  },
-  quickActionLabel: {
-    fontSize: 10,
-    color: '#888',
-  },
-
-  // Sections
-  section: {
-    marginBottom: 16,
-  },
-  sectionLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: themeColors.inactive,
-    letterSpacing: 1.5,
-    textTransform: 'uppercase',
-    marginBottom: 8,
-  },
-  card: {
-    backgroundColor: '#111',
-    borderWidth: 1,
-    borderColor: '#222',
-    borderRadius: 12,
-    padding: 16,
-  },
-
-  // Detail rows
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    paddingVertical: 10,
-  },
-  detailRowBorder: {
-    borderTopWidth: 1,
-    borderTopColor: '#1A1A1A',
-  },
-  detailContent: {
-    flex: 1,
-  },
-  detailText: {
-    fontSize: 14,
-    color: '#E8E8E8',
-  },
-  detailSubText: {
-    fontSize: 11,
-    color: '#888',
-    marginTop: 1,
-  },
-
-  // Team
-  teamGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  teamMember: {
-    alignItems: 'center',
-    gap: 6,
-    width: 64,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#4ADE80',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0A0A0A',
-  },
-  teamName: {
-    fontSize: 11,
-    color: '#E8E8E8',
-    textAlign: 'center',
-  },
-  teamFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 14,
-    paddingTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: '#1A1A1A',
-  },
-  teamFooterText: {
-    fontSize: 12,
-    color: '#888',
-  },
-
-  // Activity / Timeline
-  activityHeader: {
-    marginBottom: 12,
-  },
-  activityTotal: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#4ADE80',
-  },
-  timelineItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingVertical: 8,
-    gap: 10,
-  },
-  timelineItemBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#1A1A1A',
-  },
-  timelineDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#6B8F6B',
-    marginTop: 4,
-  },
-  timelineContent: {
-    flex: 1,
-  },
-  timelineDate: {
-    fontSize: 13,
-    color: '#E8E8E8',
-  },
-  timelineDetail: {
-    fontSize: 11,
-    color: '#888',
-    textTransform: 'capitalize',
-    marginTop: 2,
-  },
-  emptyActivity: {
-    fontSize: 13,
-    color: '#888',
-    textAlign: 'center',
-    paddingVertical: 16,
-  },
-  takenSummary: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#1A1A1A',
-  },
-  takenSummaryText: {
-    fontSize: 12,
-    color: '#888',
-  },
-
-  // Notities
-  notitiesText: {
-    fontSize: 13,
-    color: '#888',
-    lineHeight: 20,
-  },
-});

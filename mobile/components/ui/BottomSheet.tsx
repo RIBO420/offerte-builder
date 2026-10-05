@@ -5,10 +5,12 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
   withTiming,
-  runOnJS,
 } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { springConfigs } from '../../theme/animations';
+import { tekst } from '../../theme/typography';
+import { useVeldKleuren } from '../veld/BuitenModus';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const DISMISS_THRESHOLD = 100;
@@ -26,16 +28,17 @@ export function BottomSheet({
   title,
   children,
 }: BottomSheetProps) {
+  const kleuren = useVeldKleuren();
   const translateY = useSharedValue(SCREEN_HEIGHT);
   const backdropOpacity = useSharedValue(0);
 
   useEffect(() => {
     if (isOpen) {
-      translateY.value = withSpring(0, springConfigs.default);
-      backdropOpacity.value = withTiming(1, { duration: 300 });
+      translateY.set(withSpring(0, springConfigs.default));
+      backdropOpacity.set(withTiming(1, { duration: 300 }));
     } else {
-      translateY.value = withSpring(SCREEN_HEIGHT, springConfigs.default);
-      backdropOpacity.value = withTiming(0, { duration: 200 });
+      translateY.set(withSpring(SCREEN_HEIGHT, springConfigs.default));
+      backdropOpacity.set(withTiming(0, { duration: 200 }));
     }
     // Shared values zijn stabiele referenties; opnemen in deps is gedragsneutraal.
   }, [isOpen, translateY, backdropOpacity]);
@@ -47,32 +50,26 @@ export function BottomSheet({
   const panGesture = Gesture.Pan()
     .onUpdate((event) => {
       if (event.translationY > 0) {
-        // Reanimated shared value-mutatie in een gesture-worklet (UI-thread) is
-        // het canonieke reanimated-patroon; de regel kent shared values niet.
-        // eslint-disable-next-line react-hooks/immutability
-        translateY.value = event.translationY;
+        translateY.set(event.translationY);
       }
     })
     .onEnd((event) => {
       if (event.translationY > DISMISS_THRESHOLD) {
-        // Zie boven: shared value-mutatie in gesture-worklet is by design.
-        // eslint-disable-next-line react-hooks/immutability
-        translateY.value = withSpring(SCREEN_HEIGHT, springConfigs.default);
-        // eslint-disable-next-line react-hooks/immutability
-        backdropOpacity.value = withTiming(0, { duration: 200 }, () => {
-          runOnJS(handleClose)();
-        });
+        translateY.set(withSpring(SCREEN_HEIGHT, springConfigs.default));
+        backdropOpacity.set(withTiming(0, { duration: 200 }, () => {
+          scheduleOnRN(handleClose);
+        }));
       } else {
-        translateY.value = withSpring(0, springConfigs.default);
+        translateY.set(withSpring(0, springConfigs.default));
       }
     });
 
   const sheetStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
+    transform: [{ translateY: translateY.get() }],
   }));
 
   const backdropStyle = useAnimatedStyle(() => ({
-    opacity: backdropOpacity.value,
+    opacity: backdropOpacity.get(),
   }));
 
   if (!isOpen) return null;
@@ -83,11 +80,15 @@ export function BottomSheet({
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Sluit paneel" />
       </Animated.View>
       <GestureDetector gesture={panGesture}>
-        <Animated.View style={[styles.sheet, sheetStyle]} accessibilityRole="summary" accessibilityLabel={title ?? 'Paneel'}>
+        <Animated.View
+          style={[styles.sheet, { backgroundColor: kleuren.card, borderColor: kleuren.border }, sheetStyle]}
+          accessibilityRole="summary"
+          accessibilityLabel={title ?? 'Paneel'}
+        >
           <View style={styles.handleContainer}>
-            <View style={styles.handle} />
+            <View style={[styles.handle, { backgroundColor: kleuren.inactive }]} />
           </View>
-          {title && <Text style={styles.title}>{title}</Text>}
+          {title && <Text style={[tekst.kop, styles.title, { color: kleuren.foreground }]}>{title}</Text>}
           <View style={styles.content}>{children}</View>
         </Animated.View>
       </GestureDetector>
@@ -106,9 +107,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
   sheet: {
-    backgroundColor: '#111',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    borderWidth: 1,
+    borderBottomWidth: 0,
     minHeight: 200,
     maxHeight: SCREEN_HEIGHT * 0.85,
     paddingBottom: 34,
@@ -121,12 +123,9 @@ const styles = StyleSheet.create({
     width: 36,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#333',
+    opacity: 0.5,
   },
   title: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#E8E8E8',
     textAlign: 'center',
     marginBottom: 12,
   },

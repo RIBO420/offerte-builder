@@ -1,10 +1,26 @@
 import React from 'react';
 import { Text, View, StyleSheet, TextStyle, ViewStyle } from 'react-native';
-import { typography } from '../../theme/typography';
+import { typography, tekst } from '../../theme/typography';
+import type { ColorScheme } from '../../theme/colors';
+import { useVeldKleuren } from '../veld/BuitenModus';
 import { AnimatedNumber } from './AnimatedNumber';
 
 type PriceSize = 'sm' | 'md' | 'lg' | 'xl';
 type PriceVariant = 'default' | 'success' | 'warning' | 'muted';
+
+// 'warning' toonde altijd rood (te hoog bedrag); dat blijft zo, nu via danger.
+function variantKleur(k: ColorScheme, variant: PriceVariant): string {
+  switch (variant) {
+    case 'success':
+      return k.success;
+    case 'warning':
+      return k.danger;
+    case 'muted':
+      return k.mutedForeground;
+    default:
+      return k.foreground;
+  }
+}
 
 interface PriceDisplayProps {
   value: number;
@@ -25,6 +41,8 @@ export function PriceDisplay({
   style,
   textStyle,
 }: PriceDisplayProps) {
+  const kleuren = useVeldKleuren();
+  const kleur = { color: variantKleur(kleuren, variant) };
   const formatOptions: Intl.NumberFormatOptions = {
     style: 'currency',
     currency: 'EUR',
@@ -39,7 +57,7 @@ export function PriceDisplay({
           value={value}
           locale="nl-NL"
           formatOptions={formatOptions}
-          style={[sizeStyles[size], variantStyles[variant], textStyle]}
+          style={[sizeStyles[size], tekst.cijfers, kleur, textStyle]}
         />
       </View>
     );
@@ -49,7 +67,7 @@ export function PriceDisplay({
 
   return (
     <View style={[styles.container, style]}>
-      <Text style={[sizeStyles[size], variantStyles[variant], styles.price, textStyle]}>
+      <Text style={[sizeStyles[size], tekst.cijfers, kleur, styles.price, textStyle]}>
         {formattedPrice}
       </Text>
     </View>
@@ -68,34 +86,19 @@ const styles = StyleSheet.create({
 
 const sizeStyles = StyleSheet.create({
   sm: {
-    fontSize: typography.fontSize.sm,
+    fontSize: 13,
     fontWeight: typography.fontWeight.medium,
   },
   md: {
-    fontSize: typography.fontSize.base,
+    fontSize: 15,
     fontWeight: typography.fontWeight.semibold,
   },
   lg: {
-    fontSize: typography.fontSize.xl,
+    fontSize: 20,
     fontWeight: typography.fontWeight.semibold,
   },
   xl: {
-    fontSize: typography.fontSize['2xl'],
+    fontSize: 22,
     fontWeight: typography.fontWeight.bold,
-  },
-});
-
-const variantStyles = StyleSheet.create({
-  default: {
-    color: '#E8E8E8',
-  },
-  success: {
-    color: '#4ADE80',
-  },
-  warning: {
-    color: '#EF4444',
-  },
-  muted: {
-    color: '#888888',
   },
 });

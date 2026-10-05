@@ -1,7 +1,7 @@
 import React from 'react';
-import { Text, StyleSheet, TextStyle } from 'react-native';
-import { typography } from '../../theme/typography';
-import { colors } from '../../theme/colors';
+import { Text, TextStyle } from 'react-native';
+import { tekst } from '../../theme/typography';
+import { useVeldKleuren } from '../veld/BuitenModus';
 
 interface LabelProps {
   children: string;
@@ -12,28 +12,18 @@ interface LabelProps {
 }
 
 export function Label({ children, required, disabled, style }: LabelProps) {
+  const kleuren = useVeldKleuren();
   return (
-    <Text style={[styles.label, disabled && styles.disabled, style]}>
+    <Text
+      style={[
+        tekst.sub,
+        { color: kleuren.mutedForeground, fontWeight: '500' },
+        disabled && { color: kleuren.inactive, opacity: 0.7 },
+        style,
+      ]}
+    >
       {children}
-      {required && <Text style={styles.required}> *</Text>}
+      {required && <Text style={{ color: kleuren.danger, fontWeight: '500' }}> *</Text>}
     </Text>
   );
 }
-
-const styles = StyleSheet.create({
-  label: {
-    fontFamily: typography.fontFamily.sans,
-    fontSize: typography.fontSize.sm,
-    fontWeight: typography.fontWeight.medium,
-    color: '#888888',
-    lineHeight: typography.fontSize.sm * typography.lineHeight.normal,
-  },
-  disabled: {
-    color: colors.inactive,
-    opacity: 0.7,
-  },
-  required: {
-    color: '#EF4444',
-    fontWeight: typography.fontWeight.medium,
-  },
-});

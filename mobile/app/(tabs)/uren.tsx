@@ -16,28 +16,21 @@
  */
 
 import { useVeldServerActie } from '../../hooks/use-veld-server-actie';
-import React, { Component, useMemo, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import React, { Component, useState, type ReactNode } from 'react';
+import { ActivityIndicator, Alert, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from 'convex/react';
-import {
-  CalendarDays,
-  ChevronLeft,
-  ChevronRight,
-  Lock,
-  LockOpen,
-  Send,
-  Sun,
-} from 'lucide-react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { CloudOff, Lock, Send, Sun, UserX } from 'lucide-react-native';
+import { useLocalSearchParams } from 'expo-router';
 import { useVeldCache } from '../../hooks/use-veld-cache';
 import { useVeldOpdracht } from '../../hooks/use-veld-opdracht';
 import { WerkbezoekDag, type WerkbezoekDagData } from '../../components/veld/WerkbezoekDag';
 import { VeldWachtrij } from '../../components/veld/VeldWachtrij';
-import { geldigeDag } from '../../lib/werk-periode';
+import { geldigeDag, schuifDag, vandaagAmsterdam, werkPeriode } from '../../lib/werk-periode';
+import { dagLabel, dagNummer, periodeLabel, weekNummer, weekdagKort } from '../../lib/datum-labels';
 import { api } from '../../convex/_generated/api';
 import { useCurrentUser } from '../../hooks/use-current-user';
-import { Badge, Button, OfflineIndicator } from '../../components/ui';
+import { Button, OfflineIndicator, SkeletonCard } from '../../components/ui';
 import {
   BuitenModusProvider,
   KlantblokKaart,
@@ -45,56 +38,11 @@ import {
   SegmentenLijst,
   useBuitenModus,
 } from '../../components/veld';
+import { Drukvlak, LegeStaat, Melding, PeriodeKiezer, SectieKop, StatusPil, WeekStrook } from '../../components/werk/Bouwstenen';
 import { isInternalRole } from '../../lib/roles';
 import { AanhangerRetourKaart } from '../../components/veld/AanhangerRetourKaart';
+import { tekst, useColors } from '../../theme';
 import type { VeldDagData, VeldInstellingenData } from '../../types/veld';
-
-// ============================================
-// Datum-helpers (zonder Intl — Hermes-veilig)
-// ============================================
-
-const DAGEN = [
-  'zondag',
-  'maandag',
-  'dinsdag',
-  'woensdag',
-  'donderdag',
-  'vrijdag',
-  'zaterdag',
-];
-const MAANDEN = [
-  'januari',
-  'februari',
-  'maart',
-  'april',
-  'mei',
-  'juni',
-  'juli',
-  'augustus',
-  'september',
-  'oktober',
-  'november',
-  'december',
-];
-
-function naarIso(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function vandaagIso(): string {
-  return naarIso(new Date());
-}
-
-function schuifDag(datum: string, dagen: number): string {
-  const d = new Date(`${datum}T00:00:00`);
-  d.setDate(d.getDate() + dagen);
-  return naarIso(d);
-}
-
-function datumLabel(datum: string): string {
-  const d = new Date(`${datum}T00:00:00`);
-  return `${DAGEN[d.getDay()]} ${d.getDate()} ${MAANDEN[d.getMonth()]}`;
-}
 
 function toonFout(fout: unknown, fallback: string) {
   const bericht =
@@ -108,34 +56,25 @@ function toonFout(fout: unknown, fallback: string) {
 
 export default function UrenScreen() {
   const { user, isLoading, role } = useCurrentUser();
+  const kleuren = useColors();
 
-  if (isLoading) return <SafeAreaView style={{ flex: 1, justifyContent: 'center' }}><ActivityIndicator accessibilityLabel="Je dag laden" /></SafeAreaView>;
+  if (isLoading) {
+    return (
+      <SafeAreaView style={{ flex: 1, justifyContent: 'center', backgroundColor: kleuren.background }}>
+        <ActivityIndicator accessibilityLabel="Je dag laden" color={kleuren.primary} />
+      </SafeAreaView>
+    );
+  }
 
   if (!isInternalRole(role)) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#0A0A0A' }}>
-        <View
-          style={{
-            flex: 1,
-            justifyContent: 'center',
-            alignItems: 'center',
-            padding: 24,
-          }}
-        >
-          <Text style={{ color: '#E8E8E8', fontSize: 16, fontWeight: '600' }}>
-            Geen toegang
-          </Text>
-          <Text
-            style={{
-              color: '#999999',
-              fontSize: 13,
-              textAlign: 'center',
-              marginTop: 8,
-            }}
-          >
-            De urenregistratie is alleen beschikbaar voor medewerkers van Top
-            Tuinen.
-          </Text>
+      <SafeAreaView style={{ flex: 1, backgroundColor: kleuren.background }}>
+        <View style={{ flex: 1, justifyContent: 'center', padding: 16 }}>
+          <LegeStaat
+            icoon={Lock}
+            titel="Geen toegang"
+            uitleg="De urenregistratie is alleen beschikbaar voor medewerkers van Top Tuinen."
+          />
         </View>
       </SafeAreaView>
     );
@@ -153,8 +92,8 @@ export default function UrenScreen() {
 function MijnDag() {
   const { buiten, toggleBuiten, kleuren } = useBuitenModus();
   const params = useLocalSearchParams<{ datum?: string }>();
-  const router = useRouter();
-  const [datum, setDatum] = useState(() => geldigeDag(params.datum) ? params.datum : vandaagIso());
+  const vandaag = vandaagAmsterdam();
+  const [datum, setDatum] = useState(() => geldigeDag(params.datum) ? params.datum : vandaagAmsterdam());
   const [routeDatum, setRouteDatum] = useState(params.datum);
   if (routeDatum !== params.datum) {
     setRouteDatum(params.datum);
@@ -174,14 +113,31 @@ function MijnDag() {
     | VeldInstellingenData
     | undefined;
 
-
   const [bezigMetIndienen, setBezigMetIndienen] = useState(false);
 
   const isIngediend = dag?.dagStatus === 'ingediend';
   // Ingediende dag is read-only; heropenen/corrigeren is kantoorwerk (web)
   const magBewerken = dag != null && !isIngediend;
 
-  const label = useMemo(() => datumLabel(datum), [datum]);
+  const week = werkPeriode(datum, 'week');
+  const weekDagen = Array.from({ length: 7 }, (_, i) => schuifDag(week.van, i));
+
+  // Waarom "Dag indienen" (nog) niet kan — dezelfde voorwaarden als de knop.
+  const indienBlokkade = !dag
+    ? null
+    : !online
+      ? 'Je bent offline. Indienen kan zodra je verbinding hebt.'
+      : uitCache
+        ? 'Je ziet een opgeslagen dag. Indienen kan zodra de actuele dag geladen is.'
+        : wachtrij.length > 0
+          ? 'Er staat nog invoer in de wachtrij. Synchroniseer die eerst.'
+          : dag.segmenten.length === 0
+            ? 'Nog geen uren gelogd voor deze dag.'
+            : !bezoekLive?.gereed
+              ? bezoekLive === undefined
+                ? 'De controle voor je vertrekt wordt geladen.'
+                : 'Rond eerst de controle voor je vertrekt af.'
+              : null;
 
   const handleDienIn = () => {
     if (!online || !dag || dag.segmenten.length === 0 || wachtrij.length > 0 || uitCache || !bezoekLive?.gereed) return;
@@ -208,203 +164,97 @@ function MijnDag() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: kleuren.background }}>
-      <OfflineIndicator />
+    <SafeAreaView style={{ flex: 1, backgroundColor: kleuren.background }} edges={['top']}>
+      <OfflineIndicator style={{ marginHorizontal: 16 }} />
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 20, paddingBottom: 120, gap: 16 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 120, gap: 14 }}
+        showsVerticalScrollIndicator={false}
       >
-        {/* Kop: titel + buiten-modus + noodprotocol */}
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'flex-start',
-            justifyContent: 'space-between',
-            gap: 8,
-          }}
-        >
-          <View style={{ flexShrink: 1 }}>
-            <Text
-              style={{
-                color: kleuren.secondaryForeground,
-                fontSize: 10,
-                textTransform: 'uppercase',
-                letterSpacing: 1.5,
-              }}
-            >
-              TOP TUINEN
-            </Text>
-            <Text
-              accessibilityRole="header"
-              style={{
-                color: kleuren.foreground,
-                fontSize: 24,
-                fontWeight: '600',
-                marginTop: 4,
-              }}
-            >
+        {/* Kop: grote titel + buiten-modus + noodprotocol */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 2 }}>
+          <View style={{ flex: 1 }}>
+            <Text accessibilityRole="header" style={[tekst.grootTitel, { color: kleuren.foreground }]} numberOfLines={1}>
               Mijn dag
             </Text>
-          </View>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <Button
-              variant={buiten ? 'primary' : 'outline'}
-              size="sm"
-              title="Buiten"
-              icon={
-                <Sun
-                  size={16}
-                  color={buiten ? kleuren.primaryForeground : kleuren.foreground}
-                />
-              }
-              onPress={toggleBuiten}
-            />
-            <NoodprotocolKnop
-              tekst={veldInstellingen?.noodprotocolTekst ?? null}
-            />
-          </View>
-        </View>
-
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          <Button title="Mijn uren" variant="outline" onPress={() => router.push('/werk/urenoverzicht')} />
-          <Button title="Planning" variant="ghost" onPress={() => router.push('/werk/planning')} />
-          <Button title="Protocollen" variant="ghost" onPress={() => router.push('/werk/protocollen')} />
-        </View>
-        {uitCache && <Text style={{ color: kleuren.mutedForeground }}>Opgeslagen dag op dit toestel. Nieuwe invoer wordt gesynchroniseerd zodra je verbinding hebt.</Text>}
-        <VeldWachtrij />
-        {/* Datum-navigatie */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Vorige dag"
-            hitSlop={8}
-            onPress={() => setDatum((d) => schuifDag(d, -1))}
-            style={{
-              padding: 10,
-              borderRadius: 10,
-              borderWidth: 1,
-              borderColor: kleuren.border,
-            }}
-          >
-            <ChevronLeft size={18} color={kleuren.foreground} />
-          </Pressable>
-          <View
-            style={{
-              flex: 1,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 8,
-              paddingVertical: 10,
-              borderRadius: 10,
-              borderWidth: 1,
-              borderColor: kleuren.border,
-            }}
-          >
-            <CalendarDays size={16} color={kleuren.mutedForeground} />
-            <Text
-              style={{
-                color: kleuren.foreground,
-                fontSize: 14,
-                fontWeight: '500',
-                textTransform: 'capitalize',
-              }}
-            >
-              {label}
+            <Text style={[tekst.sub, { color: kleuren.mutedForeground, marginTop: 2 }]} numberOfLines={1}>
+              {dagLabel(datum)}{dag?.team ? ` · ${dag.team.naam}` : ''}
             </Text>
           </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Volgende dag"
-            hitSlop={8}
-            onPress={() => setDatum((d) => schuifDag(d, 1))}
-            style={{
-              padding: 10,
-              borderRadius: 10,
-              borderWidth: 1,
-              borderColor: kleuren.border,
-            }}
+          <Drukvlak
+            onPress={toggleBuiten}
+            haptic="selection"
+            accessibilityLabel="Buiten-modus"
+            accessibilityHint="Hoog contrast voor fel daglicht"
+            accessibilityState={{ selected: buiten }}
+            style={{ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: buiten ? kleuren.primary : kleuren.muted }}
           >
-            <ChevronRight size={18} color={kleuren.foreground} />
-          </Pressable>
+            <Sun size={21} color={buiten ? kleuren.primaryForeground : kleuren.foreground} strokeWidth={2} />
+          </Drukvlak>
+          <NoodprotocolKnop tekst={veldInstellingen?.noodprotocolTekst ?? null} />
         </View>
-        {datum !== vandaagIso() && (
-          <Button
-            variant="ghost"
-            size="sm"
-            title="Naar vandaag"
-            onPress={() => setDatum(vandaagIso())}
+
+        {/* Week-navigatie */}
+        <PeriodeKiezer
+          titel={`Week ${weekNummer(week.van)}`}
+          ondertitel={periodeLabel(week.van, week.tot)}
+          vorigeLabel="Vorige week"
+          volgendeLabel="Volgende week"
+          onVorige={() => setDatum((d) => schuifDag(d, -7))}
+          onVolgende={() => setDatum((d) => schuifDag(d, 7))}
+          onVandaag={datum === vandaag ? undefined : () => setDatum(vandaag)}
+        />
+        <WeekStrook
+          dagen={weekDagen}
+          gekozen={datum}
+          vandaag={vandaag}
+          onKies={setDatum}
+          labelVan={(d) => ({ kort: weekdagKort(d), nummer: dagNummer(d), voluit: dagLabel(d) })}
+        />
+
+        <VeldWachtrij />
+        {uitCache && (
+          <Melding
+            icoon={CloudOff}
+            tekst="Opgeslagen dag op dit toestel. Nieuwe invoer wordt gesynchroniseerd zodra je verbinding hebt."
           />
         )}
 
         {dag === undefined ? (
-          <Text style={{ color: kleuren.mutedForeground, fontSize: 13 }}>
-            Dag laden…
-          </Text>
+          <View accessibilityLabel="Dag laden" style={{ gap: 10 }}>
+            <SkeletonCard lines={2} />
+            <SkeletonCard lines={3} />
+          </View>
         ) : dag === null ? (
           // Kantoor-account zonder medewerker-koppeling (backend geeft null);
           // andermans dag bekijken/kiezen is kantoorwerk op web.
-          <Text style={{ color: kleuren.mutedForeground, fontSize: 13 }}>
-            Je account is niet aan een medewerker gekoppeld. Gebruik de
-            webversie om de dag van een medewerker te bekijken.
-          </Text>
+          <LegeStaat
+            icoon={UserX}
+            titel="Account niet gekoppeld"
+            uitleg="Je account is niet aan een medewerker gekoppeld. Gebruik de webversie om de dag van een medewerker te bekijken."
+          />
         ) : (
           <>
             {/* Dag-status */}
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 8,
-                flexWrap: 'wrap',
-              }}
-            >
-              <Lock
-                size={14}
-                color={
-                  isIngediend ? kleuren.foreground : kleuren.mutedForeground
-                }
-                style={{ display: isIngediend ? 'flex' : 'none' }}
-              />
-              <LockOpen
-                size={14}
-                color={kleuren.mutedForeground}
-                style={{ display: isIngediend ? 'none' : 'flex' }}
-              />
-              <Badge variant={isIngediend ? 'secondary' : 'outline'}>
-                {isIngediend ? 'Ingediend' : 'Open'}
-              </Badge>
-              <Text
-                style={{ color: kleuren.mutedForeground, fontSize: 13 }}
-                numberOfLines={1}
-              >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <StatusPil label={isIngediend ? 'Ingediend' : 'Open'} toon={isIngediend ? 'succes' : 'neutraal'} />
+              <Text style={[tekst.sub, { color: kleuren.mutedForeground, flexShrink: 1 }]} numberOfLines={1}>
                 {dag.medewerker.naam}
-                {dag.team
-                  ? ` — team ${dag.team.naam}`
-                  : ' — geen team-dag gepland'}
+                {dag.team ? ` · team ${dag.team.naam}` : ' · geen team-dag gepland'}
               </Text>
             </View>
             {isIngediend && (
-              <Text style={{ color: kleuren.mutedForeground, fontSize: 12 }}>
-                Je uren zijn ingediend en op slot. Alleen kantoor kan ze
-                heropenen en corrigeren (met log). Notities en gedeelde
-                bezoekmeldingen kun je nog aanvullen.
-              </Text>
+              <Melding
+                icoon={Lock}
+                toon="succes"
+                tekst="Je uren zijn ingediend en op slot. Alleen kantoor kan ze heropenen en corrigeren (met log). Notities en gedeelde bezoekmeldingen kun je nog aanvullen."
+              />
             )}
 
             {/* Klantblokken van de team-dag */}
             {dag.stops.length > 0 && (
               <View style={{ gap: 10 }}>
-                <Text
-                  accessibilityRole="header"
-                  style={{
-                    color: kleuren.foreground,
-                    fontSize: 17,
-                    fontWeight: '600',
-                  }}
-                >
-                  Geplande klussen
-                </Text>
+                <SectieKop titel="Geplande klussen" telling={dag.stops.length} />
                 {dag.stops.map((stop) => (
                   <KlantblokKaart
                     key={String(stop.werkitemId)}
@@ -422,17 +272,24 @@ function MijnDag() {
             <WerkbezoekDag data={bezoekDag} datum={datum} />
             <AanhangerRetourKaart key={`${datum}:${dag.team?._id ?? dag.medewerker._id}`} datum={datum} teamId={dag.team?._id} />
 
-            {/* Dag indienen */}
+            {/* Dag indienen — de enige gevulde knop van het scherm */}
             {!isIngediend && (
-              <Button
-                title="Dag indienen"
-                size="lg"
-                icon={<Send size={18} color={kleuren.primaryForeground} />}
-                onPress={handleDienIn}
-                loading={bezigMetIndienen}
-                disabled={!online || dag.segmenten.length === 0 || wachtrij.length > 0 || uitCache || !bezoekLive?.gereed}
-                fullWidth
-              />
+              <View style={{ gap: 8, marginTop: 6 }}>
+                <Button
+                  title="Dag indienen"
+                  size="lg"
+                  icon={<Send size={18} color={kleuren.primaryForeground} strokeWidth={2} />}
+                  onPress={handleDienIn}
+                  loading={bezigMetIndienen}
+                  disabled={indienBlokkade !== null}
+                  fullWidth
+                />
+                {indienBlokkade && (
+                  <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground, textAlign: 'center', fontSize: 14, lineHeight: 19 }]}>
+                    {indienBlokkade}
+                  </Text>
+                )}
+              </View>
             )}
           </>
         )}
@@ -462,37 +319,25 @@ class VeldFoutgrens extends Component<
 
   render() {
     if (this.state.fout) {
-      return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: '#0A0A0A' }}>
-          <View
-            style={{
-              flex: 1,
-              justifyContent: 'center',
-              alignItems: 'center',
-              padding: 24,
-              gap: 12,
-            }}
-          >
-            <Text
-              style={{ color: '#E8E8E8', fontSize: 16, fontWeight: '600' }}
-            >
-              Mijn dag kan niet laden
-            </Text>
-            <Text
-              style={{ color: '#999999', fontSize: 13, textAlign: 'center' }}
-            >
-              {this.state.fout}
-            </Text>
-            <Button
-              variant="outline"
-              size="sm"
-              title="Opnieuw proberen"
-              onPress={() => this.setState({ fout: null })}
-            />
-          </View>
-        </SafeAreaView>
-      );
+      return <FoutScherm fout={this.state.fout} onOpnieuw={() => this.setState({ fout: null })} />;
     }
     return this.props.children;
   }
+}
+
+/** Kleuren via hooks kan niet in de klasse; dit scherm volgt licht/donker. */
+function FoutScherm({ fout, onOpnieuw }: { fout: string; onOpnieuw: () => void }) {
+  const kleuren = useColors();
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: kleuren.background }}>
+      <View style={{ flex: 1, justifyContent: 'center', padding: 16 }}>
+        <LegeStaat
+          icoon={CloudOff}
+          titel="Mijn dag kan niet laden"
+          uitleg={fout}
+          actie={<Button variant="outline" size="sm" title="Opnieuw proberen" onPress={onOpnieuw} />}
+        />
+      </View>
+    </SafeAreaView>
+  );
 }

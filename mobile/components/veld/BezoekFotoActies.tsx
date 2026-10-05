@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { Text, View } from 'react-native';
+import { Camera, ImageIcon } from 'lucide-react-native';
 import { usePhotoCapture } from '../../hooks/use-photo-capture';
 import { useVeldOpdracht } from '../../hooks/use-veld-opdracht';
 import { Button } from '../ui';
-import { useBuitenModus } from './BuitenModus';
+import { Melding } from '../werk/Bouwstenen';
+import { tekst } from '../../theme';
+import { useVeldKleuren } from './BuitenModus';
 
 export function BezoekFotoActies({ werkitemId, datum }: { werkitemId: string; datum: string }) {
-  const { kleuren } = useBuitenModus(); const { takePhoto, pickFromGallery } = usePhotoCapture();
+  const kleuren = useVeldKleuren(); const { takePhoto, pickFromGallery } = usePhotoCapture();
   const { verstuur } = useVeldOpdracht(); const [fase, setFase] = useState<'voor' | 'na'>('na');
   const [bezig, setBezig] = useState(false); const [melding, setMelding] = useState<string | null>(null);
   const [fout, setFout] = useState<string | null>(null);
@@ -22,11 +25,16 @@ export function BezoekFotoActies({ werkitemId, datum }: { werkitemId: string; da
       if (!/geannuleerd|cancel/i.test(tekst)) setFout(tekst);
     } finally { setBezig(false); }
   };
-  return <View style={{ gap: 8, width: '100%' }}>
-    <Text style={{ color: kleuren.foreground }}>Foto van het bezoek</Text>
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}><Button title="Voor" variant={fase === 'voor' ? 'secondary' : 'ghost'} disabled={bezig} onPress={() => setFase('voor')} /><Button title="Na" variant={fase === 'na' ? 'secondary' : 'ghost'} disabled={bezig} onPress={() => setFase('na')} /></View>
-    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}><Button title="Maak foto" variant="outline" loading={bezig} onPress={() => kiesFoto(true)} /><Button title="Kies uit galerij" variant="ghost" disabled={bezig} onPress={() => kiesFoto(false)} /></View>
-    {melding && <Text accessibilityLiveRegion="polite" style={{ color: kleuren.foreground }}>{melding}</Text>}
-    {fout && <Text accessibilityRole="alert" style={{ color: kleuren.foreground }}>{fout}</Text>}
+  return <View style={{ gap: 10, width: '100%' }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+      <Text style={[tekst.kop, { color: kleuren.foreground }]}>Foto van het bezoek</Text>
+      <View style={{ flexDirection: 'row', gap: 6 }}><Button title="Voor" size="sm" variant={fase === 'voor' ? 'secondary' : 'ghost'} disabled={bezig} onPress={() => setFase('voor')} /><Button title="Na" size="sm" variant={fase === 'na' ? 'secondary' : 'ghost'} disabled={bezig} onPress={() => setFase('na')} /></View>
+    </View>
+    <View style={{ flexDirection: 'row', gap: 8 }}>
+      <View style={{ flex: 1 }}><Button title="Maak foto" variant="outline" loading={bezig} onPress={() => kiesFoto(true)} icon={<Camera size={16} color={kleuren.foreground} strokeWidth={2} />} fullWidth /></View>
+      <View style={{ flex: 1 }}><Button title="Kies uit galerij" variant="ghost" disabled={bezig} onPress={() => kiesFoto(false)} icon={<ImageIcon size={16} color={kleuren.foreground} strokeWidth={2} />} fullWidth /></View>
+    </View>
+    {melding && <View accessibilityLiveRegion="polite"><Melding toon="succes" tekst={melding} /></View>}
+    {fout && <Melding toon="gemist" tekst={fout} />}
   </View>;
 }

@@ -1,11 +1,8 @@
-import React, { useEffect, useRef } from 'react';
-import {
-  Pressable,
-  Animated,
-  ViewStyle,
-} from 'react-native';
-import { cn } from '@/lib/utils';
+import React, { useState } from 'react';
+import { Pressable, ViewStyle } from 'react-native';
+import Animated, { useReducedMotion } from 'react-native-reanimated';
 import { hapticPatterns } from '../../theme/haptics';
+import { useIsDonker, useVeldKleuren } from '../veld/BuitenModus';
 
 type SwitchSize = 'sm' | 'md' | 'lg';
 
@@ -40,6 +37,10 @@ const sizeConfig = {
   },
 };
 
+/**
+ * Schakelaar: spoor in primair als hij aan staat, in de randkleur als hij uit
+ * staat. Kleur en duim lopen mee via CSS-transities op de UI-thread.
+ */
 export function Switch({
   value,
   onValueChange,
@@ -48,110 +49,72 @@ export function Switch({
   style,
   className,
 }: SwitchProps) {
-  // eslint-disable-next-line react-hooks/refs -- RN Animated.Value refs are stable and safe to access during render
-  const translateX = useRef(new Animated.Value(value ? 1 : 0)).current;
-  // eslint-disable-next-line react-hooks/refs -- RN Animated.Value refs are stable and safe to access during render
-  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const kleuren = useVeldKleuren();
+  const donker = useIsDonker();
+  const rustig = useReducedMotion();
+  const [ingedrukt, setIngedrukt] = useState(false);
 
   const config = sizeConfig[size];
   const thumbTravel = config.trackWidth - config.thumbSize - config.thumbMargin * 2;
-
-  useEffect(() => {
-    Animated.spring(translateX, {
-      toValue: value ? 1 : 0,
-      useNativeDriver: true,
-      speed: 20,
-      bounciness: 4,
-    }).start();
-  }, [value, translateX]);
+  // Witte duim: op donker is dat de voorgrond, op licht het kaartvlak.
+  const duimKleur = donker ? kleuren.foreground : kleuren.card;
+  const duur = rustig ? 0 : 200;
 
   const handlePress = () => {
     if (!disabled) {
-      hapticPatterns.tap();
+      void hapticPatterns.selection();
       onValueChange(!value);
     }
   };
 
-  const handlePressIn = () => {
-    if (!disabled) {
-      Animated.spring(scaleAnim, {
-        toValue: 0.95,
-        useNativeDriver: true,
-        speed: 50,
-        bounciness: 4,
-      }).start();
-    }
-  };
-
-  const handlePressOut = () => {
-    Animated.spring(scaleAnim, {
-      toValue: 1,
-      useNativeDriver: true,
-      speed: 50,
-      bounciness: 4,
-    }).start();
-  };
-
-  // Premium Organic palette colors
-  const trackOffColor = '#222222';
-  const trackOnColor = '#4ADE80';
-  const thumbColor = '#FAFAFA';
-
-  // eslint-disable-next-line react-hooks/refs -- RN Animated interpolation creates a derived value, does not read .current
-  const trackBackgroundColor = translateX.interpolate({
-    inputRange: [0, 1],
-    outputRange: [trackOffColor, trackOnColor],
-  });
-
-  // eslint-disable-next-line react-hooks/refs -- RN Animated interpolation creates a derived value, does not read .current
-  const thumbTranslateX = translateX.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, thumbTravel],
-  });
-
   return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-      <Pressable
-        onPress={handlePress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        disabled={disabled}
-        accessibilityRole="switch"
-        accessibilityState={{ checked: value, disabled }}
-        accessibilityLabel={value ? 'Switch on' : 'Switch off'}
-        style={style}
-        className={className}
+    <Pressable
+      onPress={handlePress}
+      onPressIn={() => !disabled && setIngedrukt(true)}
+      onPressOut={() => setIngedrukt(false)}
+      disabled={disabled}
+      hitSlop={8}
+      accessibilityRole="switch"
+      accessibilityState={{ checked: value, disabled }}
+      accessibilityLabel={value ? 'Aan' : 'Uit'}
+      style={style}
+      className={className}
+    >
+      <Animated.View
+        style={{
+          justifyContent: 'center',
+          width: config.trackWidth,
+          height: config.trackHeight,
+          borderRadius: config.trackHeight / 2,
+          backgroundColor: value ? kleuren.primary : kleuren.border,
+          opacity: disabled ? 0.5 : 1,
+          transform: [{ scale: ingedrukt && !rustig ? 0.95 : 1 }],
+          transitionProperty: ['backgroundColor', 'transform'],
+          transitionDuration: [duur, 120],
+          transitionTimingFunction: 'ease-out',
+        }}
       >
         <Animated.View
-          className={cn(
-            'justify-center p-0.5',
-            disabled && 'opacity-50'
-          )}
           style={{
-            width: config.trackWidth,
-            height: config.trackHeight,
-            borderRadius: config.trackHeight / 2,
-            backgroundColor: trackBackgroundColor,
+            position: 'absolute',
+            left: config.thumbMargin,
+            width: config.thumbSize,
+            height: config.thumbSize,
+            borderRadius: config.thumbSize / 2,
+            backgroundColor: duimKleur,
+            transform: [{ translateX: value ? thumbTravel : 0 }],
+            transitionProperty: 'transform',
+            transitionDuration: duur,
+            transitionTimingFunction: 'ease-out',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.2,
+            shadowRadius: 2.5,
+            elevation: 4,
           }}
-        >
-          <Animated.View
-            className="absolute left-0.5 shadow-md"
-            style={{
-              width: config.thumbSize,
-              height: config.thumbSize,
-              borderRadius: config.thumbSize / 2,
-              transform: [{ translateX: thumbTranslateX }],
-              backgroundColor: thumbColor,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.2,
-              shadowRadius: 2.5,
-              elevation: 4,
-            }}
-          />
-        </Animated.View>
-      </Pressable>
-    </Animated.View>
+        />
+      </Animated.View>
+    </Pressable>
   );
 }
 

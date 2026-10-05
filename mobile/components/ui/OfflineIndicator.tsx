@@ -1,13 +1,17 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, Animated, Pressable, ActivityIndicator } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, Text, Pressable, ActivityIndicator, type StyleProp, type ViewStyle } from 'react-native';
+import Animated, { useReducedMotion } from 'react-native-reanimated';
 import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
-import { Feather } from '@expo/vector-icons';
-import { typography } from '../../theme/typography';
-import { colors } from '../../theme/colors';
+import { Clock, CloudUpload, RefreshCw, Wifi, WifiOff } from 'lucide-react-native';
+import { tekst } from '../../theme/typography';
+import { hapticPatterns } from '../../theme/haptics';
+import { useVeldKleuren } from '../veld/BuitenModus';
 import { useSyncStatus } from '../../hooks/use-offline-sync';
 
 interface OfflineIndicatorProps {
   showWhenOnline?: boolean;
+  /** Extra lay-out voor de strook, bv. marge buiten een ScrollView. */
+  style?: StyleProp<ViewStyle>;
 }
 
 /**
@@ -21,11 +25,15 @@ function formatTime(timestamp: number | null): string | null {
   return `${hours}:${minutes}`;
 }
 
-export function OfflineIndicator({ showWhenOnline = false }: OfflineIndicatorProps) {
+/**
+ * Rustige strook bovenaan een veldscherm: alleen zichtbaar zonder verbinding
+ * (of met `showWhenOnline`). Toont wat er nog wacht en wanneer er laatst
+ * gesynct is; online en zonder `showWhenOnline` rendert hij niets.
+ */
+export function OfflineIndicator({ showWhenOnline = false, style }: OfflineIndicatorProps) {
+  const kleuren = useVeldKleuren();
+  const rustig = useReducedMotion();
   const [isConnected, setIsConnected] = useState<boolean | null>(true);
-  // useMemo i.p.v. useRef(...).current: zelfde stabiele Animated.Value,
-  // maar zonder ref-toegang tijdens render (react-hooks/refs).
-  const slideAnim = useMemo(() => new Animated.Value(-100), []);
 
   // Use the sync engine for pending count, last sync time, and force sync
   const {
@@ -44,16 +52,8 @@ export function OfflineIndicator({ showWhenOnline = false }: OfflineIndicatorPro
     return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    const shouldShow = !isConnected || (showWhenOnline && isConnected);
-    Animated.spring(slideAnim, {
-      toValue: shouldShow ? 0 : -100,
-      useNativeDriver: true,
-    }).start();
-    // slideAnim is een stabiele useMemo-waarde; opnemen is gedragsneutraal.
-  }, [isConnected, showWhenOnline, slideAnim]);
-
   const handleRetry = useCallback(async () => {
+    void hapticPatterns.tap();
     try {
       await forceSync();
     } catch (error) {
@@ -65,63 +65,82 @@ export function OfflineIndicator({ showWhenOnline = false }: OfflineIndicatorPro
 
   const lastSyncFormatted = formatTime(lastSyncAt);
   const isOffline = !isConnected;
+  const voor = isOffline ? kleuren.warning : kleuren.mutedForeground;
+  const toonDetails = (isOffline || pendingCount > 0) && syncReady;
+  const StatusIcoon = isOffline ? WifiOff : Wifi;
 
   return (
     <Animated.View
+      accessibilityRole="summary"
+      accessibilityLiveRegion="polite"
       style={[
-        styles.container,
-        isConnected ? styles.online : styles.offline,
-        { transform: [{ translateY: slideAnim }] },
+        {
+          backgroundColor: isOffline ? kleuren.warningSoft : kleuren.muted,
+          borderRadius: 12,
+          paddingVertical: 8,
+          paddingHorizontal: 12,
+          gap: 6,
+        },
+        rustig
+          ? null
+          : {
+              animationName: {
+                from: { opacity: 0, transform: [{ translateY: -6 }] },
+                to: { opacity: 1, transform: [{ translateY: 0 }] },
+              },
+              animationDuration: 200,
+              animationTimingFunction: 'ease-out',
+            },
+        style,
       ]}
     >
-      {/* Top row: connection status */}
-      <View style={styles.statusRow}>
-        <Feather
-          name={isConnected ? 'wifi' : 'wifi-off'}
-          size={14}
-          color={isConnected ? colors.primary : '#8B7355'}
-        />
-        <Text style={[styles.text, isConnected ? styles.onlineText : styles.offlineText]}>
-          {isConnected ? 'Online' : 'Offline - wijzigingen worden lokaal opgeslagen'}
+      {/* Verbindingsstatus */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <StatusIcoon size={16} color={voor} strokeWidth={2.2} />
+        <Text style={[tekst.voetnoot, { color: voor, fontWeight: '600', flexShrink: 1 }]}>
+          {isConnected ? 'Online' : 'Offline — wijzigingen worden lokaal bewaard'}
         </Text>
       </View>
 
-      {/* Details row: pending count + last sync time (only when offline or has pending) */}
-      {(isOffline || pendingCount > 0) && syncReady && (
-        <View style={styles.detailsRow}>
-          {/* Pending changes count */}
+      {/* Wachtende wijzigingen, laatste sync en opnieuw proberen */}
+      {toonDetails && (pendingCount > 0 || lastSyncFormatted) && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', columnGap: 12, rowGap: 4, paddingLeft: 24 }}>
           {pendingCount > 0 && (
-            <View style={styles.detailItem}>
-              <Feather name="upload-cloud" size={12} color={colors.mutedForeground} />
-              <Text style={styles.detailText}>
-                {pendingCount} {pendingCount === 1 ? 'wijziging wacht' : 'wijzigingen wachten'} op sync
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <CloudUpload size={13} color={kleuren.mutedForeground} />
+              <Text style={[tekst.bijschrift, tekst.cijfers, { color: kleuren.mutedForeground }]}>
+                {pendingCount} {pendingCount === 1 ? 'wijziging wacht' : 'wijzigingen wachten'}
               </Text>
             </View>
           )}
 
-          {/* Last sync time */}
           {lastSyncFormatted && (
-            <View style={styles.detailItem}>
-              <Feather name="clock" size={12} color={colors.mutedForeground} />
-              <Text style={styles.detailText}>
-                Laatst gesynct: {lastSyncFormatted}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Clock size={13} color={kleuren.mutedForeground} />
+              <Text style={[tekst.bijschrift, tekst.cijfers, { color: kleuren.mutedForeground }]}>
+                Laatst gesynct {lastSyncFormatted}
               </Text>
             </View>
           )}
 
-          {/* Retry button */}
           {isOffline && pendingCount > 0 && (
             <Pressable
-              style={styles.retryButton}
               onPress={handleRetry}
               disabled={isSyncing}
+              hitSlop={10}
+              accessibilityRole="button"
+              accessibilityLabel="Opnieuw proberen te synchroniseren"
+              accessibilityState={{ disabled: isSyncing, busy: isSyncing }}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 'auto' }}
             >
               {isSyncing ? (
-                <ActivityIndicator size="small" color={colors.primary} />
+                <ActivityIndicator size="small" color={kleuren.primary} />
               ) : (
                 <>
-                  <Feather name="refresh-cw" size={12} color={colors.primary} />
-                  <Text style={styles.retryText}>Opnieuw proberen</Text>
+                  <RefreshCw size={13} color={kleuren.primary} strokeWidth={2.2} />
+                  <Text style={[tekst.bijschrift, { color: kleuren.primary, fontWeight: '600' }]}>
+                    Opnieuw proberen
+                  </Text>
                 </>
               )}
             </Pressable>
@@ -145,68 +164,3 @@ export function useOnlineStatus() {
 
   return isConnected;
 }
-
-const styles = StyleSheet.create({
-  container: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-  },
-  offline: {
-    backgroundColor: 'rgba(139,115,85,0.13)',
-  },
-  online: {
-    backgroundColor: '#1A1A1A',
-  },
-  statusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  text: {
-    fontSize: typography.fontSize.sm,
-    fontWeight: typography.fontWeight.medium,
-  },
-  offlineText: {
-    color: '#8B7355',
-  },
-  onlineText: {
-    color: '#E8E8E8',
-  },
-  detailsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginTop: 6,
-    paddingTop: 6,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(139,115,85,0.2)',
-  },
-  detailItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  detailText: {
-    fontSize: 11,
-    color: colors.mutedForeground,
-  },
-  retryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 6,
-    backgroundColor: 'rgba(74, 222, 128, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(74, 222, 128, 0.2)',
-  },
-  retryText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-});

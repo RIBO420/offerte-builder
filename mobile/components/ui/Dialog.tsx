@@ -14,6 +14,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { spacing } from '../../theme/spacing';
 import { shadows } from '../../theme/shadows';
+import { tekst } from '../../theme/typography';
+import { useVeldKleuren } from '../veld/BuitenModus';
 import { Button } from './Button';
 
 // Dialog Context for compound components
@@ -117,14 +119,14 @@ export function Dialog({
                 right: 0,
                 bottom: 0,
                 opacity: fadeAnim,
-                backgroundColor: 'rgba(0,0,0,0.7)',
+                backgroundColor: 'rgba(0,0,0,0.5)',
               }}
             >
               <Pressable
                 className="flex-1"
                 onPress={handleBackdropPress}
                 accessibilityRole="button"
-                accessibilityLabel="Close dialog"
+                accessibilityLabel="Venster sluiten"
               />
             </Animated.View>
 
@@ -161,6 +163,7 @@ interface DialogContentProps {
  * Applies card styling, shadows, and safe area padding
  */
 export function DialogContent({ children, style, maxWidth }: DialogContentProps) {
+  const kleuren = useVeldKleuren();
   const insets = useSafeAreaInsets();
   const { width: screenWidth } = Dimensions.get('window');
 
@@ -172,14 +175,15 @@ export function DialogContent({ children, style, maxWidth }: DialogContentProps)
         {
           maxWidth: contentMaxWidth,
           marginBottom: Math.max(insets.bottom, spacing.lg),
-          backgroundColor: '#111111',
+          backgroundColor: kleuren.card,
           borderWidth: 1,
-          borderColor: '#222222',
+          borderColor: kleuren.border,
+          borderRadius: 18,
         },
         shadows.modal,
         style,
       ]}
-      className="w-full rounded-2xl mx-4 overflow-hidden"
+      className="w-full mx-4 overflow-hidden"
       accessible
       accessibilityViewIsModal
     >
@@ -202,9 +206,10 @@ interface DialogHeaderProps {
  * Provides consistent spacing at the top of the dialog
  */
 export function DialogHeader({ children, style }: DialogHeaderProps) {
+  const kleuren = useVeldKleuren();
   return (
     <View
-      style={[{ borderBottomWidth: 1, borderBottomColor: '#222222' }, style]}
+      style={[{ gap: 6, borderBottomWidth: 1, borderBottomColor: kleuren.border }, style]}
       className="p-4"
     >
       {children}
@@ -226,10 +231,10 @@ interface DialogTitleProps {
  * Uses semibold font weight matching design system
  */
 export function DialogTitle({ children, style }: DialogTitleProps) {
+  const kleuren = useVeldKleuren();
   return (
     <Text
-      style={[{ color: '#E8E8E8' }, style]}
-      className="text-lg font-semibold"
+      style={[tekst.titel3, { color: kleuren.foreground }, style]}
       accessibilityRole="header"
     >
       {children}
@@ -251,8 +256,9 @@ interface DialogDescriptionProps {
  * Muted foreground color, smaller font size
  */
 export function DialogDescription({ children, style }: DialogDescriptionProps) {
+  const kleuren = useVeldKleuren();
   return (
-    <Text style={[{ color: '#888888' }, style]} className="text-sm">
+    <Text style={[tekst.sub, { color: kleuren.mutedForeground }, style]}>
       {children}
     </Text>
   );
@@ -289,9 +295,10 @@ interface DialogFooterProps {
  * Flex row layout for action buttons
  */
 export function DialogFooter({ children, style }: DialogFooterProps) {
+  const kleuren = useVeldKleuren();
   return (
     <View
-      style={[{ borderTopWidth: 1, borderTopColor: '#222222' }, style]}
+      style={[{ borderTopWidth: 1, borderTopColor: kleuren.border }, style]}
       className="p-4 flex-row gap-2"
     >
       {children}
@@ -325,8 +332,8 @@ export function AlertDialog({
   onClose,
   title,
   description,
-  confirmText = 'Confirm',
-  cancelText = 'Cancel',
+  confirmText = 'Bevestigen',
+  cancelText = 'Annuleren',
   onConfirm,
   onCancel,
   confirmVariant = 'primary',

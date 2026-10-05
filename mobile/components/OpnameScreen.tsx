@@ -14,15 +14,16 @@ import {
   Text,
   ScrollView,
   Animated,
-  Pressable,
   ActivityIndicator,
   StyleSheet,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+import { Check, CircleAlert, FileText, Mic, Pause, Play, RotateCcw, Shield, Square } from 'lucide-react-native';
 import { useAudioRecording } from '../hooks/use-audio-recording';
 import { useTranscription } from '../hooks/use-transcription';
+import { tekst } from '../theme';
+import { useVeldKleuren } from './veld/BuitenModus';
+import { Drukvlak, Kaart, Melding, toonKleuren, type Toon } from './werk/Bouwstenen';
 
 // ============================================
 // TYPES
@@ -39,16 +40,8 @@ export interface OpnameScreenProps {
 // CONSTANTEN
 // ============================================
 
-const ROOD = '#DC2626';
-const GROEN = '#4ADE80';
-const ORANJE = '#D97706';
-const GRIJS = '#222';
-const GRIJS_LICHT = '#888';
-const GRIJS_HEEL_LICHT = '#E8E8E8';
-const WIT = '#E8E8E8';
-const ACHTERGROND = '#0A0A0A';
-const KAART = '#111';
-const RAND = '#222';
+// Kleuren komen uit het thema: opnemen = destructive (rood), pauze = warning,
+// klaar = primary. Zo kloppen licht, donker en buiten-modus vanzelf.
 
 // Audio-level bars voor visuele indicator
 const AANTAL_BARS = 16;
@@ -75,11 +68,12 @@ function formateerTijd(seconden: number): string {
  */
 function PrivacyMelding() {
   return (
-    <View style={styles.privacyContainer}>
-      <Feather name="shield" size={14} color={ORANJE} />
-      <Text style={styles.privacyTekst}>
-        Dit gesprek wordt opgenomen voor uw offerte. De opname wordt na transcriptie verwijderd.
-      </Text>
+    <View style={{ width: '100%', marginTop: 16, marginBottom: 24 }}>
+      <Melding
+        toon="wachten"
+        icoon={Shield}
+        tekst="Dit gesprek wordt opgenomen voor uw offerte. De opname wordt na transcriptie verwijderd."
+      />
     </View>
   );
 }
@@ -92,6 +86,7 @@ interface AudioBarsProps {
 }
 
 function AudioBars({ isActief }: AudioBarsProps) {
+  const kleuren = useVeldKleuren();
   // useMemo i.p.v. useRef(...).current: zelfde stabiele Animated.Value-array,
   // maar zonder ref-toegang tijdens render (react-hooks/refs).
   const barAnimaties = useMemo<Animated.Value[]>(
@@ -158,7 +153,7 @@ function AudioBars({ isActief }: AudioBarsProps) {
             styles.audioBar,
             {
               transform: [{ scaleY: anim }],
-              backgroundColor: isActief ? ROOD : GRIJS,
+              backgroundColor: isActief ? kleuren.destructive : kleuren.border,
             },
           ]}
         />
@@ -178,6 +173,7 @@ interface OpnameKnopProps {
 }
 
 function OpnameKnop({ isOpname, isPaused, onPress, disabled }: OpnameKnopProps) {
+  const kleuren = useVeldKleuren();
   // eslint-disable-next-line react-hooks/refs -- RN Animated.Value refs are stable and safe to access during render
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const pulseAnimRef = useRef<Animated.CompositeAnimation | null>(null);
@@ -214,8 +210,11 @@ function OpnameKnop({ isOpname, isPaused, onPress, disabled }: OpnameKnopProps) 
     };
   }, [isOpname, isPaused, pulseAnim]);
 
-  const knopKleur = isOpname ? (isPaused ? ORANJE : ROOD) : ROOD;
-  const knopIcoon = isOpname ? 'square' : 'mic';
+  const gepauzeerd = isOpname && isPaused;
+  const knopKleur = gepauzeerd ? kleuren.warning : kleuren.destructive;
+  // Op de warning-vulling leest de canvaskleur het best (donker op amber, licht op oker).
+  const icoonKleur = gepauzeerd ? kleuren.background : kleuren.destructiveForeground;
+  const KnopIcoon = isOpname ? Square : Mic;
 
   return (
     <Animated.View
@@ -228,15 +227,15 @@ function OpnameKnop({ isOpname, isPaused, onPress, disabled }: OpnameKnopProps) 
         },
       ]}
     >
-      <Pressable
+      <Drukvlak
         onPress={onPress}
         disabled={disabled}
+        haptic="press"
         style={[styles.opnameKnop, { backgroundColor: knopKleur }]}
-        accessibilityRole="button"
         accessibilityLabel={isOpname ? 'Stop opname' : 'Start opname'}
       >
-        <Feather name={knopIcoon} size={40} color={WIT} />
-      </Pressable>
+        <KnopIcoon size={40} color={icoonKleur} strokeWidth={2.25} />
+      </Drukvlak>
     </Animated.View>
   );
 }
@@ -258,6 +257,7 @@ function OpnameKnop({ isOpname, isPaused, onPress, disabled }: OpnameKnopProps) 
  * ```
  */
 export function OpnameScreen({ onTranscriptGebruiken }: OpnameScreenProps) {
+  const kleuren = useVeldKleuren();
   const {
     isRecording,
     isPaused,
@@ -340,7 +340,7 @@ export function OpnameScreen({ onTranscriptGebruiken }: OpnameScreenProps) {
   const toonTranscriptResultaat = toonTranscript && !isTranscribing && !!transcript;
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: kleuren.background }]} edges={['top', 'bottom']}>
       <ScrollView
         contentContainerStyle={styles.scrollInhoud}
         showsVerticalScrollIndicator={false}
@@ -351,8 +351,8 @@ export function OpnameScreen({ onTranscriptGebruiken }: OpnameScreenProps) {
 
         {/* Titel */}
         <View style={styles.titelContainer}>
-          <Text style={styles.titel}>Klantgesprek</Text>
-          <Text style={styles.ondertitel}>
+          <Text accessibilityRole="header" style={[tekst.titel1, { color: kleuren.foreground, textAlign: 'center' }]}>Klantgesprek</Text>
+          <Text style={[tekst.callout, { color: kleuren.mutedForeground, textAlign: 'center' }]}>
             {!isRecording && !toonTranscript
               ? 'Druk op de microfoon om te beginnen'
               : isRecording && !isPaused
@@ -368,11 +368,11 @@ export function OpnameScreen({ onTranscriptGebruiken }: OpnameScreenProps) {
         {/* Timer */}
         {(isRecording || (toonTranscript && duration > 0)) && (
           <View style={styles.timerContainer}>
-            <Text style={styles.timerTekst}>{formateerTijd(duration)}</Text>
+            <Text style={[styles.timerTekst, tekst.cijfers, { color: kleuren.foreground }]}>{formateerTijd(duration)}</Text>
             {isRecording && !isPaused && (
               <View style={styles.opnameIndicator}>
-                <View style={styles.opnamePunt} />
-                <Text style={styles.opnameTekst}>OPNAME</Text>
+                <View style={[styles.opnamePunt, { backgroundColor: kleuren.danger }]} />
+                <Text style={[tekst.bijschrift, { color: kleuren.danger, fontWeight: '700', letterSpacing: 2 }]}>OPNAME</Text>
               </View>
             )}
           </View>
@@ -395,38 +395,39 @@ export function OpnameScreen({ onTranscriptGebruiken }: OpnameScreenProps) {
         {toonBedieningsknoppen && !toonTranscript && (
           <View style={styles.bedieningsContainer}>
             {/* Pauze / Hervat knop */}
-            <Pressable
+            <Drukvlak
               onPress={handlePauzeHervat}
               style={styles.bedieningsKnop}
-              accessibilityRole="button"
               accessibilityLabel={isPaused ? 'Hervat opname' : 'Pauzeer opname'}
             >
-              <View style={[styles.bedieningsKnopIcoon, { backgroundColor: ORANJE }]}>
-                <Feather name={isPaused ? 'play' : 'pause'} size={22} color={WIT} />
+              <View style={[styles.bedieningsKnopIcoon, { backgroundColor: kleuren.warning }]}>
+                {isPaused
+                  ? <Play size={22} color={kleuren.background} strokeWidth={2.25} />
+                  : <Pause size={22} color={kleuren.background} strokeWidth={2.25} />}
               </View>
-              <Text style={styles.bedieningsKnopTekst}>
+              <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground, fontWeight: '500' }]}>
                 {isPaused ? 'Hervatten' : 'Pauzeren'}
               </Text>
-            </Pressable>
+            </Drukvlak>
           </View>
         )}
 
         {/* Transcriptie loading indicator */}
         {toonTranscriptieLoader && (
           <View style={styles.loaderContainer}>
-            <ActivityIndicator size="large" color={ROOD} />
-            <Text style={styles.loaderTekst}>Transcriberen...</Text>
+            <ActivityIndicator size="large" color={kleuren.primary} />
+            <Text style={[tekst.titel3, { color: kleuren.foreground, fontWeight: '500' }]}>Transcriberen...</Text>
             {transcriptieProgress > 0 && transcriptieProgress < 100 && (
               <View style={styles.voortgangContainer}>
-                <View style={styles.voortgangBalk}>
+                <View style={[styles.voortgangBalk, { backgroundColor: kleuren.primarySoft }]}>
                   <View
                     style={[
                       styles.voortgangVulling,
-                      { width: `${transcriptieProgress}%` as unknown as number },
+                      { width: `${transcriptieProgress}%` as unknown as number, backgroundColor: kleuren.primary },
                     ]}
                   />
                 </View>
-                <Text style={styles.voortgangTekst}>{transcriptieProgress}%</Text>
+                <Text style={[tekst.voetnoot, tekst.cijfers, { color: kleuren.mutedForeground }]}>{transcriptieProgress}%</Text>
               </View>
             )}
           </View>
@@ -434,84 +435,70 @@ export function OpnameScreen({ onTranscriptGebruiken }: OpnameScreenProps) {
 
         {/* Transcript resultaat */}
         {toonTranscriptResultaat && (
-          <View style={styles.transcriptContainer}>
+          <Kaart style={{ width: '100%' }}>
             <View style={styles.transcriptHeader}>
-              <Feather name="file-text" size={18} color={GROEN} />
-              <Text style={styles.transcriptTitel}>Transcriptie</Text>
+              <FileText size={18} color={kleuren.primary} strokeWidth={2.25} />
+              <Text accessibilityRole="header" style={[tekst.kop, { color: kleuren.foreground }]}>Transcriptie</Text>
             </View>
 
             <ScrollView
-              style={styles.transcriptScroll}
+              style={[styles.transcriptScroll, { backgroundColor: kleuren.muted }]}
               nestedScrollEnabled
               showsVerticalScrollIndicator
             >
-              <Text style={styles.transcriptTekst} selectable>
+              <Text style={[tekst.callout, { color: kleuren.foreground, lineHeight: 24 }]} selectable>
                 {transcript}
               </Text>
             </ScrollView>
 
             {/* Actie knoppen */}
             <View style={styles.actieKnoppen}>
-              <Pressable
+              <Drukvlak
                 onPress={handleOpnieuwOpnemen}
-                style={[styles.actieKnop, styles.actieKnopSecundair]}
-                accessibilityRole="button"
+                buitenStijl={{ flex: 1 }}
+                style={[styles.actieKnop, { backgroundColor: kleuren.muted }]}
                 accessibilityLabel="Opnieuw opnemen"
               >
-                <Feather name="rotate-ccw" size={18} color={WIT} />
-                <Text style={styles.actieKnopTekst}>Opnieuw opnemen</Text>
-              </Pressable>
+                <RotateCcw size={18} color={kleuren.foreground} strokeWidth={2.25} />
+                <Text style={[tekst.sub, { color: kleuren.foreground, fontWeight: '600' }]} numberOfLines={1}>Opnieuw opnemen</Text>
+              </Drukvlak>
 
               {onTranscriptGebruiken && (
-                <Pressable
+                <Drukvlak
                   onPress={handleGebruikTranscript}
-                  style={[styles.actieKnop, styles.actieKnopPrimair]}
-                  accessibilityRole="button"
+                  buitenStijl={{ flex: 1 }}
+                  style={[styles.actieKnop, { backgroundColor: kleuren.primary }]}
                   accessibilityLabel="Gebruik transcriptie"
                 >
-                  <Feather name="check" size={18} color={WIT} />
-                  <Text style={styles.actieKnopTekst}>Gebruik transcriptie</Text>
-                </Pressable>
+                  <Check size={18} color={kleuren.primaryForeground} strokeWidth={2.5} />
+                  <Text style={[tekst.sub, { color: kleuren.primaryForeground, fontWeight: '600' }]} numberOfLines={1}>Gebruik transcriptie</Text>
+                </Drukvlak>
               )}
             </View>
-          </View>
+          </Kaart>
         )}
 
         {/* Foutmelding */}
         {foutmelding && (
-          <View style={styles.foutContainer}>
-            <Feather name="alert-circle" size={18} color={ROOD} />
-            <Text style={styles.foutTekst}>{foutmelding}</Text>
+          <View style={{ width: '100%', marginTop: 16 }}>
+            <Melding toon="gemist" icoon={CircleAlert} tekst={foutmelding} />
           </View>
         )}
 
         {/* Instructies (alleen op startscherm) */}
         {!isRecording && !toonTranscript && !foutmelding && (
           <View style={styles.instructiesContainer}>
-            <View style={styles.instructieRij}>
-              <View style={[styles.instructieStap, { backgroundColor: ROOD }]}>
-                <Text style={styles.instructieStapNummer}>1</Text>
-              </View>
-              <Text style={styles.instructieTekst}>
-                Druk op de microfoon knop om te beginnen
-              </Text>
-            </View>
-            <View style={styles.instructieRij}>
-              <View style={[styles.instructieStap, { backgroundColor: ORANJE }]}>
-                <Text style={styles.instructieStapNummer}>2</Text>
-              </View>
-              <Text style={styles.instructieTekst}>
-                Voer het gesprek met de klant
-              </Text>
-            </View>
-            <View style={styles.instructieRij}>
-              <View style={[styles.instructieStap, { backgroundColor: GROEN }]}>
-                <Text style={styles.instructieStapNummer}>3</Text>
-              </View>
-              <Text style={styles.instructieTekst}>
-                Druk op stop en ontvang automatisch de transcriptie
-              </Text>
-            </View>
+            {INSTRUCTIES.map((stap, index) => {
+              const { voor, achter } = toonKleuren(kleuren, stap.toon);
+              return (
+                <View key={stap.tekst} style={styles.instructieRij}>
+                  <View style={[styles.instructieStap, { backgroundColor: achter }]}>
+                    <Text style={[tekst.voetnoot, tekst.cijfers, { color: voor, fontWeight: '700' }]}>{index + 1}</Text>
+                  </View>
+                  <Text style={[tekst.callout, { flex: 1, color: kleuren.mutedForeground }]}>{stap.tekst}</Text>
+                </View>
+              );
+            })}
           </View>
         )}
       </ScrollView>
@@ -519,14 +506,19 @@ export function OpnameScreen({ onTranscriptGebruiken }: OpnameScreenProps) {
   );
 }
 
+const INSTRUCTIES: { tekst: string; toon: Toon }[] = [
+  { tekst: 'Druk op de microfoon knop om te beginnen', toon: 'gemist' },
+  { tekst: 'Voer het gesprek met de klant', toon: 'wachten' },
+  { tekst: 'Druk op stop en ontvang automatisch de transcriptie', toon: 'succes' },
+];
+
 // ============================================
-// STIJLEN
+// STIJLEN (lay-out; kleuren komen uit het thema)
 // ============================================
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: ACHTERGROND,
   },
   scrollInhoud: {
     flexGrow: 1,
@@ -535,42 +527,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  // Privacy melding
-  privacyContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: 'rgba(217, 119, 6, 0.15)',
-    borderRadius: 8,
-    padding: 12,
-    marginTop: 16,
-    marginBottom: 24,
-    gap: 8,
-    width: '100%',
-    borderWidth: 1,
-    borderColor: 'rgba(217, 119, 6, 0.3)',
-  },
-  privacyTekst: {
-    flex: 1,
-    color: ORANJE,
-    fontSize: 12,
-    lineHeight: 18,
-  },
-
   // Titel
   titelContainer: {
     alignItems: 'center',
     marginBottom: 24,
-  },
-  titel: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: WIT,
-    marginBottom: 6,
-  },
-  ondertitel: {
-    fontSize: 15,
-    color: GRIJS_LICHT,
-    textAlign: 'center',
+    gap: 6,
   },
 
   // Timer
@@ -580,15 +541,10 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   timerTekst: {
-    fontSize: 52,
+    fontSize: 56,
+    lineHeight: 64,
     fontWeight: '200',
-    color: WIT,
-    fontVariant: ['tabular-nums'],
-    letterSpacing: 4,
-    ...Platform.select({
-      ios: { fontFamily: 'Courier' },
-      android: { fontFamily: 'monospace' },
-    }),
+    letterSpacing: 2,
   },
   opnameIndicator: {
     flexDirection: 'row',
@@ -599,13 +555,6 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: ROOD,
-  },
-  opnameTekst: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: ROOD,
-    letterSpacing: 2,
   },
 
   // Audio bars
@@ -621,7 +570,6 @@ const styles = StyleSheet.create({
     width: 4,
     height: 40,
     borderRadius: 2,
-    backgroundColor: GRIJS,
   },
 
   // Opname knop
@@ -661,11 +609,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bedieningsKnopTekst: {
-    fontSize: 12,
-    color: GRIJS_LICHT,
-    fontWeight: '500',
-  },
 
   // Transcriptie loader
   loaderContainer: {
@@ -674,11 +617,6 @@ const styles = StyleSheet.create({
     paddingVertical: 32,
     width: '100%',
   },
-  loaderTekst: {
-    fontSize: 18,
-    color: WIT,
-    fontWeight: '500',
-  },
   voortgangContainer: {
     width: '100%',
     gap: 8,
@@ -686,51 +624,25 @@ const styles = StyleSheet.create({
   },
   voortgangBalk: {
     width: '80%',
-    height: 4,
-    backgroundColor: GRIJS,
-    borderRadius: 2,
+    height: 6,
+    borderRadius: 3,
     overflow: 'hidden',
   },
   voortgangVulling: {
     height: '100%',
-    backgroundColor: ROOD,
-    borderRadius: 2,
-  },
-  voortgangTekst: {
-    fontSize: 13,
-    color: GRIJS_LICHT,
+    borderRadius: 3,
   },
 
   // Transcript resultaat
-  transcriptContainer: {
-    width: '100%',
-    backgroundColor: KAART,
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: RAND,
-    gap: 12,
-  },
   transcriptHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  transcriptTitel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: WIT,
-  },
   transcriptScroll: {
     maxHeight: 220,
-    backgroundColor: 'rgba(0,0,0,0.2)',
-    borderRadius: 8,
+    borderRadius: 12,
     padding: 12,
-  },
-  transcriptTekst: {
-    fontSize: 14,
-    color: GRIJS_HEEL_LICHT,
-    lineHeight: 22,
   },
 
   // Actie knoppen
@@ -739,44 +651,13 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   actieKnop: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 10,
+    minHeight: 48,
+    paddingHorizontal: 10,
+    borderRadius: 14,
     gap: 8,
-  },
-  actieKnopSecundair: {
-    backgroundColor: GRIJS,
-  },
-  actieKnopPrimair: {
-    backgroundColor: GROEN,
-  },
-  actieKnopTekst: {
-    color: WIT,
-    fontSize: 13,
-    fontWeight: '600',
-  },
-
-  // Foutmelding
-  foutContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: 'rgba(220, 38, 38, 0.1)',
-    borderRadius: 10,
-    padding: 14,
-    gap: 10,
-    width: '100%',
-    borderWidth: 1,
-    borderColor: 'rgba(220, 38, 38, 0.3)',
-    marginTop: 16,
-  },
-  foutTekst: {
-    flex: 1,
-    fontSize: 13,
-    color: '#FCA5A5',
-    lineHeight: 19,
   },
 
   // Instructies
@@ -791,22 +672,11 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   instructieStap: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  instructieStapNummer: {
-    color: WIT,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  instructieTekst: {
-    flex: 1,
-    fontSize: 14,
-    color: GRIJS_LICHT,
-    lineHeight: 20,
   },
 });
 

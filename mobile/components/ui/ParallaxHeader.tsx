@@ -8,6 +8,8 @@ import Animated, {
   interpolate,
   Extrapolation,
 } from 'react-native-reanimated';
+import { tekst } from '../../theme/typography';
+import { useVeldKleuren } from '../veld/BuitenModus';
 
 interface ParallaxHeaderProps {
   title: string;
@@ -22,17 +24,18 @@ export function ParallaxHeader({
   height = 200,
   children,
 }: ParallaxHeaderProps) {
+  const kleuren = useVeldKleuren();
   const scrollY = useSharedValue(0);
 
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
-      scrollY.value = event.contentOffset.y;
+      scrollY.set(event.contentOffset.y);
     },
   });
 
   const headerStyle = useAnimatedStyle(() => {
     const scale = interpolate(
-      scrollY.value,
+      scrollY.get(),
       [0, height],
       [1, 0.9],
       Extrapolation.CLAMP,
@@ -44,13 +47,13 @@ export function ParallaxHeader({
 
   const titleStyle = useAnimatedStyle(() => {
     const opacity = interpolate(
-      scrollY.value,
+      scrollY.get(),
       [0, height * 0.6],
       [1, 0],
       Extrapolation.CLAMP,
     );
     const translateY = interpolate(
-      scrollY.value,
+      scrollY.get(),
       [0, height],
       [0, -30],
       Extrapolation.CLAMP,
@@ -70,12 +73,18 @@ export function ParallaxHeader({
     >
       <Animated.View style={[{ height }, headerStyle]}>
         <LinearGradient
-          colors={['#1A2E1A', '#0A0A0A']}
+          colors={[kleuren.gradientStart, kleuren.background]}
           style={[styles.header, { height }]}
         >
           <Animated.View style={titleStyle}>
-            <Text style={styles.title}>{title}</Text>
-            {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+            <Text accessibilityRole="header" style={[tekst.titel1, { color: kleuren.foreground }]} numberOfLines={2}>
+              {title}
+            </Text>
+            {subtitle && (
+              <Text style={[tekst.sub, { color: kleuren.mutedForeground, marginTop: 4 }]} numberOfLines={2}>
+                {subtitle}
+              </Text>
+            )}
           </Animated.View>
         </LinearGradient>
       </Animated.View>
@@ -95,17 +104,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     paddingHorizontal: 20,
     paddingBottom: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#E8E8E8',
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    fontSize: 13,
-    color: '#6B8F6B',
-    marginTop: 4,
   },
   childrenContainer: {
     flex: 1,

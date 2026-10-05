@@ -17,11 +17,10 @@
  *   - react-native-reanimated
  */
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, type ComponentType } from 'react';
 import {
   View,
   Text,
-  TouchableOpacity,
   Modal,
   ScrollView,
   TextInput,
@@ -31,11 +30,31 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+import {
+  CameraOff,
+  Check,
+  ChevronDown,
+  CircleArrowRight,
+  CircleCheck,
+  CircleX,
+  Clock,
+  Folder,
+  ScanQrCode,
+  Search,
+  TriangleAlert,
+  Upload,
+  X,
+} from 'lucide-react-native';
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
-import { FotoGalerij } from './FotoGalerij';
+import { BEELD_OVERLAY, FotoGalerij } from './FotoGalerij';
+import { Button } from './ui';
+import { useVeldKleuren } from './veld/BuitenModus';
+import { Drukvlak, IcoonTegel, Kaart, LegeStaat, Scheiding, SectieKop, toonKleuren, type Toon } from './werk/Bouwstenen';
+import { tekst } from '../theme';
 import { useOfflineQueue } from '@/hooks/use-offline-queue';
 import type { CapturedPhoto } from '@/hooks/use-photo-capture';
+
+type Icoon = ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
 
 // ============================================
 // TYPES
@@ -68,10 +87,10 @@ interface ProjectFotoUploadProps {
 // CONSTANTEN
 // ============================================
 
-const CATEGORIE_CONFIG: Record<FotoCategorie, { label: string; kleur: string; icoon: string; beschrijving: string }> = {
-  voor:     { label: 'Voor werkzaamheden', kleur: '#3b82f6', icoon: 'arrow-right-circle', beschrijving: 'Situatie vóór de aanleg' },
-  na:       { label: 'Na werkzaamheden',   kleur: '#4ADE80', icoon: 'check-circle',        beschrijving: 'Resultaat na voltooiing' },
-  probleem: { label: 'Probleem gemeld',    kleur: '#ef4444', icoon: 'alert-triangle',       beschrijving: 'Probleem of afwijking' },
+const CATEGORIE_CONFIG: Record<FotoCategorie, { label: string; toon: Toon; icoon: Icoon; beschrijving: string }> = {
+  voor:     { label: 'Voor werkzaamheden', toon: 'info',   icoon: CircleArrowRight, beschrijving: 'Situatie vóór de aanleg' },
+  na:       { label: 'Na werkzaamheden',   toon: 'succes', icoon: CircleCheck,      beschrijving: 'Resultaat na voltooiing' },
+  probleem: { label: 'Probleem gemeld',    toon: 'gemist', icoon: TriangleAlert,    beschrijving: 'Probleem of afwijking' },
 };
 
 // ============================================
@@ -87,41 +106,49 @@ interface CategorieSelectorProps {
   onChange: (cat: FotoCategorie) => void;
 }
 
-const CategorieSelector = React.memo(({ geselecteerd, onChange }: CategorieSelectorProps) => (
-  <View style={stijlen.categorieContainer}>
-    {(Object.entries(CATEGORIE_CONFIG) as [FotoCategorie, typeof CATEGORIE_CONFIG[FotoCategorie]][]).map(
-      ([cat, config]) => {
-        const actief = geselecteerd === cat;
-        return (
-          <TouchableOpacity
-            key={cat}
-            style={[
-              stijlen.categorieKnop,
-              actief && { borderColor: config.kleur, backgroundColor: config.kleur + '18' },
-            ]}
-            onPress={() => onChange(cat)}
-            activeOpacity={0.7}
-          >
-            <Feather
-              name={config.icoon as 'check-circle'}
-              size={20}
-              color={actief ? config.kleur : '#888'}
-            />
-            <Text
-              style={[
-                stijlen.categorieKnopLabel,
-                actief && { color: config.kleur, fontWeight: '700' },
-              ]}
+const CategorieSelector = React.memo(({ geselecteerd, onChange }: CategorieSelectorProps) => {
+  const kleuren = useVeldKleuren();
+  return (
+    <View style={{ gap: 8 }}>
+      {(Object.entries(CATEGORIE_CONFIG) as [FotoCategorie, typeof CATEGORIE_CONFIG[FotoCategorie]][]).map(
+        ([cat, config]) => {
+          const actief = geselecteerd === cat;
+          const { voor, achter } = toonKleuren(kleuren, config.toon);
+          return (
+            <Drukvlak
+              key={cat}
+              onPress={() => onChange(cat)}
+              haptic="selection"
+              accessibilityLabel={`${config.label}, ${config.beschrijving}`}
+              accessibilityState={{ selected: actief }}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 12,
+                minHeight: 64,
+                paddingHorizontal: 14,
+                paddingVertical: 12,
+                borderRadius: 18,
+                borderWidth: 1.5,
+                borderColor: actief ? voor : kleuren.border,
+                backgroundColor: actief ? achter : kleuren.card,
+              }}
             >
-              {config.label}
-            </Text>
-            <Text style={stijlen.categorieKnopOndertitel}>{config.beschrijving}</Text>
-          </TouchableOpacity>
-        );
-      }
-    )}
-  </View>
-));
+              <IcoonTegel icoon={config.icoon} toon={actief ? config.toon : 'neutraal'} grootte={36} />
+              <View style={{ flex: 1, gap: 1 }}>
+                <Text style={[tekst.kop, { color: actief ? voor : kleuren.foreground, fontWeight: actief ? '700' : '500' }]}>
+                  {config.label}
+                </Text>
+                <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground }]}>{config.beschrijving}</Text>
+              </View>
+              {actief && <Check size={20} color={voor} strokeWidth={2.5} />}
+            </Drukvlak>
+          );
+        }
+      )}
+    </View>
+  );
+});
 CategorieSelector.displayName = 'CategorieSelector';
 
 // ----------------------------------------
@@ -135,6 +162,7 @@ interface ProjectDropdownProps {
 }
 
 function ProjectDropdown({ projecten, geselecteerd, onSelecteer }: ProjectDropdownProps) {
+  const kleuren = useVeldKleuren();
   const [open, setOpen] = useState(false);
   const [zoekterm, setZoekterm] = useState('');
 
@@ -149,29 +177,37 @@ function ProjectDropdown({ projecten, geselecteerd, onSelecteer }: ProjectDropdo
 
   return (
     <>
-      <TouchableOpacity
-        style={stijlen.dropdownKnop}
+      <Drukvlak
         onPress={() => setOpen(true)}
-        activeOpacity={0.8}
+        accessibilityLabel={geselecteerd !== null ? `Project: ${geselecteerd.naam}, ${geselecteerd.klant}` : 'Selecteer een project'}
+        accessibilityHint="Opent de projectlijst"
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 12,
+          minHeight: 56,
+          paddingHorizontal: 14,
+          paddingVertical: 10,
+          borderRadius: 18,
+          borderWidth: 1,
+          borderColor: kleuren.border,
+          backgroundColor: kleuren.card,
+        }}
       >
-        <View style={stijlen.dropdownKnopInhoud}>
-          <Feather name="folder" size={18} color={geselecteerd !== null ? '#4ADE80' : '#888'} />
+        <IcoonTegel icoon={Folder} toon={geselecteerd !== null ? 'primair' : 'neutraal'} grootte={36} />
+        <View style={{ flex: 1, gap: 1 }}>
           <Text
-            style={[
-              stijlen.dropdownKnopTekst,
-              geselecteerd !== null && { color: '#E8E8E8', fontWeight: '600' },
-            ]}
+            style={[tekst.kop, { color: geselecteerd !== null ? kleuren.foreground : kleuren.mutedForeground, fontWeight: geselecteerd !== null ? '600' : '400' }]}
             numberOfLines={1}
           >
             {geselecteerd !== null ? geselecteerd.naam : 'Selecteer een project...'}
           </Text>
+          {geselecteerd !== null && (
+            <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground }]} numberOfLines={1}>{geselecteerd.klant}</Text>
+          )}
         </View>
-        <Feather name="chevron-down" size={18} color="#888" />
-      </TouchableOpacity>
-
-      {geselecteerd !== null && (
-        <Text style={stijlen.geselecteerdKlant}>{geselecteerd.klant}</Text>
-      )}
+        <ChevronDown size={20} color={kleuren.mutedForeground} strokeWidth={2} />
+      </Drukvlak>
 
       <Modal
         visible={open}
@@ -179,73 +215,93 @@ function ProjectDropdown({ projecten, geselecteerd, onSelecteer }: ProjectDropdo
         presentationStyle="pageSheet"
         onRequestClose={() => setOpen(false)}
       >
-        <SafeAreaView style={stijlen.dropdownModal} edges={['top', 'bottom']}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: kleuren.background }} edges={['top', 'bottom']}>
           {/* Header */}
-          <View style={stijlen.dropdownModalHeader}>
-            <Text style={stijlen.dropdownModalTitel}>Selecteer project</Text>
-            <TouchableOpacity onPress={() => setOpen(false)}>
-              <Feather name="x" size={22} color="#888" />
-            </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 16, paddingRight: 10, paddingVertical: 8 }}>
+            <Text accessibilityRole="header" style={[tekst.titel3, { color: kleuren.foreground }]}>Selecteer project</Text>
+            <Drukvlak
+              onPress={() => setOpen(false)}
+              accessibilityLabel="Sluiten"
+              style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: kleuren.muted, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <X size={20} color={kleuren.foreground} strokeWidth={2.25} />
+            </Drukvlak>
           </View>
 
           {/* Zoekbalk */}
-          <View style={stijlen.zoekContainer}>
-            <Feather name="search" size={16} color="#888" />
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 8,
+              marginHorizontal: 16,
+              marginTop: 4,
+              marginBottom: 12,
+              paddingLeft: 12,
+              minHeight: 44,
+              borderRadius: 12,
+              backgroundColor: kleuren.muted,
+            }}
+          >
+            <Search size={18} color={kleuren.mutedForeground} strokeWidth={2} />
             <TextInput
-              style={stijlen.zoekInput}
+              style={{ flex: 1, fontSize: tekst.body.fontSize, color: kleuren.foreground, paddingVertical: 10 }}
               value={zoekterm}
               onChangeText={setZoekterm}
               placeholder="Zoek op naam of klant..."
-              placeholderTextColor="#888"
+              placeholderTextColor={kleuren.mutedForeground}
+              accessibilityLabel="Zoek project"
               autoFocus
             />
             {zoekterm.length > 0 && (
-              <TouchableOpacity onPress={() => setZoekterm('')}>
-                <Feather name="x-circle" size={16} color="#888" />
-              </TouchableOpacity>
+              <Drukvlak
+                onPress={() => setZoekterm('')}
+                accessibilityLabel="Zoekterm wissen"
+                haptic={null}
+                style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
+              >
+                <CircleX size={18} color={kleuren.mutedForeground} strokeWidth={2} />
+              </Drukvlak>
             )}
           </View>
 
           {/* Projecten-lijst */}
-          <ScrollView style={stijlen.dropdownLijst}>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }} keyboardShouldPersistTaps="handled">
             {gefilterd.length === 0 ? (
-              <View style={stijlen.dropdownLeeg}>
-                <Text style={stijlen.dropdownLeegTekst}>Geen projecten gevonden</Text>
-              </View>
+              <LegeStaat icoon={Search} titel="Geen projecten gevonden" />
             ) : (
-              gefilterd.map((project) => {
-                const actief = geselecteerd?.id === project.id;
-                return (
-                  <TouchableOpacity
-                    key={project.id}
-                    style={[
-                      stijlen.dropdownItem,
-                      actief && stijlen.dropdownItemActief,
-                    ]}
-                    onPress={() => {
-                      onSelecteer(project);
-                      setOpen(false);
-                      setZoekterm('');
-                    }}
-                    activeOpacity={0.7}
-                  >
-                    <View style={stijlen.dropdownItemInfo}>
-                      <Text
-                        style={[
-                          stijlen.dropdownItemNaam,
-                          actief && { color: '#4ADE80' },
-                        ]}
-                        numberOfLines={1}
+              <Kaart padding={0} style={{ paddingHorizontal: 14, gap: 0 }}>
+                {gefilterd.map((project, index) => {
+                  const actief = geselecteerd?.id === project.id;
+                  return (
+                    <View key={project.id}>
+                      {index > 0 && <Scheiding />}
+                      <Drukvlak
+                        onPress={() => {
+                          onSelecteer(project);
+                          setOpen(false);
+                          setZoekterm('');
+                        }}
+                        accessibilityLabel={`${project.naam}, ${project.klant}`}
+                        accessibilityState={{ selected: actief }}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 60, paddingVertical: 10 }}
                       >
-                        {project.naam}
-                      </Text>
-                      <Text style={stijlen.dropdownItemKlant}>{project.klant}</Text>
+                        <View style={{ flex: 1, gap: 1 }}>
+                          <Text style={[tekst.kop, { color: actief ? kleuren.primary : kleuren.foreground, fontWeight: actief ? '600' : '500' }]} numberOfLines={1}>
+                            {project.naam}
+                          </Text>
+                          <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground, fontSize: 14 }]} numberOfLines={1}>{project.klant}</Text>
+                        </View>
+                        <View
+                          accessibilityElementsHidden
+                          style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: project.status === 'actief' ? kleuren.success : kleuren.mutedForeground }}
+                        />
+                        {actief && <Check size={18} color={kleuren.primary} strokeWidth={2.5} />}
+                      </Drukvlak>
                     </View>
-                    <View style={[stijlen.statusDot, { backgroundColor: project.status === 'actief' ? '#4ADE80' : '#888' }]} />
-                    {actief && <Feather name="check" size={16} color="#4ADE80" />}
-                  </TouchableOpacity>
-                );
-              })
+                  );
+                })}
+              </Kaart>
             )}
           </ScrollView>
         </SafeAreaView>
@@ -265,6 +321,7 @@ interface QRScannerProps {
 }
 
 function QRScanner({ zichtbaar, onScan, onSluit }: QRScannerProps) {
+  const kleuren = useVeldKleuren();
   const [permissie, vraagPermissie] = useCameraPermissions();
   const [gescand, setGescand] = useState(false);
 
@@ -296,22 +353,19 @@ function QRScanner({ zichtbaar, onScan, onSluit }: QRScannerProps) {
       animationType="slide"
       onRequestClose={onSluit}
     >
-      <View style={stijlen.scannerContainer}>
+      {/* Camerapodium: zwart in beide thema's, het camerabeeld vult het. */}
+      <View style={{ flex: 1, backgroundColor: BEELD_OVERLAY.achtergrond }}>
         {permissie === null || !permissie.granted ? (
-          <SafeAreaView style={stijlen.scannerPermissie} edges={['top', 'bottom']}>
-            <Feather name="camera-off" size={48} color="#888" />
-            <Text style={stijlen.scannerPermissieTekst}>
+          <SafeAreaView
+            style={{ flex: 1, backgroundColor: kleuren.background, alignItems: 'center', justifyContent: 'center', gap: 16, padding: 32 }}
+            edges={['top', 'bottom']}
+          >
+            <IcoonTegel icoon={CameraOff} toon="neutraal" grootte={56} />
+            <Text style={[tekst.callout, { color: kleuren.mutedForeground, textAlign: 'center', maxWidth: 300 }]}>
               Camera-toegang is vereist voor het scannen van QR-codes.
             </Text>
-            <TouchableOpacity
-              style={stijlen.permissieKnop}
-              onPress={vraagPermissie}
-            >
-              <Text style={stijlen.permissieKnopTekst}>Toegang verlenen</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={onSluit} style={{ marginTop: 12 }}>
-              <Text style={{ color: '#888', fontSize: 15 }}>Annuleren</Text>
-            </TouchableOpacity>
+            <Button title="Toegang verlenen" onPress={() => { void vraagPermissie(); }} />
+            <Button title="Annuleren" variant="ghost" onPress={onSluit} />
           </SafeAreaView>
         ) : (
           <>
@@ -323,16 +377,26 @@ function QRScanner({ zichtbaar, onScan, onSluit }: QRScannerProps) {
             />
             {/* Overlay met sluit-knop */}
             <SafeAreaView style={stijlen.scannerOverlay} edges={['top']}>
-              <TouchableOpacity style={stijlen.scannerSluitKnop} onPress={onSluit}>
-                <Feather name="x" size={22} color="#ffffff" />
-              </TouchableOpacity>
-              <Text style={stijlen.scannerInstructie}>
+              <Drukvlak
+                onPress={onSluit}
+                accessibilityLabel="Scanner sluiten"
+                buitenStijl={{ alignSelf: 'flex-end' }}
+                style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: BEELD_OVERLAY.scrim, alignItems: 'center', justifyContent: 'center' }}
+              >
+                <X size={22} color={BEELD_OVERLAY.tekst} strokeWidth={2.25} />
+              </Drukvlak>
+              <Text
+                style={[
+                  tekst.sub,
+                  { color: BEELD_OVERLAY.tekst, textAlign: 'center', backgroundColor: BEELD_OVERLAY.scrim, borderRadius: 12, overflow: 'hidden', paddingHorizontal: 14, paddingVertical: 8 },
+                ]}
+              >
                 Richt de camera op het QR-code van het project
               </Text>
             </SafeAreaView>
 
             {/* Doelkader */}
-            <View style={stijlen.scannerKader}>
+            <View style={stijlen.scannerKader} accessibilityElementsHidden>
               <View style={[stijlen.hoek, stijlen.hoekLB]} />
               <View style={[stijlen.hoek, stijlen.hoekRB]} />
               <View style={[stijlen.hoek, stijlen.hoekLO]} />
@@ -366,6 +430,7 @@ export function ProjectFotoUpload({
   initiaalProjectId,
   onUploadGestart,
 }: ProjectFotoUploadProps) {
+  const kleuren = useVeldKleuren();
   const [geselecteerdProject, setGeselecteerdProject] = useState<Project | null>(
     () => projecten.find((p) => p.id === initiaalProjectId) ?? null
   );
@@ -465,29 +530,29 @@ export function ProjectFotoUpload({
   const kanUploaden = geselecteerdProject !== null && aantalFotos > 0 && !isUploading;
 
   return (
-    <View style={stijlen.scherm}>
-      <SafeAreaView style={stijlen.safeArea} edges={['top']}>
+    <View style={{ flex: 1, backgroundColor: kleuren.background }}>
+      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         <ScrollView
-          style={stijlen.scrollView}
-          contentContainerStyle={stijlen.scrollInhoud}
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 40, gap: 14 }}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
           {/* Header */}
-          <View style={stijlen.schermHeader}>
-            <Feather name="upload-cloud" size={24} color="#4ADE80" />
-            <Text style={stijlen.schermTitel}>Foto&apos;s uploaden</Text>
-          </View>
+          <Text accessibilityRole="header" style={[tekst.grootTitel, { color: kleuren.foreground }]}>Foto&apos;s uploaden</Text>
 
           {/* Sync-status indicator */}
           {(pendingCount > 0 || isSyncing) && (
-            <View style={stijlen.syncIndicator}>
+            <View
+              accessibilityLiveRegion="polite"
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: isSyncing ? kleuren.infoSoft : kleuren.warningSoft, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12 }}
+            >
               {isSyncing ? (
-                <ActivityIndicator size="small" color="#4ADE80" />
+                <ActivityIndicator size="small" color={kleuren.info} />
               ) : (
-                <Feather name="clock" size={14} color="#f59e0b" />
+                <Clock size={16} color={kleuren.warning} strokeWidth={2.25} />
               )}
-              <Text style={stijlen.syncIndicatorTekst}>
+              <Text style={[tekst.voetnoot, tekst.cijfers, { color: isSyncing ? kleuren.info : kleuren.warning, fontSize: 14, flex: 1 }]}>
                 {isSyncing
                   ? 'Synchroniseren...'
                   : `${pendingCount} item${pendingCount !== 1 ? 's' : ''} in wachtrij`}
@@ -496,19 +561,20 @@ export function ProjectFotoUpload({
           )}
 
           {/* === Sectie 1: Project-selectie === */}
-          <View style={stijlen.sectie}>
-            <View style={stijlen.sectieHeaderRij}>
-              <Text style={stijlen.sectieLabel}>Project</Text>
-              <TouchableOpacity
-                style={stijlen.qrKnop}
-                onPress={() => setQrScannerZichtbaar(true)}
-                activeOpacity={0.7}
-              >
-                <Feather name="maximize" size={14} color="#4ADE80" />
-                <Text style={stijlen.qrKnopTekst}>QR scannen</Text>
-              </TouchableOpacity>
-            </View>
-
+          <View style={{ gap: 8 }}>
+            <SectieKop
+              titel="Project"
+              rechts={
+                <Drukvlak
+                  onPress={() => setQrScannerZichtbaar(true)}
+                  accessibilityLabel="QR-code scannen"
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 36, paddingHorizontal: 12, borderRadius: 999, backgroundColor: kleuren.primarySoft }}
+                >
+                  <ScanQrCode size={16} color={kleuren.primary} strokeWidth={2.25} />
+                  <Text style={[tekst.voetnoot, { color: kleuren.primary, fontWeight: '600', fontSize: 14 }]}>QR scannen</Text>
+                </Drukvlak>
+              }
+            />
             <ProjectDropdown
               projecten={projecten}
               geselecteerd={geselecteerdProject}
@@ -517,14 +583,14 @@ export function ProjectFotoUpload({
           </View>
 
           {/* === Sectie 2: Categorie === */}
-          <View style={stijlen.sectie}>
-            <Text style={stijlen.sectieLabel}>Categorie</Text>
+          <View style={{ gap: 8 }}>
+            <SectieKop titel="Categorie" />
             <CategorieSelector geselecteerd={categorie} onChange={setCategorie} />
           </View>
 
           {/* === Sectie 3: Foto's === */}
-          <View style={stijlen.sectie}>
-            <Text style={stijlen.sectieLabel}>Foto&apos;s</Text>
+          <View style={{ gap: 8 }}>
+            <SectieKop titel="Foto's" />
             <FotoGalerij
               maxFotos={20}
               fotos={fotos}
@@ -533,55 +599,49 @@ export function ProjectFotoUpload({
           </View>
 
           {/* === Upload-knop === */}
-          <View style={stijlen.uploadKnopContainer}>
+          <View style={{ gap: 10, marginTop: 8 }}>
             {/* Voortgangsbar */}
             {isUploading && (
-              <View style={stijlen.voortgangContainer}>
-                <View style={stijlen.voortgangBalk}>
-                  <View
-                    style={[
-                      stijlen.voortgangVulling,
-                      { width: `${uploadVoortgang}%` },
-                    ]}
-                  />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <View style={{ flex: 1, height: 6, borderRadius: 3, backgroundColor: kleuren.primarySoft, overflow: 'hidden' }}>
+                  <View style={{ width: `${uploadVoortgang}%`, height: 6, borderRadius: 3, backgroundColor: kleuren.primary }} />
                 </View>
-                <Text style={stijlen.voortgangTekst}>{uploadVoortgang}%</Text>
+                <Text style={[tekst.voetnoot, tekst.cijfers, { color: kleuren.mutedForeground, minWidth: 40, textAlign: 'right' }]}>{uploadVoortgang}%</Text>
               </View>
             )}
 
-            <TouchableOpacity
-              style={[
-                stijlen.uploadKnop,
-                !kanUploaden && stijlen.uploadKnopDisabled,
-              ]}
+            <Drukvlak
               onPress={handleUpload}
               disabled={!kanUploaden}
-              activeOpacity={0.85}
+              haptic="press"
+              accessibilityLabel={isUploading ? 'Toevoegen aan wachtrij' : aantalFotos > 0 ? `${aantalFotos} foto${aantalFotos !== 1 ? '\'s' : ''} uploaden` : 'Upload foto\'s'}
+              accessibilityState={{ busy: isUploading }}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, minHeight: 52, borderRadius: 14, backgroundColor: kleuren.primary }}
             >
               {isUploading ? (
                 <>
-                  <ActivityIndicator size="small" color="#0A0A0A" />
-                  <Text style={stijlen.uploadKnopTekst}>Toevoegen aan wachtrij...</Text>
+                  <ActivityIndicator size="small" color={kleuren.primaryForeground} />
+                  <Text style={[tekst.kop, { color: kleuren.primaryForeground }]}>Toevoegen aan wachtrij...</Text>
                 </>
               ) : (
                 <>
-                  <Feather name="upload" size={20} color="#0A0A0A" />
-                  <Text style={stijlen.uploadKnopTekst}>
+                  <Upload size={20} color={kleuren.primaryForeground} strokeWidth={2.25} />
+                  <Text style={[tekst.kop, tekst.cijfers, { color: kleuren.primaryForeground }]}>
                     {aantalFotos > 0
                       ? `${aantalFotos} foto${aantalFotos !== 1 ? '\'s' : ''} uploaden`
                       : 'Upload foto\'s'}
                   </Text>
                 </>
               )}
-            </TouchableOpacity>
+            </Drukvlak>
 
             {geselecteerdProject === null && (
-              <Text style={stijlen.uploadHintTekst}>
+              <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground, textAlign: 'center' }]}>
                 Selecteer eerst een project
               </Text>
             )}
             {geselecteerdProject !== null && aantalFotos === 0 && (
-              <Text style={stijlen.uploadHintTekst}>
+              <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground, textAlign: 'center' }]}>
                 Voeg foto&apos;s toe via de galerij hierboven
               </Text>
             )}
@@ -602,306 +662,13 @@ export function ProjectFotoUpload({
 export default ProjectFotoUpload;
 
 // ============================================
-// STIJLEN
+// STIJLEN (camera-overlay; kleuren komen uit BEELD_OVERLAY)
 // ============================================
 
 const HOEK_GROOTTE = 24;
 const HOEK_DIKTE = 3;
 
 const stijlen = StyleSheet.create({
-  scherm: {
-    flex: 1,
-    backgroundColor: '#0A0A0A',
-  },
-  safeArea: {
-    flex: 1,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollInhoud: {
-    padding: 16,
-    paddingBottom: 40,
-  },
-
-  // Header
-  schermHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 16,
-  },
-  schermTitel: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#E8E8E8',
-  },
-
-  // Sync-indicator
-  syncIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#1A1A1A',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginBottom: 16,
-  },
-  syncIndicatorTekst: {
-    fontSize: 13,
-    color: '#888',
-  },
-
-  // Secties
-  sectie: {
-    marginBottom: 24,
-  },
-  sectieHeaderRij: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  sectieLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#888',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-  },
-
-  // QR-knop
-  qrKnop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 7,
-    backgroundColor: '#1A2E1A',
-    borderWidth: 1,
-    borderColor: '#4ADE80',
-  },
-  qrKnopTekst: {
-    fontSize: 12,
-    color: '#4ADE80',
-    fontWeight: '600',
-  },
-
-  // Dropdown
-  dropdownKnop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#111',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#222',
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-  },
-  dropdownKnopInhoud: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    flex: 1,
-  },
-  dropdownKnopTekst: {
-    fontSize: 15,
-    color: '#888',
-    flex: 1,
-  },
-  geselecteerdKlant: {
-    fontSize: 12,
-    color: '#888',
-    marginTop: 5,
-    marginLeft: 4,
-  },
-  dropdownModal: {
-    flex: 1,
-    backgroundColor: '#0A0A0A',
-  },
-  dropdownModalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#222',
-  },
-  dropdownModalTitel: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#E8E8E8',
-  },
-  zoekContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    margin: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: '#111',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#222',
-  },
-  zoekInput: {
-    flex: 1,
-    fontSize: 15,
-    color: '#E8E8E8',
-  },
-  dropdownLijst: {
-    flex: 1,
-  },
-  dropdownItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#222',
-  },
-  dropdownItemActief: {
-    backgroundColor: '#1A2E1A',
-  },
-  dropdownItemInfo: {
-    flex: 1,
-  },
-  dropdownItemNaam: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#E8E8E8',
-  },
-  dropdownItemKlant: {
-    fontSize: 13,
-    color: '#888',
-    marginTop: 2,
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  dropdownLeeg: {
-    padding: 32,
-    alignItems: 'center',
-  },
-  dropdownLeegTekst: {
-    fontSize: 15,
-    color: '#888',
-  },
-
-  // Categorie-selector
-  categorieContainer: {
-    gap: 8,
-  },
-  categorieKnop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: '#111',
-    borderWidth: 1.5,
-    borderColor: '#222',
-  },
-  categorieKnopLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#E8E8E8',
-    flex: 1,
-  },
-  categorieKnopOndertitel: {
-    fontSize: 12,
-    color: '#888',
-  },
-
-  // Upload-knop
-  uploadKnopContainer: {
-    gap: 10,
-    marginTop: 8,
-  },
-  voortgangContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  voortgangBalk: {
-    flex: 1,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#1A1A1A',
-    overflow: 'hidden',
-  },
-  voortgangVulling: {
-    height: '100%',
-    backgroundColor: '#4ADE80',
-    borderRadius: 3,
-  },
-  voortgangTekst: {
-    fontSize: 12,
-    color: '#888',
-    width: 36,
-    textAlign: 'right',
-  },
-  uploadKnop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    backgroundColor: '#4ADE80',
-    borderRadius: 14,
-    paddingVertical: 16,
-  },
-  uploadKnopDisabled: {
-    opacity: 0.45,
-  },
-  uploadKnopTekst: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0A0A0A',
-  },
-  uploadHintTekst: {
-    fontSize: 13,
-    color: '#888',
-    textAlign: 'center',
-  },
-
-  // QR-scanner
-  scannerContainer: {
-    flex: 1,
-    backgroundColor: '#000000',
-  },
-  scannerPermissie: {
-    flex: 1,
-    backgroundColor: '#0A0A0A',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 16,
-    padding: 32,
-  },
-  scannerPermissieTekst: {
-    fontSize: 16,
-    color: '#888',
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  permissieKnop: {
-    backgroundColor: '#4ADE80',
-    borderRadius: 10,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-  },
-  permissieKnopTekst: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#0A0A0A',
-  },
   scannerOverlay: {
     position: 'absolute',
     top: 0,
@@ -911,23 +678,8 @@ const stijlen = StyleSheet.create({
     paddingTop: Platform.OS === 'ios' ? 0 : 16,
     gap: 16,
   },
-  scannerSluitKnop: {
-    alignSelf: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    borderRadius: 20,
-    padding: 8,
-  },
-  scannerInstructie: {
-    fontSize: 14,
-    color: '#ffffff',
-    textAlign: 'center',
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
 
-  // Doelkader voor QR
+  // Doelkader voor QR — wit, want het ligt op een camerabeeld.
   scannerKader: {
     position: 'absolute',
     top: '50%',
@@ -941,7 +693,7 @@ const stijlen = StyleSheet.create({
     position: 'absolute',
     width: HOEK_GROOTTE,
     height: HOEK_GROOTTE,
-    borderColor: '#4ADE80',
+    borderColor: BEELD_OVERLAY.tekst,
   },
   hoekLB: {
     top: 0,

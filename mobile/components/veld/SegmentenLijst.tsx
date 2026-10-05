@@ -12,14 +12,16 @@ import { useAuth } from '@clerk/clerk-expo';
 import { useQuery } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import { leesUrenConcept, schrijfUrenConcept, urenConceptSleutel, type UrenConcept } from '../../lib/uren-concept';
-import { Alert, Pressable, Text, View } from 'react-native';
+import { Alert, Text, View } from 'react-native';
 import { useVeldOpdracht } from '../../hooks/use-veld-opdracht';
 import * as Crypto from 'expo-crypto';
 import { DagvoorstelEditor } from './DagvoorstelEditor';
 import { KlusKiezer } from './KlusKiezer';
 import { useVeldServerActie } from '../../hooks/use-veld-server-actie';
-import { Check, CheckCheck, Pencil, Plus, Trash2 } from 'lucide-react-native';
-import { Badge, BottomSheet, Button, Input } from '../ui';
+import { Check, CheckCheck, Clock, CloudUpload, Pencil, Plus, Trash2 } from 'lucide-react-native';
+import { BottomSheet, Button, Input } from '../ui';
+import { Drukvlak, IcoonTegel, Kaart, Melding, Scheiding, SectieKop, StatusPil } from '../werk/Bouwstenen';
+import { tekst } from '../../theme';
 import {
   CATEGORIE_LABELS,
   isGeldigTijdvak,
@@ -28,7 +30,7 @@ import {
   type VeldSegment,
   type VoorstelSegment,
 } from '../../types/veld';
-import { useBuitenModus } from './BuitenModus';
+import { useVeldKleuren } from './BuitenModus';
 
 function toonFout(fout: unknown, fallback: string) {
   const bericht =
@@ -46,7 +48,7 @@ export function SegmentenLijst({
   datum: string;
   magBewerken: boolean;
 }) {
-  const { kleuren } = useBuitenModus();
+  const kleuren = useVeldKleuren();
   const { voerUit } = useVeldServerActie();
   const { wachtrij, verstuur } = useVeldOpdracht();
   const actieBezig = useRef(false);
@@ -98,210 +100,141 @@ export function SegmentenLijst({
   };
 
   return (
-    <View style={{ gap: 12 }}>
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <Text
-          style={{ color: kleuren.foreground, fontSize: 17, fontWeight: '600' }}
-          accessibilityRole="header"
-        >
-          Uren
-        </Text>
-        {magBewerken && (
+    <View style={{ gap: 10 }}>
+      <SectieKop
+        titel="Uren"
+        telling={dag.segmenten.length}
+        rechts={magBewerken ? (
           <Button
             variant="outline"
             size="sm"
             title="Segment"
             disabled={dagWacht}
-            icon={<Plus size={16} color={kleuren.foreground} />}
+            icon={<Plus size={16} color={kleuren.foreground} strokeWidth={2} />}
             onPress={() => {
               setBewerkSegment(null);
               setFormOpen(true);
             }}
           />
-        )}
-      </View>
+        ) : undefined}
+      />
 
-      {dagWacht && <Text style={{ color: kleuren.mutedForeground }}>Uren van deze dag wachten op synchronisatie. Controleer de wachtrij voordat je verder wijzigt.</Text>}
+      {dagWacht && <Melding toon="wachten" icoon={CloudUpload} tekst="Uren van deze dag wachten op synchronisatie. Controleer de wachtrij voordat je verder wijzigt." />}
       {/* Voorgestelde segmenten uit de dagkaart (§8.10) */}
       {magBewerken && !dagWacht && dag.voorstellen.length > 0 && (
-        <View
-          style={{
-            borderWidth: 1,
-            borderStyle: 'dashed',
-            borderColor: kleuren.border,
-            borderRadius: 12,
-            padding: 12,
-            gap: 8,
-            backgroundColor: kleuren.surface,
-          }}
-        >
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 8,
-            }}
-          >
-            <Text
-              style={{
-                color: kleuren.mutedForeground,
-                fontSize: 12,
-                flexShrink: 1,
-              }}
-            >
-              Voorgesteld uit je dagkaart — bevestig of corrigeer
-            </Text>
+        <Kaart style={{ borderStyle: 'dashed', backgroundColor: kleuren.surface }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={[tekst.kop, { color: kleuren.foreground }]}>Voorstel uit je dagkaart</Text>
+              <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground, fontSize: 14, lineHeight: 19 }]}>
+                Bevestig of corrigeer
+              </Text>
+            </View>
             <Button
               variant="secondary"
               size="sm"
               title={`Alles (${dag.voorstellen.length})`}
-              icon={<CheckCheck size={16} color={kleuren.foreground} />}
+              icon={<CheckCheck size={16} color={kleuren.primary} strokeWidth={2} />}
               onPress={handleBevestigAlle}
             />
           </View>
           <DagvoorstelEditor dag={dag} datum={datum} />
-          {dag.voorstellen.map((voorstel, i) => (
-            <View
-              key={`${voorstel.beginTijd}-${voorstel.categorie}-${i}`}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 8,
-              }}
-            >
-              <View style={{ flexShrink: 1 }}>
-                <Text style={{ color: kleuren.foreground, fontSize: 14 }}>
-                  {voorstel.beginTijd}–{voorstel.eindTijd}{' '}
-                  {CATEGORIE_LABELS[voorstel.categorie]}
-                </Text>
-                {stopNaam(voorstel.werkitemId) && (
-                  <Text
-                    style={{ color: kleuren.mutedForeground, fontSize: 12 }}
-                    numberOfLines={1}
-                  >
-                    {stopNaam(voorstel.werkitemId)}
-                  </Text>
-                )}
+          <View>
+            {dag.voorstellen.map((voorstel, i) => (
+              <View key={`${voorstel.beginTijd}-${voorstel.categorie}-${i}`}>
+                {i > 0 && <Scheiding />}
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, minHeight: 52, paddingVertical: 4 }}>
+                  <View style={{ flex: 1, gap: 1 }}>
+                    <Text style={[tekst.kop, { color: kleuren.foreground }]}>
+                      <Text style={tekst.cijfers}>{voorstel.beginTijd}–{voorstel.eindTijd}</Text>
+                      <Text style={{ color: kleuren.mutedForeground, fontWeight: '400' }}>{'  '}{CATEGORIE_LABELS[voorstel.categorie]}</Text>
+                    </Text>
+                    {stopNaam(voorstel.werkitemId) && (
+                      <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground, fontSize: 14 }]} numberOfLines={1}>
+                        {stopNaam(voorstel.werkitemId)}
+                      </Text>
+                    )}
+                  </View>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    title="Bevestig"
+                    icon={<Check size={16} color={kleuren.primary} strokeWidth={2} />}
+                    onPress={() => handleBevestigVoorstel(voorstel)}
+                  />
+                </View>
               </View>
-              <Button
-                variant="secondary"
-                size="sm"
-                title="Bevestig"
-                icon={<Check size={16} color={kleuren.foreground} />}
-                onPress={() => handleBevestigVoorstel(voorstel)}
-              />
-            </View>
-          ))}
-        </View>
+            ))}
+          </View>
+        </Kaart>
       )}
 
       {/* Bevestigde/ingediende segmenten */}
       {dag.segmenten.length === 0 ? (
-        <Text style={{ color: kleuren.mutedForeground, fontSize: 13 }}>
-          Nog geen segmenten voor deze dag.
-        </Text>
+        <Kaart variant="stil" style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <IcoonTegel icoon={Clock} toon="neutraal" grootte={36} />
+          <Text style={[tekst.sub, { color: kleuren.mutedForeground, flex: 1 }]}>
+            Nog geen segmenten voor deze dag.
+          </Text>
+        </Kaart>
       ) : (
-        <View style={{ gap: 8 }}>
-          {dag.segmenten.map((segment) => {
+        <Kaart padding={4} style={{ paddingHorizontal: 14, gap: 0 }}>
+          {dag.segmenten.map((segment, i) => {
             const wachtend = wachtrij.find(r => r.type === 'segmentWijzigen' && r.payload.id === segment._id);
             const bewerkbaar = magBewerken && !dagWacht && segment.status !== 'ingediend';
             return (
-              <View
-                key={String(segment._id)}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 8,
-                  borderWidth: 1,
-                  borderColor: kleuren.border,
-                  borderRadius: 12,
-                  paddingHorizontal: 12,
-                  paddingVertical: 10,
-                  backgroundColor: kleuren.card,
-                }}
-              >
-                <View style={{ flexShrink: 1, gap: 2 }}>
-                  <View
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 8,
-                      flexWrap: 'wrap',
-                    }}
-                  >
-                    <Text
-                      style={{
-                        color: kleuren.foreground,
-                        fontSize: 15,
-                        fontVariant: ['tabular-nums'],
-                      }}
-                    >
-                      {segment.beginTijd}–{segment.eindTijd}
-                    </Text>
-                    <Badge variant="outline">
-                      {CATEGORIE_LABELS[segment.categorie]}
-                    </Badge>
-                    {segment.status === 'ingediend' && (
-                      <Badge variant="secondary">ingediend</Badge>
+              <View key={String(segment._id)}>
+                {i > 0 && <Scheiding />}
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 56, paddingVertical: 8 }}>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <Text style={[tekst.kop, tekst.cijfers, { color: kleuren.foreground }]}>
+                        {segment.beginTijd}–{segment.eindTijd}
+                      </Text>
+                      <Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>
+                        {CATEGORIE_LABELS[segment.categorie]}
+                      </Text>
+                      {segment.status === 'ingediend' && <StatusPil label="Ingediend" toon="succes" />}
+                    </View>
+                    {stopNaam(segment.werkitemId) && (
+                      <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground, fontSize: 14 }]} numberOfLines={1}>
+                        {stopNaam(segment.werkitemId)}
+                      </Text>
                     )}
+                    {wachtend && <Text accessibilityLiveRegion="polite" style={[tekst.voetnoot, { color: kleuren.warning, fontSize: 14, lineHeight: 19 }]}>Wachtende wijziging: {String(wachtend.payload.beginTijd ?? segment.beginTijd)}–{String(wachtend.payload.eindTijd ?? segment.eindTijd)} {String(wachtend.payload.categorie ?? segment.categorie)}{typeof wachtend.payload.notitie === 'string' ? ` · ${wachtend.payload.notitie}` : ''}. Nog niet bevestigd.</Text>}
+                    {segment.notitie ? (
+                      <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground, fontSize: 14, fontStyle: 'italic' }]} numberOfLines={2}>
+                        &quot;{segment.notitie}&quot;
+                      </Text>
+                    ) : null}
                   </View>
-                  {stopNaam(segment.werkitemId) && (
-                    <Text
-                      style={{ color: kleuren.mutedForeground, fontSize: 12 }}
-                      numberOfLines={1}
-                    >
-                      {stopNaam(segment.werkitemId)}
-                    </Text>
+                  {!bewerkbaar && !dagWacht && dag.isEigenDag && <Button title="Notitie" variant="ghost" size="sm" onPress={() => { setBewerkSegment(segment); setFormOpen(true); }} />}
+                  {bewerkbaar && (
+                    <View style={{ flexDirection: 'row', gap: 4 }}>
+                      <Drukvlak
+                        accessibilityLabel="Segment bewerken"
+                        onPress={() => {
+                          setBewerkSegment(segment);
+                          setFormOpen(true);
+                        }}
+                        style={{ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: kleuren.muted }}
+                      >
+                        <Pencil size={18} color={kleuren.foreground} strokeWidth={2} />
+                      </Drukvlak>
+                      <Drukvlak
+                        accessibilityLabel="Segment verwijderen"
+                        onPress={() => handleVerwijder(segment)}
+                        style={{ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: kleuren.dangerSoft }}
+                      >
+                        <Trash2 size={18} color={kleuren.danger} strokeWidth={2} />
+                      </Drukvlak>
+                    </View>
                   )}
-                  {wachtend && <Text accessibilityLiveRegion="polite" style={{ color: kleuren.foreground }}>Wachtende wijziging: {String(wachtend.payload.beginTijd ?? segment.beginTijd)}–{String(wachtend.payload.eindTijd ?? segment.eindTijd)} {String(wachtend.payload.categorie ?? segment.categorie)}{typeof wachtend.payload.notitie === 'string' ? ` · ${wachtend.payload.notitie}` : ''}. Nog niet bevestigd.</Text>}
-                  {segment.notitie ? (
-                    <Text
-                      style={{ color: kleuren.mutedForeground, fontSize: 12 }}
-                      numberOfLines={2}
-                    >
-                      &quot;{segment.notitie}&quot;
-                    </Text>
-                  ) : null}
                 </View>
-                {!bewerkbaar && !dagWacht && dag.isEigenDag && <Button title="Notitie" variant="ghost" size="sm" onPress={() => { setBewerkSegment(segment); setFormOpen(true); }} />}
-                {bewerkbaar && (
-                  <View style={{ flexDirection: 'row', gap: 4 }}>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel="Segment bewerken"
-                      hitSlop={8}
-                      onPress={() => {
-                        setBewerkSegment(segment);
-                        setFormOpen(true);
-                      }}
-                      style={{ padding: 8 }}
-                    >
-                      <Pencil size={18} color={kleuren.mutedForeground} />
-                    </Pressable>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel="Segment verwijderen"
-                      hitSlop={8}
-                      onPress={() => handleVerwijder(segment)}
-                      style={{ padding: 8 }}
-                    >
-                      <Trash2 size={18} color={kleuren.destructive} />
-                    </Pressable>
-                  </View>
-                )}
               </View>
             );
           })}
-        </View>
+        </Kaart>
       )}
 
       {formOpen && <SegmentFormSheet
@@ -337,7 +270,7 @@ function SegmentFormSheet({
   datum: string;
   bewerkSegment: VeldSegment | null;
 }) {
-  const { kleuren } = useBuitenModus();
+  const kleuren = useVeldKleuren();
   const { verstuur, wachtrij } = useVeldOpdracht();
   const { userId, orgId } = useAuth();
   const conceptSleutel = urenConceptSleutel(orgId, userId, datum, bewerkSegment?._id ?? null);
@@ -428,28 +361,29 @@ function SegmentFormSheet({
     finally { setBezig(false); actiefOpslaan.current = false; }
   };
 
+  const foutRegel = tijdFout && <Text accessibilityRole="alert" style={[tekst.sub, { color: kleuren.danger }]}>{tijdFout}</Text>;
   const conceptInfo = <View style={{ gap: 8 }}>
-    <Text style={{ color: kleuren.mutedForeground }}>{conceptMelding ?? 'Je invoer wordt op dit toestel bewaard bij sluiten of herstart.'}</Text>
-    {geladen && !herstelPoging && revisie !== dag.revisie && <Text accessibilityRole="alert" style={{ color: kleuren.foreground }}>De dag is gewijzigd sinds dit concept. Controleer je tijden en laad de actuele dagrevisie voordat je opslaat.</Text>}
+    <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground, fontSize: 14, lineHeight: 19 }]}>{conceptMelding ?? 'Je invoer wordt op dit toestel bewaard bij sluiten of herstart.'}</Text>
+    {geladen && !herstelPoging && revisie !== dag.revisie && <Text accessibilityRole="alert" style={[tekst.sub, { color: kleuren.warning }]}>De dag is gewijzigd sinds dit concept. Controleer je tijden en laad de actuele dagrevisie voordat je opslaat.</Text>}
     {geladen && !herstelPoging && revisie !== dag.revisie && <Button title="Gecontroleerd, actuele revisie gebruiken" variant="outline" onPress={() => setRevisie(dag.revisie)} />}
     <Button title="Concept verwijderen" variant="ghost" disabled={bezig} onPress={async () => { try { await verwijderConcept(); onClose(); } catch { setTijdFout('Concept verwijderen mislukt.'); } }} />
   </View>;
   if (!geladen || herstelPoging) return <BottomSheet isOpen={open} onClose={onClose} title="Bewaarde ureninvoer">
     <View style={{ gap: 12 }}>
-      <Text style={{ color: kleuren.foreground }}>{herstelPoging ? `${beginTijd}–${eindTijd} · ${CATEGORIE_LABELS[categorie]}` : 'Bewaarde invoer laden…'}</Text>
-      {herstelPoging && <><Text style={{ color: kleuren.mutedForeground }}>Deze invoer is eerder aangeboden. We controleren of ze al bevestigd is. Opnieuw versturen gebruikt dezelfde sleutel en maakt geen tweede registratie.</Text><Button title="Dezelfde invoer opnieuw versturen" variant="outline" loading={bezig} onPress={handleOpslaan} disabled={!!receipt || staatInWachtrij} /></>}
-      {tijdFout && <Text accessibilityRole="alert" style={{ color: kleuren.destructive }}>{tijdFout}</Text>}
+      <Text style={[tekst.kop, herstelPoging ? tekst.cijfers : null, { color: kleuren.foreground }]}>{herstelPoging ? `${beginTijd}–${eindTijd} · ${CATEGORIE_LABELS[categorie]}` : 'Bewaarde invoer laden…'}</Text>
+      {herstelPoging && <><Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>Deze invoer is eerder aangeboden. We controleren of ze al bevestigd is. Opnieuw versturen gebruikt dezelfde sleutel en maakt geen tweede registratie.</Text><Button title="Dezelfde invoer opnieuw versturen" variant="outline" loading={bezig} onPress={handleOpslaan} disabled={!!receipt || staatInWachtrij} /></>}
+      {foutRegel}
       {!herstelPoging && conceptInfo}
     </View>
   </BottomSheet>;
 
   if (alleenNotitie) return <BottomSheet isOpen={open} onClose={onClose} title="Notitie aanvullen">
     <View style={{ gap: 12, paddingBottom: 12 }}>
-      <Text style={{ color: kleuren.mutedForeground }}>De dag is ingediend. Je kunt alleen de notitie aanpassen.</Text>
+      <Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>De dag is ingediend. Je kunt alleen de notitie aanpassen.</Text>
       {conceptInfo}
       <Input label="Notitie" value={notitie} onChangeText={setNotitie} disabled={bezig} multiline />
-      {tijdFout && <Text accessibilityRole="alert" style={{ color: kleuren.destructive }}>{tijdFout}</Text>}
-      <Button title="Notitie opslaan" onPress={handleOpslaan} loading={bezig} />
+      {foutRegel}
+      <Button title="Notitie opslaan" size="lg" onPress={handleOpslaan} loading={bezig} fullWidth />
     </View>
   </BottomSheet>;
 
@@ -459,11 +393,11 @@ function SegmentFormSheet({
       onClose={onClose}
       title={bewerkSegment ? 'Segment aanpassen' : 'Segment toevoegen'}
     >
-      <View style={{ gap: 14, paddingBottom: 12 }}>
+      <View style={{ gap: 16, paddingBottom: 12 }}>
         {conceptInfo}
         {/* Categorie-keuze */}
-        <View style={{ gap: 6 }}>
-          <Text style={{ color: kleuren.mutedForeground, fontSize: 12 }}>
+        <View style={{ gap: 8 }}>
+          <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground, fontWeight: '600' }]}>
             Categorie
           </Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -471,33 +405,31 @@ function SegmentFormSheet({
               (waarde) => {
                 const actief = categorie === waarde;
                 return (
-                  <Pressable
+                  <Drukvlak
                     key={waarde}
-                    accessibilityRole="button"
+                    haptic="selection"
+                    accessibilityLabel={CATEGORIE_LABELS[waarde]}
                     accessibilityState={{ selected: actief }}
                     onPress={() => { setCategorie(waarde); setWerksoort(undefined); }}
                     style={{
-                      paddingHorizontal: 12,
-                      paddingVertical: 8,
+                      minHeight: 44,
+                      justifyContent: 'center',
+                      paddingHorizontal: 14,
                       borderRadius: 999,
-                      borderWidth: 1,
-                      borderColor: actief ? kleuren.primary : kleuren.border,
-                      backgroundColor: actief
-                        ? kleuren.primary
-                        : 'transparent',
+                      backgroundColor: actief ? kleuren.primary : kleuren.muted,
                     }}
                   >
                     <Text
-                      style={{
-                        fontSize: 13,
+                      style={[tekst.sub, {
+                        fontWeight: actief ? '600' : '500',
                         color: actief
                           ? kleuren.primaryForeground
                           : kleuren.foreground,
-                      }}
+                      }]}
                     >
                       {CATEGORIE_LABELS[waarde]}
                     </Text>
-                  </Pressable>
+                  </Drukvlak>
                 );
               }
             )}
@@ -534,8 +466,8 @@ function SegmentFormSheet({
 
         {/* Klus-koppeling: verplicht bij werken, herkomst groenafval bij BES */}
         {toontKlusKeuze && (
-          <View style={{ gap: 6 }}>
-            <Text style={{ color: kleuren.mutedForeground, fontSize: 12 }}>
+          <View style={{ gap: 8 }}>
+            <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground, fontWeight: '600' }]}>
               {categorie === 'werken'
                 ? 'Klus (verplicht)'
                 : 'Herkomst groenafval (optioneel)'}
@@ -552,13 +484,14 @@ function SegmentFormSheet({
         />
 
         {tijdFout && (
-          <Text style={{ color: kleuren.destructive, fontSize: 13 }}>
+          <Text style={[tekst.sub, { color: kleuren.danger }]}>
             {tijdFout}
           </Text>
         )}
 
         <Button
           title={bewerkSegment ? 'Aanpassen' : 'Opslaan'}
+          size="lg"
           onPress={handleOpslaan}
           loading={bezig}
           fullWidth

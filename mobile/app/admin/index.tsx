@@ -1,26 +1,21 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, type ReactNode } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
-  TouchableOpacity,
   Alert,
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+import { Check, ChevronDown, CircleX, Link, Lock, UserCheck, UserPlus, Users } from 'lucide-react-native';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
-import { useColors } from '../../theme';
+import { tekst } from '../../theme';
 import { useUserRole } from '../../hooks/use-user-role';
 import { useCurrentUser } from '../../hooks/use-current-user';
 import {
-  Card,
-  CardContent,
   Button,
-  Badge,
   Dialog,
   DialogContent,
   DialogHeader,
@@ -28,9 +23,8 @@ import {
   DialogDescription,
   DialogFooter,
 } from '../../components/ui';
-import { spacing } from '../../theme/spacing';
-import { radius } from '../../theme/radius';
-import { typography } from '../../theme/typography';
+import { Drukvlak, Kaart, LegeStaat, Scheiding, SectieKop, StatusPil, toonKleuren, type Toon } from '../../components/werk/Bouwstenen';
+import { useVeldKleuren } from '../../components/veld/BuitenModus';
 import type { Id } from '../../convex/_generated/dataModel';
 
 import { normalizeRole, ROLE_LABELS, USER_ROLES, type UserRole } from '../../lib/roles';
@@ -60,8 +54,58 @@ interface Medewerker {
 
 // Role display helpers
 const roleConfig = Object.fromEntries(USER_ROLES.map(role => [role, {
-  label: ROLE_LABELS[role], variant: role === 'directie' ? 'default' : role === 'klant' ? 'outline' : 'secondary',
-}])) as Record<UserRole, { label: string; variant: 'default' | 'secondary' | 'outline' }>;
+  label: ROLE_LABELS[role], toon: role === 'directie' ? 'primair' : role === 'klant' ? 'info' : 'neutraal',
+}])) as Record<UserRole, { label: string; toon: Toon }>;
+
+const ROL_UITLEG: Partial<Record<UserRole, string>> = {
+  directie: 'Volledige toegang tot alle functies',
+  medewerker: 'Alleen eigen uren en projecten',
+  klant: 'Toegang via het klantportaal',
+  projectleider: 'Projecten en planning beheren',
+  voorman: 'Eigen werkdag en ploeg begeleiden',
+  onderaannemer_zzp: 'Eigen uren en toegewezen werk',
+  materiaalman: 'Materieel en eigen werkdag',
+};
+
+/** Keuzeregel in een dialoog: rand en zachte vulling als hij gekozen is. */
+function KeuzeRegel({
+  gekozen,
+  gevaar,
+  onPress,
+  accessibilityLabel,
+  children,
+}: {
+  gekozen?: boolean;
+  gevaar?: boolean;
+  onPress: () => void;
+  accessibilityLabel: string;
+  children: ReactNode;
+}) {
+  const kleuren = useVeldKleuren();
+  return (
+    <Drukvlak
+      onPress={onPress}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ selected: !!gekozen }}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 12,
+        minHeight: 56,
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: gevaar ? kleuren.danger : gekozen ? kleuren.primary : kleuren.border,
+        backgroundColor: gevaar ? kleuren.dangerSoft : gekozen ? kleuren.primarySoft : kleuren.card,
+      }}
+    >
+      {children}
+      {gekozen && <Check size={20} color={kleuren.primary} strokeWidth={2.25} />}
+    </Drukvlak>
+  );
+}
 
 // User Card Component
 function UserCard({
@@ -77,80 +121,80 @@ function UserCard({
   onLinkMedewerker: (userId: Id<'users'>, medewerkerId?: Id<'medewerkers'>) => void;
   isCurrentUser: boolean;
 }) {
-  const colors = useColors();
+  const kleuren = useVeldKleuren();
   const [showRoleDialog, setShowRoleDialog] = useState(false);
   const [showLinkDialog, setShowLinkDialog] = useState(false);
 
   const canonicalRole = normalizeRole(user.role);
-  const config = canonicalRole === 'onbekend' ? { label: 'Onbekend', variant: 'outline' as const } : roleConfig[canonicalRole];
+  const config = canonicalRole === 'onbekend' ? { label: 'Onbekend', toon: 'neutraal' as Toon } : roleConfig[canonicalRole];
+  const rolKleur = toonKleuren(kleuren, config.toon);
 
   // Available medewerkers for linking (active and not linked to someone else)
   const availableMedewerkers = useMemo(() => {
     return medewerkers.filter((m) => m.isActief && (!m.isLinked || user.linkedMedewerkerId?.toString() === m._id.toString()));
   }, [medewerkers, user.linkedMedewerkerId]);
 
+  const rolInhoud = (
+    <>
+      <Text style={[tekst.voetnoot, { color: rolKleur.voor, fontWeight: '600' }]}>{config.label}</Text>
+      {!isCurrentUser && <ChevronDown size={16} color={rolKleur.voor} strokeWidth={2.25} />}
+    </>
+  );
+  const rolStijl = { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 4, alignSelf: 'flex-start' as const, minHeight: 32, paddingHorizontal: 12, borderRadius: 999, backgroundColor: rolKleur.achter };
+
   return (
     <>
-      <Card style={styles.userCard}>
-        <CardContent style={styles.userCardContent}>
-          <View style={styles.userInfo}>
-            <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
-              <Text style={[styles.avatarText, { color: colors.primaryForeground }]}>
-                {user.name?.slice(0, 2).toUpperCase() || 'U'}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 }}>
+        <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: kleuren.primarySoft, alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-start' }}>
+          <Text style={[tekst.sub, { color: kleuren.primary, fontWeight: '600' }]}>
+            {user.name?.slice(0, 2).toUpperCase() || 'U'}
+          </Text>
+        </View>
+
+        <View style={{ flex: 1, gap: 2 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Text style={[tekst.kop, { color: kleuren.foreground, flexShrink: 1 }]} numberOfLines={1}>
+              {user.name}
+            </Text>
+            {isCurrentUser && <StatusPil label="Jij" toon="primair" />}
+          </View>
+          <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground, fontSize: 14 }]} numberOfLines={1}>
+            {user.email}
+          </Text>
+          {user.linkedMedewerker && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+              <Link size={13} color={kleuren.mutedForeground} strokeWidth={2} />
+              <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground, flexShrink: 1 }]} numberOfLines={1}>
+                {user.linkedMedewerker.naam}
               </Text>
             </View>
-            <View style={styles.userDetails}>
-              <View style={styles.userNameRow}>
-                <Text style={[styles.userName, { color: colors.foreground }]} numberOfLines={1}>
-                  {user.name}
-                </Text>
-                {isCurrentUser && (
-                  <Badge variant="outline" size="sm">Jij</Badge>
-                )}
-              </View>
-              <Text style={[styles.userEmail, { color: colors.mutedForeground }]} numberOfLines={1}>
-                {user.email}
-              </Text>
-              {user.linkedMedewerker && (
-                <View style={styles.linkedInfo}>
-                  <Feather name="link" size={12} color={colors.mutedForeground} />
-                  <Text style={[styles.linkedText, { color: colors.mutedForeground }]} numberOfLines={1}>
-                    {user.linkedMedewerker.naam}
-                  </Text>
-                </View>
-              )}
-            </View>
+          )}
+          <View style={{ marginTop: 6 }}>
+            {isCurrentUser ? (
+              <View style={rolStijl}>{rolInhoud}</View>
+            ) : (
+              <Drukvlak
+                onPress={() => setShowRoleDialog(true)}
+                accessibilityLabel={`Rol van ${user.name}: ${config.label}`}
+                accessibilityHint="Opent de rolkeuze"
+                style={rolStijl}
+              >
+                {rolInhoud}
+              </Drukvlak>
+            )}
           </View>
+        </View>
 
-          <View style={styles.userActions}>
-            <TouchableOpacity
-              style={[styles.roleButton, { backgroundColor: colors.muted }]}
-              onPress={() => !isCurrentUser && setShowRoleDialog(true)}
-              disabled={isCurrentUser}
-              activeOpacity={isCurrentUser ? 1 : 0.7}
-            >
-              <Badge variant={config.variant} size="md">
-                {config.label}
-              </Badge>
-              {!isCurrentUser && (
-                <Feather name="chevron-down" size={16} color={colors.mutedForeground} />
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.linkButton, { borderColor: colors.border }]}
-              onPress={() => setShowLinkDialog(true)}
-              activeOpacity={0.7}
-            >
-              <Feather
-                name={user.linkedMedewerker ? 'user-check' : 'user-plus'}
-                size={18}
-                color={user.linkedMedewerker ? colors.primary : colors.mutedForeground}
-              />
-            </TouchableOpacity>
-          </View>
-        </CardContent>
-      </Card>
+        <Drukvlak
+          onPress={() => setShowLinkDialog(true)}
+          accessibilityLabel={user.linkedMedewerker ? `Gekoppeld aan ${user.linkedMedewerker.naam}, koppeling wijzigen` : 'Medewerker koppelen'}
+          style={{ width: 44, height: 44, borderRadius: 12, borderWidth: 1, borderColor: kleuren.border, alignItems: 'center', justifyContent: 'center' }}
+        >
+          {user.linkedMedewerker
+            ? <UserCheck size={20} color={kleuren.primary} strokeWidth={2} />
+            : <UserPlus size={20} color={kleuren.mutedForeground} strokeWidth={2} />}
+        </Drukvlak>
+      </View>
 
       {/* Role Change Dialog */}
       <Dialog visible={showRoleDialog} onClose={() => setShowRoleDialog(false)}>
@@ -161,42 +205,29 @@ function UserCard({
               Selecteer een nieuwe rol voor {user.name}
             </DialogDescription>
           </DialogHeader>
-          <View style={styles.roleOptions}>
+          <View style={{ gap: 8, paddingHorizontal: 16, paddingTop: 12 }}>
             {(Object.keys(roleConfig) as UserRole[]).map((role) => {
               const roleInfo = roleConfig[role];
               const isSelected = canonicalRole === role;
               return (
-                <TouchableOpacity
+                <KeuzeRegel
                   key={role}
-                  style={[
-                    styles.roleOption,
-                    { borderColor: isSelected ? colors.primary : colors.border },
-                    isSelected && { backgroundColor: `${colors.primary}10` },
-                  ]}
+                  gekozen={isSelected}
+                  accessibilityLabel={roleInfo.label}
                   onPress={() => {
                     onRoleChange(user._id, role);
                     setShowRoleDialog(false);
                   }}
-                  activeOpacity={0.7}
                 >
-                  <View style={styles.roleOptionContent}>
-                    <Text style={[styles.roleOptionLabel, { color: colors.foreground }]}>
+                  <View style={{ flex: 1, gap: 1 }}>
+                    <Text style={[tekst.kop, { color: kleuren.foreground, fontWeight: '500' }]}>
                       {roleInfo.label}
                     </Text>
-                    <Text style={[styles.roleOptionDesc, { color: colors.mutedForeground }]}>
-                      {role === 'directie' && 'Volledige toegang tot alle functies'}
-                      {role === 'medewerker' && 'Alleen eigen uren en projecten'}
-                      {role === 'klant' && 'Toegang via het klantportaal'}
-                      {role === 'projectleider' && 'Projecten en planning beheren'}
-                      {role === 'voorman' && 'Eigen werkdag en ploeg begeleiden'}
-                      {role === 'onderaannemer_zzp' && 'Eigen uren en toegewezen werk'}
-                      {role === 'materiaalman' && 'Materieel en eigen werkdag'}
+                    <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground }]}>
+                      {ROL_UITLEG[role]}
                     </Text>
                   </View>
-                  {isSelected && (
-                    <Feather name="check" size={20} color={colors.primary} />
-                  )}
-                </TouchableOpacity>
+                </KeuzeRegel>
               );
             })}
           </View>
@@ -220,69 +251,62 @@ function UserCard({
               Koppel {user.name} aan een medewerker profiel
             </DialogDescription>
           </DialogHeader>
-          <View style={styles.medewerkerList}>
+          <View style={{ gap: 8, paddingHorizontal: 16, paddingTop: 12, maxHeight: 300 }}>
             {/* Unlink option */}
             {user.linkedMedewerker && (
-              <TouchableOpacity
-                style={[styles.medewerkerOption, { borderColor: colors.destructive }]}
+              <KeuzeRegel
+                gevaar
+                accessibilityLabel="Ontkoppelen"
                 onPress={() => {
                   onLinkMedewerker(user._id, undefined);
                   setShowLinkDialog(false);
                 }}
-                activeOpacity={0.7}
               >
-                <View style={styles.medewerkerOptionContent}>
-                  <Feather name="x-circle" size={20} color={colors.destructive} />
-                  <Text style={[styles.medewerkerOptionLabel, { color: colors.destructive }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                  <CircleX size={20} color={kleuren.danger} strokeWidth={2} />
+                  <Text style={[tekst.kop, { color: kleuren.danger, fontWeight: '500' }]}>
                     Ontkoppelen
                   </Text>
                 </View>
-              </TouchableOpacity>
+              </KeuzeRegel>
             )}
 
             {/* Medewerker options */}
             {availableMedewerkers.map((medewerker) => {
               const isSelected = user.linkedMedewerkerId?.toString() === medewerker._id.toString();
               return (
-                <TouchableOpacity
+                <KeuzeRegel
                   key={medewerker._id}
-                  style={[
-                    styles.medewerkerOption,
-                    { borderColor: isSelected ? colors.primary : colors.border },
-                    isSelected && { backgroundColor: `${colors.primary}10` },
-                  ]}
+                  gekozen={isSelected}
+                  accessibilityLabel={medewerker.functie ? `${medewerker.naam}, ${medewerker.functie}` : medewerker.naam}
                   onPress={() => {
                     onLinkMedewerker(user._id, medewerker._id);
                     setShowLinkDialog(false);
                   }}
-                  activeOpacity={0.7}
                 >
-                  <View style={styles.medewerkerOptionContent}>
-                    <View style={[styles.smallAvatar, { backgroundColor: colors.muted }]}>
-                      <Text style={[styles.smallAvatarText, { color: colors.foreground }]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                    <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: kleuren.muted, alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={[tekst.bijschrift, { color: kleuren.foreground, fontWeight: '600' }]}>
                         {medewerker.naam?.slice(0, 2).toUpperCase()}
                       </Text>
                     </View>
-                    <View>
-                      <Text style={[styles.medewerkerOptionLabel, { color: colors.foreground }]}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[tekst.kop, { color: kleuren.foreground, fontWeight: '500' }]} numberOfLines={1}>
                         {medewerker.naam}
                       </Text>
                       {medewerker.functie && (
-                        <Text style={[styles.medewerkerOptionDesc, { color: colors.mutedForeground }]}>
+                        <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground }]} numberOfLines={1}>
                           {medewerker.functie}
                         </Text>
                       )}
                     </View>
                   </View>
-                  {isSelected && (
-                    <Feather name="check" size={20} color={colors.primary} />
-                  )}
-                </TouchableOpacity>
+                </KeuzeRegel>
               );
             })}
 
             {availableMedewerkers.length === 0 && !user.linkedMedewerker && (
-              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+              <Text style={[tekst.sub, { color: kleuren.mutedForeground, textAlign: 'center', paddingVertical: 16 }]}>
                 Geen beschikbare medewerkers om te koppelen
               </Text>
             )}
@@ -303,7 +327,7 @@ function UserCard({
 
 // Main Admin Screen
 export default function AdminScreen() {
-  const colors = useColors();
+  const kleuren = useVeldKleuren();
   const { isAdmin, isLoaded: roleLoaded } = useUserRole();
   const { user: currentUser, isLoading: userLoading } = useCurrentUser();
   const [refreshing, setRefreshing] = useState(false);
@@ -349,15 +373,9 @@ export default function AdminScreen() {
   // Access denied for non-admins
   if (roleLoaded && !isAdmin) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-        <View style={styles.accessDenied}>
-          <Feather name="lock" size={48} color={colors.mutedForeground} />
-          <Text style={[styles.accessDeniedTitle, { color: colors.foreground }]}>
-            Geen toegang
-          </Text>
-          <Text style={[styles.accessDeniedText, { color: colors.mutedForeground }]}>
-            Alleen beheerders kunnen deze pagina bekijken
-          </Text>
+      <SafeAreaView style={{ flex: 1, backgroundColor: kleuren.background }} edges={['top']}>
+        <View style={{ flex: 1, justifyContent: 'center', padding: 16 }}>
+          <LegeStaat icoon={Lock} titel="Geen toegang" uitleg="Alleen beheerders kunnen deze pagina bekijken" />
         </View>
       </SafeAreaView>
     );
@@ -366,10 +384,10 @@ export default function AdminScreen() {
   // Loading state
   if (isLoading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
-        <View style={styles.loading}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: kleuren.background }} edges={['top']}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 }}>
+          <ActivityIndicator size="large" color={kleuren.primary} />
+          <Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>
             Laden...
           </Text>
         </View>
@@ -380,286 +398,63 @@ export default function AdminScreen() {
   const userCount = users?.length || 0;
   const adminCount = users?.filter((u: User) => normalizeRole(u.role) === 'directie').length || 0;
   const medewerkerCount = users?.filter((u: User) => u.role === 'medewerker').length || 0;
+  const stats = [
+    { label: 'Gebruikers', waarde: userCount },
+    { label: 'Beheerders', waarde: adminCount },
+    { label: 'Medewerkers', waarde: medewerkerCount },
+  ];
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: kleuren.background }} edges={['top']}>
       <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.content}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 48, gap: 14 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={colors.primary}
+            tintColor={kleuren.primary}
           />
         }
       >
+        {/* Kop */}
+        <View>
+          <Text accessibilityRole="header" style={[tekst.grootTitel, { color: kleuren.foreground }]}>Gebruikers</Text>
+          <Text style={[tekst.sub, { color: kleuren.mutedForeground, marginTop: 2 }]}>Beheer rollen en koppelingen</Text>
+        </View>
+
         {/* Stats Header */}
-        <View style={styles.statsRow}>
-          <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.statValue, { color: colors.foreground }]}>{userCount}</Text>
-            <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Gebruikers</Text>
-          </View>
-          <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.statValue, { color: colors.foreground }]}>{adminCount}</Text>
-            <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Beheerders</Text>
-          </View>
-          <View style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Text style={[styles.statValue, { color: colors.foreground }]}>{medewerkerCount}</Text>
-            <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Medewerkers</Text>
-          </View>
-        </View>
-
-        {/* Section Header */}
-        <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-            Gebruikers
-          </Text>
-          <Text style={[styles.sectionSubtitle, { color: colors.mutedForeground }]}>
-            Beheer rollen en koppelingen
-          </Text>
-        </View>
-
-        {/* User List */}
-        <View style={styles.userList}>
-          {users?.map((user: User) => (
-            <UserCard
-              key={user._id}
-              user={user}
-              medewerkers={medewerkers || []}
-              onRoleChange={handleRoleChange}
-              onLinkMedewerker={handleLinkMedewerker}
-              isCurrentUser={user._id === currentUser?._id}
-            />
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          {stats.map(stat => (
+            <Kaart key={stat.label} padding={14} style={{ flex: 1, gap: 2 }}>
+              <Text style={[tekst.titel2, tekst.cijfers, { color: kleuren.foreground }]}>{stat.waarde}</Text>
+              <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground }]} numberOfLines={1}>{stat.label}</Text>
+            </Kaart>
           ))}
         </View>
 
-        {users?.length === 0 && (
-          <View style={styles.emptyState}>
-            <Feather name="users" size={48} color={colors.mutedForeground} />
-            <Text style={[styles.emptyStateText, { color: colors.mutedForeground }]}>
-              Geen gebruikers gevonden
-            </Text>
-          </View>
+        {/* User List */}
+        <SectieKop titel="Alle gebruikers" telling={userCount} />
+        {users?.length === 0 ? (
+          <LegeStaat icoon={Users} titel="Geen gebruikers gevonden" />
+        ) : (
+          <Kaart padding={0} style={{ paddingHorizontal: 14, gap: 0 }}>
+            {users?.map((user: User, index: number) => (
+              <View key={user._id}>
+                {index > 0 && <Scheiding />}
+                <UserCard
+                  user={user}
+                  medewerkers={medewerkers || []}
+                  onRoleChange={handleRoleChange}
+                  onLinkMedewerker={handleLinkMedewerker}
+                  isCurrentUser={user._id === currentUser?._id}
+                />
+              </View>
+            ))}
+          </Kaart>
         )}
       </ScrollView>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  content: {
-    padding: spacing.lg,
-    paddingBottom: spacing.xl * 2,
-  },
-  loading: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  loadingText: {
-    fontSize: typography.fontSize.sm,
-  },
-  accessDenied: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacing.xl,
-    gap: spacing.md,
-  },
-  accessDeniedTitle: {
-    fontSize: typography.fontSize.xl,
-    fontWeight: typography.fontWeight.semibold,
-  },
-  accessDeniedText: {
-    fontSize: typography.fontSize.sm,
-    textAlign: 'center',
-  },
-  statsRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginBottom: spacing.lg,
-  },
-  statCard: {
-    flex: 1,
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: typography.fontSize['2xl'],
-    fontWeight: typography.fontWeight.bold,
-  },
-  statLabel: {
-    fontSize: typography.fontSize.xs,
-    marginTop: spacing.xs,
-  },
-  sectionHeader: {
-    marginBottom: spacing.md,
-  },
-  sectionTitle: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: typography.fontWeight.semibold,
-  },
-  sectionSubtitle: {
-    fontSize: typography.fontSize.sm,
-    marginTop: spacing.xs,
-  },
-  userList: {
-    gap: spacing.sm,
-  },
-  userCard: {
-    paddingVertical: spacing.sm,
-  },
-  userCardContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-  },
-  userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    gap: spacing.sm,
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarText: {
-    fontSize: typography.fontSize.sm,
-    fontWeight: typography.fontWeight.semibold,
-  },
-  userDetails: {
-    flex: 1,
-  },
-  userNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  userName: {
-    fontSize: typography.fontSize.base,
-    fontWeight: typography.fontWeight.medium,
-  },
-  userEmail: {
-    fontSize: typography.fontSize.xs,
-    marginTop: 2,
-  },
-  linkedInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 4,
-  },
-  linkedText: {
-    fontSize: typography.fontSize.xs,
-  },
-  userActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  roleButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: radius.md,
-  },
-  linkButton: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: radius.md,
-    borderWidth: 1,
-  },
-  roleOptions: {
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-  },
-  roleOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-  },
-  roleOptionContent: {
-    flex: 1,
-  },
-  roleOptionLabel: {
-    fontSize: typography.fontSize.base,
-    fontWeight: typography.fontWeight.medium,
-  },
-  roleOptionDesc: {
-    fontSize: typography.fontSize.xs,
-    marginTop: 2,
-  },
-  medewerkerList: {
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    maxHeight: 300,
-  },
-  medewerkerOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-  },
-  medewerkerOptionContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    flex: 1,
-  },
-  medewerkerOptionLabel: {
-    fontSize: typography.fontSize.base,
-    fontWeight: typography.fontWeight.medium,
-  },
-  medewerkerOptionDesc: {
-    fontSize: typography.fontSize.xs,
-  },
-  smallAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  smallAvatarText: {
-    fontSize: typography.fontSize.xs,
-    fontWeight: typography.fontWeight.semibold,
-  },
-  emptyText: {
-    fontSize: typography.fontSize.sm,
-    textAlign: 'center',
-    paddingVertical: spacing.lg,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: spacing.xl * 2,
-    gap: spacing.md,
-  },
-  emptyStateText: {
-    fontSize: typography.fontSize.sm,
-  },
-});

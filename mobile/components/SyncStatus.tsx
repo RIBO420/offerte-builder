@@ -29,6 +29,9 @@ import Animated, {
 import { Feather } from '@expo/vector-icons';
 import NetInfo from '@react-native-community/netinfo';
 import type { UseOfflineQueueReturn, QueueItem, QueueItemType, QueueItemStatus } from '@/hooks/use-offline-queue';
+import { tekst } from '../theme/typography';
+import type { ColorScheme } from '../theme/colors';
+import { useVeldKleuren } from './veld/BuitenModus';
 
 // ============================================
 // TYPES
@@ -64,7 +67,7 @@ const TYPE_ICONEN: Record<QueueItemType, string> = {
 
 const STATUS_LABELS: Record<QueueItemStatus, string> = {
   pending:   'Wachtend',
-  uploading: 'Uploaden...',
+  uploading: 'Uploaden…',
   completed: 'Voltooid',
   failed:    'Mislukt',
 };
@@ -92,13 +95,14 @@ function formateerDatum(ms: number): string {
 interface StatusBalkConfig {
   modus: SyncModus;
   achtergrond: string;
-  rand: string;
   tekstKleur: string;
   icoon: string;
   bericht: string;
 }
 
+// Rustige strook in de toonkleur van de modus: zachte achtergrond, volle tekst.
 function bepaalStatusConfig(
+  k: ColorScheme,
   modus: SyncModus,
   pendingCount: number
 ): StatusBalkConfig {
@@ -106,27 +110,24 @@ function bepaalStatusConfig(
     case 'bezig':
       return {
         modus,
-        achtergrond: '#1A2E1A',
-        rand: '#4ADE80',
-        tekstKleur: '#E8E8E8',
+        achtergrond: k.infoSoft,
+        tekstKleur: k.info,
         icoon: 'refresh-cw',
-        bericht: 'Synchroniseren...',
+        bericht: 'Synchroniseren…',
       };
     case 'offline':
       return {
         modus,
-        achtergrond: '#2A1010',
-        rand: '#EF4444',
-        tekstKleur: '#E8E8E8',
+        achtergrond: k.warningSoft,
+        tekstKleur: k.warning,
         icoon: 'wifi-off',
         bericht: 'Geen internetverbinding — offline modus',
       };
     case 'wachtend':
       return {
         modus,
-        achtergrond: '#2A2010',
-        rand: '#F59E0B',
-        tekstKleur: '#E8E8E8',
+        achtergrond: k.warningSoft,
+        tekstKleur: k.warning,
         icoon: 'clock',
         bericht: `${pendingCount} item${pendingCount !== 1 ? 's' : ''} wachten op synchronisatie`,
       };
@@ -134,12 +135,22 @@ function bepaalStatusConfig(
     default:
       return {
         modus,
-        achtergrond: '#0D1F0D',
-        rand: '#4ADE80',
-        tekstKleur: '#E8E8E8',
+        achtergrond: k.successSoft,
+        tekstKleur: k.success,
         icoon: 'check-circle',
         bericht: 'Alles gesynchroniseerd',
       };
+  }
+}
+
+function statusToon(k: ColorScheme, status: QueueItemStatus): { voor: string; achter: string } {
+  switch (status) {
+    case 'pending':
+      return { voor: k.warning, achter: k.warningSoft };
+    case 'failed':
+      return { voor: k.danger, achter: k.dangerSoft };
+    default:
+      return { voor: k.success, achter: k.successSoft };
   }
 }
 
@@ -153,50 +164,43 @@ interface QueueItemRijProps {
 }
 
 const QueueItemRij = React.memo(({ item, onVerwijder }: QueueItemRijProps) => {
-  const statusKleur: Record<QueueItemStatus, string> = {
-    pending:   '#F59E0B',
-    uploading: '#4ADE80',
-    completed: '#4ADE80',
-    failed:    '#EF4444',
-  };
+  const kleuren = useVeldKleuren();
+  const { voor, achter } = statusToon(kleuren, item.status);
 
   return (
-    <View style={stijlen.queueItemRij}>
+    <View style={[stijlen.queueItemRij, { borderBottomColor: kleuren.border }]}>
       {/* Icoon */}
-      <View style={[stijlen.queueItemIcoonContainer, { backgroundColor: '#1A1A1A' }]}>
+      <View style={[stijlen.queueItemIcoonContainer, { backgroundColor: kleuren.muted }]}>
         <Feather
           name={TYPE_ICONEN[item.type] as 'image'}
           size={18}
-          color="#888"
+          color={kleuren.mutedForeground}
         />
       </View>
 
       {/* Info */}
       <View style={stijlen.queueItemInfo}>
         <View style={stijlen.queueItemBovenRij}>
-          <Text style={stijlen.queueItemType}>{TYPE_LABELS[item.type]}</Text>
-          <View
-            style={[
-              stijlen.queueItemStatusBadge,
-              { backgroundColor: statusKleur[item.status] + '22' },
-            ]}
-          >
-            {item.status === 'uploading' && (
-              <ActivityIndicator size={8} color={statusKleur[item.status]} />
+          <Text style={[tekst.kop, { color: kleuren.foreground, fontSize: 16 }]}>{TYPE_LABELS[item.type]}</Text>
+          <View style={[stijlen.queueItemStatusBadge, { backgroundColor: achter }]}>
+            {item.status === 'uploading' ? (
+              <ActivityIndicator size={8} color={voor} />
+            ) : (
+              <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: voor }} />
             )}
-            <Text style={[stijlen.queueItemStatusTekst, { color: statusKleur[item.status] }]}>
+            <Text style={[tekst.bijschrift, { color: voor, fontWeight: '600' }]}>
               {STATUS_LABELS[item.status]}
             </Text>
           </View>
         </View>
-        <Text style={stijlen.queueItemDatum}>{formateerDatum(item.createdAt)}</Text>
+        <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground }]}>{formateerDatum(item.createdAt)}</Text>
         {item.lastError !== undefined && item.status === 'failed' && (
-          <Text style={stijlen.queueItemFout} numberOfLines={1}>
+          <Text style={[tekst.voetnoot, { color: kleuren.danger }]} numberOfLines={2}>
             {item.lastError}
           </Text>
         )}
         {item.retryCount > 0 && (
-          <Text style={stijlen.queueItemRetry}>
+          <Text style={[tekst.voetnoot, tekst.cijfers, { color: kleuren.mutedForeground }]}>
             Poging {item.retryCount}/{3}
           </Text>
         )}
@@ -207,8 +211,10 @@ const QueueItemRij = React.memo(({ item, onVerwijder }: QueueItemRijProps) => {
         style={stijlen.queueItemVerwijder}
         onPress={() => onVerwijder(item.id)}
         hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+        accessibilityRole="button"
+        accessibilityLabel={`${TYPE_LABELS[item.type]} uit de wachtrij verwijderen`}
       >
-        <Feather name="trash-2" size={16} color="#888" />
+        <Feather name="trash-2" size={18} color={kleuren.mutedForeground} />
       </TouchableOpacity>
     </View>
   );
@@ -238,6 +244,7 @@ function DetailPaneel({
   onVerwijder,
   onClearCompleted,
 }: DetailPaneelProps) {
+  const kleuren = useVeldKleuren();
   const [isSyncingLokaal, setIsSyncingLokaal] = useState(false);
 
   const handleSyncAll = useCallback(async () => {
@@ -253,6 +260,8 @@ function DetailPaneel({
   const failedItems  = queue.filter((i) => i.status === 'failed');
   const completedItems = queue.filter((i) => i.status === 'completed');
   const heeftCompleted = completedItems.length > 0;
+  const bezig = isSyncing || isSyncingLokaal;
+  const groepLabel = [tekst.voetnoot, stijlen.groepLabel, { color: kleuren.mutedForeground }];
 
   return (
     <Modal
@@ -261,40 +270,45 @@ function DetailPaneel({
       presentationStyle="pageSheet"
       onRequestClose={onSluit}
     >
-      <SafeAreaView style={stijlen.paneelContainer} edges={['top', 'bottom']}>
+      <SafeAreaView style={[stijlen.paneelContainer, { backgroundColor: kleuren.background }]} edges={['top', 'bottom']}>
         {/* Header */}
-        <View style={stijlen.paneelHeader}>
-          <Text style={stijlen.paneelTitel}>Synchronisatie-wachtrij</Text>
-          <TouchableOpacity onPress={onSluit}>
-            <Feather name="x" size={22} color="#888" />
+        <View style={[stijlen.paneelHeader, { borderBottomColor: kleuren.border }]}>
+          <Text accessibilityRole="header" style={[tekst.titel3, { color: kleuren.foreground }]}>
+            Synchronisatie-wachtrij
+          </Text>
+          <TouchableOpacity onPress={onSluit} hitSlop={10} accessibilityRole="button" accessibilityLabel="Sluiten">
+            <Feather name="x" size={22} color={kleuren.mutedForeground} />
           </TouchableOpacity>
         </View>
 
         {/* Actie-knoppen */}
-        <View style={stijlen.paneelActies}>
+        <View style={[stijlen.paneelActies, { borderBottomColor: kleuren.border }]}>
           <TouchableOpacity
-            style={[stijlen.syncAllKnop, (isSyncing || isSyncingLokaal) && stijlen.syncAllKnopDisabled]}
+            style={[stijlen.syncAllKnop, { backgroundColor: kleuren.primary }, bezig && stijlen.syncAllKnopDisabled]}
             onPress={handleSyncAll}
-            disabled={isSyncing || isSyncingLokaal}
+            disabled={bezig}
             activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: bezig, busy: bezig }}
           >
-            {(isSyncing || isSyncingLokaal) ? (
-              <ActivityIndicator size="small" color="#0A0A0A" />
+            {bezig ? (
+              <ActivityIndicator size="small" color={kleuren.primaryForeground} />
             ) : (
-              <Feather name="refresh-cw" size={16} color="#0A0A0A" />
+              <Feather name="refresh-cw" size={16} color={kleuren.primaryForeground} />
             )}
-            <Text style={stijlen.syncAllKnopTekst}>
-              {(isSyncing || isSyncingLokaal) ? 'Synchroniseren...' : 'Alles synchroniseren'}
+            <Text style={[tekst.kop, { color: kleuren.primaryForeground, fontSize: 16 }]}>
+              {bezig ? 'Synchroniseren…' : 'Alles synchroniseren'}
             </Text>
           </TouchableOpacity>
 
           {heeftCompleted && (
             <TouchableOpacity
-              style={stijlen.opruimenKnop}
+              style={[stijlen.opruimenKnop, { borderColor: kleuren.border, backgroundColor: kleuren.card }]}
               onPress={onClearCompleted}
               activeOpacity={0.7}
+              accessibilityRole="button"
             >
-              <Text style={stijlen.opruimenKnopTekst}>Voltooide wissen</Text>
+              <Text style={[tekst.sub, { color: kleuren.foreground, fontWeight: '500' }]}>Voltooide wissen</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -303,7 +317,7 @@ function DetailPaneel({
           {/* Wachtend/Uploaden */}
           {pendingItems.length > 0 && (
             <>
-              <Text style={stijlen.groepLabel}>
+              <Text style={groepLabel}>
                 Wachtend ({pendingItems.length})
               </Text>
               {pendingItems.map((item) => (
@@ -315,7 +329,7 @@ function DetailPaneel({
           {/* Mislukt */}
           {failedItems.length > 0 && (
             <>
-              <Text style={[stijlen.groepLabel, { color: '#EF4444' }]}>
+              <Text style={[groepLabel, { color: kleuren.danger }]}>
                 Mislukt ({failedItems.length})
               </Text>
               {failedItems.map((item) => (
@@ -327,7 +341,7 @@ function DetailPaneel({
           {/* Voltooid */}
           {completedItems.length > 0 && (
             <>
-              <Text style={[stijlen.groepLabel, { color: '#4ADE80' }]}>
+              <Text style={[groepLabel, { color: kleuren.success }]}>
                 Voltooid ({completedItems.length})
               </Text>
               {completedItems.map((item) => (
@@ -339,9 +353,11 @@ function DetailPaneel({
           {/* Lege staat */}
           {queue.length === 0 && (
             <View style={stijlen.leegPaneel}>
-              <Feather name="check-circle" size={40} color="#4ADE80" />
-              <Text style={stijlen.leegPaneelTekst}>Alles gesynchroniseerd</Text>
-              <Text style={stijlen.leegPaneelOndertitel}>
+              <View style={{ width: 56, height: 56, borderRadius: 17, backgroundColor: kleuren.successSoft, alignItems: 'center', justifyContent: 'center' }}>
+                <Feather name="check-circle" size={28} color={kleuren.success} />
+              </View>
+              <Text style={[tekst.kop, { color: kleuren.foreground }]}>Alles gesynchroniseerd</Text>
+              <Text style={[tekst.sub, { color: kleuren.mutedForeground, textAlign: 'center' }]}>
                 Er zijn geen items in de wachtrij.
               </Text>
             </View>
@@ -386,6 +402,7 @@ export function SyncStatus({
   onRemove,
   onClearCompleted,
 }: SyncStatusProps) {
+  const kleuren = useVeldKleuren();
   const [isOnline, setIsOnline] = useState(true);
   const [detailZichtbaar, setDetailZichtbaar] = useState(false);
 
@@ -405,20 +422,19 @@ export function SyncStatus({
     return 'gesynchroniseerd';
   })();
 
-  const config = bepaalStatusConfig(modus, pendingCount);
+  const config = bepaalStatusConfig(kleuren, modus, pendingCount);
 
   // Animatie voor de balk (subtiele puls bij 'wachtend')
   const schaal = useSharedValue(1);
   const geanimeerdeStijl = useAnimatedStyle(() => ({
-    transform: [{ scale: schaal.value }],
+    transform: [{ scale: schaal.get() }],
   }));
 
   useEffect(() => {
     if (modus === 'wachtend') {
-      // eslint-disable-next-line react-hooks/immutability -- Reanimated shared values are mutable by design
-      schaal.value = withSpring(1.01, { damping: 8 }, () => {
-        schaal.value = withSpring(1);
-      });
+      schaal.set(withSpring(1.01, { damping: 8 }, () => {
+        schaal.set(withSpring(1));
+      }));
     }
   }, [modus, schaal]);
 
@@ -426,15 +442,12 @@ export function SyncStatus({
     <>
       <Animated.View style={geanimeerdeStijl}>
         <TouchableOpacity
-          style={[
-            stijlen.statusBalk,
-            {
-              backgroundColor: config.achtergrond,
-              borderBottomColor: config.rand,
-            },
-          ]}
+          style={[stijlen.statusBalk, { backgroundColor: config.achtergrond }]}
           onPress={() => setDetailZichtbaar(true)}
           activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel={config.bericht}
+          accessibilityHint="Opent de synchronisatie-wachtrij"
         >
           {/* Icoon / spinner */}
           {modus === 'bezig' ? (
@@ -442,19 +455,19 @@ export function SyncStatus({
           ) : (
             <Feather
               name={config.icoon as 'check-circle'}
-              size={14}
+              size={16}
               color={config.tekstKleur}
             />
           )}
 
           {/* Bericht */}
-          <Text style={[stijlen.statusBalkTekst, { color: config.tekstKleur }]}>
+          <Text style={[tekst.voetnoot, stijlen.statusBalkTekst, { color: config.tekstKleur }]}>
             {config.bericht}
           </Text>
 
           {/* Pijl rechts */}
           {(pendingCount > 0 || queue.length > 0) && (
-            <Feather name="chevron-right" size={14} color={config.tekstKleur} style={{ opacity: 0.7 }} />
+            <Feather name="chevron-right" size={16} color={config.tekstKleur} style={{ opacity: 0.7 }} />
           )}
         </TouchableOpacity>
       </Animated.View>
@@ -476,7 +489,7 @@ export function SyncStatus({
 export default SyncStatus;
 
 // ============================================
-// STIJLEN
+// STIJLEN (lay-out; kleuren komen uit het thema)
 // ============================================
 
 const stijlen = StyleSheet.create({
@@ -486,13 +499,11 @@ const stijlen = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 10,
     gap: 8,
-    borderBottomWidth: 1,
   },
   statusBalkTekst: {
     flex: 1,
-    fontSize: 13,
     fontWeight: '600',
     textAlign: 'center',
   },
@@ -500,7 +511,6 @@ const stijlen = StyleSheet.create({
   // Detail-paneel
   paneelContainer: {
     flex: 1,
-    backgroundColor: '#1A1A1A',
   },
   paneelHeader: {
     flexDirection: 'row',
@@ -509,19 +519,12 @@ const stijlen = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#222',
-  },
-  paneelTitel: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#E8E8E8',
   },
   paneelActies: {
     flexDirection: 'row',
     gap: 8,
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#222',
   },
   syncAllKnop: {
     flex: 1,
@@ -529,30 +532,20 @@ const stijlen = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
+    minHeight: 48,
     paddingVertical: 12,
-    borderRadius: 10,
-    backgroundColor: '#4ADE80',
+    borderRadius: 12,
   },
   syncAllKnopDisabled: {
     opacity: 0.6,
   },
-  syncAllKnopTekst: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0A0A0A',
-  },
   opruimenKnop: {
+    minHeight: 48,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#222',
     justifyContent: 'center',
-  },
-  opruimenKnopTekst: {
-    fontSize: 13,
-    color: '#888',
-    fontWeight: '500',
   },
 
   paneelLijst: {
@@ -560,11 +553,9 @@ const stijlen = StyleSheet.create({
     padding: 16,
   },
   groepLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#888',
+    fontWeight: '600',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
     marginBottom: 8,
     marginTop: 16,
   },
@@ -576,12 +567,11 @@ const stijlen = StyleSheet.create({
     gap: 12,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#222',
   },
   queueItemIcoonContainer: {
     width: 40,
     height: 40,
-    borderRadius: 10,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
@@ -596,38 +586,16 @@ const stijlen = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 8,
   },
-  queueItemType: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#E8E8E8',
-  },
   queueItemStatusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 6,
+    gap: 5,
+    paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 4,
-  },
-  queueItemStatusTekst: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  queueItemDatum: {
-    fontSize: 12,
-    color: '#888',
-  },
-  queueItemFout: {
-    fontSize: 11,
-    color: '#EF4444',
-    fontStyle: 'italic',
-  },
-  queueItemRetry: {
-    fontSize: 11,
-    color: '#888',
+    borderRadius: 999,
   },
   queueItemVerwijder: {
-    padding: 4,
+    padding: 6,
     flexShrink: 0,
   },
 
@@ -637,15 +605,5 @@ const stijlen = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 60,
     gap: 12,
-  },
-  leegPaneelTekst: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#E8E8E8',
-  },
-  leegPaneelOndertitel: {
-    fontSize: 14,
-    color: '#888',
-    textAlign: 'center',
   },
 });

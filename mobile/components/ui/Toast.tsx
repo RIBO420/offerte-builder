@@ -8,6 +8,12 @@ import {
   ViewStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { CircleCheck, CircleX, Info, TriangleAlert } from 'lucide-react-native';
+import { tekst } from '../../theme/typography';
+import type { ColorScheme } from '../../theme/colors';
+import { useIsDonker, useVeldKleuren } from '../veld/BuitenModus';
+
+type Icoon = React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const SWIPE_THRESHOLD = 50;
@@ -29,45 +35,19 @@ interface ToastProps extends ToastData {
   index: number;
 }
 
-const getVariantStyles = (variant: ToastVariant) => {
-  const styles: Record<ToastVariant, { bg: string; border: string; iconColor: string }> = {
-    default: {
-      bg: '#1A1A1A',
-      border: '#222222',
-      iconColor: '#E8E8E8',
-    },
-    success: {
-      bg: 'rgba(74,222,128,0.1)',
-      border: '#4ADE80',
-      iconColor: '#4ADE80',
-    },
-    error: {
-      bg: 'rgba(239,68,68,0.1)',
-      border: '#EF4444',
-      iconColor: '#EF4444',
-    },
-    warning: {
-      bg: 'rgba(245,158,11,0.1)',
-      border: '#F59E0B',
-      iconColor: '#F59E0B',
-    },
-  };
-
-  return styles[variant];
-};
-
-const getVariantIcon = (variant: ToastVariant): string => {
+// Toon per variant: icoon en kleurpaar uit het actieve thema.
+function variantToon(k: ColorScheme, variant: ToastVariant): { Icoon: Icoon; voor: string; achter: string } {
   switch (variant) {
     case 'success':
-      return '\u2713'; // checkmark
+      return { Icoon: CircleCheck, voor: k.success, achter: k.successSoft };
     case 'error':
-      return '\u2717'; // x mark
+      return { Icoon: CircleX, voor: k.danger, achter: k.dangerSoft };
     case 'warning':
-      return '\u26A0'; // warning triangle
+      return { Icoon: TriangleAlert, voor: k.warning, achter: k.warningSoft };
     default:
-      return '\u2139'; // info circle
+      return { Icoon: Info, voor: k.info, achter: k.infoSoft };
   }
-};
+}
 
 export function Toast({
   id,
@@ -80,6 +60,8 @@ export function Toast({
   index,
 }: ToastProps) {
   const insets = useSafeAreaInsets();
+  const kleuren = useVeldKleuren();
+  const donker = useIsDonker();
   // useMemo i.p.v. useRef(...).current: zelfde stabiele Animated.Value-instanties,
   // maar zonder ref-toegang tijdens render (react-hooks/refs).
   // position bepaalt alleen de startpositie; bewust eenmalig, zoals useRef deed.
@@ -89,8 +71,7 @@ export function Toast({
   const opacity = useMemo(() => new Animated.Value(0), []);
   const scale = useMemo(() => new Animated.Value(0.9), []);
 
-  const variantStyle = getVariantStyles(variant);
-  const icon = getVariantIcon(variant);
+  const { Icoon, voor, achter } = variantToon(kleuren, variant);
 
   // Calculate stack offset
   const stackOffset = index * 12;
@@ -234,41 +215,35 @@ export function Toast({
       {...panResponder.panHandlers}
     >
       <View
+        accessibilityRole="alert"
+        accessibilityLiveRegion="polite"
         style={{
-          backgroundColor: variantStyle.bg,
+          backgroundColor: kleuren.card,
           borderWidth: 1,
-          borderColor: variantStyle.border,
-          borderRadius: 12,
-          padding: 16,
+          borderColor: kleuren.border,
+          borderRadius: 18,
+          paddingVertical: 12,
+          paddingHorizontal: 14,
           flexDirection: 'row',
-          alignItems: 'flex-start',
+          alignItems: 'center',
+          gap: 12,
           width: '100%',
           shadowColor: '#000',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.3,
-          shadowRadius: 8,
+          shadowOffset: { width: 0, height: 8 },
+          shadowOpacity: donker ? 0.4 : 0.1,
+          shadowRadius: 20,
           elevation: 8,
         }}
       >
-        <View className="w-6 h-6 items-center justify-center mr-3">
-          <Text className="text-base font-bold" style={{ color: variantStyle.iconColor }}>
-            {icon}
-          </Text>
+        <View style={{ width: 36, height: 36, borderRadius: 11, backgroundColor: achter, alignItems: 'center', justifyContent: 'center' }}>
+          <Icoon size={20} color={voor} strokeWidth={2.2} />
         </View>
-        <View className="flex-1 gap-1">
-          <Text
-            className="font-semibold text-base leading-tight"
-            style={{ color: '#E8E8E8' }}
-            numberOfLines={2}
-          >
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text style={[tekst.kop, { color: kleuren.foreground, fontSize: 16 }]} numberOfLines={2}>
             {title}
           </Text>
           {description && (
-            <Text
-              className="text-sm leading-normal"
-              style={{ color: '#888888' }}
-              numberOfLines={3}
-            >
+            <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground, fontSize: 14, lineHeight: 19 }]} numberOfLines={3}>
               {description}
             </Text>
           )}

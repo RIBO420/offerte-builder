@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { typography } from '../../theme/typography';
-import { radius } from '../../theme/radius';
+import { tekst } from '../../theme/typography';
+import type { ColorScheme } from '../../theme/colors';
+import { useVeldKleuren } from '../veld/BuitenModus';
 
 type TrendDirection = 'up' | 'down' | 'neutral';
 
@@ -13,56 +14,55 @@ interface TrendIndicatorProps {
   size?: 'sm' | 'md' | 'lg';
 }
 
+function trendKleuren(k: ColorScheme, richting: TrendDirection): { voor: string; achter: string } {
+  switch (richting) {
+    case 'up':
+      return { voor: k.success, achter: k.successSoft };
+    case 'down':
+      return { voor: k.danger, achter: k.dangerSoft };
+    default:
+      return { voor: k.mutedForeground, achter: k.muted };
+  }
+}
+
+const icons: Record<TrendDirection, 'trending-up' | 'trending-down' | 'minus'> = {
+  up: 'trending-up',
+  down: 'trending-down',
+  neutral: 'minus',
+};
+
+const iconSizes = { sm: 14, md: 16, lg: 18 };
+const tekstStijlen = { sm: tekst.bijschrift, md: tekst.voetnoot, lg: tekst.sub };
+const paddingSizes = { sm: { h: 8, v: 2 }, md: { h: 10, v: 4 }, lg: { h: 12, v: 6 } };
+
 export function TrendIndicator({
   value,
   direction,
   showValue = true,
   size = 'md',
 }: TrendIndicatorProps) {
+  const kleuren = useVeldKleuren();
   const autoDirection: TrendDirection = value > 0 ? 'up' : value < 0 ? 'down' : 'neutral';
   const actualDirection = direction ?? autoDirection;
-
-  const trendColors: Record<TrendDirection, string> = {
-    up: '#4ADE80',
-    down: '#EF4444',
-    neutral: '#888888',
-  };
-
-  const icons: Record<TrendDirection, 'trending-up' | 'trending-down' | 'minus'> = {
-    up: 'trending-up',
-    down: 'trending-down',
-    neutral: 'minus',
-  };
-
-  const iconSizes = { sm: 14, md: 16, lg: 20 };
-  const fontSizes = { sm: typography.fontSize.xs, md: typography.fontSize.sm, lg: typography.fontSize.base };
-  const paddingSizes = { sm: { h: 6, v: 2 }, md: { h: 8, v: 4 }, lg: { h: 10, v: 6 } };
-
-  const currentColor = trendColors[actualDirection];
+  const { voor, achter } = trendKleuren(kleuren, actualDirection);
   const currentPadding = paddingSizes[size];
 
   return (
     <View
-      style={[
-        styles.container,
-        {
-          backgroundColor: currentColor + '20',
-          paddingHorizontal: currentPadding.h,
-          paddingVertical: currentPadding.v,
-        },
-      ]}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        alignSelf: 'flex-start',
+        gap: 4,
+        borderRadius: 999,
+        backgroundColor: achter,
+        paddingHorizontal: currentPadding.h,
+        paddingVertical: currentPadding.v,
+      }}
     >
-      <Feather name={icons[actualDirection]} size={iconSizes[size]} color={currentColor} />
+      <Feather name={icons[actualDirection]} size={iconSizes[size]} color={voor} />
       {showValue && (
-        <Text
-          style={[
-            styles.value,
-            {
-              color: currentColor,
-              fontSize: fontSizes[size],
-            },
-          ]}
-        >
+        <Text style={[tekstStijlen[size], tekst.cijfers, { color: voor, fontWeight: '600' }]}>
           {value > 0 ? '+' : ''}
           {value.toFixed(1)}%
         </Text>
@@ -70,17 +70,3 @@ export function TrendIndicator({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: radius.md,
-    alignSelf: 'flex-start',
-    gap: 4,
-  },
-  value: {
-    fontFamily: typography.fontFamily.sans,
-    fontWeight: typography.fontWeight.medium,
-  },
-});

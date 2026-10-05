@@ -1,8 +1,9 @@
-import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
-import Animated from 'react-native-reanimated';
-import { usePressAnimation } from '../../hooks/use-spring-animation';
+import React, { useState } from 'react';
+import { View, Text, Pressable } from 'react-native';
+import Animated, { useReducedMotion } from 'react-native-reanimated';
 import { hapticPatterns } from '../../theme/haptics';
+import { tekst } from '../../theme/typography';
+import { useVeldKleuren } from '../veld/BuitenModus';
 
 interface ProjectListItemProps {
   name: string;
@@ -19,9 +20,11 @@ export const ProjectListItem = React.memo(function ProjectListItem({
   icon,
   onPress,
 }: ProjectListItemProps) {
-  const { animatedStyle, onPressIn, onPressOut } = usePressAnimation();
+  const kleuren = useVeldKleuren();
+  const rustig = useReducedMotion();
+  const [ingedrukt, setIngedrukt] = useState(false);
   const clampedProgress = Math.min(100, Math.max(0, progress));
-  const progressColor = clampedProgress > 50 ? '#4ADE80' : '#888';
+  const progressColor = clampedProgress > 50 ? kleuren.success : kleuren.mutedForeground;
 
   const handlePress = () => {
     hapticPatterns.tap();
@@ -29,88 +32,67 @@ export const ProjectListItem = React.memo(function ProjectListItem({
   };
 
   return (
-    <Animated.View style={animatedStyle}>
-      <Pressable
-        onPress={handlePress}
-        onPressIn={onPressIn}
-        onPressOut={onPressOut}
-        style={styles.container}
+    <Pressable
+      onPress={handlePress}
+      onPressIn={() => setIngedrukt(true)}
+      onPressOut={() => setIngedrukt(false)}
+      accessibilityRole="button"
+      accessibilityLabel={`${name}, ${scope}, ${clampedProgress} procent klaar`}
+    >
+      <Animated.View
+        style={{
+          backgroundColor: kleuren.card,
+          borderRadius: 18,
+          borderWidth: 1,
+          borderColor: kleuren.border,
+          padding: 14,
+          gap: 12,
+          transform: [{ scale: ingedrukt && !rustig ? 0.98 : 1 }],
+          transitionProperty: 'transform',
+          transitionDuration: 120,
+          transitionTimingFunction: 'ease-out',
+        }}
       >
-        <View style={styles.row}>
-          <View style={styles.iconContainer}>{icon}</View>
-          <View style={styles.content}>
-            <Text style={styles.name} numberOfLines={1}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <View
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 12,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: kleuren.primarySoft,
+            }}
+          >
+            {icon}
+          </View>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={[tekst.kop, { color: kleuren.foreground, fontSize: 16 }]} numberOfLines={1}>
               {name}
             </Text>
-            <Text style={styles.scope} numberOfLines={1}>
+            <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground }]} numberOfLines={1}>
               {scope}
             </Text>
           </View>
-          <Text style={[styles.progressText, { color: progressColor }]}>
+          <Text style={[tekst.sub, tekst.cijfers, { color: progressColor, fontWeight: '600' }]}>
             {clampedProgress}%
           </Text>
         </View>
-        <View style={styles.progressTrack}>
+        <View style={{ height: 4, backgroundColor: kleuren.muted, borderRadius: 2, overflow: 'hidden' }}>
+          {/* Absolute, kindloze vulling: breedte mag hier gewoon meegroeien. */}
           <View
-            style={[
-              styles.progressFill,
-              { width: `${clampedProgress}%` },
-            ]}
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: `${clampedProgress}%`,
+              backgroundColor: kleuren.primary,
+              borderRadius: 2,
+            }}
           />
         </View>
-      </Pressable>
-    </Animated.View>
+      </Animated.View>
+    </Pressable>
   );
-});
-
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: '#1A1A1A',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#222',
-    padding: 12,
-    gap: 10,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  iconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(10,10,10,0.4)',
-  },
-  content: {
-    flex: 1,
-    gap: 2,
-  },
-  name: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#E8E8E8',
-  },
-  scope: {
-    fontSize: 9,
-    color: '#666',
-  },
-  progressText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  progressTrack: {
-    height: 3,
-    backgroundColor: '#0A0A0A',
-    borderRadius: 1.5,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#4ADE80',
-    borderRadius: 1.5,
-  },
 });

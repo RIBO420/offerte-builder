@@ -6,19 +6,18 @@ import {
   Alert,
   Image,
   Linking,
-  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Feather } from '@expo/vector-icons';
 import { useUser, useClerk } from '@clerk/clerk-expo';
 import { useQuery, useMutation } from 'convex/react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { LinearGradient } from 'expo-linear-gradient';
 import { api } from '../../convex/_generated/api';
-import { useTheme, useColors } from '../../theme';
-import { colors } from '../../theme/colors';
+import { useTheme, useColors, tekst } from '../../theme';
+import { Fingerprint, HelpCircle, Info, KeyRound, LogOut, Mail, Globe, BellRing, MessageCircle, Hammer, Download, BookOpen, Camera } from 'lucide-react-native';
+import { Drukvlak, IcoonTegel, Kaart, LijstRegel, Scheiding, SectieKop, Segment } from '../../components/werk/Bouwstenen';
 import { useCurrentUser } from '../../hooks/use-current-user';
 import { useVeldOpdracht } from '../../hooks/use-veld-opdracht';
 import { useUserRole } from '../../hooks/use-user-role';
@@ -45,109 +44,39 @@ const SUPPORT_EMAIL = 'support@toptuinen.nl';
 
 type ThemeMode = 'light' | 'dark' | 'system';
 
-// Theme Selector Component
-function ThemeSelector({
-  mode,
-  onModeChange,
-}: {
-  mode: ThemeMode;
-  onModeChange: (mode: ThemeMode) => void;
-}) {
-  const options: { value: ThemeMode; label: string; icon: keyof typeof Feather.glyphMap }[] = [
-    { value: 'light', label: 'Licht', icon: 'sun' },
-    { value: 'dark', label: 'Donker', icon: 'moon' },
-    { value: 'system', label: 'Systeem', icon: 'smartphone' },
-  ];
-
-  return (
-    <View style={{ flexDirection: 'row', backgroundColor: '#1A1A1A', borderRadius: 10, padding: 3 }}>
-      {options.map((option) => {
-        const isSelected = mode === option.value;
-        return (
-          <Pressable
-            key={option.value}
-            style={{
-              flex: 1,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 5,
-              paddingVertical: 8,
-              paddingHorizontal: 10,
-              borderRadius: 8,
-              backgroundColor: isSelected ? '#222222' : 'transparent',
-            }}
-            onPress={() => onModeChange(option.value)}
-          >
-            <Feather
-              name={option.icon}
-              size={14}
-              color={isSelected ? '#4ADE80' : colors.inactive}
-            />
-            <Text
-              style={{
-                fontSize: 12,
-                color: isSelected ? '#E8E8E8' : colors.inactive,
-                fontWeight: isSelected ? '600' : '400',
-              }}
-            >
-              {option.label}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
-
 // Wrapper component that handles auth check
 export default function ProfielScreen() {
-  const colors = useColors();
+  const kleuren = useColors();
   const { isLoading, isUserSynced } = useCurrentUser();
-
-  // Show loading while auth is loading or user not synced
   if (isLoading || !isUserSynced) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#0A0A0A' }} edges={['top']}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: kleuren.background }} edges={['top']}>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: colors.inactive, fontSize: 14 }}>Laden...</Text>
+          <Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>Laden…</Text>
         </View>
       </SafeAreaView>
     );
   }
-
   return <AuthenticatedProfielScreen />;
 }
 
-// Row component for settings items
-function SettingRow({
-  label,
-  value,
-  rightElement,
-  isLast = false,
-}: {
+/** Instellingenregel: label links, schakelaar of waarde rechts, 56pt hoog. */
+function InstellingRegel({ icoon, toon = 'neutraal', label, uitleg, rechts }: {
+  icoon: React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
+  toon?: 'primair' | 'info' | 'wachten' | 'neutraal' | 'gemist';
   label: string;
-  value?: string;
-  rightElement?: React.ReactNode;
-  isLast?: boolean;
+  uitleg?: string;
+  rechts: React.ReactNode;
 }) {
+  const kleuren = useColors();
   return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingVertical: 14,
-        paddingHorizontal: 14,
-        borderBottomWidth: isLast ? 0 : 1,
-        borderBottomColor: '#1A1A1A',
-      }}
-    >
-      <Text style={{ fontSize: 13, color: '#888888' }}>{label}</Text>
-      {value !== undefined && (
-        <Text style={{ fontSize: 13, color: '#E8E8E8' }}>{value}</Text>
-      )}
-      {rightElement}
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingVertical: 10 }}>
+      <IcoonTegel icoon={icoon} toon={toon} grootte={36} />
+      <View style={{ flex: 1, gap: 2 }}>
+        <Text style={[tekst.kop, { color: kleuren.foreground, fontWeight: '500' }]}>{label}</Text>
+        {uitleg && <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground, fontSize: 14 }]}>{uitleg}</Text>}
+      </View>
+      {rechts}
     </View>
   );
 }
@@ -155,7 +84,7 @@ function SettingRow({
 // Separate component that only renders when authenticated
 function AuthenticatedProfielScreen() {
   const router = useRouter();
-  const colors = useColors();
+  const kleuren = useColors();
   const { mode, setMode } = useTheme();
   const { user } = useUser();
   const { signOut } = useClerk();
@@ -366,197 +295,96 @@ function AuthenticatedProfielScreen() {
     return 'Log in met biometrie';
   };
 
+  const groep = { paddingVertical: 2, paddingHorizontal: 14, gap: 0 } as const;
+
   return (
-    <View style={{ flex: 1, backgroundColor: '#0A0A0A' }}>
+    <View style={{ flex: 1, backgroundColor: kleuren.background }}>
       <SafeAreaView style={{ flex: 1 }} edges={['top']}>
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingBottom: 100 }}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 140, gap: 14 }}
           showsVerticalScrollIndicator={false}
         >
-          {/* Header */}
-          <View style={{ paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 }}>
-            <Text style={{ fontSize: 9, color: '#6B8F6B', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 4 }}>
-              TOP TUINEN
-            </Text>
-            <Text style={{ fontSize: 22, fontWeight: '600', color: '#E8E8E8' }}>
-              Profiel
-            </Text>
-          </View>
+          <Text accessibilityRole="header" style={[tekst.grootTitel, { color: kleuren.foreground }]}>Profiel</Text>
 
-          {/* Avatar Section */}
-          <View style={{ alignItems: 'center', paddingVertical: 24 }}>
-            {/* Avatar with gradient ring */}
-            <View style={{ marginBottom: 12 }}>
-              <LinearGradient
-                colors={['#2D5A27', '#4ADE80']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={{
-                  width: 86,
-                  height: 86,
-                  borderRadius: 43,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                {imageUrl ? (
-                  <Image
-                    source={{ uri: imageUrl }}
-                    style={{ width: 80, height: 80, borderRadius: 40 }}
-                  />
-                ) : (
-                  <View
-                    style={{
-                      width: 80,
-                      height: 80,
-                      borderRadius: 40,
-                      backgroundColor: '#1A2E1A',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <Text style={{ fontSize: 28, fontWeight: '700', color: '#E8E8E8' }}>
-                      {initials}
-                    </Text>
-                  </View>
-                )}
-              </LinearGradient>
-            </View>
-            {/* Name */}
-            <Text style={{ fontSize: 18, fontWeight: '600', color: '#E8E8E8', marginBottom: 8 }}>
-              {fullName}
-            </Text>
-            {/* Role badge */}
-            <Badge variant={roleBadgeVariant as any || 'secondary'} size="md">
-              {functie}
-            </Badge>
-          </View>
-
-          {/* ACCOUNT Section */}
-          <View style={{ paddingHorizontal: 16, marginBottom: 16 }}>
-            <Text style={{ fontSize: 10, color: colors.inactive, textTransform: 'uppercase', letterSpacing: 1.5, fontWeight: '600', marginBottom: 8, paddingLeft: 4 }}>
-              ACCOUNT
-            </Text>
-            <View style={{ backgroundColor: '#111111', borderWidth: 1, borderColor: '#222222', borderRadius: 14, overflow: 'hidden' }}>
-              <SettingRow
-                label="Email"
-                value={email}
-              />
-              <SettingRow
-                label="Rol"
-                rightElement={
-                  <Badge variant={roleBadgeVariant as any || 'secondary'} size="sm">
-                    {roleDisplayName}
-                  </Badge>
-                }
-                isLast
-              />
-            </View>
-          </View>
-
-          {/* BEVEILIGING Section */}
-          <View style={{ paddingHorizontal: 16, marginBottom: 16 }}>
-            <Text style={{ fontSize: 10, color: colors.inactive, textTransform: 'uppercase', letterSpacing: 1.5, fontWeight: '600', marginBottom: 8, paddingLeft: 4 }}>
-              BEVEILIGING
-            </Text>
-            <View style={{ backgroundColor: '#111111', borderWidth: 1, borderColor: '#222222', borderRadius: 14, overflow: 'hidden' }}>
-              <View style={{ paddingVertical: 14, paddingHorizontal: 14 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Text style={{ fontSize: 13, color: '#888888' }}>{getBiometricLabel()}</Text>
-                  <Switch
-                    value={biometricEnabled}
-                    onValueChange={handleBiometricToggle}
-                    disabled={!biometricAvailable || biometricLoading}
-                    size="sm"
-                  />
+          {/* Wie je bent */}
+          <Kaart padding={16} style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+            <LinearGradient
+              colors={[kleuren.primary, kleuren.accent]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{ width: 68, height: 68, borderRadius: 34, alignItems: 'center', justifyContent: 'center' }}
+            >
+              {imageUrl ? (
+                <Image source={{ uri: imageUrl }} style={{ width: 62, height: 62, borderRadius: 31, borderWidth: 2, borderColor: kleuren.card }} accessibilityIgnoresInvertColors />
+              ) : (
+                <View style={{ width: 62, height: 62, borderRadius: 31, backgroundColor: kleuren.primarySoft, borderWidth: 2, borderColor: kleuren.card, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={[tekst.titel2, { color: kleuren.primary }]}>{initials}</Text>
                 </View>
-                <Text style={{ fontSize: 11, color: colors.inactive, marginTop: 4 }}>
-                  {getBiometricDescription()}
-                </Text>
+              )}
+            </LinearGradient>
+            <View style={{ flex: 1, gap: 4 }}>
+              <Text style={[tekst.titel3, { color: kleuren.foreground }]} numberOfLines={1}>{fullName}</Text>
+              <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground, fontSize: 14 }]} numberOfLines={1}>{email}</Text>
+              <View style={{ flexDirection: 'row', gap: 6, marginTop: 2, flexWrap: 'wrap' }}>
+                <Badge variant={roleBadgeVariant as any || 'secondary'} size="sm">{roleDisplayName}</Badge>
+                {functie && functie !== roleDisplayName && <Badge variant="outline" size="sm">{functie}</Badge>}
               </View>
             </View>
-          </View>
+          </Kaart>
 
-          {/* NOTIFICATIES Section */}
-          <View style={{ paddingHorizontal: 16, marginBottom: 16 }}>
-            <Text style={{ fontSize: 10, color: colors.inactive, textTransform: 'uppercase', letterSpacing: 1.5, fontWeight: '600', marginBottom: 8, paddingLeft: 4 }}>
-              NOTIFICATIES
-            </Text>
-            <View style={{ backgroundColor: '#111111', borderWidth: 1, borderColor: '#222222', borderRadius: 14, overflow: 'hidden' }}>
-              <View style={{ paddingVertical: 14, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: '#1A1A1A' }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Text style={{ fontSize: 13, color: '#888888' }}>Push notificaties</Text>
-                  <Switch
-                    value={pushEnabled} disabled={!notificationPrefs}
-                    onValueChange={(val) => {
-                      saveNotificationPrefs({ push: val, chat: chatEnabled, projectUpdates: projectUpdatesEnabled });
-                    }}
-                    size="sm"
-                  />
-                </View>
-              </View>
-              <View style={{ paddingVertical: 14, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: '#1A1A1A' }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Text style={{ fontSize: 13, color: '#888888' }}>Chat meldingen</Text>
-                  <Switch
-                    value={chatEnabled} disabled={!notificationPrefs}
-                    onValueChange={(val) => {
-                      saveNotificationPrefs({ push: pushEnabled, chat: val, projectUpdates: projectUpdatesEnabled });
-                    }}
-                    size="sm"
-                  />
-                </View>
-              </View>
-              <View style={{ paddingVertical: 14, paddingHorizontal: 14 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Text style={{ fontSize: 13, color: '#888888' }}>Projectchat</Text>
-                  <Switch
-                    value={projectUpdatesEnabled} disabled={!notificationPrefs}
-                    onValueChange={(val) => {
-                      saveNotificationPrefs({ push: pushEnabled, chat: chatEnabled, projectUpdates: val });
-                    }}
-                    size="sm"
-                  />
-                </View>
-              </View>
-            </View>
-          </View>
-
-          <View style={{ paddingHorizontal: 16, marginBottom: 16, gap: 8 }}>
-            <Button title="Installeren en bijwerken" variant="outline" onPress={() => router.push('/werk/app-hulp')} />
-            <Button title="Uitleg opnieuw bekijken" variant="outline" onPress={() => router.push('/werk/intro')} />
-            <Button title="Wachtwoord instellen of wijzigen" variant="outline" onPress={() => router.push('/werk/account')} />
-            <Button title="Foto’s van mijn klussen" variant="outline" onPress={() => router.push('/werk/fotos')} />
-          </View>
-          {/* APP Section */}
-          <View style={{ paddingHorizontal: 16, marginBottom: 16 }}>
-            <Text style={{ fontSize: 10, color: colors.inactive, textTransform: 'uppercase', letterSpacing: 1.5, fontWeight: '600', marginBottom: 8, paddingLeft: 4 }}>
-              APP
-            </Text>
-            <View style={{ backgroundColor: '#111111', borderWidth: 1, borderColor: '#222222', borderRadius: 14, overflow: 'hidden' }}>
-              <View style={{ paddingVertical: 14, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: '#1A1A1A' }}>
-                <Text style={{ fontSize: 13, color: '#888888', marginBottom: 10 }}>Thema</Text>
-                <ThemeSelector mode={mode} onModeChange={setMode} />
-              </View>
-              <SettingRow
-                label="Versie"
-                value={`${APP_VERSION} (Build ${BUILD_NUMBER})`}
-                isLast
-              />
-            </View>
-          </View>
-
-          {/* Sign Out Button */}
-          <View style={{ paddingHorizontal: 16, marginTop: 8 }}>
-            <Button
-              onPress={handleSignOut}
-              variant="destructive"
-              fullWidth
-              title="Uitloggen"
-              icon={<Feather name="log-out" size={18} color="#FAFAFA" />}
+          <SectieKop titel="Beveiliging" />
+          <Kaart style={groep}>
+            <InstellingRegel
+              icoon={Fingerprint}
+              toon="primair"
+              label={getBiometricLabel()}
+              uitleg={biometricAvailable ? getBiometricDescription() : 'Niet beschikbaar op dit toestel'}
+              rechts={<Switch value={biometricEnabled} onValueChange={handleBiometricToggle} disabled={!biometricAvailable || biometricLoading} />}
             />
-          </View>
+            <Scheiding />
+            <LijstRegel icoon={KeyRound} toon="neutraal" titel="Wachtwoord" sub="Instellen of wijzigen" onPress={() => router.push('/werk/account')} />
+          </Kaart>
+
+          <SectieKop titel="Meldingen" />
+          <Kaart style={groep}>
+            <InstellingRegel icoon={BellRing} toon="info" label="Pushmeldingen" rechts={<Switch value={pushEnabled} disabled={!notificationPrefs} onValueChange={(val) => { saveNotificationPrefs({ push: val, chat: chatEnabled, projectUpdates: projectUpdatesEnabled }); }} />} />
+            <Scheiding />
+            <InstellingRegel icoon={MessageCircle} toon="primair" label="Chatberichten" rechts={<Switch value={chatEnabled} disabled={!notificationPrefs} onValueChange={(val) => { saveNotificationPrefs({ push: pushEnabled, chat: val, projectUpdates: projectUpdatesEnabled }); }} />} />
+            <Scheiding />
+            <InstellingRegel icoon={Hammer} toon="wachten" label="Projectchat" rechts={<Switch value={projectUpdatesEnabled} disabled={!notificationPrefs} onValueChange={(val) => { saveNotificationPrefs({ push: pushEnabled, chat: chatEnabled, projectUpdates: val }); }} />} />
+          </Kaart>
+
+          <SectieKop titel="Weergave" />
+          <Segment
+            label="Thema"
+            opties={[{ waarde: 'light', label: 'Licht' }, { waarde: 'dark', label: 'Donker' }, { waarde: 'system', label: 'Systeem' }]}
+            waarde={mode}
+            onChange={(m) => setMode(m as ThemeMode)}
+          />
+
+          <SectieKop titel="App" />
+          <Kaart style={groep}>
+            <LijstRegel icoon={Camera} toon="neutraal" titel="Foto's van mijn klussen" onPress={() => router.push('/werk/fotos')} />
+            <Scheiding />
+            <LijstRegel icoon={BookOpen} toon="neutraal" titel="Uitleg opnieuw bekijken" onPress={() => router.push('/werk/intro')} />
+            <Scheiding />
+            <LijstRegel icoon={Download} toon="neutraal" titel="Installeren en bijwerken" onPress={() => router.push('/werk/app-hulp')} />
+            <Scheiding />
+            <LijstRegel icoon={HelpCircle} toon="neutraal" titel="Hulp en contact" onPress={() => setShowHelpDialog(true)} />
+            <Scheiding />
+            <LijstRegel icoon={Info} toon="neutraal" titel="Over de app" sub={`Versie ${APP_VERSION} (build ${BUILD_NUMBER})`} onPress={() => setShowAboutDialog(true)} />
+          </Kaart>
+
+          <Drukvlak
+            onPress={handleSignOut}
+            haptic="press"
+            accessibilityLabel="Uitloggen"
+            style={{ marginTop: 6, minHeight: 52, borderRadius: 16, backgroundColor: kleuren.dangerSoft, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+          >
+            <LogOut size={19} color={kleuren.danger} strokeWidth={2.2} />
+            <Text style={[tekst.kop, { color: kleuren.danger }]}>Uitloggen</Text>
+          </Drukvlak>
         </ScrollView>
 
         {/* About Dialog */}
@@ -569,23 +397,23 @@ function AuthenticatedProfielScreen() {
               </DialogDescription>
             </DialogHeader>
             <View style={{ paddingHorizontal: 24 }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#222222' }}>
-                <Text style={{ fontSize: 13, color: '#888888' }}>Versie</Text>
-                <Text style={{ fontSize: 13, color: '#E8E8E8', fontWeight: '500' }}>{APP_VERSION}</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: kleuren.border }}>
+                <Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>Versie</Text>
+                <Text style={[tekst.sub, { color: kleuren.foreground, fontWeight: '500' }]}>{APP_VERSION}</Text>
               </View>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#222222' }}>
-                <Text style={{ fontSize: 13, color: '#888888' }}>Build</Text>
-                <Text style={{ fontSize: 13, color: '#E8E8E8', fontWeight: '500' }}>{BUILD_NUMBER}</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: kleuren.border }}>
+                <Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>Build</Text>
+                <Text style={[tekst.sub, { color: kleuren.foreground, fontWeight: '500' }]}>{BUILD_NUMBER}</Text>
               </View>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#222222' }}>
-                <Text style={{ fontSize: 13, color: '#888888' }}>Platform</Text>
-                <Text style={{ fontSize: 13, color: '#E8E8E8', fontWeight: '500' }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: kleuren.border }}>
+                <Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>Platform</Text>
+                <Text style={[tekst.sub, { color: kleuren.foreground, fontWeight: '500' }]}>
                   {Constants.platform?.ios ? 'iOS' : Constants.platform?.android ? 'Android' : 'Unknown'}
                 </Text>
               </View>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8 }}>
-                <Text style={{ fontSize: 13, color: '#888888' }}>Expo SDK</Text>
-                <Text style={{ fontSize: 13, color: '#E8E8E8', fontWeight: '500' }}>{Constants.expoConfig?.sdkVersion || '54'}</Text>
+                <Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>Expo SDK</Text>
+                <Text style={[tekst.sub, { color: kleuren.foreground, fontWeight: '500' }]}>{Constants.expoConfig?.sdkVersion || '54'}</Text>
               </View>
             </View>
             <DialogFooter>
@@ -614,14 +442,14 @@ function AuthenticatedProfielScreen() {
                 title="Stuur een e-mail"
                 onPress={() => handleContactSupport('email')}
                 fullWidth
-                icon={<Feather name="mail" size={18} color="#E8E8E8" />}
+                icon={<Mail size={18} color={kleuren.foreground} strokeWidth={2} />}
               />
               <Button
                 variant="outline"
                 title="Bezoek onze website"
                 onPress={() => handleContactSupport('website')}
                 fullWidth
-                icon={<Feather name="globe" size={18} color="#E8E8E8" />}
+                icon={<Globe size={18} color={kleuren.foreground} strokeWidth={2} />}
               />
             </View>
             <DialogFooter>

@@ -2,6 +2,9 @@ import React, { ReactNode } from 'react';
 import { View, Text, ViewStyle, TextStyle } from 'react-native';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
+import { tekst } from '../../theme/typography';
+import type { ColorScheme } from '../../theme/colors';
+import { useVeldKleuren } from '../veld/BuitenModus';
 
 const badgeVariants = cva(
   'self-start flex-row items-center justify-center rounded-full',
@@ -29,51 +32,32 @@ const badgeVariants = cva(
   }
 );
 
-const badgeTextVariants = cva(
-  'font-medium',
-  {
-    variants: {
-      variant: {
-        default: '',
-        secondary: '',
-        destructive: '',
-        outline: '',
-        success: '',
-        warning: '',
-        nature: '',
-      },
-      size: {
-        sm: 'text-[10px] leading-tight',
-        md: 'text-xs leading-tight',
-        lg: 'text-sm leading-tight',
-      },
-    },
-    defaultVariants: {
-      variant: 'default',
-      size: 'md',
-    },
+type BadgeVariant = NonNullable<VariantProps<typeof badgeVariants>['variant']>;
+type BadgeSize = NonNullable<VariantProps<typeof badgeVariants>['size']>;
+
+// Pil-taal van de statuspil: zachte achtergrond, tekst in de volle toonkleur.
+function variantKleuren(k: ColorScheme, variant: BadgeVariant): { vlak: ViewStyle; tekst: string } {
+  switch (variant) {
+    case 'secondary':
+    case 'nature':
+      return { vlak: { backgroundColor: k.primarySoft }, tekst: k.primary };
+    case 'destructive':
+      return { vlak: { backgroundColor: k.dangerSoft }, tekst: k.danger };
+    case 'outline':
+      return { vlak: { borderWidth: 1, borderColor: k.border, backgroundColor: 'transparent' }, tekst: k.foreground };
+    case 'success':
+      return { vlak: { backgroundColor: k.successSoft }, tekst: k.success };
+    case 'warning':
+      return { vlak: { backgroundColor: k.warningSoft }, tekst: k.warning };
+    default:
+      return { vlak: { backgroundColor: k.muted }, tekst: k.foreground };
   }
-);
+}
 
-// Premium Organic color mappings
-const variantBgStyles: Record<string, ViewStyle> = {
-  default: { backgroundColor: '#1A1A1A' },
-  secondary: { backgroundColor: '#1A2E1A' },
-  destructive: { backgroundColor: 'rgba(239,68,68,0.13)' },
-  outline: { borderWidth: 1, borderColor: '#222222', backgroundColor: 'transparent' },
-  success: { backgroundColor: 'rgba(74,222,128,0.13)' },
-  warning: { backgroundColor: 'rgba(245,158,11,0.13)' },
-  nature: { backgroundColor: 'rgba(74,222,128,0.13)' },
-};
-
-const variantTextStyles: Record<string, TextStyle> = {
-  default: { color: '#E8E8E8' },
-  secondary: { color: '#6B8F6B' },
-  destructive: { color: '#EF4444' },
-  outline: { color: '#E8E8E8' },
-  success: { color: '#4ADE80' },
-  warning: { color: '#F59E0B' },
-  nature: { color: '#4ADE80' },
+const tekstPerMaat: Record<BadgeSize, TextStyle> = {
+  sm: { ...tekst.bijschrift, fontWeight: '600' },
+  md: { ...tekst.voetnoot, fontWeight: '600' },
+  lg: { ...tekst.sub, fontWeight: '600' },
 };
 
 interface BadgeProps extends VariantProps<typeof badgeVariants> {
@@ -89,16 +73,17 @@ export function Badge({
   className,
   textClassName,
 }: BadgeProps) {
-  const variantKey = variant || 'default';
+  const kleuren = useVeldKleuren();
+  const { vlak, tekst: tekstKleur } = variantKleuren(kleuren, variant || 'default');
 
   return (
     <View
       className={cn(badgeVariants({ variant, size }), className)}
-      style={variantBgStyles[variantKey]}
+      style={vlak}
     >
       <Text
-        className={cn(badgeTextVariants({ variant, size }), textClassName)}
-        style={variantTextStyles[variantKey]}
+        className={cn(textClassName)}
+        style={[tekstPerMaat[size || 'md'], { color: tekstKleur }]}
       >
         {children}
       </Text>

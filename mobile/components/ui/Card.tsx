@@ -1,11 +1,16 @@
 import React, { ReactNode } from 'react';
 import { View, Text, ViewStyle, StyleProp } from 'react-native';
 import { cn } from '@/lib/utils';
+import { tekst } from '../../theme/typography';
+import type { ColorScheme } from '../../theme/colors';
+import { useIsDonker, useVeldKleuren } from '../veld/BuitenModus';
+
+type CardVariant = 'default' | 'subtle' | 'ghost' | 'elevated' | 'glass' | 'nature';
 
 interface CardProps {
   children: ReactNode;
   className?: string;
-  variant?: 'default' | 'subtle' | 'ghost' | 'elevated' | 'glass' | 'nature';
+  variant?: CardVariant;
   style?: ViewStyle;
 }
 
@@ -35,54 +40,45 @@ interface CardFooterProps {
   className?: string;
 }
 
+// Vlak per variant uit het actieve thema; radius 18 zoals de Kaart-bouwsteen.
+function variantStijl(k: ColorScheme, variant: CardVariant, donker: boolean): ViewStyle {
+  switch (variant) {
+    case 'subtle':
+      return { backgroundColor: k.muted };
+    case 'ghost':
+      return { backgroundColor: 'transparent' };
+    case 'elevated':
+      return {
+        backgroundColor: k.card,
+        borderWidth: 1,
+        borderColor: k.border,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: donker ? 0.3 : 0.06,
+        shadowRadius: 12,
+        elevation: donker ? 6 : 2,
+      };
+    case 'glass':
+      return { backgroundColor: k.surfaceOverlay, borderWidth: 1, borderColor: k.border };
+    case 'nature':
+      return { backgroundColor: k.gradientStart, borderWidth: 1, borderColor: k.gradientBorder };
+    default:
+      return { backgroundColor: k.card, borderWidth: 1, borderColor: k.border };
+  }
+}
+
 /**
  * Card - Main container component
  * Variants: default, subtle, ghost, elevated, glass, nature
  */
 export function Card({ children, className, variant = 'default', style }: CardProps) {
-  const variantClasses: Record<string, string> = {
-    default: '',
-    subtle: '',
-    ghost: 'bg-transparent',
-    elevated: '',
-    glass: '',
-    nature: '',
-  };
-
-  const variantStyles: Record<string, ViewStyle> = {
-    default: {
-      backgroundColor: '#111111',
-      borderWidth: 1,
-      borderColor: '#222222',
-    },
-    subtle: {
-      backgroundColor: '#0A0A0A',
-    },
-    ghost: {},
-    elevated: {
-      backgroundColor: '#1A1A1A',
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.2,
-      shadowRadius: 12,
-      elevation: 6,
-    },
-    glass: {
-      backgroundColor: 'rgba(17,17,17,0.8)',
-      borderWidth: 1,
-      borderColor: 'rgba(255,255,255,0.1)',
-    },
-    nature: {
-      backgroundColor: '#1A2E1A',
-      borderWidth: 1,
-      borderColor: 'rgba(45,90,39,0.19)',
-    },
-  };
+  const kleuren = useVeldKleuren();
+  const donker = useIsDonker();
 
   return (
     <View
-      className={cn('rounded-2xl p-4', variantClasses[variant], className)}
-      style={[variantStyles[variant], style]}
+      className={cn('p-4', className)}
+      style={[{ borderRadius: 18 }, variantStijl(kleuren, variant, donker), style]}
     >
       {children}
     </View>
@@ -104,8 +100,9 @@ export function CardHeader({ children, className }: CardHeaderProps) {
  * CardTitle - Main heading text for the card
  */
 export function CardTitle({ children, className }: CardTitleProps) {
+  const kleuren = useVeldKleuren();
   return (
-    <Text className={cn('text-base font-semibold', className)} style={{ color: '#E8E8E8' }}>
+    <Text className={cn(className)} style={[tekst.kop, { color: kleuren.foreground }]}>
       {children}
     </Text>
   );
@@ -115,8 +112,9 @@ export function CardTitle({ children, className }: CardTitleProps) {
  * CardDescription - Secondary descriptive text
  */
 export function CardDescription({ children, className }: CardDescriptionProps) {
+  const kleuren = useVeldKleuren();
   return (
-    <Text className={cn('text-sm', className)} style={{ color: '#888888' }}>
+    <Text className={cn(className)} style={[tekst.sub, { color: kleuren.mutedForeground }]}>
       {children}
     </Text>
   );

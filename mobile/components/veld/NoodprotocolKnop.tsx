@@ -7,7 +7,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Linking, ScrollView, Text, View } from 'react-native';
-import { AlertTriangle, Phone } from 'lucide-react-native';
+import { Phone, Siren } from 'lucide-react-native';
 import {
   Button,
   Dialog,
@@ -16,12 +16,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../ui';
-import { useBuitenModus } from './BuitenModus';
+import { Drukvlak, Melding } from '../werk/Bouwstenen';
+import { tekst as tekstStijl } from '../../theme';
+import { useVeldKleuren } from './BuitenModus';
 
 export function NoodprotocolKnop({ tekst }: { tekst: string | null }) {
   const [open, setOpen] = useState(false);
   const router = useRouter();
-  const { kleuren } = useBuitenModus();
+  const kleuren = useVeldKleuren();
 
   const belAlarmnummer = () => {
     Linking.openURL('tel:112').catch(() => {
@@ -31,35 +33,36 @@ export function NoodprotocolKnop({ tekst }: { tekst: string | null }) {
 
   return (
     <>
-      <Button
-        variant="destructive"
-        size="sm"
-        title="Nood"
-        icon={<AlertTriangle size={16} color="#FAFAFA" />}
+      <Drukvlak
         onPress={() => setOpen(true)}
-      />
+        haptic="press"
+        accessibilityLabel="Nood"
+        accessibilityHint="Opent het noodprotocol"
+        style={{ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: kleuren.dangerSoft }}
+      >
+        <Siren size={21} color={kleuren.danger} strokeWidth={2} />
+      </Drukvlak>
       <Dialog visible={open} onClose={() => setOpen(false)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Noodprotocol</DialogTitle>
           </DialogHeader>
-          <Text
-            style={{
-              color: kleuren.mutedForeground,
-              fontSize: 13,
-              marginBottom: 12,
-            }}
-          >
-            Bij een ongeval of gevaarlijke situatie: bel bij levensgevaar
-            altijd eerst 112.
-          </Text>
+          <View style={{ marginBottom: 12 }}>
+            <Melding
+              toon="gemist"
+              icoon={Phone}
+              tekst="Bij een ongeval of gevaarlijke situatie: bel bij levensgevaar altijd eerst 112."
+            />
+          </View>
           <ScrollView style={{ maxHeight: 320 }}>
-            <Text style={{ color: kleuren.foreground, fontSize: 14, lineHeight: 21 }}>
+            <Text style={[tekstStijl.callout, { color: kleuren.foreground, lineHeight: 23 }]}>
               {tekst?.trim() ||
                 'Er is nog geen noodprotocol ingesteld. Kantoor beheert de inhoud via de veld-instellingen.'}
             </Text>
           </ScrollView>
-          <Button title="Protocollen en contacten" variant="outline" onPress={() => { setOpen(false); router.push('/werk/protocollen'); }} />
+          <View style={{ marginTop: 12 }}>
+            <Button title="Protocollen en contacten" variant="secondary" onPress={() => { setOpen(false); router.push('/werk/protocollen'); }} fullWidth />
+          </View>
           <DialogFooter>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <View style={{ flex: 1 }}>
@@ -74,7 +77,7 @@ export function NoodprotocolKnop({ tekst }: { tekst: string | null }) {
                 <Button
                   variant="destructive"
                   title="Bel 112"
-                  icon={<Phone size={16} color="#FAFAFA" />}
+                  icon={<Phone size={16} color={kleuren.destructiveForeground} strokeWidth={2} />}
                   onPress={belAlarmnummer}
                   fullWidth
                 />

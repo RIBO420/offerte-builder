@@ -1,9 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet, ViewStyle } from 'react-native';
-import { colors } from '../../theme/colors';
-import { typography } from '../../theme/typography';
-import { radius } from '../../theme/radius';
-import { spacing } from '../../theme/spacing';
+import { View, Text, ViewStyle } from 'react-native';
+import { tekst } from '../../theme/typography';
+import { useVeldKleuren } from '../veld/BuitenModus';
 
 type ScopeType = 'grondwerk' | 'bestrating' | 'borders' | 'gras' | 'houtwerk' | 'water' | 'specials';
 
@@ -24,7 +22,7 @@ const scopeLabels: Record<ScopeType, string> = {
 };
 
 /**
- * Convert a hex color to rgba with a given alpha (for 15% opacity background)
+ * Convert a hex color to rgba with a given alpha (for the soft background)
  */
 function hexToRgba(hex: string, alpha: number): string {
   const cleaned = hex.replace('#', '');
@@ -34,61 +32,33 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
+/** Scope als pil: zachte tint van de scopekleur, tekst in de volle kleur. */
 export function ScopeTag({ scope, size = 'md', style }: ScopeTagProps) {
-  const scopeColor = colors.scope[scope];
-  // Background: scope color at 15% opacity
-  const backgroundColor = hexToRgba(scopeColor, 0.15);
+  const kleuren = useVeldKleuren();
+  // Onbekende scope (data uit de backend) valt terug op de neutrale toon.
+  const scopeColor: string | undefined = kleuren.scope[scope];
+  const voor = scopeColor ?? kleuren.mutedForeground;
+  const achter = scopeColor ? hexToRgba(scopeColor, 0.14) : kleuren.muted;
 
   return (
     <View
       style={[
-        styles.base,
-        size === 'sm' ? styles.sizeSm : styles.sizeMd,
-        { backgroundColor },
+        {
+          alignSelf: 'flex-start',
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderRadius: 999,
+          backgroundColor: achter,
+          paddingHorizontal: size === 'sm' ? 8 : 10,
+          paddingVertical: size === 'sm' ? 2 : 4,
+        },
         style,
       ]}
     >
-      <Text
-        style={[
-          styles.text,
-          size === 'sm' ? styles.textSm : styles.textMd,
-          { color: scopeColor },
-        ]}
-      >
-        {scopeLabels[scope]}
+      <Text style={[size === 'sm' ? tekst.bijschrift : tekst.voetnoot, { color: voor, fontWeight: '600' }]}>
+        {scopeLabels[scope] ?? scope}
       </Text>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  base: {
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.sm,
-  },
-  sizeSm: {
-    paddingHorizontal: spacing.xs + 2,
-    paddingVertical: spacing.xs / 2,
-  },
-  sizeMd: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  text: {
-    fontFamily: typography.fontFamily.sans,
-    fontWeight: typography.fontWeight.semibold,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  textSm: {
-    fontSize: typography.fontSize.xs - 2,
-    lineHeight: typography.fontSize.xs,
-  },
-  textMd: {
-    fontSize: typography.fontSize.xs,
-    lineHeight: typography.fontSize.xs * typography.lineHeight.tight,
-  },
-});

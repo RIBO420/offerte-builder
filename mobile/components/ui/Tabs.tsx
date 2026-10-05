@@ -1,8 +1,10 @@
 import React, { ReactNode } from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, type ViewStyle } from 'react-native';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
-import { colors } from '../../theme/colors';
+import { tekst } from '../../theme/typography';
+import type { ColorScheme } from '../../theme/colors';
+import { useVeldKleuren } from '../veld/BuitenModus';
 
 interface Tab {
   key: string;
@@ -11,13 +13,13 @@ interface Tab {
 }
 
 const tabListVariants = cva(
-  'flex-row px-4 gap-2',
+  'flex-row gap-2',
   {
     variants: {
       variant: {
-        default: 'rounded-lg p-1',
-        pills: '',
-        underline: '',
+        default: 'p-1',
+        pills: 'px-4',
+        underline: 'px-4',
       },
     },
     defaultVariants: {
@@ -26,117 +28,7 @@ const tabListVariants = cva(
   }
 );
 
-const tabTriggerVariants = cva(
-  'flex-row items-center py-2 px-4',
-  {
-    variants: {
-      variant: {
-        default: 'rounded-md',
-        pills: 'rounded-full',
-        underline: 'rounded-none border-b-2 border-b-transparent px-2',
-      },
-      active: {
-        true: '',
-        false: '',
-      },
-    },
-    compoundVariants: [
-      // Default variant
-      {
-        variant: 'default',
-        active: false,
-        className: 'bg-transparent',
-      },
-      {
-        variant: 'default',
-        active: true,
-        className: '',
-      },
-      // Pills variant
-      {
-        variant: 'pills',
-        active: false,
-        className: 'bg-transparent',
-      },
-      {
-        variant: 'pills',
-        active: true,
-        className: '',
-      },
-      // Underline variant
-      {
-        variant: 'underline',
-        active: false,
-        className: 'bg-transparent',
-      },
-      {
-        variant: 'underline',
-        active: true,
-        className: '',
-      },
-    ],
-    defaultVariants: {
-      variant: 'default',
-      active: false,
-    },
-  }
-);
-
-const tabTextVariants = cva(
-  'font-sans text-sm font-medium',
-  {
-    variants: {
-      variant: {
-        default: '',
-        pills: '',
-        underline: '',
-      },
-      active: {
-        true: '',
-        false: '',
-      },
-    },
-    compoundVariants: [
-      // Default variant
-      {
-        variant: 'default',
-        active: false,
-        className: '',
-      },
-      {
-        variant: 'default',
-        active: true,
-        className: '',
-      },
-      // Pills variant
-      {
-        variant: 'pills',
-        active: false,
-        className: '',
-      },
-      {
-        variant: 'pills',
-        active: true,
-        className: '',
-      },
-      // Underline variant
-      {
-        variant: 'underline',
-        active: false,
-        className: '',
-      },
-      {
-        variant: 'underline',
-        active: true,
-        className: 'font-semibold',
-      },
-    ],
-    defaultVariants: {
-      variant: 'default',
-      active: false,
-    },
-  }
-);
+type TabsVariant = NonNullable<VariantProps<typeof tabListVariants>['variant']>;
 
 interface TabsProps extends VariantProps<typeof tabListVariants> {
   tabs: Tab[];
@@ -151,40 +43,43 @@ interface TabsContentProps {
   activeTab: string;
 }
 
+// Trigger per variant: segment (default), pil, of onderstreping.
+function triggerStijl(k: ColorScheme, variant: TabsVariant, actief: boolean): ViewStyle {
+  const basis: ViewStyle = { flexDirection: 'row', alignItems: 'center', minHeight: 40, paddingHorizontal: 16 };
+  switch (variant) {
+    case 'pills':
+      return {
+        ...basis,
+        borderRadius: 999,
+        borderWidth: 1,
+        borderColor: actief ? k.primary : k.border,
+        backgroundColor: actief ? k.primary : 'transparent',
+      };
+    case 'underline':
+      return {
+        ...basis,
+        paddingHorizontal: 8,
+        borderBottomWidth: 2,
+        borderBottomColor: actief ? k.primary : 'transparent',
+      };
+    default:
+      return {
+        ...basis,
+        borderRadius: 9,
+        backgroundColor: actief ? k.card : 'transparent',
+        ...(actief ? { borderWidth: 1, borderColor: k.border } : { borderWidth: 1, borderColor: 'transparent' }),
+      };
+  }
+}
+
+function tekstKleur(k: ColorScheme, variant: TabsVariant, actief: boolean): string {
+  if (!actief) return k.mutedForeground;
+  return variant === 'pills' ? k.primaryForeground : k.foreground;
+}
+
 export function Tabs({ tabs, activeTab, onTabChange, variant = 'default', className }: TabsProps) {
-  const getTabListBgStyle = () => {
-    if (variant === 'default') return { backgroundColor: '#1A1A1A' };
-    return {};
-  };
-
-  const getActiveTriggerStyle = (isActive: boolean) => {
-    if (!isActive) return {};
-    switch (variant) {
-      case 'default':
-        return { backgroundColor: '#111111' };
-      case 'pills':
-        return { backgroundColor: '#4ADE80', borderWidth: 1, borderColor: '#4ADE80' };
-      case 'underline':
-        return { borderBottomWidth: 2, borderBottomColor: '#4ADE80' };
-      default:
-        return {};
-    }
-  };
-
-  const getInactiveTriggerStyle = () => {
-    if (variant === 'pills') return { borderWidth: 1, borderColor: '#222222' };
-    return {};
-  };
-
-  const getTextColor = (isActive: boolean) => {
-    if (!isActive) return colors.inactive;
-    switch (variant) {
-      case 'pills':
-        return '#0A0A0A';
-      default:
-        return '#E8E8E8';
-    }
-  };
+  const kleuren = useVeldKleuren();
+  const variantKey: TabsVariant = variant || 'default';
 
   return (
     <ScrollView
@@ -192,7 +87,8 @@ export function Tabs({ tabs, activeTab, onTabChange, variant = 'default', classN
       showsHorizontalScrollIndicator={false}
       className="flex-grow-0"
       contentContainerClassName={cn(tabListVariants({ variant }), className)}
-      style={getTabListBgStyle()}
+      style={variantKey === 'default' ? { backgroundColor: kleuren.muted, borderRadius: 12 } : undefined}
+      accessibilityRole="tablist"
     >
       {tabs.map((tab) => {
         const isActive = activeTab === tab.key;
@@ -200,18 +96,33 @@ export function Tabs({ tabs, activeTab, onTabChange, variant = 'default', classN
           <TouchableOpacity
             key={tab.key}
             onPress={() => onTabChange(tab.key)}
-            className={cn(tabTriggerVariants({ variant, active: isActive }))}
-            style={isActive ? getActiveTriggerStyle(isActive) : getInactiveTriggerStyle()}
+            activeOpacity={0.7}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: isActive }}
+            style={triggerStijl(kleuren, variantKey, isActive)}
           >
             <Text
-              className={cn(tabTextVariants({ variant, active: isActive }))}
-              style={{ color: getTextColor(isActive) }}
+              style={[
+                tekst.sub,
+                { color: tekstKleur(kleuren, variantKey, isActive), fontWeight: isActive ? '600' : '500' },
+              ]}
             >
               {tab.label}
             </Text>
             {tab.badge !== undefined && tab.badge > 0 && (
-              <View className="bg-destructive rounded-full min-w-[18px] h-[18px] px-1 items-center justify-center ml-2">
-                <Text className="font-sans text-xs font-semibold text-destructive-foreground">
+              <View
+                style={{
+                  minWidth: 20,
+                  height: 20,
+                  paddingHorizontal: 5,
+                  marginLeft: 8,
+                  borderRadius: 10,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: kleuren.destructive,
+                }}
+              >
+                <Text style={[tekst.bijschrift, tekst.cijfers, { color: kleuren.destructiveForeground, fontWeight: '700' }]}>
                   {tab.badge > 99 ? '99+' : tab.badge}
                 </Text>
               </View>

@@ -11,7 +11,8 @@ import Animated from 'react-native-reanimated';
 import { Camera } from 'lucide-react-native';
 import { usePressAnimation } from '../../hooks/use-spring-animation';
 import { hapticPatterns } from '../../theme/haptics';
-import { colors } from '../../theme/colors';
+import { tekst } from '../../theme/typography';
+import { useVeldKleuren } from '../veld/BuitenModus';
 
 interface PhotoGridProps {
   photos: { uri: string; caption?: string }[];
@@ -21,6 +22,7 @@ interface PhotoGridProps {
 }
 
 function AddButton({ onPress, size }: { onPress: () => void; size: number }) {
+  const kleuren = useVeldKleuren();
   const { animatedStyle, onPressIn, onPressOut } = usePressAnimation();
 
   const handlePress = () => {
@@ -34,10 +36,12 @@ function AddButton({ onPress, size }: { onPress: () => void; size: number }) {
         onPress={handlePress}
         onPressIn={onPressIn}
         onPressOut={onPressOut}
-        style={[styles.addButton, { width: size, height: size }]}
+        style={[styles.addButton, { width: size, height: size, borderColor: kleuren.border, backgroundColor: kleuren.muted }]}
+        accessibilityRole="button"
+        accessibilityLabel="Foto toevoegen"
       >
-        <Camera size={20} color={colors.inactive} />
-        <Text style={styles.addText}>Voeg toe</Text>
+        <Camera size={22} color={kleuren.mutedForeground} />
+        <Text style={[tekst.bijschrift, { color: kleuren.mutedForeground }]}>Voeg toe</Text>
       </Pressable>
     </Animated.View>
   );
@@ -54,6 +58,7 @@ function PhotoCell({
   size: number;
   onPress: (index: number) => void;
 }) {
+  const kleuren = useVeldKleuren();
   const { animatedStyle, onPressIn, onPressOut } = usePressAnimation();
 
   const handlePress = () => {
@@ -67,10 +72,12 @@ function PhotoCell({
         onPress={handlePress}
         onPressIn={onPressIn}
         onPressOut={onPressOut}
+        accessibilityRole="imagebutton"
+        accessibilityLabel={`Foto ${index + 1} bekijken`}
       >
         <Image
           source={{ uri }}
-          style={[styles.photo, { width: size, height: size }]}
+          style={[styles.photo, { width: size, height: size, backgroundColor: kleuren.muted }]}
         />
       </Pressable>
     </Animated.View>
@@ -143,19 +150,14 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
   },
   addButton: {
-    borderWidth: 1,
-    borderColor: '#333',
+    borderWidth: 1.5,
     borderStyle: 'dashed',
-    borderRadius: 4,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
   },
-  addText: {
-    fontSize: 9,
-    color: colors.inactive,
-  },
   photo: {
-    borderRadius: 4,
+    borderRadius: 8,
   },
 });

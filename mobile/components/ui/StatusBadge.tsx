@@ -1,8 +1,9 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
-import { typography } from '../../theme/typography';
-import { radius } from '../../theme/radius';
-import { colors } from '../../theme/colors';
+import React from 'react';
+import { View, Text } from 'react-native';
+import Animated, { useReducedMotion } from 'react-native-reanimated';
+import { tekst } from '../../theme/typography';
+import type { ColorScheme } from '../../theme/colors';
+import { useVeldKleuren } from '../veld/BuitenModus';
 
 type StatusType = 'active' | 'inactive' | 'pending' | 'success' | 'error' | 'warning';
 
@@ -13,14 +14,21 @@ interface StatusBadgeProps {
   size?: 'sm' | 'md';
 }
 
-const statusColors: Record<StatusType, { bg: string; text: string; dot: string }> = {
-  active: { bg: 'rgba(74,222,128,0.13)', text: '#4ADE80', dot: '#4ADE80' },
-  inactive: { bg: '#1A1A1A', text: colors.inactive, dot: colors.inactive },
-  pending: { bg: 'rgba(245,158,11,0.13)', text: '#F59E0B', dot: '#F59E0B' },
-  success: { bg: 'rgba(74,222,128,0.13)', text: '#4ADE80', dot: '#4ADE80' },
-  error: { bg: 'rgba(239,68,68,0.13)', text: '#EF4444', dot: '#EF4444' },
-  warning: { bg: 'rgba(245,158,11,0.13)', text: '#F59E0B', dot: '#F59E0B' },
-};
+// Zelfde toonfamilie als de StatusPil in werk/Bouwstenen.
+function statusKleuren(k: ColorScheme, status: StatusType): { voor: string; achter: string } {
+  switch (status) {
+    case 'active':
+    case 'success':
+      return { voor: k.success, achter: k.successSoft };
+    case 'pending':
+    case 'warning':
+      return { voor: k.warning, achter: k.warningSoft };
+    case 'error':
+      return { voor: k.danger, achter: k.dangerSoft };
+    default:
+      return { voor: k.mutedForeground, achter: k.muted };
+  }
+}
 
 const defaultLabels: Record<StatusType, string> = {
   active: 'Actief',
@@ -31,96 +39,52 @@ const defaultLabels: Record<StatusType, string> = {
   warning: 'Waarschuwing',
 };
 
+const maten = {
+  sm: { paddingHorizontal: 8, paddingVertical: 2, stip: 6, tekst: tekst.bijschrift },
+  md: { paddingHorizontal: 10, paddingVertical: 4, stip: 7, tekst: tekst.voetnoot },
+};
+
+/** Status als pil mét stip; actief en in afwachting ademen zacht. */
 export function StatusBadge({ status, label, showPulse = true, size = 'md' }: StatusBadgeProps) {
-  // eslint-disable-next-line react-hooks/refs -- RN Animated.Value refs are stable and safe to access during render
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    if (showPulse && (status === 'active' || status === 'pending')) {
-      const animation = Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 0.6, duration: 1000, useNativeDriver: true }),
-          Animated.timing(pulseAnim, { toValue: 1, duration: 1000, useNativeDriver: true }),
-        ])
-      );
-      animation.start();
-      return () => animation.stop();
-    } else {
-      pulseAnim.setValue(1);
-    }
-  }, [showPulse, status, pulseAnim]);
-
-  const statusColor = statusColors[status];
-  const displayLabel = label ?? defaultLabels[status];
-  const shouldPulse = showPulse && (status === 'active' || status === 'pending');
-
-  const sizeStyles = {
-    sm: {
-      paddingHorizontal: 8,
-      paddingVertical: 2,
-      dotSize: 6,
-      fontSize: typography.fontSize.xs,
-    },
-    md: {
-      paddingHorizontal: 10,
-      paddingVertical: 4,
-      dotSize: 8,
-      fontSize: typography.fontSize.sm,
-    },
-  };
-
-  const currentSize = sizeStyles[size];
+  const kleuren = useVeldKleuren();
+  const rustig = useReducedMotion();
+  const { voor, achter } = statusKleuren(kleuren, status);
+  const maat = maten[size];
+  const ademt = showPulse && !rustig && (status === 'active' || status === 'pending');
 
   return (
     <View
-      style={[
-        styles.container,
-        {
-          backgroundColor: statusColor.bg,
-          paddingHorizontal: currentSize.paddingHorizontal,
-          paddingVertical: currentSize.paddingVertical,
-        },
-      ]}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        alignSelf: 'flex-start',
+        gap: 6,
+        borderRadius: 999,
+        backgroundColor: achter,
+        paddingHorizontal: maat.paddingHorizontal,
+        paddingVertical: maat.paddingVertical,
+      }}
     >
       <Animated.View
-        style={[
-          styles.dot,
-          {
-            backgroundColor: statusColor.dot,
-            width: currentSize.dotSize,
-            height: currentSize.dotSize,
-            borderRadius: currentSize.dotSize / 2,
-            opacity: shouldPulse ? pulseAnim : 1,
-          },
-        ]}
+        style={{
+          width: maat.stip,
+          height: maat.stip,
+          borderRadius: maat.stip / 2,
+          backgroundColor: voor,
+          ...(ademt
+            ? {
+                animationName: { from: { opacity: 1 }, to: { opacity: 0.6 } },
+                animationDuration: 1000,
+                animationIterationCount: 'infinite',
+                animationDirection: 'alternate',
+                animationTimingFunction: 'ease-in-out',
+              }
+            : {}),
+        }}
       />
-      <Text
-        style={[
-          styles.label,
-          {
-            color: statusColor.text,
-            fontSize: currentSize.fontSize,
-          },
-        ]}
-      >
-        {displayLabel}
+      <Text style={[maat.tekst, { color: voor, fontWeight: '600' }]}>
+        {label ?? defaultLabels[status]}
       </Text>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: radius.full,
-    alignSelf: 'flex-start',
-  },
-  dot: {
-    marginRight: 6,
-  },
-  label: {
-    fontFamily: typography.fontFamily.sans,
-    fontWeight: typography.fontWeight.medium,
-  },
-});

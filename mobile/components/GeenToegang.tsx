@@ -17,17 +17,17 @@
  */
 
 import { useCallback, useState } from 'react';
-import { View, Text, Pressable, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, Pressable, ActivityIndicator } from 'react-native';
 import { Building2 } from 'lucide-react-native';
 import { useClerk } from '@clerk/clerk-expo';
-import { colors } from '../theme/colors';
 import { spacing } from '../theme/spacing';
-import { radius } from '../theme/radius';
-import { typography } from '../theme/typography';
+import { tekst } from '../theme/typography';
+import { useVeldKleuren } from './veld/BuitenModus';
 import { disableBiometric } from '../lib/auth/biometric';
 
 export function GeenToegang({ uitleg }: { uitleg?: string } = {}) {
   const clerk = useClerk();
+  const kleuren = useVeldKleuren();
   const [uitloggen, setUitloggen] = useState(false);
 
   const handleUitloggen = useCallback(async () => {
@@ -44,92 +44,65 @@ export function GeenToegang({ uitleg }: { uitleg?: string } = {}) {
   }, [clerk]);
 
   return (
-    <View style={styles.container}>
-      <View style={styles.iconContainer}>
-        <Building2 size={40} color={colors.primary} />
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: kleuren.background,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: spacing.xl,
+      }}
+    >
+      <View
+        style={{
+          width: 80,
+          height: 80,
+          borderRadius: 24,
+          backgroundColor: kleuren.primarySoft,
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: spacing.lg,
+        }}
+      >
+        <Building2 size={38} color={kleuren.primary} />
       </View>
 
-      <Text style={styles.title}>Nog geen toegang</Text>
-      <Text style={styles.description}>
+      <Text accessibilityRole="header" style={[tekst.titel2, { color: kleuren.foreground, marginBottom: spacing.sm, textAlign: 'center' }]}>
+        Nog geen toegang
+      </Text>
+      <Text style={[tekst.body, { color: kleuren.mutedForeground, textAlign: 'center', marginBottom: spacing.xl, maxWidth: 340 }]}>
         {uitleg ?? 'Je account is nog niet aan een organisatie gekoppeld — vraag je beheerder om een uitnodiging.'}
       </Text>
 
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Uitloggen"
+        accessibilityState={{ disabled: uitloggen, busy: uitloggen }}
         disabled={uitloggen}
         onPress={handleUitloggen}
-        style={({ pressed }) => [
-          styles.button,
-          pressed && styles.buttonPressed,
-          uitloggen && styles.buttonDisabled,
-        ]}
+        style={({ pressed }) => ({
+          minHeight: 48,
+          minWidth: 200,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingVertical: spacing.sm + 4,
+          paddingHorizontal: spacing.xl,
+          borderRadius: 14,
+          borderWidth: 1,
+          borderColor: kleuren.border,
+          backgroundColor: pressed ? kleuren.muted : kleuren.card,
+          opacity: uitloggen ? 0.6 : 1,
+        })}
       >
         {uitloggen ? (
-          <ActivityIndicator size="small" color={colors.foreground} />
+          <ActivityIndicator size="small" color={kleuren.foreground} />
         ) : (
-          <Text style={styles.buttonText}>Uitloggen</Text>
+          <Text style={[tekst.kop, { color: kleuren.foreground }]}>Uitloggen</Text>
         )}
       </Pressable>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.xl,
-  },
-  iconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: radius.full,
-    backgroundColor: colors.natureDark,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.lg,
-  },
-  title: {
-    fontSize: typography.fontSize['2xl'],
-    fontWeight: typography.fontWeight.bold,
-    color: colors.foreground,
-    marginBottom: spacing.sm,
-    textAlign: 'center',
-  },
-  description: {
-    fontSize: typography.fontSize.lg,
-    color: colors.mutedForeground,
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: spacing.xl,
-  },
-  button: {
-    minHeight: 48,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.sm + 4,
-    paddingHorizontal: spacing.xl,
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    minWidth: 200,
-  },
-  buttonPressed: {
-    backgroundColor: colors.surfaceElevated,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: typography.fontWeight.semibold,
-    color: colors.foreground,
-  },
-});
 
 export default GeenToegang;

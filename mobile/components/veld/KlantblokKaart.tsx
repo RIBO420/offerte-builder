@@ -7,7 +7,7 @@
  */
 
 import React, { useState } from 'react';
-import { Alert, Linking, Pressable, Text, View } from 'react-native';
+import { Alert, Linking, Text, View } from 'react-native';
 import { useMutation, useQuery } from 'convex/react';
 import {
   CheckCircle2,
@@ -16,9 +16,12 @@ import {
   ClipboardCheck,
   MapPin,
   Plus,
+  TriangleAlert,
 } from 'lucide-react-native';
 import { api } from '../../convex/_generated/api';
-import { Badge, BottomSheet, Button, Checkbox, Input } from '../ui';
+import { BottomSheet, Button, Checkbox, Input } from '../ui';
+import { Drukvlak, Kaart, Scheiding, SectieKop, StatusPil, toonKleuren, type Toon } from '../werk/Bouwstenen';
+import { tekst } from '../../theme';
 import { BezoekFotoActies } from './BezoekFotoActies';
 import {
   type DeltaChecklistData,
@@ -26,7 +29,7 @@ import {
   type TaakStatus,
   type VeldStop,
 } from '../../types/veld';
-import { useBuitenModus } from './BuitenModus';
+import { useVeldKleuren } from './BuitenModus';
 
 const STATUS_VOLGORDE: TaakStatus[] = [
   'niet_gestart',
@@ -36,11 +39,11 @@ const STATUS_VOLGORDE: TaakStatus[] = [
 
 const STATUS_WEERGAVE: Record<
   TaakStatus,
-  { label: string; icoon: typeof Circle }
+  { label: string; icoon: typeof Circle; toon: Toon }
 > = {
-  afgerond: { label: 'Afgerond', icoon: CheckCircle2 },
-  begonnen_niet_af: { label: 'Begonnen, niet af', icoon: CircleDot },
-  niet_gestart: { label: 'Niet gestart', icoon: Circle },
+  afgerond: { label: 'Afgerond', icoon: CheckCircle2, toon: 'succes' },
+  begonnen_niet_af: { label: 'Begonnen, niet af', icoon: CircleDot, toon: 'wachten' },
+  niet_gestart: { label: 'Niet gestart', icoon: Circle, toon: 'neutraal' },
 };
 
 const MEERWERK_STATUS_LABELS: Record<MeerwerkRij['status'], string> = {
@@ -50,10 +53,33 @@ const MEERWERK_STATUS_LABELS: Record<MeerwerkRij['status'], string> = {
   gefactureerd: 'Gefactureerd',
 };
 
+const MEERWERK_TOON: Record<MeerwerkRij['status'], Toon> = {
+  aangevraagd: 'wachten',
+  goedgekeurd: 'succes',
+  afgewezen: 'gemist',
+  gefactureerd: 'neutraal',
+};
+
 function toonFout(fout: unknown, fallback: string) {
   const bericht =
     fout instanceof Error && fout.message ? fout.message : fallback;
   Alert.alert('Let op', bericht.replace(/^.*Uncaught ConvexError:?\s*/, ''));
+}
+
+/** Klusstatus als leesbaar label ("deels_uitgevoerd" → "Deels uitgevoerd"). */
+function statusLabel(status: string): string {
+  const s = status.replace(/_/g, ' ');
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** Bouwsteencode als rustig label naast de taak. */
+function Code({ code }: { code: string }) {
+  const kleuren = useVeldKleuren();
+  return (
+    <View style={{ backgroundColor: kleuren.muted, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
+      <Text style={[tekst.bijschrift, tekst.cijfers, { color: kleuren.mutedForeground }]}>{code}</Text>
+    </View>
+  );
 }
 
 export function KlantblokKaart({
@@ -65,7 +91,7 @@ export function KlantblokKaart({
   datum: string;
   magBewerken: boolean;
 }) {
-  const { kleuren } = useBuitenModus();
+  const kleuren = useVeldKleuren();
   const isAfgerond =
     stop.status === 'uitgevoerd' ||
     stop.status === 'afgerond' ||
@@ -74,100 +100,63 @@ export function KlantblokKaart({
   const [routeOpen, setRouteOpen] = useState(false);
   const [afrondOpen, setAfrondOpen] = useState(false);
   const [meerwerkOpen, setMeerwerkOpen] = useState(false);
+  const waarschuwing = toonKleuren(kleuren, 'wachten');
 
   return (
-    <View
-      style={{
-        borderWidth: 1,
-        borderColor: kleuren.border,
-        borderRadius: 14,
-        padding: 14,
-        gap: 10,
-        backgroundColor: kleuren.card,
-      }}
-    >
+    <Kaart>
       {/* Klant + status */}
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'flex-start',
-          justifyContent: 'space-between',
-          gap: 8,
-        }}
-      >
-        <View style={{ flexShrink: 1 }}>
-          <Text
-            style={{
-              color: kleuren.cardForeground,
-              fontSize: 16,
-              fontWeight: '600',
-            }}
-          >
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text style={[tekst.titel3, { color: kleuren.foreground }]} numberOfLines={2}>
             {stop.klantNaam ?? stop.naam}
           </Text>
           {stop.adres && (
-            <Text
-              style={{ color: kleuren.mutedForeground, fontSize: 13 }}
-              numberOfLines={2}
-            >
-              {stop.adres}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <MapPin size={14} color={kleuren.mutedForeground} strokeWidth={2} />
+              <Text style={[tekst.sub, { color: kleuren.mutedForeground, flex: 1 }]} numberOfLines={2}>
+                {stop.adres}
+              </Text>
+            </View>
           )}
-          {/* Vast klantkenmerk ("hond los in de tuin"). Alleen als het gevuld
-              is, en kort: het dossier mag 2000 tekens bevatten, hier passen er
-              drie regels — de rest leest kantoor voor. */}
-          {stop.bijzonderheden ? (
-            <Text
-              style={{
-                color: kleuren.cardForeground,
-                fontSize: 13,
-                fontWeight: '500',
-                marginTop: 4,
-              }}
-              numberOfLines={3}
-            >
-              {stop.bijzonderheden}
-            </Text>
-          ) : null}
         </View>
-        <View style={{ alignItems: 'flex-end', gap: 4 }}>
-          <Badge variant={isAfgerond ? 'secondary' : 'outline'}>
-            {stop.status.replace(/_/g, ' ')}
-          </Badge>
-          {stop.klaarVoorFacturatie && (
-            <Badge variant="success">Klaar voor facturatie</Badge>
-          )}
+        <View style={{ alignItems: 'flex-end', gap: 6 }}>
+          <StatusPil
+            label={statusLabel(stop.status)}
+            toon={stop.status === 'deels_uitgevoerd' ? 'wachten' : isAfgerond ? 'succes' : 'neutraal'}
+          />
+          {stop.klaarVoorFacturatie && <StatusPil label="Klaar voor facturatie" toon="info" />}
         </View>
       </View>
 
+      {/* Vast klantkenmerk ("hond los in de tuin"). Alleen als het gevuld
+          is, en kort: het dossier mag 2000 tekens bevatten, hier passen er
+          drie regels — de rest leest kantoor voor. */}
+      {stop.bijzonderheden ? (
+        <View style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start', backgroundColor: waarschuwing.achter, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12 }}>
+          <TriangleAlert size={18} color={waarschuwing.voor} strokeWidth={2} />
+          <Text style={[tekst.voetnoot, { color: waarschuwing.voor, flex: 1, fontSize: 14, lineHeight: 19, fontWeight: '500' }]} numberOfLines={3}>
+            {stop.bijzonderheden}
+          </Text>
+        </View>
+      ) : null}
+
       {/* Takenlijst: bouwstenen met code + normtijd (§8.8) */}
       {stop.taken.length > 0 && (
-        <View style={{ gap: 4 }}>
+        <View>
           {stop.taken.map((taak, i) => (
-            <View
-              key={i}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 8,
-                flexWrap: 'wrap',
-              }}
-            >
-              {taak.code && <Badge variant="outline">{taak.code}</Badge>}
-              <Text
-                style={{
-                  color: kleuren.cardForeground,
-                  fontSize: 14,
-                  flexShrink: 1,
-                }}
-              >
-                {taak.omschrijving}
-              </Text>
-              {taak.normUren !== null && (
-                <Text style={{ color: kleuren.mutedForeground, fontSize: 12 }}>
-                  ±{taak.normUren} u
+            <View key={i}>
+              {i > 0 && <Scheiding />}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 36, paddingVertical: 4 }}>
+                {taak.code && <Code code={taak.code} />}
+                <Text style={[tekst.callout, { color: kleuren.foreground, flex: 1 }]}>
+                  {taak.omschrijving}
                 </Text>
-              )}
+                {taak.normUren !== null && (
+                  <Text style={[tekst.voetnoot, tekst.cijfers, { color: kleuren.mutedForeground }]}>
+                    ±{taak.normUren} u
+                  </Text>
+                )}
+              </View>
             </View>
           ))}
         </View>
@@ -175,33 +164,38 @@ export function KlantblokKaart({
 
       {/* Acties */}
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-        <Button
-          variant="outline"
-          size="sm"
-          title="Route"
-          icon={<MapPin size={16} color={kleuren.foreground} />}
-          onPress={() => setRouteOpen(true)}
-        />
         {magBewerken && !isAfgerond && (
           <Button
             variant="primary"
             size="sm"
             title="Afronden"
-            icon={<ClipboardCheck size={16} color={kleuren.primaryForeground} />}
+            icon={<ClipboardCheck size={16} color={kleuren.primaryForeground} strokeWidth={2} />}
             onPress={() => setAfrondOpen(true)}
           />
         )}
+        <Button
+          variant="secondary"
+          size="sm"
+          title="Route"
+          icon={<MapPin size={16} color={kleuren.primary} strokeWidth={2} />}
+          onPress={() => setRouteOpen(true)}
+        />
         {magBewerken && (
           <Button
             variant="outline"
             size="sm"
             title="Meerwerk"
-            icon={<Plus size={16} color={kleuren.foreground} />}
+            icon={<Plus size={16} color={kleuren.foreground} strokeWidth={2} />}
             onPress={() => setMeerwerkOpen(true)}
           />
         )}
-        {magBewerken && <BezoekFotoActies werkitemId={stop.werkitemId} datum={datum} />}
       </View>
+      {magBewerken && (
+        <>
+          <Scheiding />
+          <BezoekFotoActies werkitemId={stop.werkitemId} datum={datum} />
+        </>
+      )}
 
       <RouteDeltaSheet
         stop={stop}
@@ -219,7 +213,7 @@ export function KlantblokKaart({
         open={meerwerkOpen}
         onClose={() => setMeerwerkOpen(false)}
       />
-    </View>
+    </Kaart>
   );
 }
 
@@ -239,7 +233,7 @@ function RouteDeltaSheet({
   open: boolean;
   onClose: () => void;
 }) {
-  const { kleuren } = useBuitenModus();
+  const kleuren = useVeldKleuren();
   const delta = useQuery(
     api.materiaalDelta.getDeltaChecklist,
     open ? { werkitemId: stop.werkitemId, datum } : 'skip'
@@ -285,56 +279,47 @@ function RouteDeltaSheet({
 
   return (
     <BottomSheet isOpen={open} onClose={onClose} title="Check je bus eerst">
-      <View style={{ gap: 12, paddingBottom: 12 }}>
-        <Text style={{ color: kleuren.mutedForeground, fontSize: 13 }}>
+      <View style={{ gap: 14, paddingBottom: 12 }}>
+        <Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>
           Dit heb je voor deze klus nodig bovenop de standaardinventaris van de
           bus. Vink af — wie afvinkt wordt gelogd.
         </Text>
         {delta === undefined ? (
-          <Text style={{ color: kleuren.mutedForeground, fontSize: 13 }}>
+          <Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>
             Checklist laden…
           </Text>
         ) : (
           <>
             {delta.voertuig && (
-              <Text style={{ color: kleuren.mutedForeground, fontSize: 12 }}>
+              <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground }]}>
                 Bus: {delta.voertuig.merk} ({delta.voertuig.kenteken})
               </Text>
             )}
             {delta.delta.length === 0 ? (
-              <Text style={{ color: kleuren.foreground, fontSize: 14 }}>
+              <Text style={[tekst.callout, { color: kleuren.foreground }]}>
                 Alles voor deze klus zit in de standaardinventaris. Goede reis!
               </Text>
             ) : (
-              <View style={{ gap: 10 }}>
-                {delta.delta.map((item) => (
-                  <View
-                    key={item.naam}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 8,
-                    }}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Checkbox
-                        checked={item.afgevinkt}
-                        onCheckedChange={(aangevinkt) =>
-                          handleVink(item.naam, !aangevinkt)
-                        }
-                        label={`${item.naam} (${item.soort})`}
-                      />
+              <View>
+                {delta.delta.map((item, i) => (
+                  <View key={item.naam}>
+                    {i > 0 && <Scheiding />}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, paddingVertical: 4 }}>
+                      <View style={{ flex: 1 }}>
+                        <Checkbox
+                          checked={item.afgevinkt}
+                          onCheckedChange={(aangevinkt) =>
+                            handleVink(item.naam, !aangevinkt)
+                          }
+                          label={`${item.naam} (${item.soort})`}
+                        />
+                      </View>
+                      {item.afgevinkt && item.afgevinktDoor && (
+                        <Text style={[tekst.bijschrift, { color: kleuren.mutedForeground }]}>
+                          {item.afgevinktDoor}
+                        </Text>
+                      )}
                     </View>
-                    {item.afgevinkt && item.afgevinktDoor && (
-                      <Text
-                        style={{
-                          color: kleuren.mutedForeground,
-                          fontSize: 11,
-                        }}
-                      >
-                        {item.afgevinktDoor}
-                      </Text>
-                    )}
                   </View>
                 ))}
               </View>
@@ -342,8 +327,8 @@ function RouteDeltaSheet({
           </>
         )}
         {!!delta?.suggesties?.length && <View style={{ gap: 8 }}>
-          <Text style={{ color: kleuren.foreground, fontWeight: '600' }}>Suggesties bij deze klus</Text>
-          <Text style={{ color: kleuren.mutedForeground }}>Voeg alleen toe wat je nodig hebt.</Text>
+          <SectieKop titel="Suggesties bij deze klus" />
+          <Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>Voeg alleen toe wat je nodig hebt.</Text>
           {delta.suggesties.map(item => <Button key={`${item.soort}:${item.naam}`} title={`Toevoegen: ${item.naam}`} variant="outline" disabled={bezig} onPress={() => toevoegen({ naam: item.naam, soort: item.soort, bron: 'suggestie' })} />)}
         </View>}
         <View style={{ gap: 8 }}>
@@ -354,12 +339,12 @@ function RouteDeltaSheet({
         {delta?.kanVerwijderen && delta.handmatigBenodigd?.map(item => <Button key={item.id} title={`Verwijderen: ${item.naam}`} variant="ghost" disabled={bezig} onPress={() => Alert.alert('Benodigdheid verwijderen?', item.naam, [{ text: 'Annuleren', style: 'cancel' }, { text: 'Verwijderen', style: 'destructive', onPress: async () => { try { await verwijder({ id: item.id, datum }); } catch (fout) { toonFout(fout, 'Verwijderen mislukt'); } } }])} />)}
         <Button
           title="Open route in Maps"
+          size="lg"
           icon={
             <MapPin
-              size={16}
-              color={
-                klaarVoorVertrek ? kleuren.primaryForeground : kleuren.inactive
-              }
+              size={18}
+              color={kleuren.primaryForeground}
+              strokeWidth={2}
             />
           }
           onPress={openMaps}
@@ -381,7 +366,7 @@ function AfrondSheet({
   open: boolean;
   onClose: () => void;
 }) {
-  const { kleuren } = useBuitenModus();
+  const kleuren = useVeldKleuren();
   const rondAf = useMutation(api.afronding.rondWerkitemAf);
 
   const taken =
@@ -445,7 +430,7 @@ function AfrondSheet({
       title={`Afronden — ${stop.klantNaam ?? stop.naam}`}
     >
       <View style={{ gap: 12, paddingBottom: 12 }}>
-        <Text style={{ color: kleuren.mutedForeground, fontSize: 13 }}>
+        <Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>
           Zet per taak de status. Alles afgerond → klaar voor facturatie. Niet
           af → automatisch als rest-opdracht terug in de wachtrij.
         </Text>
@@ -453,77 +438,40 @@ function AfrondSheet({
           const weergave = STATUS_WEERGAVE[statussen[i]];
           const Icoon = weergave.icoon;
           const isKlaar = statussen[i] === 'afgerond';
+          const { voor, achter } = toonKleuren(kleuren, weergave.toon);
           return (
-            <View
-              key={i}
-              style={{
-                borderWidth: 1,
-                borderColor: kleuren.border,
-                borderRadius: 10,
-                padding: 10,
-                gap: 8,
-              }}
-            >
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 8,
-                  flexWrap: 'wrap',
-                }}
-              >
-                {taak.code && <Badge variant="outline">{taak.code}</Badge>}
-                <Text
-                  style={{
-                    color: kleuren.foreground,
-                    fontSize: 14,
-                    flexShrink: 1,
-                  }}
-                >
+            <Kaart key={i} padding={14} style={{ gap: 10 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                {taak.code && <Code code={taak.code} />}
+                <Text style={[tekst.callout, { color: kleuren.foreground, flex: 1 }]}>
                   {taak.omschrijving}
                 </Text>
                 {taak.normUren !== null && (
-                  <Text
-                    style={{ color: kleuren.mutedForeground, fontSize: 12 }}
-                  >
+                  <Text style={[tekst.voetnoot, tekst.cijfers, { color: kleuren.mutedForeground }]}>
                     ±{taak.normUren} u
                   </Text>
                 )}
               </View>
-              <Pressable
-                accessibilityRole="button"
+              <Drukvlak
                 accessibilityLabel={`Status van ${taak.omschrijving}: ${weergave.label}. Tik om te wisselen.`}
                 onPress={() => wisselStatus(i)}
+                haptic="selection"
+                buitenStijl={{ alignSelf: 'flex-start' }}
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
                   gap: 8,
-                  alignSelf: 'flex-start',
-                  paddingHorizontal: 12,
-                  paddingVertical: 8,
+                  minHeight: 44,
+                  paddingHorizontal: 14,
                   borderRadius: 999,
-                  borderWidth: 1,
-                  borderColor: isKlaar ? kleuren.primary : kleuren.border,
-                  backgroundColor: isKlaar ? kleuren.primary : 'transparent',
+                  backgroundColor: achter,
                 }}
               >
-                <Icoon
-                  size={16}
-                  color={
-                    isKlaar ? kleuren.primaryForeground : kleuren.foreground
-                  }
-                />
-                <Text
-                  style={{
-                    fontSize: 13,
-                    color: isKlaar
-                      ? kleuren.primaryForeground
-                      : kleuren.foreground,
-                  }}
-                >
+                <Icoon size={18} color={voor} strokeWidth={2} />
+                <Text style={[tekst.sub, { color: voor, fontWeight: '600' }]}>
                   {weergave.label}
                 </Text>
-              </Pressable>
+              </Drukvlak>
               {!isKlaar && (
                 <Input
                   value={notities[i]}
@@ -537,17 +485,18 @@ function AfrondSheet({
                   placeholder="Korte notitie (optioneel)"
                 />
               )}
-            </View>
+            </Kaart>
           );
         })}
         {nietAf > 0 && (
-          <Text style={{ color: kleuren.mutedForeground, fontSize: 12 }}>
+          <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground }]}>
             {nietAf} taak{nietAf === 1 ? '' : 'en'} gaat als rest-opdracht
             terug naar kantoor.
           </Text>
         )}
         <Button
           title="Klus afronden"
+          size="lg"
           onPress={handleAfronden}
           loading={bezig}
           fullWidth
@@ -570,7 +519,7 @@ function MeerwerkSheet({
   open: boolean;
   onClose: () => void;
 }) {
-  const { kleuren } = useBuitenModus();
+  const kleuren = useVeldKleuren();
   const maakVerzoek = useMutation(api.meerwerk.maakVeldVerzoek);
   const verzoeken = useQuery(
     api.meerwerk.listVoorWerkitem,
@@ -607,19 +556,10 @@ function MeerwerkSheet({
     }
   };
 
-  const statusVariant = (
-    status: MeerwerkRij['status']
-  ): 'warning' | 'success' | 'destructive' | 'secondary' => {
-    if (status === 'aangevraagd') return 'warning';
-    if (status === 'goedgekeurd') return 'success';
-    if (status === 'afgewezen') return 'destructive';
-    return 'secondary';
-  };
-
   return (
     <BottomSheet isOpen={open} onClose={onClose} title="Meerwerk aanvragen">
       <View style={{ gap: 12, paddingBottom: 12 }}>
-        <Text style={{ color: kleuren.mutedForeground, fontSize: 13 }}>
+        <Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>
           Meerwerk kan alleen ná akkoord van planning. Beschrijf de taak en
           schat de tijd; kantoor plust de tijd bij of plant het apart in.
         </Text>
@@ -638,6 +578,7 @@ function MeerwerkSheet({
         />
         <Button
           title="Verstuur naar planning"
+          size="lg"
           onPress={handleVersturen}
           loading={bezig}
           disabled={!omschrijving.trim()}
@@ -645,38 +586,24 @@ function MeerwerkSheet({
         />
 
         {verzoeken !== undefined && verzoeken.length > 0 && (
-          <View style={{ gap: 8, marginTop: 4 }}>
-            <Text style={{ color: kleuren.mutedForeground, fontSize: 12 }}>
-              Eerdere verzoeken
-            </Text>
-            {verzoeken
-              .slice()
-              .sort((a, b) => b.createdAt - a.createdAt)
-              .map((rij) => (
-                <View
-                  key={rij._id}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: 8,
-                  }}
-                >
-                  <Text
-                    style={{
-                      color: kleuren.foreground,
-                      fontSize: 13,
-                      flexShrink: 1,
-                    }}
-                    numberOfLines={1}
-                  >
-                    {rij.omschrijving}
-                  </Text>
-                  <Badge variant={statusVariant(rij.status)}>
-                    {MEERWERK_STATUS_LABELS[rij.status]}
-                  </Badge>
-                </View>
-              ))}
+          <View style={{ gap: 4, marginTop: 4 }}>
+            <SectieKop titel="Eerdere verzoeken" telling={verzoeken.length} />
+            <Kaart padding={6} style={{ paddingHorizontal: 14, gap: 0 }}>
+              {verzoeken
+                .slice()
+                .sort((a, b) => b.createdAt - a.createdAt)
+                .map((rij, i) => (
+                  <View key={rij._id}>
+                    {i > 0 && <Scheiding />}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, minHeight: 48 }}>
+                      <Text style={[tekst.sub, { color: kleuren.foreground, flex: 1 }]} numberOfLines={1}>
+                        {rij.omschrijving}
+                      </Text>
+                      <StatusPil label={MEERWERK_STATUS_LABELS[rij.status]} toon={MEERWERK_TOON[rij.status]} />
+                    </View>
+                  </View>
+                ))}
+            </Kaart>
           </View>
         )}
       </View>
