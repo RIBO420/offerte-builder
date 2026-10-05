@@ -274,6 +274,10 @@ export default function InstellingenPage() {
               Tekstblokken
             </Link>
             {" · "}
+            <Link href="/instellingen/protocollen" className="text-foreground hover:underline">
+              Werk- en noodprotocollen
+            </Link>
+            <span className="text-muted-foreground">·</span>
             <Link href="/instellingen/mailtriggers" className="text-foreground hover:underline">
               Mail-triggers
             </Link>
