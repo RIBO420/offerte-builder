@@ -1,8 +1,8 @@
+import { vereisProjectUrenViaId } from "./lib/projectUrenBron";
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireOrg, requireOrgId } from "./auth";
 import { requireNotViewer } from "./roles";
-import { Doc } from "./_generated/dataModel";
 
 // ============================================
 // Teams CRUD Operations
@@ -121,6 +121,7 @@ export const listWithMedewerkers = query({
 export const create = mutation({
   args: {
     naam: v.string(),
+    kleur: v.optional(v.string()),
     beschrijving: v.optional(v.string()),
     leden: v.array(v.id("medewerkers")),
   },
@@ -130,6 +131,7 @@ export const create = mutation({
     const orgId = org._id;
     const now = Date.now();
 
+    if (args.kleur && !/^#[0-9a-fA-F]{6}$/.test(args.kleur)) throw new ConvexError("Kies een geldige teamkleur");
     // Verifieer dat alle medewerkers bestaan en van deze organisatie zijn
     for (const medewerkerId of args.leden) {
       const medewerker = await ctx.db.get(medewerkerId);
@@ -144,6 +146,7 @@ export const create = mutation({
     return await ctx.db.insert("teams", {
       orgId,
       naam: args.naam,
+      kleur: args.kleur,
       beschrijving: args.beschrijving,
       leden: args.leden,
       isActief: true,
@@ -158,6 +161,7 @@ export const update = mutation({
   args: {
     id: v.id("teams"),
     naam: v.optional(v.string()),
+    kleur: v.optional(v.string()),
     beschrijving: v.optional(v.string()),
     leden: v.optional(v.array(v.id("medewerkers"))),
     isActief: v.optional(v.boolean()),
@@ -188,9 +192,11 @@ export const update = mutation({
       }
     }
 
+    if (args.kleur && !/^#[0-9a-fA-F]{6}$/.test(args.kleur)) throw new ConvexError("Kies een geldige teamkleur");
     // Bouw update object
     const updateData: {
       naam?: string;
+      kleur?: string;
       beschrijving?: string;
       leden?: typeof args.leden;
       isActief?: boolean;
@@ -200,6 +206,7 @@ export const update = mutation({
     };
 
     if (args.naam !== undefined) updateData.naam = args.naam;
+    if (args.kleur !== undefined) updateData.kleur = args.kleur;
     if (args.beschrijving !== undefined) updateData.beschrijving = args.beschrijving;
     if (args.leden !== undefined) updateData.leden = args.leden;
     if (args.isActief !== undefined) updateData.isActief = args.isActief;
@@ -325,6 +332,11 @@ export const hardDelete = mutation({
       throw new ConvexError("Geen toegang tot dit team");
     }
 
+    const [werkitem, bemanning] = await Promise.all([
+      ctx.db.query("projecten").withIndex("by_team_geplandeStart", q => q.eq("teamId", args.id)).first(),
+      ctx.db.query("teamBemanning").withIndex("by_team_datum", q => q.eq("teamId", args.id)).first(),
+    ]);
+    if (werkitem || bemanning) throw new ConvexError("Dit team heeft planning of bemanningshistorie. Deactiveer het om die historie te bewaren.");
     await ctx.db.delete(args.id);
     return args.id;
   },
@@ -363,12 +375,9 @@ export const getTeamPrestaties = query({
       .collect();
 
     // Haal alle urenregistraties op
-    const alleUrenRegistraties: Doc<"urenRegistraties">[] = [];
+    const alleUrenRegistraties: Awaited<ReturnType<typeof vereisProjectUrenViaId>> = [];
     for (const project of projecten) {
-      const registraties = await ctx.db
-        .query("urenRegistraties")
-        .withIndex("by_project", (q) => q.eq("projectId", project._id))
-        .collect();
+      const registraties = await vereisProjectUrenViaId(ctx, project._id);
       alleUrenRegistraties.push(...registraties);
     }
 
@@ -462,12 +471,9 @@ export const getAllTeamsPrestaties = query({
       .withIndex("by_org", (q) => q.eq("orgId", orgId))
       .collect();
 
-    const alleUrenRegistraties: Doc<"urenRegistraties">[] = [];
+    const alleUrenRegistraties: Awaited<ReturnType<typeof vereisProjectUrenViaId>> = [];
     for (const project of projecten) {
-      const registraties = await ctx.db
-        .query("urenRegistraties")
-        .withIndex("by_project", (q) => q.eq("projectId", project._id))
-        .collect();
+      const registraties = await vereisProjectUrenViaId(ctx, project._id);
       alleUrenRegistraties.push(...registraties);
     }
 

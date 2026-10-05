@@ -104,11 +104,12 @@ export default function TeamsPage() {
 
   // Handlers
   const handleCreate = useCallback(
-    async (data: { naam: string; beschrijving: string; leden: Id<"medewerkers">[] }) => {
+    async (data: { naam: string; kleur: string; beschrijving: string; leden: Id<"medewerkers">[] }) => {
       setIsSubmitting(true);
       try {
         await create({
           naam: data.naam,
+          kleur: data.kleur,
           beschrijving: data.beschrijving || undefined,
           leden: data.leden,
         });
@@ -132,13 +133,14 @@ export default function TeamsPage() {
   }, []);
 
   const handleUpdate = useCallback(
-    async (data: { naam: string; beschrijving: string; leden: Id<"medewerkers">[] }) => {
+    async (data: { naam: string; kleur: string; beschrijving: string; leden: Id<"medewerkers">[] }) => {
       if (!selectedTeam) return;
 
       setIsSubmitting(true);
       try {
         await update(selectedTeam._id, {
           naam: data.naam,
+          kleur: data.kleur,
           beschrijving: data.beschrijving || undefined,
           leden: data.leden,
         });

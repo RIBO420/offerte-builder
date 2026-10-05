@@ -24,6 +24,7 @@ export function useTeams(filterActief?: boolean) {
 
   const create = async (teamData: {
     naam: string;
+    kleur?: string;
     beschrijving?: string;
     leden: Id<"medewerkers">[];
   }) => {
@@ -35,7 +36,8 @@ export function useTeams(filterActief?: boolean) {
     id: Id<"teams">,
     teamData: {
       naam?: string;
-      beschrijving?: string;
+      kleur?: string;
+    beschrijving?: string;
       leden?: Id<"medewerkers">[];
       isActief?: boolean;
     }

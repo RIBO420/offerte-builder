@@ -87,6 +87,7 @@ import type * as lib_urenTotalen from "../lib/urenTotalen.js";
 import type * as lib_voorcalculatieLookup from "../lib/voorcalculatieLookup.js";
 import type * as lib_werkitemHistorie from "../lib/werkitemHistorie.js";
 import type * as losseBeurten from "../losseBeurten.js";
+import type * as losseKrachten from "../losseKrachten.js";
 import type * as machineGebruik from "../machineGebruik.js";
 import type * as machinepark from "../machinepark.js";
 import type * as machineparkLogica from "../machineparkLogica.js";
@@ -265,6 +266,7 @@ declare const fullApi: ApiFromModules<{
   "lib/voorcalculatieLookup": typeof lib_voorcalculatieLookup;
   "lib/werkitemHistorie": typeof lib_werkitemHistorie;
   losseBeurten: typeof losseBeurten;
+  losseKrachten: typeof losseKrachten;
   machineGebruik: typeof machineGebruik;
   machinepark: typeof machinepark;
   machineparkLogica: typeof machineparkLogica;

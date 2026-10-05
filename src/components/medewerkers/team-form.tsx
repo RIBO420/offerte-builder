@@ -39,6 +39,7 @@ type Team = Doc<"teams">;
 
 interface TeamFormData {
   naam: string;
+  kleur: string;
   beschrijving: string;
   leden: Id<"medewerkers">[];
 }
@@ -46,6 +47,7 @@ interface TeamFormData {
 // Zod schema for team form
 const teamFormSchema = z.object({
   naam: z.string().min(1, "Teamnaam is verplicht"),
+  kleur: z.string().regex(/^#[0-9a-fA-F]{6}$/, "Kies een teamkleur"),
   beschrijving: z.string().optional(),
   leden: z.array(z.string()),
 });
@@ -73,6 +75,7 @@ export function TeamForm({
     resolver: zodResolver(teamFormSchema),
     defaultValues: {
       naam: initialData?.naam || "",
+      kleur: initialData?.kleur || "#4ade80",
       beschrijving: initialData?.beschrijving || "",
       leden: (initialData?.leden as string[]) || [],
     },
@@ -123,6 +126,7 @@ export function TeamForm({
     if (!data.naam.trim()) return;
     await onSubmit({
       naam: data.naam,
+      kleur: data.kleur,
       beschrijving: data.beschrijving || "",
       leden: data.leden as Id<"medewerkers">[],
     });
@@ -131,6 +135,7 @@ export function TeamForm({
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
+        <FormField control={form.control} name="kleur" render={({ field }) => <FormItem><FormLabel>Teamkleur</FormLabel><FormControl><Input type="color" className="w-16" {...field} /></FormControl><FormMessage /></FormItem>} />
         {/* Basic Info */}
         <div className="space-y-4">
           <FormField
