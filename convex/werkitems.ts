@@ -424,13 +424,17 @@ export const updatePlanning = mutation({
     const orgId = await requireOrgId(ctx);
     const werkitem = await getOwnedWerkitem(ctx, orgId, args.id);
 
-    if (
-      args.geplandeStart &&
-      args.geplandeEind &&
-      args.geplandeEind < args.geplandeStart
-    ) {
-      throw new ConvexError("Geplande einddatum ligt vóór de startdatum");
+    const start = args.geplandeStart === undefined ? werkitem.geplandeStart : args.geplandeStart;
+    const eind = args.geplandeEind === undefined ? werkitem.geplandeEind : args.geplandeEind;
+    for (const datum of [start, eind]) {
+      if (datum && (!/^\d{4}-\d{2}-\d{2}$/.test(datum) || !Number.isFinite(Date.parse(datum)) || new Date(datum).toISOString().slice(0, 10) !== datum)) throw new ConvexError("Ongeldige plandatum");
     }
+    if (start && eind && eind < start) throw new ConvexError("Geplande einddatum ligt vóór de startdatum");
+    const beginTijd = args.geplandeStartTijd === undefined ? werkitem.geplandeStartTijd : args.geplandeStartTijd;
+    const eindTijd = args.geplandeEindTijd === undefined ? werkitem.geplandeEindTijd : args.geplandeEindTijd;
+    for (const tijd of [beginTijd, eindTijd]) if (tijd && !/^([01]\d|2[0-3]):[0-5]\d$/.test(tijd)) throw new ConvexError("Ongeldige plantijd");
+    if (start && (!eind || start === eind) && beginTijd && eindTijd && eindTijd <= beginTijd) throw new ConvexError("Geplande eindtijd moet na de begintijd liggen");
+    if (args.volgordeBinnenDag != null && (!Number.isInteger(args.volgordeBinnenDag) || args.volgordeBinnenDag < 0)) throw new ConvexError("Ongeldige volgorde");
 
     let teamNaam: string | null = null;
     if (args.teamId) {
