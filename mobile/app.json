@@ -78,7 +78,8 @@
         {
           "microphonePermission": "Top Tuinen gebruikt de microfoon voor spraaknotities bij projecten"
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "extra": {
       "router": {},
