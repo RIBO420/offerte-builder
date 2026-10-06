@@ -318,7 +318,8 @@ const Bubbel = memo(function Bubbel({ item, groep }: { item: Extract<ChatItem, {
   const toonAvatar = groep && !eigen;
   const hoekBoven = eersteVanReeks ? BUBBEL_RADIUS : BUBBEL_HOEK;
   const rolSleutel = normalizeRole(item.rol);
-  const rol = rolSleutel === 'onbekend' ? undefined : ROLE_LABELS[rolSleutel];
+  // Alleen een afwijkende rol noemen (voorman, directie); "Medewerker" bij elk bericht is ruis.
+  const rol = rolSleutel === 'onbekend' || rolSleutel === 'medewerker' ? undefined : ROLE_LABELS[rolSleutel];
 
   return (
     <View

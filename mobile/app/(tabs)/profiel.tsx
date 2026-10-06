@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useUser, useClerk } from '@clerk/clerk-expo';
 import { useQuery, useMutation } from 'convex/react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -105,6 +105,9 @@ function AuthenticatedProfielScreen() {
   const [_language, setLanguage] = useState('nl');
   const [showAboutDialog, setShowAboutDialog] = useState(false);
   const [showHelpDialog, setShowHelpDialog] = useState(false);
+  // Een melding of deeplink kan naar een ander scherm springen terwijl een
+  // dialoog openstaat; die mag dan niet over dat scherm heen blijven hangen.
+  useFocusEffect(useCallback(() => () => { setShowAboutDialog(false); setShowHelpDialog(false); }, []));
 
   // Notification settings state
   const pushEnabled = notificationPrefs?.enablePushNotifications ?? false;
