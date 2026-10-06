@@ -108,7 +108,7 @@ export function DagvoorstelEditor({ dag, datum, onOpgeslagen }: { dag: VeldDagDa
   };
   const veld = { color: kleuren.foreground, backgroundColor: kleuren.input, borderWidth: 1, borderColor: kleuren.border, borderRadius: 12, minHeight: 48, paddingHorizontal: 14, paddingVertical: 12, fontSize: 17 };
   const foutRegel = fout && <Text accessibilityRole="alert" style={[tekst.sub, { color: kleuren.danger }]}>{fout}</Text>;
-  if (!regels) return <View style={{ gap: 8 }}>{melding && <View accessibilityLiveRegion="polite"><Melding toon="succes" icoon={Check} tekst={melding} /></View>}<Button title="Dagvoorstel aanpassen" variant="outline" disabled={bezig} onPress={openen} icon={<SlidersHorizontal size={16} color={kleuren.foreground} strokeWidth={2} />} />{foutRegel}</View>;
+  if (!regels) return <View style={{ gap: 8 }}>{melding && <View accessibilityLiveRegion="polite"><Melding toon="succes" icoon={Check} tekst={melding} /></View>}<Button title="Aanpassen" variant="ghost" disabled={bezig} onPress={openen} icon={<SlidersHorizontal size={16} color={kleuren.foreground} strokeWidth={2} />} />{foutRegel}</View>;
   return <View style={{ gap: 12 }}>
     <Text accessibilityRole="header" style={[tekst.titel3, { color: kleuren.foreground }]}>Controleer je dagvoorstel</Text>
     <Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>Je concept wordt op dit toestel bewaard. Begin verschuiven behoudt de duur; eind wijzigen past de duur aan.</Text>

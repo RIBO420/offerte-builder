@@ -20,11 +20,12 @@ import React, { Component, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Alert, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from 'convex/react';
-import { CloudOff, Lock, Send, Sun, UserX } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, CloudOff, Lock, Sun, UserX } from 'lucide-react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useVeldCache } from '../../hooks/use-veld-cache';
 import { useVeldOpdracht } from '../../hooks/use-veld-opdracht';
-import { WerkbezoekDag, type WerkbezoekDagData } from '../../components/veld/WerkbezoekDag';
+import type { WerkbezoekDagData } from '../../components/veld/WerkbezoekDag';
+import { AfsluitenKaart, DagVoortgang, KlusLijst } from '../../components/veld/MijnDagOverzicht';
 import { VeldWachtrij } from '../../components/veld/VeldWachtrij';
 import { geldigeDag, schuifDag, vandaagAmsterdam, werkPeriode } from '../../lib/werk-periode';
 import { dagLabel, dagNummer, periodeLabel, weekNummer, weekdagKort } from '../../lib/datum-labels';
@@ -33,14 +34,12 @@ import { useCurrentUser } from '../../hooks/use-current-user';
 import { Button, OfflineIndicator, SkeletonCard } from '../../components/ui';
 import {
   BuitenModusProvider,
-  KlantblokKaart,
   NoodprotocolKnop,
   SegmentenLijst,
   useBuitenModus,
 } from '../../components/veld';
-import { Drukvlak, LegeStaat, Melding, PeriodeKiezer, SectieKop, StatusPil, WeekStrook } from '../../components/werk/Bouwstenen';
+import { Drukvlak, LegeStaat, Melding, WeekStrook } from '../../components/werk/Bouwstenen';
 import { isInternalRole } from '../../lib/roles';
-import { AanhangerRetourKaart } from '../../components/veld/AanhangerRetourKaart';
 import { tekst, useColors } from '../../theme';
 import type { VeldDagData, VeldInstellingenData } from '../../types/veld';
 
@@ -135,8 +134,8 @@ function MijnDag() {
             ? 'Nog geen uren gelogd voor deze dag.'
             : !bezoekLive?.gereed
               ? bezoekLive === undefined
-                ? 'De controle voor je vertrekt wordt geladen.'
-                : 'Rond eerst de controle voor je vertrekt af.'
+                ? 'Je klussen worden geladen.'
+                : 'Werk eerst de open punten bovenaan af.'
               : null;
 
   const handleDienIn = () => {
@@ -196,15 +195,24 @@ function MijnDag() {
         </View>
 
         {/* Week-navigatie */}
-        <PeriodeKiezer
-          titel={`Week ${weekNummer(week.van)}`}
-          ondertitel={periodeLabel(week.van, week.tot)}
-          vorigeLabel="Vorige week"
-          volgendeLabel="Volgende week"
-          onVorige={() => setDatum((d) => schuifDag(d, -7))}
-          onVolgende={() => setDatum((d) => schuifDag(d, 7))}
-          onVandaag={datum === vandaag ? undefined : () => setDatum(vandaag)}
-        />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: -6 }}>
+          <Text style={[tekst.voetnoot, tekst.cijfers, { color: kleuren.mutedForeground, flex: 1, fontWeight: '600' }]} numberOfLines={1}>
+            Week {weekNummer(week.van)} · {periodeLabel(week.van, week.tot)}
+          </Text>
+          {datum !== vandaag && (
+            <Drukvlak onPress={() => setDatum(vandaag)} haptic="selection" accessibilityLabel="Naar vandaag" style={{ height: 36, paddingHorizontal: 12, borderRadius: 18, justifyContent: 'center', backgroundColor: kleuren.primarySoft }}>
+              <Text style={[tekst.voetnoot, { color: kleuren.primary, fontWeight: '600' }]}>Vandaag</Text>
+            </Drukvlak>
+          )}
+          {([-7, 7] as const).map(stap => {
+            const Pijl = stap < 0 ? ChevronLeft : ChevronRight;
+            return (
+              <Drukvlak key={stap} onPress={() => setDatum(d => schuifDag(d, stap))} haptic="selection" hitSlop={4} accessibilityLabel={stap < 0 ? 'Vorige week' : 'Volgende week'} style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' }}>
+                <Pijl size={20} color={kleuren.foreground} strokeWidth={2.25} />
+              </Drukvlak>
+            );
+          })}
+        </View>
         <WeekStrook
           dagen={weekDagen}
           gekozen={datum}
@@ -236,63 +244,17 @@ function MijnDag() {
           />
         ) : (
           <>
-            {/* Dag-status */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <StatusPil label={isIngediend ? 'Ingediend' : 'Open'} toon={isIngediend ? 'succes' : 'neutraal'} />
-              <Text style={[tekst.sub, { color: kleuren.mutedForeground, flexShrink: 1 }]} numberOfLines={1}>
-                {dag.medewerker.naam}
-                {dag.team ? ` · team ${dag.team.naam}` : ' · geen team-dag gepland'}
-              </Text>
-            </View>
-            {isIngediend && (
-              <Melding
-                icoon={Lock}
-                toon="succes"
-                tekst="Je uren zijn ingediend en op slot. Alleen kantoor kan ze heropenen en corrigeren (met log). Notities en gedeelde bezoekmeldingen kun je nog aanvullen."
-              />
-            )}
-
-            {/* Klantblokken van de team-dag */}
-            {dag.stops.length > 0 && (
-              <View style={{ gap: 10 }}>
-                <SectieKop titel="Geplande klussen" telling={dag.stops.length} />
-                {dag.stops.map((stop) => (
-                  <KlantblokKaart
-                    key={String(stop.werkitemId)}
-                    stop={stop}
-                    datum={datum}
-                    magBewerken={magBewerken}
-                    fotos={bezoekDag?.bezoeken.find(b => b.werkitemId === stop.werkitemId)?.fotos}
-                  />
-                ))}
-              </View>
-            )}
-
-            {/* Urensegmenten: voorstellen bevestigen + eigen segmenten */}
+            <DagVoortgang dag={dag} bezoekDag={bezoekDag} datum={datum} isIngediend={isIngediend} />
+            <KlusLijst dag={dag} bezoekDag={bezoekDag} datum={datum} />
             <SegmentenLijst dag={dag} datum={datum} magBewerken={magBewerken} />
-
-            <WerkbezoekDag data={bezoekDag} datum={datum} />
-            <AanhangerRetourKaart key={`${datum}:${dag.team?._id ?? dag.medewerker._id}`} datum={datum} teamId={dag.team?._id} />
-
-            {/* Dag indienen — de enige gevulde knop van het scherm */}
-            {!isIngediend && (
-              <View style={{ gap: 8, marginTop: 6 }}>
-                <Button
-                  title="Dag indienen"
-                  size="lg"
-                  icon={<Send size={18} color={kleuren.primaryForeground} strokeWidth={2} />}
-                  onPress={handleDienIn}
-                  loading={bezigMetIndienen}
-                  disabled={indienBlokkade !== null}
-                  fullWidth
-                />
-                {indienBlokkade && (
-                  <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground, textAlign: 'center', fontSize: 14, lineHeight: 19 }]}>
-                    {indienBlokkade}
-                  </Text>
-                )}
-              </View>
-            )}
+            <AfsluitenKaart
+              datum={datum}
+              teamId={dag.team?._id}
+              isIngediend={isIngediend}
+              blokkade={indienBlokkade}
+              bezig={bezigMetIndienen}
+              onIndienen={handleDienIn}
+            />
           </>
         )}
       </ScrollView>

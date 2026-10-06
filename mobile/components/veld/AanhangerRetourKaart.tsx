@@ -45,7 +45,7 @@ function foutTekst(error: unknown): string {
 }
 
 /** De retourmelding is een ploegantwoord; uren indienen staat hier los van. */
-export function AanhangerRetourKaart({ datum, teamId }: { datum: string; teamId?: string }) {
+export function AanhangerRetourKaart({ datum, teamId, ingebed = false }: { datum: string; teamId?: string; ingebed?: boolean }) {
   const kleuren = useVeldKleuren();
   const liveDag = useQuery(api.aanhangerRetouren.getDag, {
     datum, ...(teamId ? { teamId: teamId as Id<'teams'> } : {}),
@@ -122,7 +122,7 @@ export function AanhangerRetourKaart({ datum, teamId }: { datum: string; teamId?
   const veldLabel = [tekst.voetnoot, { color: kleuren.mutedForeground, fontWeight: '600' as const }];
   return (
     <View style={{ gap: 10 }}>
-      <SectieKop titel="Terug naar de loods" />
+      {!ingebed && <SectieKop titel="Terug naar de loods" />}
       <Kaart style={{ gap: 14 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <IcoonTegel icoon={Truck} toon="neutraal" grootte={40} />

@@ -19,10 +19,11 @@ import { DagvoorstelEditor } from './DagvoorstelEditor';
 import { KlusKiezer } from './KlusKiezer';
 import { VerwijderKnop } from './VerwijderKnop';
 import { useVeldServerActie } from '../../hooks/use-veld-server-actie';
-import { Check, CheckCheck, Clock, CloudUpload, Pencil, Plus, StickyNote, Trash2 } from 'lucide-react-native';
+import { Check, CheckCheck, ChevronRight, Clock, CloudUpload, Plus, StickyNote } from 'lucide-react-native';
 import { BottomSheet, Button, Input } from '../ui';
 import { Drukvlak, IcoonTegel, Kaart, Melding, Scheiding, SectieKop, StatusPil } from '../werk/Bouwstenen';
 import { tekst } from '../../theme';
+import { urenLabel } from '../../lib/werk-periode';
 import {
   CATEGORIE_LABELS,
   isGeldigTijdvak,
@@ -32,6 +33,8 @@ import {
   type VoorstelSegment,
 } from '../../types/veld';
 import { useVeldKleuren } from './BuitenModus';
+
+const minuten = (tijd: string) => { const [u, m] = tijd.split(':').map(Number); return (u || 0) * 60 + (m || 0); };
 
 function toonFout(fout: unknown, fallback: string) {
   const bericht =
@@ -65,6 +68,10 @@ export function SegmentenLijst({
   const [formOpen, setFormOpen] = useState(false);
   const [bewerkSegment, setBewerkSegment] = useState<VeldSegment | null>(null);
 
+  const totaal = dag.segmenten.reduce((som, s) => som + Math.max(0, minuten(s.eindTijd) - minuten(s.beginTijd)), 0);
+  const voorstelMinuten = dag.voorstellen.reduce((som, v) => som + Math.max(0, minuten(v.eindTijd) - minuten(v.beginTijd)), 0);
+  const categorieKleur = (c: SegmentCategorie) => c === 'werken' ? kleuren.primary : c === 'pauze' ? kleuren.randSterk : c === 'reistijd' ? kleuren.werkReis : kleuren.werkLoods;
+
   const stopNaam = (werkitemId: string | null | undefined): string | null => {
     if (!werkitemId) return null;
     const stop = dag.stops.find((s) => String(s.werkitemId) === String(werkitemId));
@@ -81,7 +88,6 @@ export function SegmentenLijst({
     } catch (fout) { toonFout(fout, 'Bevestigen is mislukt'); }
     finally { actieBezig.current = false; setBevestigBezig(null); }
   };
-  const handleBevestigVoorstel = (voorstel: VoorstelSegment, i: number) => bevestigVoorstellen([voorstel], String(i));
   const handleBevestigAlle = () => bevestigVoorstellen(dag.voorstellen, 'alle');
 
   const handleVerwijder = (segment: VeldSegment) => {
@@ -109,9 +115,9 @@ export function SegmentenLijst({
     <View style={{ gap: 10 }}>
       <SectieKop
         titel="Uren"
-        telling={dag.segmenten.length}
-        rechts={magBewerken ? (
-          <Button
+        rechts={<View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          {totaal > 0 && <Text style={[tekst.kop, tekst.cijfers, { color: kleuren.mutedForeground }]}>{urenLabel(totaal)}</Text>}
+          {magBewerken && <Button
             variant="outline"
             size="sm"
             title="Segment"
@@ -121,63 +127,41 @@ export function SegmentenLijst({
               setBewerkSegment(null);
               setFormOpen(true);
             }}
-          />
-        ) : undefined}
+          />}
+        </View>}
       />
 
       {dagWacht && <Melding toon="wachten" icoon={CloudUpload} tekst="Uren van deze dag wachten op synchronisatie. Controleer de wachtrij voordat je verder wijzigt." />}
       {succes?.datum === datum && <View accessibilityLiveRegion="polite"><Melding toon="succes" icoon={Check} tekst={succes.tekst} /></View>}
       {/* Voorgestelde segmenten uit de dagkaart (§8.10) */}
       {magBewerken && !dagWacht && dag.voorstellen.length > 0 && (
-        <Kaart style={{ borderStyle: 'dashed', backgroundColor: kleuren.surface }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-            <View style={{ flex: 1, gap: 2 }}>
-              <Text style={[tekst.kop, { color: kleuren.foreground }]}>Voorstel uit je dagkaart</Text>
-              <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground, fontSize: 14, lineHeight: 19 }]}>
-                Bevestig of corrigeer
-              </Text>
-            </View>
-            <Button
-              variant="secondary"
-              size="sm"
-              title={`Alles (${dag.voorstellen.length})`}
-              icon={<CheckCheck size={16} color={kleuren.primary} strokeWidth={2} />}
-              loading={bevestigBezig === 'alle'}
-              disabled={!!bevestigBezig}
-              onPress={handleBevestigAlle}
-            />
+        <Kaart style={{ borderStyle: 'dashed', backgroundColor: kleuren.surface, gap: 12 }}>
+          <View style={{ gap: 2 }}>
+            <Text style={[tekst.kop, { color: kleuren.foreground }]}>Voorstel uit je dagkaart</Text>
+            <Text style={[tekst.voetnoot, tekst.cijfers, { color: kleuren.mutedForeground, fontSize: 14, lineHeight: 19 }]}>
+              {dag.voorstellen.length} {dag.voorstellen.length === 1 ? 'blok' : 'blokken'} · {urenLabel(voorstelMinuten)}. Klopt het? Bevestig of pas aan.
+            </Text>
           </View>
-          <DagvoorstelEditor dag={dag} datum={datum} onOpgeslagen={meld} />
           <View>
             {dag.voorstellen.map((voorstel, i) => (
-              <View key={`${voorstel.beginTijd}-${voorstel.categorie}-${i}`}>
-                {i > 0 && <Scheiding />}
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, minHeight: 52, paddingVertical: 4 }}>
-                  <View style={{ flex: 1, gap: 1 }}>
-                    <Text style={[tekst.kop, { color: kleuren.foreground }]}>
-                      <Text style={tekst.cijfers}>{voorstel.beginTijd}–{voorstel.eindTijd}</Text>
-                      <Text style={{ color: kleuren.mutedForeground, fontWeight: '400' }}>{'  '}{CATEGORIE_LABELS[voorstel.categorie]}</Text>
-                    </Text>
-                    {stopNaam(voorstel.werkitemId) && (
-                      <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground, fontSize: 14 }]} numberOfLines={1}>
-                        {stopNaam(voorstel.werkitemId)}
-                      </Text>
-                    )}
-                  </View>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    title="Bevestig"
-                    accessibilityLabel={`Bevestig ${voorstel.beginTijd}–${voorstel.eindTijd} ${CATEGORIE_LABELS[voorstel.categorie]}`}
-                    icon={<Check size={16} color={kleuren.primary} strokeWidth={2} />}
-                    loading={bevestigBezig === String(i)}
-                    disabled={!!bevestigBezig}
-                    onPress={() => handleBevestigVoorstel(voorstel, i)}
-                  />
-                </View>
+              <View key={`${voorstel.beginTijd}-${voorstel.categorie}-${i}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44, paddingVertical: 4 }}>
+                <View style={{ width: 4, alignSelf: 'stretch', minHeight: 28, borderRadius: 2, backgroundColor: categorieKleur(voorstel.categorie) }} />
+                <Text style={[tekst.callout, tekst.cijfers, { color: kleuren.foreground, width: 104 }]}>{voorstel.beginTijd}–{voorstel.eindTijd}</Text>
+                <Text style={[tekst.callout, { color: kleuren.mutedForeground, flex: 1 }]} numberOfLines={1}>
+                  {stopNaam(voorstel.werkitemId) ?? CATEGORIE_LABELS[voorstel.categorie]}
+                </Text>
               </View>
             ))}
           </View>
+          <Button
+            title={dag.voorstellen.length > 1 ? `Alles bevestigen (${dag.voorstellen.length})` : 'Bevestigen'}
+            icon={<CheckCheck size={18} color={kleuren.primaryForeground} strokeWidth={2} />}
+            loading={bevestigBezig === 'alle'}
+            disabled={!!bevestigBezig}
+            onPress={handleBevestigAlle}
+            fullWidth
+          />
+          <DagvoorstelEditor dag={dag} datum={datum} onOpgeslagen={meld} />
         </Kaart>
       )}
 
@@ -197,7 +181,14 @@ export function SegmentenLijst({
             return (
               <View key={String(segment._id)}>
                 {i > 0 && <Scheiding />}
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 56, paddingVertical: 8 }}>
+                <Drukvlak
+                  disabled={!bewerkbaar}
+                  onPress={() => { setBewerkSegment(segment); setFormOpen(true); }}
+                  accessibilityLabel={`${segment.beginTijd} tot ${segment.eindTijd}, ${CATEGORIE_LABELS[segment.categorie]}${stopNaam(segment.werkitemId) ? `, ${stopNaam(segment.werkitemId)}` : ''}`}
+                  accessibilityHint={bewerkbaar ? 'Aanpassen of verwijderen' : undefined}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingVertical: 10 }}
+                >
+                  <View style={{ width: 4, alignSelf: 'stretch', minHeight: 32, borderRadius: 2, backgroundColor: categorieKleur(segment.categorie) }} />
                   <View style={{ flex: 1, gap: 2 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <Text style={[tekst.kop, tekst.cijfers, { color: kleuren.foreground }]}>
@@ -221,28 +212,8 @@ export function SegmentenLijst({
                     ) : null}
                   </View>
                   {!bewerkbaar && !dagWacht && dag.isEigenDag && <Button title="Notitie" variant="outline" size="sm" accessibilityLabel={`Notitie bij ${segment.beginTijd}–${segment.eindTijd}`} icon={<StickyNote size={16} color={kleuren.foreground} strokeWidth={2} />} onPress={() => { setBewerkSegment(segment); setFormOpen(true); }} />}
-                  {bewerkbaar && (
-                    <View style={{ flexDirection: 'row', gap: 4 }}>
-                      <Drukvlak
-                        accessibilityLabel="Segment bewerken"
-                        onPress={() => {
-                          setBewerkSegment(segment);
-                          setFormOpen(true);
-                        }}
-                        style={{ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: kleuren.vulling }}
-                      >
-                        <Pencil size={18} color={kleuren.foreground} strokeWidth={2} />
-                      </Drukvlak>
-                      <Drukvlak
-                        accessibilityLabel="Segment verwijderen"
-                        onPress={() => handleVerwijder(segment)}
-                        style={{ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: kleuren.dangerSoft }}
-                      >
-                        <Trash2 size={18} color={kleuren.danger} strokeWidth={2} />
-                      </Drukvlak>
-                    </View>
-                  )}
-                </View>
+                  {bewerkbaar && <ChevronRight size={18} color={kleuren.mutedForeground} strokeWidth={2} />}
+                </Drukvlak>
               </View>
             );
           })}
@@ -259,6 +230,11 @@ export function SegmentenLijst({
         dag={dag}
         datum={datum}
         bewerkSegment={bewerkSegment}
+        onVerwijder={magBewerken && bewerkSegment && bewerkSegment.status !== 'ingediend' ? () => {
+          const segment = bewerkSegment;
+          setFormOpen(false); setBewerkSegment(null);
+          handleVerwijder(segment);
+        } : undefined}
       />}
     </View>
   );
@@ -275,12 +251,14 @@ function SegmentFormSheet({
   dag,
   datum,
   bewerkSegment,
+  onVerwijder,
 }: {
   open: boolean;
   onClose: () => void;
   dag: VeldDagData;
   datum: string;
   bewerkSegment: VeldSegment | null;
+  onVerwijder?: () => void;
 }) {
   const kleuren = useVeldKleuren();
   const { verstuur, wachtrij } = useVeldOpdracht();
@@ -509,6 +487,7 @@ function SegmentFormSheet({
           loading={bezig}
           fullWidth
         />
+        {onVerwijder && <VerwijderKnop title="Segment verwijderen" onPress={onVerwijder} disabled={bezig} fullWidth />}
       </View>
     </BottomSheet>
   );

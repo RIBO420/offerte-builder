@@ -5,15 +5,15 @@ import type { Id } from '../../convex/_generated/dataModel';
 import { useVeldOpdracht } from '../../hooks/use-veld-opdracht';
 import { useCurrentUser } from '../../hooks/use-current-user';
 import { Button } from '../ui';
-import { Kaart, Melding, Scheiding, SectieKop, StatusPil } from '../werk/Bouwstenen';
+import { Kaart, Melding, Scheiding, StatusPil } from '../werk/Bouwstenen';
 import { tekst } from '../../theme';
 import { BezoekFotoActies } from './BezoekFotoActies';
 import { useVeldKleuren } from './BuitenModus';
 import { AFVOER, type AfvoerKeuze } from '../../lib/afvoer-keuzes';
 
-type Onderdeel = 'foto' | 'afronding' | 'aanhanger' | 'afvoer';
-const LABELS: Record<Onderdeel, string> = { foto: 'Foto', afronding: 'Werk terugmelden', aanhanger: 'Aanhanger', afvoer: 'Afval meegenomen' };
-interface Bezoek {
+export type Onderdeel = 'foto' | 'afronding' | 'aanhanger' | 'afvoer';
+export const LABELS: Record<Onderdeel, string> = { foto: 'Foto', afronding: 'Werk terugmelden', aanhanger: 'Aanhanger', afvoer: 'Afval meegenomen' };
+export interface Bezoek {
   werkitemId: Id<'projecten'>; bezoekSleutel: string; naam: string; klantNaam: string | null; instructie?: string | null;
   afronding: { afgerond: boolean; reden?: string; resterendMinuten?: number; revision: number; doorNaam: string } | null;
   afvoer?: { keuze: AfvoerKeuze; revision: number; doorNaam: string } | null;
@@ -23,18 +23,12 @@ interface Bezoek {
 }
 export interface WerkbezoekDagData { bezoeken: Bezoek[]; gereed: boolean }
 
-export function WerkbezoekDag({ data, datum }: { data: WerkbezoekDagData | undefined; datum: string }) {
-  const kleuren = useVeldKleuren();
-  if (!data) return <View style={{ gap: 10 }}><SectieKop titel="Controle voor je vertrekt" /><Kaart variant="stil"><Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>Dagcontrole laden…</Text></Kaart></View>;
-  if (!data.bezoeken.length) return null;
-  return <View style={{ gap: 10 }}>
-    <SectieKop titel="Controle voor je vertrekt" telling={data.bezoeken.length} />
-    <Text style={[tekst.sub, { color: kleuren.mutedForeground, paddingHorizontal: 4 }]}>Meld per bezoek wat je hebt gedaan. Je collega&apos;s zien hetzelfde antwoord.</Text>
-    {data.bezoeken.map(bezoek => <BezoekKaart key={bezoek.bezoekSleutel} bezoek={bezoek} datum={datum} />)}
-  </View>;
-}
-
-function BezoekKaart({ bezoek, datum }: { bezoek: Bezoek; datum: string }) {
+/**
+ * Bezoekmelding van één klus: terugmelden, afval, foto's en overdragen.
+ * `ingebed` = binnen het klusscherm; dan staan klantnaam en instructie al
+ * bovenaan en heet de kaart "Voor je vertrekt".
+ */
+export function BezoekKaart({ bezoek, datum, ingebed = false }: { bezoek: Bezoek; datum: string; ingebed?: boolean }) {
   const kleuren = useVeldKleuren(); const { linkedMedewerkerId } = useCurrentUser();
   const { verstuur, wachtrij } = useVeldOpdracht();
   const { voerUit } = useVeldServerActie();
@@ -73,10 +67,10 @@ function BezoekKaart({ bezoek, datum }: { bezoek: Bezoek; datum: string }) {
   const veld = { color: kleuren.foreground, backgroundColor: kleuren.input, borderWidth: 1, borderColor: kleuren.border, borderRadius: 12, minHeight: 48, paddingHorizontal: 14, paddingVertical: 12, fontSize: 17 };
   return <Kaart style={{ gap: 14 }}>
     <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
-      <Text accessibilityRole="header" style={[tekst.titel3, { color: kleuren.foreground, flex: 1 }]} numberOfLines={2}>{bezoek.klantNaam ?? bezoek.naam}</Text>
+      <Text accessibilityRole="header" style={[tekst.titel3, { color: kleuren.foreground, flex: 1 }]} numberOfLines={2}>{ingebed ? 'Voor je vertrekt' : bezoek.klantNaam ?? bezoek.naam}</Text>
       <StatusPil label={bezoek.gedeeldGereed ? 'Compleet' : 'Open'} toon={bezoek.gedeeldGereed ? 'succes' : 'wachten'} />
     </View>
-    {bezoek.instructie && (
+    {!ingebed && bezoek.instructie && (
       <View style={{ backgroundColor: kleuren.muted, borderRadius: 14, padding: 12, gap: 4 }}>
         <Text style={[tekst.bijschrift, { color: kleuren.mutedForeground, textTransform: 'uppercase', letterSpacing: 0.5 }]}>Instructie</Text>
         <Text style={[tekst.callout, { color: kleuren.foreground }]}>{bezoek.instructie}</Text>

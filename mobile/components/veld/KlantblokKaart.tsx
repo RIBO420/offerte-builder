@@ -94,12 +94,18 @@ export function KlantblokKaart({
   datum,
   magBewerken,
   fotos,
+  ingebed = false,
 }: {
   stop: VeldStop;
   datum: string;
   magBewerken: boolean;
   /** Opgeslagen foto's van dit bezoek (werkbezoek.getVoorDag). */
   fotos?: BezoekFotoData[];
+  /**
+   * Binnen het klusscherm: de klantnaam staat dan al in de navigatiebalk en
+   * de foto's in de bezoekkaart eronder.
+   */
+  ingebed?: boolean;
 }) {
   const kleuren = useVeldKleuren();
   const isAfgerond =
@@ -117,9 +123,14 @@ export function KlantblokKaart({
       {/* Klant + status */}
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
         <View style={{ flex: 1, gap: 2 }}>
-          <Text style={[tekst.titel3, { color: kleuren.foreground }]} numberOfLines={2}>
-            {stop.klantNaam ?? stop.naam}
-          </Text>
+          {!ingebed && (
+            <Text style={[tekst.titel3, { color: kleuren.foreground }]} numberOfLines={2}>
+              {stop.klantNaam ?? stop.naam}
+            </Text>
+          )}
+          {ingebed && stop.klantNaam && (
+            <Text style={[tekst.kop, { color: kleuren.foreground }]} numberOfLines={2}>{stop.naam}</Text>
+          )}
           {stop.adres && (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <MapPin size={14} color={kleuren.mutedForeground} strokeWidth={2} />
@@ -147,6 +158,13 @@ export function KlantblokKaart({
           <Text style={[tekst.voetnoot, { color: waarschuwing.voor, flex: 1, fontSize: 14, lineHeight: 19, fontWeight: '500' }]} numberOfLines={3}>
             {stop.bijzonderheden}
           </Text>
+        </View>
+      ) : null}
+
+      {ingebed && stop.uitvoeringsInstructie ? (
+        <View style={{ backgroundColor: kleuren.muted, borderRadius: 14, padding: 12, gap: 4 }}>
+          <Text style={[tekst.bijschrift, { color: kleuren.mutedForeground, textTransform: 'uppercase', letterSpacing: 0.5 }]}>Instructie</Text>
+          <Text style={[tekst.callout, { color: kleuren.foreground }]}>{stop.uitvoeringsInstructie}</Text>
         </View>
       ) : null}
 
@@ -200,7 +218,7 @@ export function KlantblokKaart({
           />
         )}
       </View>
-      {magBewerken && (
+      {magBewerken && !ingebed && (
         <>
           <Scheiding />
           <BezoekFotoActies werkitemId={stop.werkitemId} datum={datum} fotos={fotos} naam={stop.klantNaam ?? stop.naam} />
