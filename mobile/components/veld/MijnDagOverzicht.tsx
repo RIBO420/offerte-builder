@@ -125,11 +125,14 @@ export function KlusLijst({ dag, bezoekDag, datum }: { dag: VeldDagData; bezoekD
                     {rij.sub && <Text style={[tekst.voetnoot, tekst.cijfers, { color: kleuren.mutedForeground, fontSize: 14 }]} numberOfLines={1}>{rij.sub}</Text>}
                   </View>
                   {status.length > 0 && (
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: 14, rowGap: 4 }}>
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: 16, rowGap: 6 }}>
                       {status.map(s => (
-                        <View key={s.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                          {s.af ? <Check size={14} color={kleuren.success} strokeWidth={2.75} /> : <Circle size={12} color={kleuren.mutedForeground} strokeWidth={2.25} />}
-                          <Text style={[tekst.voetnoot, { color: s.af ? kleuren.foreground : kleuren.mutedForeground, fontSize: 14 }]}>{s.label}</Text>
+                        <View key={s.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+                          {/* Gedaan = gevuld groen rondje met vinkje; open = leeg rondje. */}
+                          <View style={{ width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: s.af ? kleuren.success : 'transparent', borderWidth: s.af ? 0 : 2, borderColor: kleuren.mutedForeground }}>
+                            {s.af && <Check size={14} color={kleuren.primaryForeground} strokeWidth={3} />}
+                          </View>
+                          <Text style={[tekst.sub, { color: s.af ? kleuren.foreground : kleuren.mutedForeground, fontWeight: s.af ? '600' : '400' }]}>{s.label}</Text>
                         </View>
                       ))}
                     </View>
