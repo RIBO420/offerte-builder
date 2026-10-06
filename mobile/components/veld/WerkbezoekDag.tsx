@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, Text, TextInput, View } from 'react-native';
+import { Text, TextInput, View } from 'react-native';
 import { useVeldServerActie } from '../../hooks/use-veld-server-actie';
 import type { Id } from '../../convex/_generated/dataModel';
 import { useVeldOpdracht } from '../../hooks/use-veld-opdracht';
@@ -8,8 +8,8 @@ import { Button } from '../ui';
 import { Kaart, Melding, Scheiding, SectieKop, StatusPil } from '../werk/Bouwstenen';
 import { tekst } from '../../theme';
 import { BezoekFotoActies } from './BezoekFotoActies';
-import { BezoekFoto } from './BezoekFoto';
 import { useVeldKleuren } from './BuitenModus';
+import { AFVOER, type AfvoerKeuze } from '../../lib/afvoer-keuzes';
 
 type Onderdeel = 'foto' | 'afronding' | 'aanhanger' | 'afvoer';
 const LABELS: Record<Onderdeel, string> = { foto: 'Foto', afronding: 'Werk terugmelden', aanhanger: 'Aanhanger', afvoer: 'Afval meegenomen' };
@@ -70,9 +70,6 @@ function BezoekKaart({ bezoek, datum }: { bezoek: Bezoek; datum: string }) {
   const intrekkenDelegatie = async (id: Id<'werkbezoekDelegaties'>) => {
     try { await voerUit('werkbezoek:trekDelegatieIn', { id }); } catch (error) { setFout(error instanceof Error ? error.message : 'Intrekken mislukt.'); }
   };
-  const fotoWeg = (foto: Bezoek['fotos'][number]) => Alert.alert('Foto verwijderen?', 'De foto verdwijnt uit dit bezoek en het klantdossier.', [
-    { text: 'Annuleren', style: 'cancel' }, { text: 'Verwijderen', style: 'destructive', onPress: async () => { try { await voerUit('werkbezoek:verwijderFoto', { id: foto.id }); } catch (error) { setFout(error instanceof Error ? error.message : 'Verwijderen mislukt.'); } } },
-  ]);
   const veld = { color: kleuren.foreground, backgroundColor: kleuren.input, borderWidth: 1, borderColor: kleuren.border, borderRadius: 12, minHeight: 48, paddingHorizontal: 14, paddingVertical: 12, fontSize: 17 };
   return <Kaart style={{ gap: 14 }}>
     <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
@@ -101,8 +98,7 @@ function BezoekKaart({ bezoek, datum }: { bezoek: Bezoek; datum: string }) {
     <Scheiding />
     <AfvoerMelding bezoek={bezoek} datum={datum} />
     <Scheiding />
-    <BezoekFotoActies werkitemId={bezoek.werkitemId} datum={datum} />
-    {bezoek.fotos.map(foto => <View key={foto.id} style={{ gap: 6 }}>{foto.url && <BezoekFoto url={foto.url} label={`${foto.fase === 'voor' ? 'Voorfoto' : 'Nafoto'} van ${bezoek.naam}`} />}<Text style={[tekst.voetnoot, { color: kleuren.mutedForeground, fontSize: 14 }]}>{foto.fase === 'voor' ? 'Voorfoto' : 'Nafoto'} · {foto.doorNaam}</Text>{foto.magVerwijderen && <Button title="Foto verwijderen" variant="ghost" size="sm" onPress={() => fotoWeg(foto)} />}</View>)}
+    <BezoekFotoActies werkitemId={bezoek.werkitemId} datum={datum} fotos={bezoek.fotos} naam={bezoek.klantNaam ?? bezoek.naam} />
     {bezoek.ontbreekt.length > 0 && <Scheiding />}
     {bezoek.ontbreekt.map(onderdeel => {
       const eigenDelegatie = bezoek.delegaties.find(d => d.onderdeel === onderdeel && d.medewerkerId === linkedMedewerkerId);
@@ -112,8 +108,6 @@ function BezoekKaart({ bezoek, datum }: { bezoek: Bezoek; datum: string }) {
   </Kaart>;
 }
 
-type AfvoerKeuze = 'geen' | 'kwart' | 'half' | 'driekwart' | 'vol';
-const AFVOER: [AfvoerKeuze, string][] = [['geen', 'Geen'], ['kwart', '¼ aanhanger'], ['half', '½ aanhanger'], ['driekwart', '¾ aanhanger'], ['vol', 'Volle aanhanger']];
 function AfvoerMelding({ bezoek, datum }: { bezoek: Bezoek; datum: string }) {
   const kleuren = useVeldKleuren(); const { verstuur, wachtrij } = useVeldOpdracht();
   const pending = wachtrij.find(r => r.type === 'afvoer' && r.payload.werkitemId === bezoek.werkitemId && r.payload.datum === datum);

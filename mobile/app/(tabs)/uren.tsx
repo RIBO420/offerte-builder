@@ -262,6 +262,7 @@ function MijnDag() {
                     stop={stop}
                     datum={datum}
                     magBewerken={magBewerken}
+                    fotos={bezoekDag?.bezoeken.find(b => b.werkitemId === stop.werkitemId)?.fotos}
                   />
                 ))}
               </View>

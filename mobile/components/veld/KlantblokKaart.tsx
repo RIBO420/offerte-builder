@@ -16,13 +16,14 @@ import {
   ClipboardCheck,
   MapPin,
   Plus,
+  Trash2,
   TriangleAlert,
 } from 'lucide-react-native';
 import { api } from '../../convex/_generated/api';
 import { BottomSheet, Button, Checkbox, Input } from '../ui';
-import { Drukvlak, Kaart, Scheiding, SectieKop, StatusPil, toonKleuren, type Toon } from '../werk/Bouwstenen';
+import { Kaart, Scheiding, SectieKop, Segment, StatusPil, toonKleuren, type Toon } from '../werk/Bouwstenen';
 import { tekst } from '../../theme';
-import { BezoekFotoActies } from './BezoekFotoActies';
+import { BezoekFotoActies, type BezoekFotoData } from './BezoekFotoActies';
 import {
   type DeltaChecklistData,
   type MeerwerkRij,
@@ -39,11 +40,11 @@ const STATUS_VOLGORDE: TaakStatus[] = [
 
 const STATUS_WEERGAVE: Record<
   TaakStatus,
-  { label: string; icoon: typeof Circle; toon: Toon }
+  { label: string; kort: string; icoon: typeof Circle; toon: Toon }
 > = {
-  afgerond: { label: 'Afgerond', icoon: CheckCircle2, toon: 'succes' },
-  begonnen_niet_af: { label: 'Begonnen, niet af', icoon: CircleDot, toon: 'wachten' },
-  niet_gestart: { label: 'Niet gestart', icoon: Circle, toon: 'neutraal' },
+  afgerond: { label: 'Afgerond', kort: 'Af', icoon: CheckCircle2, toon: 'succes' },
+  begonnen_niet_af: { label: 'Begonnen, niet af', kort: 'Deels af', icoon: CircleDot, toon: 'wachten' },
+  niet_gestart: { label: 'Niet gestart', kort: 'Niet gestart', icoon: Circle, toon: 'neutraal' },
 };
 
 const MEERWERK_STATUS_LABELS: Record<MeerwerkRij['status'], string> = {
@@ -66,8 +67,14 @@ function toonFout(fout: unknown, fallback: string) {
   Alert.alert('Let op', bericht.replace(/^.*Uncaught ConvexError:?\s*/, ''));
 }
 
-/** Klusstatus als leesbaar label ("deels_uitgevoerd" → "Deels uitgevoerd"). */
+const KLUS_STATUS: Record<string, string> = {
+  gepland: 'Gepland', ingepland: 'Ingepland', in_uitvoering: 'Bezig', uitgevoerd: 'Uitgevoerd',
+  deels_uitgevoerd: 'Deels uitgevoerd', afgerond: 'Afgerond', geannuleerd: 'Geannuleerd',
+};
+
+/** Klusstatus als leesbaar label; onbekende waarden zonder underscores. */
 function statusLabel(status: string): string {
+  if (KLUS_STATUS[status]) return KLUS_STATUS[status];
   const s = status.replace(/_/g, ' ');
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
@@ -86,10 +93,13 @@ export function KlantblokKaart({
   stop,
   datum,
   magBewerken,
+  fotos,
 }: {
   stop: VeldStop;
   datum: string;
   magBewerken: boolean;
+  /** Opgeslagen foto's van dit bezoek (werkbezoek.getVoorDag). */
+  fotos?: BezoekFotoData[];
 }) {
   const kleuren = useVeldKleuren();
   const isAfgerond =
@@ -193,7 +203,7 @@ export function KlantblokKaart({
       {magBewerken && (
         <>
           <Scheiding />
-          <BezoekFotoActies werkitemId={stop.werkitemId} datum={datum} />
+          <BezoekFotoActies werkitemId={stop.werkitemId} datum={datum} fotos={fotos} naam={stop.klantNaam ?? stop.naam} />
         </>
       )}
 
@@ -336,7 +346,7 @@ function RouteDeltaSheet({
           <View style={{ flexDirection: 'row', gap: 8 }}>{(['materiaal', 'machine'] as const).map(waarde => <Button key={waarde} title={waarde === 'materiaal' ? 'Materiaal' : 'Machine'} variant={soort === waarde ? 'secondary' : 'outline'} geselecteerd={soort === waarde} disabled={bezig} onPress={() => setSoort(waarde)} />)}</View>
           <Button title="Toevoegen aan checklist" variant="outline" disabled={bezig || !naam.trim()} onPress={() => toevoegen({ naam: naam.trim(), soort, bron: 'handmatig' })} />
         </View>
-        {delta?.kanVerwijderen && delta.handmatigBenodigd?.map(item => <Button key={item.id} title={`Verwijderen: ${item.naam}`} variant="ghost" disabled={bezig} onPress={() => Alert.alert('Benodigdheid verwijderen?', item.naam, [{ text: 'Annuleren', style: 'cancel' }, { text: 'Verwijderen', style: 'destructive', onPress: async () => { try { await verwijder({ id: item.id, datum }); } catch (fout) { toonFout(fout, 'Verwijderen mislukt'); } } }])} />)}
+        {delta?.kanVerwijderen && delta.handmatigBenodigd?.map(item => <Button key={item.id} title={`Verwijderen: ${item.naam}`} variant="outline" icon={<Trash2 size={16} color={kleuren.danger} strokeWidth={2} />} disabled={bezig} onPress={() => Alert.alert('Benodigdheid verwijderen?', item.naam, [{ text: 'Annuleren', style: 'cancel' }, { text: 'Verwijderen', style: 'destructive', onPress: async () => { try { await verwijder({ id: item.id, datum }); } catch (fout) { toonFout(fout, 'Verwijderen mislukt'); } } }])} />)}
         <Button
           title="Open route in Maps"
           size="lg"
@@ -387,14 +397,6 @@ function AfrondSheet({
   const [notities, setNotities] = useState<string[]>(() => taken.map(() => ''));
   const [bezig, setBezig] = useState(false);
 
-  const wisselStatus = (index: number) => {
-    setStatussen((huidige) => {
-      const volgende = [...huidige];
-      const positie = STATUS_VOLGORDE.indexOf(volgende[index]);
-      volgende[index] = STATUS_VOLGORDE[(positie + 1) % STATUS_VOLGORDE.length];
-      return volgende;
-    });
-  };
 
   const nietAf = statussen.filter((s) => s !== 'afgerond').length;
 
@@ -435,10 +437,7 @@ function AfrondSheet({
           af → automatisch als rest-opdracht terug in de wachtrij.
         </Text>
         {taken.map((taak, i) => {
-          const weergave = STATUS_WEERGAVE[statussen[i]];
-          const Icoon = weergave.icoon;
           const isKlaar = statussen[i] === 'afgerond';
-          const { voor, achter } = toonKleuren(kleuren, weergave.toon);
           return (
             <Kaart key={i} padding={14} style={{ gap: 10 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -452,26 +451,12 @@ function AfrondSheet({
                   </Text>
                 )}
               </View>
-              <Drukvlak
-                accessibilityLabel={`Status van ${taak.omschrijving}: ${weergave.label}. Tik om te wisselen.`}
-                onPress={() => wisselStatus(i)}
-                haptic="selection"
-                buitenStijl={{ alignSelf: 'flex-start' }}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 8,
-                  minHeight: 44,
-                  paddingHorizontal: 14,
-                  borderRadius: 999,
-                  backgroundColor: achter,
-                }}
-              >
-                <Icoon size={18} color={voor} strokeWidth={2} />
-                <Text style={[tekst.sub, { color: voor, fontWeight: '600' }]}>
-                  {weergave.label}
-                </Text>
-              </Drukvlak>
+              <Segment
+                label={`Status van ${taak.omschrijving}`}
+                opties={STATUS_VOLGORDE.slice().reverse().map(waarde => ({ waarde, label: STATUS_WEERGAVE[waarde].kort }))}
+                waarde={statussen[i]}
+                onChange={waarde => setStatussen(huidige => huidige.map((s, j) => (j === i ? waarde : s)))}
+              />
               {!isKlaar && (
                 <Input
                   value={notities[i]}
@@ -498,7 +483,13 @@ function AfrondSheet({
         <Button
           title="Klus afronden"
           size="lg"
-          onPress={handleAfronden}
+          onPress={() => Alert.alert(
+            'Klus afronden?',
+            nietAf === 0
+              ? 'Alle taken zijn af. De klus gaat naar kantoor voor facturatie.'
+              : `${nietAf} ${nietAf === 1 ? 'taak gaat' : 'taken gaan'} als rest-opdracht terug naar kantoor; de rest gaat naar facturatie.`,
+            [{ text: 'Annuleren', style: 'cancel' }, { text: 'Afronden', onPress: () => { void handleAfronden(); } }],
+          )}
           loading={bezig}
           fullWidth
         />
