@@ -2,12 +2,13 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '@clerk/clerk-expo';
 import { wijzigVoorstelTijd, splitsVoorPauze, tijdMinuten, minutenTijd } from '../../lib/dagvoorstel-tijden';
-import { Alert, Pressable, Text, TextInput, View } from 'react-native';
+import { Alert, Text, TextInput, View } from 'react-native';
 import { useVeldOpdracht } from '../../hooks/use-veld-opdracht';
 import * as Crypto from 'expo-crypto';
-import { Check, Coffee, Plus, SlidersHorizontal } from 'lucide-react-native';
-import { Button, Checkbox } from '../ui';
-import { Kaart, Melding, Scheiding } from '../werk/Bouwstenen';
+import { Check, ChevronDown, ChevronRight, ChevronUp, Coffee, Minus, Plus, SlidersHorizontal } from 'lucide-react-native';
+import { BottomSheet, Button, Checkbox, Switch } from '../ui';
+import { Drukvlak, Melding, Scheiding } from '../werk/Bouwstenen';
+import { categorieKleur } from './categorieKleur';
 import { tekst } from '../../theme';
 import { WerksoortKeuze, type Werksoort } from './WerksoortKeuze';
 import { KlusKiezer } from './KlusKiezer';
@@ -24,7 +25,7 @@ const minuten = (tijd: string) => Number(tijd.slice(0, 2)) * 60 + Number(tijd.sl
 const tijd = (waarde: number) => `${Math.floor(waarde / 60).toString().padStart(2, '0')}:${(waarde % 60).toString().padStart(2, '0')}`;
 
 /** Bewerk uitsluitend nog niet bevestigde voorstellen; één atomaire opslag. */
-export function DagvoorstelEditor({ dag, datum, onOpgeslagen }: { dag: VeldDagData; datum: string; onOpgeslagen?: (melding: string) => void }) {
+export function DagvoorstelEditor({ dag, datum, onOpgeslagen, onBewerken }: { dag: VeldDagData; datum: string; onOpgeslagen?: (melding: string) => void; onBewerken?: (open: boolean) => void }) {
   const kleuren = useVeldKleuren(); const { verstuur } = useVeldOpdracht();
   const { userId, orgId } = useAuth();
   const conceptSleutel = userId && orgId ? `toptuinen:dagconcept:v1:${orgId}:${userId}:${datum}` : null;
@@ -35,6 +36,8 @@ export function DagvoorstelEditor({ dag, datum, onOpgeslagen }: { dag: VeldDagDa
   const [revisie, setRevisie] = useState(0); const [schuifMee, setSchuifMee] = useState(true);
   const [bezig, setBezig] = useState(false); const [fout, setFout] = useState<string | null>(null);
   const [melding, setMelding] = useState<string | null>(null);
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
+  const [kiezer, setKiezer] = useState<{ index: number; soort: 'categorie' | 'klus' } | null>(null);
   const poging = useRef<{ payload: string; sleutel: string } | null>(null);
   const actief = useRef(false);
   if (conceptEigenaar !== conceptSleutel) { setConceptEigenaar(conceptSleutel); setRegels(null); setPauzeForm(null); setFout(null); setMelding(null); }
@@ -63,6 +66,8 @@ export function DagvoorstelEditor({ dag, datum, onOpgeslagen }: { dag: VeldDagDa
     } catch (error) { setFout(error instanceof Error ? error.message : 'Concept openen mislukt.'); }
     finally { setBezig(false); }
   };
+  const bewerkt = regels !== null;
+  useEffect(() => { onBewerken?.(bewerkt); }, [bewerkt, onBewerken]);
   const aanpassen = (index: number, patch: Partial<Regel>) => setRegels(huidig => huidig?.map((r, i) => i === index ? { ...r, ...patch } : r) ?? null);
   const tijdWijzigen = (index: number, veld: 'beginTijd' | 'eindTijd', waarde: string) => {
     if (!regels) return;
@@ -106,57 +111,123 @@ export function DagvoorstelEditor({ dag, datum, onOpgeslagen }: { dag: VeldDagDa
     catch (error) { setFout(error instanceof Error ? error.message : 'Opslaan is mislukt. Probeer opnieuw.'); }
     finally { actief.current = false; setBezig(false); }
   };
-  const veld = { color: kleuren.foreground, backgroundColor: kleuren.input, borderWidth: 1, borderColor: kleuren.border, borderRadius: 12, minHeight: 48, paddingHorizontal: 14, paddingVertical: 12, fontSize: 17 };
+  const veld = { color: kleuren.foreground, backgroundColor: kleuren.input, borderWidth: 1, borderColor: kleuren.border, borderRadius: 12, minHeight: 44, paddingHorizontal: 12, paddingVertical: 10, fontSize: 16 };
   const foutRegel = fout && <Text accessibilityRole="alert" style={[tekst.sub, { color: kleuren.danger }]}>{fout}</Text>;
   if (!regels) return <View style={{ gap: 8 }}>{melding && <View accessibilityLiveRegion="polite"><Melding toon="succes" icoon={Check} tekst={melding} /></View>}<Button title="Aanpassen" variant="ghost" disabled={bezig} onPress={openen} icon={<SlidersHorizontal size={16} color={kleuren.foreground} strokeWidth={2} />} />{foutRegel}</View>;
+  const klusNaam = (id?: string) => { const stop = dag.stops.find(s => String(s.werkitemId) === id); return stop ? stop.klantNaam ?? stop.naam : null; };
+  const kiesRegel = kiezer ? regels[kiezer.index] : null;
   return <View style={{ gap: 12 }}>
-    <Text accessibilityRole="header" style={[tekst.titel3, { color: kleuren.foreground }]}>Controleer je dagvoorstel</Text>
-    <Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>Je concept wordt op dit toestel bewaard. Begin verschuiven behoudt de duur; eind wijzigen past de duur aan.</Text>
-    <Checkbox label="Latere voorstellen meeschuiven" checked={schuifMee} onCheckedChange={setSchuifMee} disabled={bezig} />
-    {(dag.revisie ?? 0) !== revisie && <Text accessibilityRole="alert" style={[tekst.sub, { color: kleuren.warning }]}>De dag is intussen gewijzigd. Sluit dit voorstel en open het opnieuw voordat je opslaat.</Text>}
-    {regels.map((r, index) => {
-      const afwijkend = r.geplandeBeginTijd && r.geplandeEindTijd && Math.abs((minuten(r.eindTijd) - minuten(r.beginTijd)) - (minuten(r.geplandeEindTijd) - minuten(r.geplandeBeginTijd))) > 15;
-      return <Kaart key={index} padding={14} style={{ gap: 12 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 }}>
-          <Text style={[tekst.kop, { color: kleuren.foreground }]}>Segment {index + 1}</Text>
-          <Text style={[tekst.sub, tekst.cijfers, { color: kleuren.mutedForeground }]}>{r.beginTijd}–{r.eindTijd}</Text>
-        </View>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>{Object.entries(CATEGORIE_LABELS).map(([categorie, label]) => {
-          const actief = r.categorie === categorie;
-          return <Pressable key={categorie} disabled={bezig} accessibilityRole="radio" accessibilityState={{ checked: actief }} onPress={() => aanpassen(index, { categorie: categorie as SegmentCategorie, werksoort: undefined })} style={({ pressed }) => ({ minHeight: 44, paddingHorizontal: 14, justifyContent: 'center', borderRadius: 999, borderWidth: 1, borderColor: actief ? kleuren.primary : kleuren.randSterk, backgroundColor: actief ? kleuren.primary : kleuren.vulling, opacity: bezig ? 0.45 : pressed ? 0.7 : 1 })}><Text style={[tekst.sub, { color: actief ? kleuren.primaryForeground : kleuren.foreground, fontWeight: actief ? '600' : '500' }]}>{label}</Text></Pressable>;
-        })}</View>
-        {r.categorie === 'anders' && <WerksoortKeuze waarde={r.werksoort} wijzigen={werksoort => aanpassen(index, { werksoort })} disabled={bezig} />}
-        <View style={{ flexDirection: 'row', gap: 10 }}>{(['beginTijd', 'eindTijd'] as const).map(veld => <View key={veld} style={{ flex: 1, gap: 6 }}>
-          <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground, fontWeight: '600' }]}>{veld === 'beginTijd' ? 'Begin' : 'Eind'}</Text>
-          <EindTijdVeld label={`${veld === 'beginTijd' ? 'Begintijd' : 'Eindtijd'} segment ${index + 1}`} waarde={r[veld]} disabled={bezig} commit={waarde => tijdWijzigen(index, veld, waarde)} />
-          <View style={{ flexDirection: 'row', gap: 6 }}>{[-5, 5].map(delta => <View key={delta} style={{ flex: 1 }}><Button title={delta > 0 ? '+5' : '−5'} accessibilityLabel={`${veld === 'beginTijd' ? 'Begintijd' : 'Eindtijd'} segment ${index + 1} 5 minuten ${delta > 0 ? 'later' : 'eerder'}`} variant="secondary" size="sm" disabled={bezig} onPress={() => tijdWijzigen(index, veld, minutenTijd(tijdMinuten(r[veld]) + delta))} fullWidth /></View>)}</View>
-        </View>)}</View>
-        <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground, fontWeight: '600' }]}>Klus {r.categorie === 'werken' ? '(verplicht)' : '(optioneel)'}</Text>
-        <KlusKiezer datum={datum} stops={dag.stops} waarde={r.werkitemId} wijzigen={werkitemId => aanpassen(index, { werkitemId: werkitemId ?? undefined })} disabled={bezig} />
-        <TextInput accessibilityLabel={`Notitie segment ${index + 1}`} value={r.notitie} editable={!bezig} placeholder="Notitie (optioneel)" placeholderTextColor={kleuren.mutedForeground} onChangeText={notitie => aanpassen(index, { notitie })} style={veld} />
-        {afwijkend && <><TextInput accessibilityLabel={`Reden afwijking segment ${index + 1}`} value={r.afwijkingReden} editable={!bezig} placeholder="Waarom wijkt de duur af?" placeholderTextColor={kleuren.mutedForeground} onChangeText={afwijkingReden => aanpassen(index, { afwijkingReden })} style={veld} /><Checkbox label="Reden nu overslaan" checked={r.afwijkingOvergeslagen} onCheckedChange={afwijkingOvergeslagen => aanpassen(index, { afwijkingOvergeslagen })} disabled={bezig} /></>}
-        {pauzeForm?.index === index && <View style={{ gap: 8, backgroundColor: kleuren.muted, borderRadius: 14, padding: 12 }}><Text style={[tekst.kop, { color: kleuren.foreground }]}>Werk splitsen rond een genomen pauze</Text><TextInput accessibilityLabel="Begin van pauze" keyboardType="numbers-and-punctuation" maxLength={5} placeholder="12:00" placeholderTextColor={kleuren.mutedForeground} value={pauzeForm.begin} onChangeText={begin => setPauzeForm({ ...pauzeForm, begin })} style={veld} /><TextInput accessibilityLabel="Pauzeduur in minuten" keyboardType="number-pad" value={pauzeForm.duur} onChangeText={duur => setPauzeForm({ ...pauzeForm, duur })} style={veld} /><Button title="Pauze invoegen" variant="outline" onPress={pauze} /><Button title="Geen pauze invoegen" variant="ghost" onPress={() => setPauzeForm(null)} /></View>}
-        <Scheiding />
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          {r.categorie === 'werken' && <Button title="Pauze in dit werkblok" variant="outline" size="sm" disabled={bezig} accessibilityLabel={`Pauze in werkblok segment ${index + 1}`} icon={<Coffee size={16} color={kleuren.foreground} strokeWidth={2} />} onPress={() => setPauzeForm({ index, begin: minutenTijd(Math.min(tijdMinuten(r.beginTijd) + 120, tijdMinuten(r.eindTijd) - 30)), duur: '30' })} />}
-          <Button title="Extra blok hierna" variant="outline" size="sm" disabled={bezig} accessibilityLabel={`Extra blok na segment ${index + 1}`} icon={<Plus size={16} color={kleuren.foreground} strokeWidth={2} />} onPress={() => extraBlok(index)} />
-          <VerwijderKnop title="Uit voorstel verwijderen" accessibilityLabel={`Segment ${index + 1} uit voorstel verwijderen`} variant="outline" size="sm" disabled={bezig} onPress={() => setRegels(regels.filter((_, i) => i !== index))} />
-        </View>
-      </Kaart>;
-    })}
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+      <Text accessibilityRole="header" style={[tekst.kop, { color: kleuren.foreground, flex: 1 }]}>Dagvoorstel aanpassen</Text>
+      <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground, fontSize: 14 }]}>Meeschuiven</Text>
+      <Switch value={schuifMee} onValueChange={setSchuifMee} disabled={bezig} size="sm" accessibilityLabel="Latere blokken meeschuiven" accessibilityHint="Verschuift de blokken hierna mee als je een tijd wijzigt" />
+    </View>
+    {(dag.revisie ?? 0) !== revisie && <Melding toon="wachten" tekst="De dag is intussen gewijzigd. Sluit en open het voorstel opnieuw voordat je opslaat." />}
+    <View>
+      {regels.map((r, index) => {
+        const afwijkend = r.geplandeBeginTijd && r.geplandeEindTijd && Math.abs((minuten(r.eindTijd) - minuten(r.beginTijd)) - (minuten(r.geplandeEindTijd) - minuten(r.geplandeBeginTijd))) > 15;
+        const open = openIndex === index;
+        const naam = klusNaam(r.werkitemId) ?? CATEGORIE_LABELS[r.categorie];
+        const Pijl = open ? ChevronUp : ChevronDown;
+        return <View key={index} style={open ? { borderWidth: 1, borderColor: kleuren.randSterk, borderRadius: 16, paddingHorizontal: 12, paddingBottom: 12, marginVertical: 4, backgroundColor: kleuren.card } : undefined}>
+          {!open && index > 0 && openIndex !== index - 1 && <Scheiding />}
+          <Drukvlak onPress={() => { setOpenIndex(open ? null : index); setPauzeForm(null); }} accessibilityLabel={`${r.beginTijd} tot ${r.eindTijd}, ${naam}`} accessibilityState={{ expanded: open }} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 48, paddingHorizontal: open ? 0 : 4 }}>
+            <View style={{ width: 4, height: 28, borderRadius: 2, backgroundColor: categorieKleur(kleuren, r.categorie) }} />
+            <Text style={[tekst.callout, tekst.cijfers, { color: kleuren.foreground, width: 104 }]}>{r.beginTijd}–{r.eindTijd}</Text>
+            <Text style={[tekst.callout, { color: kleuren.mutedForeground, flex: 1 }]} numberOfLines={1}>{naam}</Text>
+            {afwijkend && !r.afwijkingReden.trim() && !r.afwijkingOvergeslagen && <View accessibilityLabel="Reden nodig" style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: kleuren.warning }} />}
+            <Pijl size={18} color={kleuren.mutedForeground} strokeWidth={2} />
+          </Drukvlak>
+          {open && <View style={{ gap: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+              <TijdStapper label={`Begintijd blok ${index + 1}`} waarde={r.beginTijd} disabled={bezig} commit={waarde => tijdWijzigen(index, 'beginTijd', waarde)} />
+              <Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>tot</Text>
+              <TijdStapper label={`Eindtijd blok ${index + 1}`} waarde={r.eindTijd} disabled={bezig} commit={waarde => tijdWijzigen(index, 'eindTijd', waarde)} />
+            </View>
+            <View style={{ borderRadius: 12, backgroundColor: kleuren.vulling, paddingHorizontal: 12 }}>
+              <KeuzeRegel label="Soort" waarde={CATEGORIE_LABELS[r.categorie]} disabled={bezig} onPress={() => setKiezer({ index, soort: 'categorie' })} />
+              {(r.categorie === 'werken' || r.categorie === 'afvalverwerker_bes' || r.werkitemId) && <>
+                <Scheiding />
+                <KeuzeRegel label="Klus" waarde={klusNaam(r.werkitemId) ?? (r.werkitemId ? 'Gekozen klus' : r.categorie === 'werken' ? 'Kies een klus' : 'Geen')} waarschuwing={r.categorie === 'werken' && !r.werkitemId} disabled={bezig} onPress={() => setKiezer({ index, soort: 'klus' })} />
+              </>}
+            </View>
+            {r.categorie === 'anders' && <WerksoortKeuze waarde={r.werksoort} wijzigen={werksoort => aanpassen(index, { werksoort })} disabled={bezig} />}
+            <TextInput accessibilityLabel={`Notitie blok ${index + 1}`} value={r.notitie} editable={!bezig} placeholder="Notitie (optioneel)" placeholderTextColor={kleuren.mutedForeground} onChangeText={notitie => aanpassen(index, { notitie })} style={veld} />
+            {afwijkend && <View style={{ gap: 8 }}>
+              <TextInput accessibilityLabel={`Reden afwijking blok ${index + 1}`} value={r.afwijkingReden} editable={!bezig} placeholder="Waarom wijkt de duur af?" placeholderTextColor={kleuren.mutedForeground} onChangeText={afwijkingReden => aanpassen(index, { afwijkingReden })} style={veld} />
+              <Checkbox label="Reden nu overslaan" checked={r.afwijkingOvergeslagen} onCheckedChange={afwijkingOvergeslagen => aanpassen(index, { afwijkingOvergeslagen })} disabled={bezig} />
+            </View>}
+            {pauzeForm?.index === index && <View style={{ gap: 8, borderRadius: 12, backgroundColor: kleuren.vulling, padding: 12 }}>
+              <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground, fontWeight: '600' }]}>Pauze binnen dit werkblok</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <TextInput accessibilityLabel="Begin van pauze" keyboardType="numbers-and-punctuation" maxLength={5} placeholder="12:00" placeholderTextColor={kleuren.mutedForeground} value={pauzeForm.begin} onChangeText={begin => setPauzeForm({ ...pauzeForm, begin })} style={[veld, { width: 76, textAlign: 'center', fontVariant: ['tabular-nums'] }]} />
+                <TextInput accessibilityLabel="Pauzeduur in minuten" keyboardType="number-pad" maxLength={3} value={pauzeForm.duur} onChangeText={duur => setPauzeForm({ ...pauzeForm, duur })} style={[veld, { width: 60, textAlign: 'center', fontVariant: ['tabular-nums'] }]} />
+                <Text style={[tekst.sub, { color: kleuren.mutedForeground, flex: 1 }]}>min</Text>
+              </View>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <View style={{ flex: 1 }}><Button title="Invoegen" size="sm" onPress={pauze} fullWidth /></View>
+                <View style={{ flex: 1 }}><Button title="Annuleren" size="sm" variant="ghost" onPress={() => setPauzeForm(null)} fullWidth /></View>
+              </View>
+            </View>}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {r.categorie === 'werken' && pauzeForm?.index !== index && <Button title="Pauze" variant="ghost" size="sm" disabled={bezig} accessibilityLabel={`Pauze in werkblok ${index + 1}`} icon={<Coffee size={16} color={kleuren.foreground} strokeWidth={2} />} onPress={() => setPauzeForm({ index, begin: minutenTijd(Math.min(tijdMinuten(r.beginTijd) + 120, tijdMinuten(r.eindTijd) - 30)), duur: '30' })} />}
+              <Button title="Blok erna" variant="ghost" size="sm" disabled={bezig} accessibilityLabel={`Extra blok na blok ${index + 1}`} icon={<Plus size={16} color={kleuren.foreground} strokeWidth={2} />} onPress={() => { extraBlok(index); setOpenIndex(index + 1); }} />
+              <VerwijderKnop title="Weg" accessibilityLabel={`Blok ${index + 1} uit voorstel verwijderen`} size="sm" disabled={bezig} onPress={() => { setRegels(regels.filter((_, i) => i !== index)); setOpenIndex(null); }} />
+            </View>
+          </View>}
+        </View>;
+      })}
+    </View>
     {foutRegel}
-    <Button title="Hele voorstel opslaan" size="lg" loading={bezig} disabled={!regels.length || (dag.revisie ?? 0) !== revisie} onPress={opslaan} fullWidth />
-    <Button title="Sluiten en concept bewaren" variant="ghost" disabled={bezig} onPress={() => setRegels(null)} />
-    <VerwijderKnop title="Concept verwijderen" disabled={bezig} onPress={() => Alert.alert('Concept verwijderen?', 'Je aanpassingen aan het dagvoorstel op dit toestel gaan verloren. Het oorspronkelijke voorstel blijft staan.', [
-      { text: 'Annuleren', style: 'cancel' },
-      { text: 'Verwijderen', style: 'destructive', onPress: async () => { try { await schrijfConcept(null); setRegels(null); } catch { setFout('Concept verwijderen mislukt.'); } } },
-    ])} />
+    <View style={{ flexDirection: 'row', gap: 8 }}>
+      <View style={{ flex: 1 }}><Button title="Opslaan" loading={bezig} disabled={!regels.length || (dag.revisie ?? 0) !== revisie} onPress={opslaan} fullWidth /></View>
+      <View style={{ flex: 1 }}><Button title="Sluiten" variant="ghost" disabled={bezig} onPress={() => { setRegels(null); setOpenIndex(null); }} accessibilityHint="Je concept blijft op dit toestel bewaard" fullWidth /></View>
+    </View>
+    <View style={{ alignSelf: 'center' }}>
+      <VerwijderKnop title="Concept weggooien" size="sm" disabled={bezig} onPress={() => Alert.alert('Concept weggooien?', 'Je aanpassingen op dit toestel gaan verloren. Het oorspronkelijke voorstel blijft staan.', [
+        { text: 'Annuleren', style: 'cancel' },
+        { text: 'Weggooien', style: 'destructive', onPress: async () => { try { await schrijfConcept(null); setRegels(null); setOpenIndex(null); } catch { setFout('Concept weggooien mislukt.'); } } },
+      ])} />
+    </View>
+    <BottomSheet isOpen={!!kiezer} onClose={() => setKiezer(null)} title={kiezer?.soort === 'klus' ? 'Klus kiezen' : 'Soort uren'}>
+      {kiezer && kiesRegel && (kiezer.soort === 'categorie'
+        ? <View>{(Object.entries(CATEGORIE_LABELS) as [SegmentCategorie, string][]).map(([categorie, label], i) => {
+          const gekozen = kiesRegel.categorie === categorie;
+          return <View key={categorie}>
+            {i > 0 && <Scheiding />}
+            <Drukvlak accessibilityRole="radio" accessibilityState={{ checked: gekozen }} accessibilityLabel={label} onPress={() => { aanpassen(kiezer.index, { categorie, werksoort: undefined }); setKiezer(null); }} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 50 }}>
+              <View style={{ width: 4, height: 22, borderRadius: 2, backgroundColor: categorieKleur(kleuren, categorie) }} />
+              <Text style={[tekst.callout, { color: kleuren.foreground, flex: 1, fontWeight: gekozen ? '600' : '400' }]}>{label}</Text>
+              {gekozen && <Check size={18} color={kleuren.primary} strokeWidth={2.5} />}
+            </Drukvlak>
+          </View>;
+        })}</View>
+        : <KlusKiezer datum={datum} stops={dag.stops} waarde={kiesRegel.werkitemId} wijzigen={werkitemId => { aanpassen(kiezer.index, { werkitemId: werkitemId ?? undefined }); if (werkitemId) setKiezer(null); }} disabled={bezig} />)}
+    </BottomSheet>
   </View>;
 }
 
-function EindTijdVeld({ label, waarde, disabled, commit }: { label: string; waarde: string; disabled: boolean; commit: (tijd: string) => void }) {
+/** Eén keuze als rij: label links, huidige waarde rechts, tik opent de keuzelijst. */
+function KeuzeRegel({ label, waarde, onPress, disabled, waarschuwing = false }: { label: string; waarde: string; onPress: () => void; disabled: boolean; waarschuwing?: boolean }) {
+  const kleuren = useVeldKleuren();
+  return <Drukvlak onPress={onPress} disabled={disabled} accessibilityLabel={`${label}: ${waarde}`} accessibilityHint="Opent de keuzelijst" style={{ flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 46 }}>
+    <Text style={[tekst.sub, { color: kleuren.mutedForeground, width: 52 }]}>{label}</Text>
+    <Text style={[tekst.callout, { color: waarschuwing ? kleuren.warning : kleuren.foreground, flex: 1, textAlign: 'right' }]} numberOfLines={1}>{waarde}</Text>
+    <ChevronRight size={18} color={kleuren.mutedForeground} strokeWidth={2} />
+  </Drukvlak>;
+}
+
+/** Tijd met −5/+5 ernaast; het veld zelf is ook te typen (HH:MM). */
+function TijdStapper({ label, waarde, disabled, commit }: { label: string; waarde: string; disabled: boolean; commit: (tijd: string) => void }) {
   const kleuren = useVeldKleuren(); const [invoer, setInvoer] = useState(waarde);
   const [vorigeWaarde, setVorigeWaarde] = useState(waarde);
   if (vorigeWaarde !== waarde) { setVorigeWaarde(waarde); setInvoer(waarde); }
-  return <TextInput accessibilityLabel={label} value={invoer} editable={!disabled} maxLength={5} keyboardType="numbers-and-punctuation" onChangeText={setInvoer} onEndEditing={() => commit(invoer)} style={{ color: kleuren.foreground, backgroundColor: kleuren.input, borderWidth: 1, borderColor: kleuren.border, borderRadius: 12, minHeight: 48, paddingHorizontal: 14, paddingVertical: 12, fontSize: 17, fontVariant: ['tabular-nums'], textAlign: 'center' }} />;
+  const knop = (delta: number) => <Drukvlak haptic="selection" disabled={disabled} hitSlop={4} accessibilityLabel={`${label} 5 minuten ${delta > 0 ? 'later' : 'eerder'}`} onPress={() => commit(minutenTijd(tijdMinuten(waarde) + delta))} style={{ width: 36, height: 40, alignItems: 'center', justifyContent: 'center' }}>
+    {delta > 0 ? <Plus size={18} color={kleuren.foreground} strokeWidth={2.25} /> : <Minus size={18} color={kleuren.foreground} strokeWidth={2.25} />}
+  </Drukvlak>;
+  return <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: 12, backgroundColor: kleuren.vulling }}>
+    {knop(-5)}
+    <TextInput accessibilityLabel={label} value={invoer} editable={!disabled} maxLength={5} keyboardType="numbers-and-punctuation" onChangeText={setInvoer} onEndEditing={() => commit(invoer)} style={{ width: 62, height: 40, color: kleuren.foreground, fontSize: 17, fontWeight: '600', fontVariant: ['tabular-nums'], textAlign: 'center' }} />
+    {knop(5)}
+  </View>;
 }

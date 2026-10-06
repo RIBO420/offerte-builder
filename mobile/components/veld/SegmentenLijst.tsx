@@ -16,6 +16,7 @@ import { Alert, Text, View } from 'react-native';
 import { useVeldOpdracht } from '../../hooks/use-veld-opdracht';
 import * as Crypto from 'expo-crypto';
 import { DagvoorstelEditor } from './DagvoorstelEditor';
+import { categorieKleur } from './categorieKleur';
 import { KlusKiezer } from './KlusKiezer';
 import { VerwijderKnop } from './VerwijderKnop';
 import { useVeldServerActie } from '../../hooks/use-veld-server-actie';
@@ -66,11 +67,11 @@ export function SegmentenLijst({
 
 
   const [formOpen, setFormOpen] = useState(false);
+  const [voorstelBewerkt, setVoorstelBewerkt] = useState(false);
   const [bewerkSegment, setBewerkSegment] = useState<VeldSegment | null>(null);
 
   const totaal = dag.segmenten.reduce((som, s) => som + Math.max(0, minuten(s.eindTijd) - minuten(s.beginTijd)), 0);
   const voorstelMinuten = dag.voorstellen.reduce((som, v) => som + Math.max(0, minuten(v.eindTijd) - minuten(v.beginTijd)), 0);
-  const categorieKleur = (c: SegmentCategorie) => c === 'werken' ? kleuren.primary : c === 'pauze' ? kleuren.randSterk : c === 'reistijd' ? kleuren.werkReis : kleuren.werkLoods;
 
   const stopNaam = (werkitemId: string | null | undefined): string | null => {
     if (!werkitemId) return null;
@@ -136,32 +137,34 @@ export function SegmentenLijst({
       {/* Voorgestelde segmenten uit de dagkaart (§8.10) */}
       {magBewerken && !dagWacht && dag.voorstellen.length > 0 && (
         <Kaart style={{ borderStyle: 'dashed', backgroundColor: kleuren.surface, gap: 12 }}>
-          <View style={{ gap: 2 }}>
-            <Text style={[tekst.kop, { color: kleuren.foreground }]}>Voorstel uit je dagkaart</Text>
-            <Text style={[tekst.voetnoot, tekst.cijfers, { color: kleuren.mutedForeground, fontSize: 14, lineHeight: 19 }]}>
-              {dag.voorstellen.length} {dag.voorstellen.length === 1 ? 'blok' : 'blokken'} · {urenLabel(voorstelMinuten)}. Klopt het? Bevestig of pas aan.
-            </Text>
-          </View>
-          <View>
-            {dag.voorstellen.map((voorstel, i) => (
-              <View key={`${voorstel.beginTijd}-${voorstel.categorie}-${i}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44, paddingVertical: 4 }}>
-                <View style={{ width: 4, alignSelf: 'stretch', minHeight: 28, borderRadius: 2, backgroundColor: categorieKleur(voorstel.categorie) }} />
-                <Text style={[tekst.callout, tekst.cijfers, { color: kleuren.foreground, width: 104 }]}>{voorstel.beginTijd}–{voorstel.eindTijd}</Text>
-                <Text style={[tekst.callout, { color: kleuren.mutedForeground, flex: 1 }]} numberOfLines={1}>
-                  {stopNaam(voorstel.werkitemId) ?? CATEGORIE_LABELS[voorstel.categorie]}
-                </Text>
-              </View>
-            ))}
-          </View>
-          <Button
-            title={dag.voorstellen.length > 1 ? `Alles bevestigen (${dag.voorstellen.length})` : 'Bevestigen'}
-            icon={<CheckCheck size={18} color={kleuren.primaryForeground} strokeWidth={2} />}
-            loading={bevestigBezig === 'alle'}
-            disabled={!!bevestigBezig}
-            onPress={handleBevestigAlle}
-            fullWidth
-          />
-          <DagvoorstelEditor dag={dag} datum={datum} onOpgeslagen={meld} />
+          {!voorstelBewerkt && <>
+            <View style={{ gap: 2 }}>
+              <Text style={[tekst.kop, { color: kleuren.foreground }]}>Voorstel uit je dagkaart</Text>
+              <Text style={[tekst.voetnoot, tekst.cijfers, { color: kleuren.mutedForeground, fontSize: 14, lineHeight: 19 }]}>
+                {dag.voorstellen.length} {dag.voorstellen.length === 1 ? 'blok' : 'blokken'} · {urenLabel(voorstelMinuten)}. Klopt het? Bevestig of pas aan.
+              </Text>
+            </View>
+            <View>
+              {dag.voorstellen.map((voorstel, i) => (
+                <View key={`${voorstel.beginTijd}-${voorstel.categorie}-${i}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 44, paddingVertical: 4 }}>
+                  <View style={{ width: 4, alignSelf: 'stretch', minHeight: 28, borderRadius: 2, backgroundColor: categorieKleur(kleuren, voorstel.categorie) }} />
+                  <Text style={[tekst.callout, tekst.cijfers, { color: kleuren.foreground, width: 104 }]}>{voorstel.beginTijd}–{voorstel.eindTijd}</Text>
+                  <Text style={[tekst.callout, { color: kleuren.mutedForeground, flex: 1 }]} numberOfLines={1}>
+                    {stopNaam(voorstel.werkitemId) ?? CATEGORIE_LABELS[voorstel.categorie]}
+                  </Text>
+                </View>
+              ))}
+            </View>
+            <Button
+              title={dag.voorstellen.length > 1 ? `Alles bevestigen (${dag.voorstellen.length})` : 'Bevestigen'}
+              icon={<CheckCheck size={18} color={kleuren.primaryForeground} strokeWidth={2} />}
+              loading={bevestigBezig === 'alle'}
+              disabled={!!bevestigBezig}
+              onPress={handleBevestigAlle}
+              fullWidth
+            />
+          </>}
+          <DagvoorstelEditor dag={dag} datum={datum} onOpgeslagen={meld} onBewerken={setVoorstelBewerkt} />
         </Kaart>
       )}
 
@@ -188,7 +191,7 @@ export function SegmentenLijst({
                   accessibilityHint={bewerkbaar ? 'Aanpassen of verwijderen' : undefined}
                   style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingVertical: 10 }}
                 >
-                  <View style={{ width: 4, alignSelf: 'stretch', minHeight: 32, borderRadius: 2, backgroundColor: categorieKleur(segment.categorie) }} />
+                  <View style={{ width: 4, alignSelf: 'stretch', minHeight: 32, borderRadius: 2, backgroundColor: categorieKleur(kleuren, segment.categorie) }} />
                   <View style={{ flex: 1, gap: 2 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <Text style={[tekst.kop, tekst.cijfers, { color: kleuren.foreground }]}>
