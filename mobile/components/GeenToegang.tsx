@@ -88,10 +88,10 @@ export function GeenToegang({ uitleg }: { uitleg?: string } = {}) {
           justifyContent: 'center',
           paddingVertical: spacing.sm + 4,
           paddingHorizontal: spacing.xl,
-          borderRadius: 14,
+          borderRadius: 999,
           borderWidth: 1,
-          borderColor: kleuren.border,
-          backgroundColor: pressed ? kleuren.muted : kleuren.card,
+          borderColor: kleuren.randSterk,
+          backgroundColor: pressed ? kleuren.vulling : kleuren.card,
           opacity: uitloggen ? 0.6 : 1,
         })}
       >

@@ -34,6 +34,11 @@ export const colors = {
   // Tabiconen, placeholders, uitgeschakeld
   inactive: '#8B958E',
 
+  // Vlak en rand van bedieningselementen óp een kaart (keuzechips, grijze
+  // knoppen). `muted` valt in donker weg tegen `card`; deze niet.
+  vulling: '#28312B',
+  randSterk: '#3A453D',
+
   surface: '#171C19',
   surfaceElevated: '#1E2520',
   surfaceOverlay: '#171C19EE',
@@ -127,6 +132,8 @@ export const lightColors: Partial<ColorScheme> = {
 
   // Tabiconen en placeholders: ≥4,5:1 op de achtergrond.
   inactive: '#66706A',
+  vulling: '#E8EDE3',
+  randSterk: '#C9D1C4',
 
   surface: '#FFFFFF',
   surfaceElevated: '#F1F4EE',
@@ -202,6 +209,8 @@ export const buitenColors: Partial<ColorScheme> = {
   input: '#F2F2F2',
   ring: '#166534',
   inactive: '#333333',
+  vulling: '#E6E6E6',
+  randSterk: '#000000',
   surface: '#FFFFFF',
   surfaceElevated: '#F2F2F2',
   surfaceOverlay: '#FFFFFFEE',

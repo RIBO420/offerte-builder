@@ -80,9 +80,12 @@ function variantKleuren(k: ColorScheme, variant: string) {
     case 'nature':
       return { container: { backgroundColor: k.primarySoft }, tekst: k.primary };
     case 'outline':
-      return { container: { borderWidth: 1, borderColor: k.border, backgroundColor: k.card }, tekst: k.foreground };
+      return { container: { borderWidth: 1, borderColor: k.randSterk, backgroundColor: k.card }, tekst: k.foreground };
     case 'destructive':
       return { container: { backgroundColor: k.destructive }, tekst: k.destructiveForeground };
+    case 'ghost':
+      // Grijze knop: een echte knop met een vlak, geen losse tekst.
+      return { container: { backgroundColor: k.vulling }, tekst: k.foreground };
     case 'link':
       return { container: {}, tekst: k.primary };
     default:

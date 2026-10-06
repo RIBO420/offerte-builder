@@ -6,7 +6,7 @@ import { useVeldOpdracht } from '../../hooks/use-veld-opdracht';
 import { useVeldCache } from '../../hooks/use-veld-cache';
 import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
-import { Check, Truck } from 'lucide-react-native';
+import { Check, Pencil, Truck } from 'lucide-react-native';
 import { Button } from '../ui';
 import { IcoonTegel, Kaart, Melding, Scheiding, SectieKop, StatusPil } from '../werk/Bouwstenen';
 import { tekst } from '../../theme';
@@ -18,6 +18,7 @@ export const RETOUR_KEUZES = [
   ['half', '½ vol'], ['driekwart', '¾ vol'], ['vol', 'Vol'],
 ] as const;
 type Keuze = typeof RETOUR_KEUZES[number][0];
+const keuzeLabel = (keuze: unknown) => RETOUR_KEUZES.find(([key]) => key === keuze)?.[1] ?? 'Onbekend';
 interface Retour {
   _id: string; retourId: string; keuze: Keuze; voertuigId?: Id<'voertuigen'>;
   revision: number; gemeldDoorNaam: string; waargenomenOp: number;
@@ -51,11 +52,11 @@ export function AanhangerRetourKaart({ datum, teamId }: { datum: string; teamId?
   }) as RetourDag | undefined;
   const { data: dag } = useVeldCache(`retour:${datum}:${teamId ?? 'eigen'}`, liveDag);
   const { verstuur, wachtrij } = useVeldOpdracht();
+  const wachtend = wachtrij.filter(r => r.type === 'retour' && r.payload.datum === datum);
   const [concept, setConcept] = useState<Concept | null>(null);
   const [bezig, setBezig] = useState(false);
   const [fout, setFout] = useState<string | null>(null);
   const [gelukt, setGelukt] = useState(false);
-  const [wacht, setWacht] = useState(false);
   // Bij een onzekere netwerkrespons gebruikt een ongewijzigde retry dezelfde sleutel.
   const poging = useRef<{ inhoud: string; idempotencyKey: string; waargenomenOp: number } | null>(null);
   const actief = useRef(false);
@@ -76,7 +77,7 @@ export function AanhangerRetourKaart({ datum, teamId }: { datum: string; teamId?
     });
     poging.current = null;
     setFout(null);
-    setGelukt(false); setWacht(false);
+    setGelukt(false);
   };
 
   const opslaan = async () => {
@@ -109,7 +110,7 @@ export function AanhangerRetourKaart({ datum, teamId }: { datum: string; teamId?
     try {
       const result = await verstuur('retour', { ...payload, waargenomenOp: poging.current.waargenomenOp }, poging.current.idempotencyKey);
       if (result.status === 'conflict') setFout(result.fout ?? 'Controleer de wachtende melding bovenaan je dag.');
-      else { setConcept(null); setGelukt(result.status === 'verzonden'); setWacht(result.status === 'wacht'); poging.current = null; }
+      else { setConcept(null); setGelukt(result.status === 'verzonden'); poging.current = null; }
     } catch (error) {
       setFout(foutTekst(error));
     } finally {
@@ -137,42 +138,49 @@ export function AanhangerRetourKaart({ datum, teamId }: { datum: string; teamId?
                 <View style={{ gap: 4, paddingVertical: 8 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                     <Text style={[tekst.kop, { color: kleuren.foreground, flexShrink: 1 }]}>Retour {index + 1}</Text>
-                    <StatusPil label={RETOUR_KEUZES.find(([key]) => key === retour.keuze)?.[1] ?? retour.keuze} toon="neutraal" />
+                    <StatusPil label={keuzeLabel(retour.keuze)} toon={retour.keuze === 'geen_aanhanger' ? 'neutraal' : 'primair'} />
                   </View>
                   {retour.voertuigId && <Text style={[tekst.sub, { color: kleuren.foreground }]}>{voertuig ? `${voertuig.naam} · ${voertuig.kenteken}` : 'Aanhanger geregistreerd'}</Text>}
                   <Text style={[tekst.voetnoot, tekst.cijfers, { color: kleuren.mutedForeground, fontSize: 14 }]}>{retour.gemeldDoorNaam} · {amsterdamTijd(retour.waargenomenOp)}</Text>
                   {retour.notitie && <Text style={[tekst.sub, { color: kleuren.foreground }]}>{retour.notitie}</Text>}
-                  {dag.magMelden && !concept && <View style={{ alignSelf: 'flex-start' }}><Button title="Melding corrigeren" variant="ghost" size="sm" onPress={() => open(retour)} /></View>}
+                  {dag.magMelden && !concept && <View style={{ alignSelf: 'flex-start' }}><Button title="Melding corrigeren" variant="outline" size="sm" icon={<Pencil size={15} color={kleuren.foreground} strokeWidth={2} />} disabled={wachtend.some(r => r.payload.retourId === retour.retourId)} onPress={() => open(retour)} /></View>}
                 </View>
               </View>;
             })}
           </View>}
-          {wacht && <View accessibilityLiveRegion="polite"><Melding toon="wachten" tekst="Op dit toestel bewaard. Wacht op bevestiging; je ploeg ziet de melding na synchronisatie." /></View>}
+          {wachtend.length > 0 && <View accessibilityLiveRegion="polite" style={{ gap: 8 }}>
+            {dag.retouren.length > 0 && <Scheiding />}
+            {wachtend.map(r => {
+              const voertuig = dag.aanhangers.find(a => a._id === r.payload.voertuigId);
+              const correctie = dag.retouren.some(x => x.retourId === r.payload.retourId);
+              return <View key={r.id} style={{ gap: 4, paddingVertical: 4 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                  <Text style={[tekst.kop, { color: kleuren.foreground, flexShrink: 1 }]}>{correctie ? 'Correctie' : 'Nieuwe retour'} · {keuzeLabel(r.payload.keuze)}</Text>
+                  <StatusPil label={r.status === 'conflict' ? 'Niet opgeslagen' : 'Wacht op verbinding'} toon={r.status === 'conflict' ? 'gemist' : 'wachten'} />
+                </View>
+                {voertuig && <Text style={[tekst.sub, { color: kleuren.foreground }]}>{voertuig.naam} · {voertuig.kenteken}</Text>}
+                <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground, fontSize: 14 }]}>{r.status === 'conflict' ? (r.fout ?? 'Controleer deze melding bovenaan je dag.') : 'Staat op dit toestel. Je ploeg ziet hem zodra je verbinding hebt.'}</Text>
+              </View>;
+            })}
+          </View>}
           {gelukt && <View accessibilityLiveRegion="polite"><Melding toon="succes" tekst="Opgeslagen. Je ploeg ziet dezelfde melding." /></View>}
           {!dag.magMelden && <Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>Je kunt deze retourmeldingen bekijken. Melden kan voor je eigen ploegdag.</Text>}
-          {dag.magMelden && !concept && <Button title={dag.retouren.length ? 'Nog een retour melden' : 'Retour melden'} variant="outline" disabled={wachtrij.some(r => r.type === 'retour' && r.payload.datum === datum)} onPress={() => open()} fullWidth />}
+          {dag.magMelden && !concept && <Button title={dag.retouren.length ? 'Nog een retour melden' : 'Retour melden'} variant="outline" disabled={wachtend.length > 0} onPress={() => open()} fullWidth />}
+          {dag.magMelden && !concept && wachtend.length > 0 && <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground, fontSize: 14, textAlign: 'center' }]}>Een nieuwe melding kan zodra de wachtende melding is opgeslagen.</Text>}
           {concept && <View style={{ gap: 12 }}>
             <Scheiding />
             <Text style={[tekst.titel3, { color: kleuren.foreground }]}>{concept.expectedRevision === undefined ? 'Nieuwe retourmelding' : 'Melding corrigeren'}</Text>
             {concept.expectedRevision !== undefined && dag.retouren.some(r => r.retourId === concept.retourId && r.revision !== concept.expectedRevision) &&
               <Text accessibilityRole="alert" style={[tekst.sub, { color: kleuren.warning }]}>Een collega heeft deze melding gewijzigd. Sluit je correctie en open de nieuwste melding.</Text>}
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {RETOUR_KEUZES.map(([keuze, label]) => {
-                const gekozen = concept.keuze === keuze;
-                return <Pressable
-                  key={keuze} accessibilityRole="radio" accessibilityLabel={label} accessibilityState={{ checked: gekozen, disabled: bezig }} disabled={bezig}
-                  onPress={() => setConcept({ ...concept, keuze })}
-                  style={({ pressed }) => ({ minHeight: 44, minWidth: 64, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 14, borderRadius: 999, backgroundColor: gekozen ? kleuren.primary : kleuren.muted, opacity: bezig ? 0.45 : pressed ? 0.7 : 1 })}>
-                  <Text style={[tekst.sub, { color: gekozen ? kleuren.primaryForeground : kleuren.foreground, fontWeight: gekozen ? '600' : '500' }]}>{label}</Text>
-                </Pressable>;
-              })}
+              {RETOUR_KEUZES.map(([keuze, label]) => <Button key={keuze} title={label} size="sm" variant={concept.keuze === keuze ? 'secondary' : 'outline'} geselecteerd={concept.keuze === keuze} disabled={bezig} onPress={() => setConcept({ ...concept, keuze })} />)}
             </View>
             {concept.keuze && concept.keuze !== 'geen_aanhanger' && <View style={{ gap: 8 }}>
               <Text style={veldLabel}>Welke aanhanger?</Text>
               {dag.aanhangers.length === 0 && <Melding toon="wachten" tekst="Er is geen aanhanger beschikbaar. Laat kantoor de aanhanger toevoegen aan het wagenpark." />}
               {dag.aanhangers.map(a => {
                 const gekozen = concept.voertuigId === a._id;
-                return <Pressable key={a._id} disabled={bezig} accessibilityRole="radio" accessibilityState={{ checked: gekozen, disabled: bezig }} onPress={() => setConcept({ ...concept, voertuigId: a._id })} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 48, paddingHorizontal: 14, borderRadius: 12, borderWidth: 1, borderColor: gekozen ? kleuren.primary : kleuren.border, backgroundColor: gekozen ? kleuren.primarySoft : kleuren.card, opacity: pressed ? 0.7 : 1 })}>
+                return <Pressable key={a._id} disabled={bezig} accessibilityRole="radio" accessibilityState={{ checked: gekozen, disabled: bezig }} onPress={() => setConcept({ ...concept, voertuigId: a._id })} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 48, paddingHorizontal: 14, borderRadius: 12, borderWidth: 1, borderColor: gekozen ? kleuren.primary : kleuren.randSterk, backgroundColor: gekozen ? kleuren.primarySoft : kleuren.card, opacity: pressed ? 0.7 : 1 })}>
                   <Text style={[tekst.callout, { color: kleuren.foreground, flex: 1 }]}>{a.naam} · {a.kenteken}</Text>
                   {gekozen && <Check size={18} color={kleuren.primary} strokeWidth={2.25} />}
                 </Pressable>;
@@ -186,7 +194,7 @@ export function AanhangerRetourKaart({ datum, teamId }: { datum: string; teamId?
             {concept.expectedRevision !== undefined && <TextInput maxLength={1000} accessibilityLabel="Reden voor correctie" placeholder="Reden voor correctie" placeholderTextColor={kleuren.mutedForeground} value={concept.correctieReden} editable={!bezig} onChangeText={correctieReden => setConcept({ ...concept, correctieReden })} style={tekstveld} multiline />}
             {fout && <Text accessibilityRole="alert" style={[tekst.sub, { color: kleuren.danger }]}>{fout}</Text>}
             <Button title="Retour opslaan" onPress={opslaan} loading={bezig} disabled={!concept.keuze} fullWidth />
-            <Button title="Annuleren" variant="ghost" disabled={bezig} onPress={() => { setConcept(null); setFout(null); }} />
+            <Button title="Annuleren" variant="ghost" disabled={bezig} onPress={() => { setConcept(null); setFout(null); }} fullWidth />
           </View>}
         </>}
       </Kaart>
