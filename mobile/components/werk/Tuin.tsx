@@ -135,9 +135,14 @@ function tijdNu(): string {
  * zijn, anders het dagvoorstel. `isVandaag` bepaalt of "nu" gemarkeerd wordt.
  */
 export function dagItemsVan(dag: VeldDagData, isVandaag: boolean): DagItem[] {
-  const geschreven = dag.segmenten.length > 0;
-  const bron: { categorie: string; beginTijd: string; eindTijd: string; werkitemId?: unknown; status?: string; _id?: unknown }[] =
-    geschreven ? dag.segmenten : dag.voorstellen;
+  // Geschreven uren plus wat er nog voorgesteld staat: één bevestigd blok mag de
+  // rest van de geplande dag niet uit beeld laten vallen.
+  type Bron = { categorie: string; beginTijd: string; eindTijd: string; werkitemId?: unknown; status?: string; _id?: unknown; geschreven: boolean };
+  const overlapt = (a: { beginTijd: string; eindTijd: string }, b: { beginTijd: string; eindTijd: string }) => a.beginTijd < b.eindTijd && b.beginTijd < a.eindTijd;
+  const bron: Bron[] = [
+    ...dag.segmenten.map(r => ({ ...r, geschreven: true })),
+    ...dag.voorstellen.filter(v => !dag.segmenten.some(sg => sg.categorie === v.categorie && String(sg.werkitemId ?? '') === String(v.werkitemId ?? '') && overlapt(sg, v))).map(r => ({ ...r, geschreven: false })),
+  ];
   const stops = new Map(dag.stops.map(s => [String(s.werkitemId), s]));
   const nu = tijdNu();
   return [...bron]
@@ -172,7 +177,7 @@ export function dagItemsVan(dag: VeldDagData, isVandaag: boolean): DagItem[] {
         titel,
         sub,
         soort,
-        klaar: geschreven && r.status !== 'concept',
+        klaar: r.geschreven && r.status !== 'concept',
         nu: isVandaag && r.beginTijd <= nu && nu < r.eindTijd,
       };
     });
@@ -188,7 +193,7 @@ function minutenTussen(begin: string, eind?: string): number {
 /** Blokhoogte schaalt met de duur (0,75pt per minuut), binnen 52–150pt. */
 function blokHoogte(item: DagItem): number {
   const min = minutenTussen(item.begin, item.eind);
-  if (item.soort === 'pauze') return 40;
+  if (item.soort === 'pauze' || item.soort === 'reis') return 36;
   return Math.min(150, Math.max(52, Math.round(min * 0.75)));
 }
 
@@ -206,20 +211,32 @@ export function DagTijdlijn({ items }: { items: DagItem[] }) {
       {items.map((item, i) => {
         const I = ICONEN[item.soort];
         const pauze = item.soort === 'pauze';
+        // Reizen en pauze zijn tussenstukken: een rustige regel, geen gekleurd blok.
+        const stil = pauze || item.soort === 'reis';
         const voor = pauze ? kleuren.foreground : '#FFFFFF';
+        const duur = minutenTussen(item.begin, item.eind);
         const tijd = item.eind ? `${item.begin} tot ${item.eind}` : item.begin;
         return (
           <View key={item.sleutel} style={{ flexDirection: 'row', gap: 10 }}>
             {/* Tijdkolom met doorlopende lijn en een stip op "nu". */}
             <View style={{ width: 44, alignItems: 'flex-start' }}>
-              <Text style={[tekst.voetnoot, tekst.cijfers, { color: item.nu ? kleuren.primary : kleuren.mutedForeground, fontWeight: item.nu ? '700' : '500', marginTop: 12 }]}>
+              <Text style={[tekst.voetnoot, tekst.cijfers, { color: item.nu ? kleuren.primary : kleuren.mutedForeground, fontWeight: item.nu ? '700' : '500', marginTop: stil ? 8 : 12 }]}>
                 {item.begin}
               </Text>
             </View>
             <View style={{ width: 10, alignItems: 'center' }}>
               <View style={{ position: 'absolute', top: i === 0 ? 18 : 0, bottom: i === items.length - 1 ? undefined : -8, height: i === items.length - 1 ? 18 : undefined, width: 2, borderRadius: 1, backgroundColor: kleuren.border }} />
-              <View style={{ marginTop: 14, width: item.nu ? 10 : 8, height: item.nu ? 10 : 8, borderRadius: 5, backgroundColor: item.nu ? kleuren.primary : item.klaar ? kleuren.mutedForeground : kleuren.background, borderWidth: item.nu || item.klaar ? 0 : 2, borderColor: kleuren.mutedForeground }} />
+              <View style={{ marginTop: stil ? 10 : 14, width: item.nu ? 10 : 8, height: item.nu ? 10 : 8, borderRadius: 5, backgroundColor: item.nu ? kleuren.primary : item.klaar ? kleuren.mutedForeground : kleuren.background, borderWidth: item.nu || item.klaar ? 0 : 2, borderColor: kleuren.mutedForeground }} />
             </View>
+            {stil ? (
+              <View accessible accessibilityLabel={`${tijd}, ${item.titel}${item.klaar ? ', geschreven' : ''}${item.nu ? ', nu bezig' : ''}`} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 36, paddingHorizontal: 4 }}>
+                <I size={16} color={item.nu ? kleuren.primary : kleuren.mutedForeground} strokeWidth={2} />
+                <Text style={[tekst.sub, { color: item.nu ? kleuren.foreground : kleuren.mutedForeground, flex: 1 }]} numberOfLines={1}>
+                  {item.titel}{duur ? <Text style={tekst.cijfers}> · {duur} min</Text> : null}
+                </Text>
+                {item.klaar && <Check size={14} color={kleuren.mutedForeground} strokeWidth={2.5} />}
+              </View>
+            ) : (
             <View
               accessible
               accessibilityLabel={`${tijd}, ${item.titel}${item.sub ? `, ${item.sub}` : ''}${item.klaar ? ', geschreven' : ''}${item.nu ? ', nu bezig' : ''}`}
@@ -249,6 +266,7 @@ export function DagTijdlijn({ items }: { items: DagItem[] }) {
                 </View>
               )}
             </View>
+            )}
           </View>
         );
       })}

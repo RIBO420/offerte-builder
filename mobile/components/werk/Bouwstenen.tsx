@@ -392,32 +392,27 @@ export function PeriodeKiezer({
   onVandaag?: () => void;
 }) {
   const kleuren = useVeldKleuren();
-  const knop = (richting: 'vorige' | 'volgende') => {
-    const I = richting === 'vorige' ? ChevronLeft : ChevronRight;
-    return (
-      <Drukvlak
-        onPress={richting === 'vorige' ? onVorige : onVolgende}
-        haptic="selection"
-        accessibilityLabel={richting === 'vorige' ? vorigeLabel : volgendeLabel}
-        style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: kleuren.muted, alignItems: 'center', justifyContent: 'center' }}
-      >
-        <I size={22} color={kleuren.foreground} strokeWidth={2.25} />
-      </Drukvlak>
-    );
-  };
+  // Eén rustige regel: periode links, Vandaag + pijlen rechts. Geen gevulde
+  // ronde knoppen meer; de periode is context, niet de hoofdzaak van het scherm.
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-      {knop('vorige')}
-      <View style={{ flex: 1, alignItems: 'center' }}>
-        <Text style={[tekst.kop, { color: kleuren.foreground }]} numberOfLines={1}>{titel}</Text>
-        {ondertitel && <Text style={[tekst.voetnoot, tekst.cijfers, { color: kleuren.mutedForeground }]} numberOfLines={1}>{ondertitel}</Text>}
-      </View>
-      {onVandaag ? (
-        <Drukvlak onPress={onVandaag} haptic="selection" accessibilityLabel="Naar vandaag" style={{ height: 44, paddingHorizontal: 14, borderRadius: 22, backgroundColor: kleuren.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={[tekst.voetnoot, { color: kleuren.primary, fontWeight: '700', fontSize: 14 }]}>Vandaag</Text>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 44 }}>
+      <Text style={[tekst.sub, tekst.cijfers, { flex: 1, color: kleuren.mutedForeground }]} numberOfLines={1}>
+        <Text style={{ color: kleuren.foreground, fontWeight: '600' }}>{titel}</Text>
+        {ondertitel ? ` · ${ondertitel}` : ''}
+      </Text>
+      {onVandaag && (
+        <Drukvlak onPress={onVandaag} haptic="selection" accessibilityLabel="Naar vandaag" style={{ height: 36, paddingHorizontal: 12, borderRadius: 18, justifyContent: 'center', backgroundColor: kleuren.primarySoft }}>
+          <Text style={[tekst.voetnoot, { color: kleuren.primary, fontWeight: '600' }]}>Vandaag</Text>
         </Drukvlak>
-      ) : null}
-      {knop('volgende')}
+      )}
+      {(['vorige', 'volgende'] as const).map(richting => {
+        const I = richting === 'vorige' ? ChevronLeft : ChevronRight;
+        return (
+          <Drukvlak key={richting} onPress={richting === 'vorige' ? onVorige : onVolgende} haptic="selection" hitSlop={4} accessibilityLabel={richting === 'vorige' ? vorigeLabel : volgendeLabel} style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' }}>
+            <I size={20} color={kleuren.foreground} strokeWidth={2.25} />
+          </Drukvlak>
+        );
+      })}
     </View>
   );
 }

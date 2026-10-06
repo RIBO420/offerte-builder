@@ -44,7 +44,7 @@ function useOpenKlus(datum: string) {
  * Bovenaan Mijn dag: wat er nog moet gebeuren voordat je kunt indienen, of dat
  * de dag klaar of al ingediend is. Elke regel springt naar de plek waar het kan.
  */
-export function DagVoortgang({ dag, bezoekDag, datum, isIngediend }: { dag: VeldDagData; bezoekDag: WerkbezoekDagData | undefined; datum: string; isIngediend: boolean }) {
+export function DagVoortgang({ dag, bezoekDag, datum, isIngediend, onUren }: { dag: VeldDagData; bezoekDag: WerkbezoekDagData | undefined; datum: string; isIngediend: boolean; onUren?: () => void }) {
   const kleuren = useVeldKleuren();
   const openKlus = useOpenKlus(datum);
   if (isIngediend) {
@@ -59,8 +59,8 @@ export function DagVoortgang({ dag, bezoekDag, datum, isIngediend }: { dag: Veld
     );
   }
   const open: { sleutel: string; tekst: string; onPress?: () => void }[] = [];
-  if (dag.voorstellen.length > 0) open.push({ sleutel: 'voorstel', tekst: `Uren uit je dagkaart bevestigen (${dag.voorstellen.length})` });
-  else if (dag.segmenten.length === 0) open.push({ sleutel: 'uren', tekst: 'Uren invullen' });
+  if (dag.voorstellen.length > 0) open.push({ sleutel: 'voorstel', tekst: `Uren uit je dagkaart bevestigen (${dag.voorstellen.length})`, onPress: onUren });
+  else if (dag.segmenten.length === 0) open.push({ sleutel: 'uren', tekst: 'Uren invullen', onPress: onUren });
   for (const rij of klussenVan(dag, bezoekDag)) {
     if (!rij.bezoek || rij.bezoek.gereed) continue;
     const mist = KLUS_ONDERDELEN.filter(([o]) => rij.bezoek!.ontbreekt.includes(o)).map(([, label]) => label.toLowerCase());
@@ -86,7 +86,7 @@ export function DagVoortgang({ dag, bezoekDag, datum, isIngediend }: { dag: Veld
             {item.onPress && <ChevronRight size={18} color={kleuren.mutedForeground} strokeWidth={2} />}
           </View>
         );
-        return item.onPress ? <Drukvlak key={item.sleutel} onPress={item.onPress} accessibilityLabel={item.tekst} accessibilityHint="Opent de klus">{regel}</Drukvlak> : <View key={item.sleutel}>{regel}</View>;
+        return item.onPress ? <Drukvlak key={item.sleutel} onPress={item.onPress} accessibilityLabel={item.tekst} accessibilityHint={item.sleutel === 'voorstel' || item.sleutel === 'uren' ? 'Gaat naar je uren' : 'Opent de klus'}>{regel}</Drukvlak> : <View key={item.sleutel}>{regel}</View>;
       })}
     </Kaart>
   );

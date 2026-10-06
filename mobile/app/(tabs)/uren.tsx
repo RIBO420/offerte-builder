@@ -16,11 +16,11 @@
  */
 
 import { useVeldServerActie } from '../../hooks/use-veld-server-actie';
-import React, { Component, useState, type ReactNode } from 'react';
+import React, { Component, useRef, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Alert, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from 'convex/react';
-import { ChevronLeft, ChevronRight, CloudOff, Lock, Sun, UserX } from 'lucide-react-native';
+import { CloudOff, Lock, Sun, UserX } from 'lucide-react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useVeldCache } from '../../hooks/use-veld-cache';
 import { useVeldOpdracht } from '../../hooks/use-veld-opdracht';
@@ -38,7 +38,7 @@ import {
   SegmentenLijst,
   useBuitenModus,
 } from '../../components/veld';
-import { Drukvlak, LegeStaat, Melding, WeekStrook } from '../../components/werk/Bouwstenen';
+import { Drukvlak, LegeStaat, Melding, PeriodeKiezer, WeekStrook } from '../../components/werk/Bouwstenen';
 import { isInternalRole } from '../../lib/roles';
 import { tekst, useColors } from '../../theme';
 import type { VeldDagData, VeldInstellingenData } from '../../types/veld';
@@ -113,6 +113,8 @@ function MijnDag() {
     | undefined;
 
   const [bezigMetIndienen, setBezigMetIndienen] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+  const urenY = useRef(0);
 
   const isIngediend = dag?.dagStatus === 'ingediend';
   // Ingediende dag is read-only; heropenen/corrigeren is kantoorwerk (web)
@@ -166,6 +168,7 @@ function MijnDag() {
     <SafeAreaView style={{ flex: 1, backgroundColor: kleuren.background }} edges={['top']}>
       <OfflineIndicator style={{ marginHorizontal: 16 }} />
       <ScrollView
+        ref={scrollRef}
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 120, gap: 14 }}
         showsVerticalScrollIndicator={false}
@@ -195,23 +198,16 @@ function MijnDag() {
         </View>
 
         {/* Week-navigatie */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: -6 }}>
-          <Text style={[tekst.voetnoot, tekst.cijfers, { color: kleuren.mutedForeground, flex: 1, fontWeight: '600' }]} numberOfLines={1}>
-            Week {weekNummer(week.van)} · {periodeLabel(week.van, week.tot)}
-          </Text>
-          {datum !== vandaag && (
-            <Drukvlak onPress={() => setDatum(vandaag)} haptic="selection" accessibilityLabel="Naar vandaag" style={{ height: 36, paddingHorizontal: 12, borderRadius: 18, justifyContent: 'center', backgroundColor: kleuren.primarySoft }}>
-              <Text style={[tekst.voetnoot, { color: kleuren.primary, fontWeight: '600' }]}>Vandaag</Text>
-            </Drukvlak>
-          )}
-          {([-7, 7] as const).map(stap => {
-            const Pijl = stap < 0 ? ChevronLeft : ChevronRight;
-            return (
-              <Drukvlak key={stap} onPress={() => setDatum(d => schuifDag(d, stap))} haptic="selection" hitSlop={4} accessibilityLabel={stap < 0 ? 'Vorige week' : 'Volgende week'} style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' }}>
-                <Pijl size={20} color={kleuren.foreground} strokeWidth={2.25} />
-              </Drukvlak>
-            );
-          })}
+        <View style={{ marginBottom: -6 }}>
+          <PeriodeKiezer
+            titel={`Week ${weekNummer(week.van)}`}
+            ondertitel={periodeLabel(week.van, week.tot)}
+            vorigeLabel="Vorige week"
+            volgendeLabel="Volgende week"
+            onVorige={() => setDatum(d => schuifDag(d, -7))}
+            onVolgende={() => setDatum(d => schuifDag(d, 7))}
+            onVandaag={datum === vandaag ? undefined : () => setDatum(vandaag)}
+          />
         </View>
         <WeekStrook
           dagen={weekDagen}
@@ -244,9 +240,11 @@ function MijnDag() {
           />
         ) : (
           <>
-            <DagVoortgang dag={dag} bezoekDag={bezoekDag} datum={datum} isIngediend={isIngediend} />
+            <DagVoortgang dag={dag} bezoekDag={bezoekDag} datum={datum} isIngediend={isIngediend} onUren={() => scrollRef.current?.scrollTo({ y: Math.max(0, urenY.current - 12), animated: true })} />
             <KlusLijst dag={dag} bezoekDag={bezoekDag} datum={datum} />
-            <SegmentenLijst dag={dag} datum={datum} magBewerken={magBewerken} />
+            <View onLayout={e => { urenY.current = e.nativeEvent.layout.y; }}>
+              <SegmentenLijst dag={dag} datum={datum} magBewerken={magBewerken} />
+            </View>
             <AfsluitenKaart
               datum={datum}
               teamId={dag.team?._id}

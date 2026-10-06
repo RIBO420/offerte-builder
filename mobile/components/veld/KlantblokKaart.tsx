@@ -80,11 +80,14 @@ function statusLabel(status: string): string {
 }
 
 /** Bouwsteencode als rustig label naast de taak. */
-function Code({ code }: { code: string }) {
+function Code({ code }: { code?: string | null }) {
   const kleuren = useVeldKleuren();
+  // Vaste breedte zodat taken met en zonder code op één lijn beginnen.
   return (
-    <View style={{ backgroundColor: kleuren.muted, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
-      <Text style={[tekst.bijschrift, tekst.cijfers, { color: kleuren.mutedForeground }]}>{code}</Text>
+    <View style={{ minWidth: 36, alignItems: 'center', justifyContent: 'center', backgroundColor: code ? kleuren.vulling : 'transparent', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
+      {code
+        ? <Text style={[tekst.bijschrift, tekst.cijfers, { color: kleuren.mutedForeground }]}>{code}</Text>
+        : <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: kleuren.mutedForeground }} />}
     </View>
   );
 }
@@ -175,7 +178,7 @@ export function KlantblokKaart({
             <View key={i}>
               {i > 0 && <Scheiding />}
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 36, paddingVertical: 4 }}>
-                {taak.code && <Code code={taak.code} />}
+                <Code code={taak.code} />
                 <Text style={[tekst.callout, { color: kleuren.foreground, flex: 1 }]}>
                   {taak.omschrijving}
                 </Text>
@@ -459,7 +462,7 @@ function AfrondSheet({
           return (
             <Kaart key={i} padding={14} style={{ gap: 10 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                {taak.code && <Code code={taak.code} />}
+                <Code code={taak.code} />
                 <Text style={[tekst.callout, { color: kleuren.foreground, flex: 1 }]}>
                   {taak.omschrijving}
                 </Text>

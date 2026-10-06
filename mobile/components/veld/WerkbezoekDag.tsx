@@ -4,8 +4,9 @@ import { useVeldServerActie } from '../../hooks/use-veld-server-actie';
 import type { Id } from '../../convex/_generated/dataModel';
 import { useVeldOpdracht } from '../../hooks/use-veld-opdracht';
 import { useCurrentUser } from '../../hooks/use-current-user';
-import { Button } from '../ui';
-import { Kaart, Melding, Scheiding, StatusPil } from '../werk/Bouwstenen';
+import { BottomSheet, Button } from '../ui';
+import { Drukvlak, Kaart, Melding, Scheiding, StatusPil } from '../werk/Bouwstenen';
+import { ChevronRight, UserRound } from 'lucide-react-native';
 import { tekst } from '../../theme';
 import { BezoekFotoActies } from './BezoekFotoActies';
 import { useVeldKleuren } from './BuitenModus';
@@ -35,6 +36,9 @@ export function BezoekKaart({ bezoek, datum, ingebed = false }: { bezoek: Bezoek
   const [form, setForm] = useState<{ afgerond: boolean; reden: string; minuten: string; revision?: number } | null>(null);
   const [bezig, setBezig] = useState(false); const [melding, setMelding] = useState<string | null>(null);
   const [fout, setFout] = useState<string | null>(null);
+  const [overlaten, setOverlaten] = useState(false);
+  const eigenDelegaties = bezoek.delegaties.filter(d => d.medewerkerId === linkedMedewerkerId && bezoek.ontbreekt.includes(d.onderdeel));
+  const overTeLaten = bezoek.ontbreekt.filter(o => !eigenDelegaties.some(d => d.onderdeel === o));
   const pending = wachtrij.some(r => r.payload.werkitemId === bezoek.werkitemId && r.payload.datum === datum);
   const opslaan = async () => {
     if (!form || bezig) return;
@@ -76,7 +80,7 @@ export function BezoekKaart({ bezoek, datum, ingebed = false }: { bezoek: Bezoek
         <Text style={[tekst.callout, { color: kleuren.foreground }]}>{bezoek.instructie}</Text>
       </View>
     )}
-    <Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>{bezoek.gedeeldGereed ? 'Bezoekmelding compleet' : `Nog nodig: ${bezoek.ontbreekt.map(o => LABELS[o]).join(', ')}`}</Text>
+    {!ingebed && <Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>{bezoek.gedeeldGereed ? 'Bezoekmelding compleet' : `Nog nodig: ${bezoek.ontbreekt.map(o => LABELS[o]).join(', ')}`}</Text>}
     {bezoek.afronding && <View style={{ gap: 4 }}>
       <Text style={[tekst.callout, { color: kleuren.foreground, fontWeight: '600' }]}>{bezoek.afronding.afgerond ? 'Werk van dit bezoek is af' : 'Werk is nog niet af'} <Text style={{ color: kleuren.mutedForeground, fontWeight: '400' }}>· {bezoek.afronding.doorNaam}</Text></Text>
       {bezoek.afronding.reden && <Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>{bezoek.afronding.reden}</Text>}
@@ -93,11 +97,24 @@ export function BezoekKaart({ bezoek, datum, ingebed = false }: { bezoek: Bezoek
     <AfvoerMelding bezoek={bezoek} datum={datum} />
     <Scheiding />
     <BezoekFotoActies werkitemId={bezoek.werkitemId} datum={datum} fotos={bezoek.fotos} naam={bezoek.klantNaam ?? bezoek.naam} />
-    {bezoek.ontbreekt.length > 0 && <Scheiding />}
-    {bezoek.ontbreekt.map(onderdeel => {
-      const eigenDelegatie = bezoek.delegaties.find(d => d.onderdeel === onderdeel && d.medewerkerId === linkedMedewerkerId);
-      return <View key={onderdeel} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}><Text style={[tekst.sub, { color: kleuren.mutedForeground, flexShrink: 1 }]}><Text style={{ color: kleuren.foreground, fontWeight: '600' }}>{LABELS[onderdeel]}</Text>: {eigenDelegatie ? 'aan collega overgelaten; antwoord ontbreekt nog' : 'nog niet ingevuld'}</Text>{eigenDelegatie ? <Button title="Zelf weer oppakken" variant="ghost" size="sm" disabled={bezig} onPress={() => intrekkenDelegatie(eigenDelegatie._id)} /> : <Button title={`${LABELS[onderdeel]} door collega`} variant="ghost" size="sm" disabled={bezig || pending} onPress={() => delegeer(onderdeel)} />}</View>;
-    })}
+    {(eigenDelegaties.length > 0 || overTeLaten.length > 0) && <Scheiding />}
+    {eigenDelegaties.map(d => <View key={d._id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+      <Text style={[tekst.sub, { color: kleuren.mutedForeground, flex: 1 }]}><Text style={{ color: kleuren.foreground, fontWeight: '600' }}>{LABELS[d.onderdeel]}</Text> ligt bij een collega</Text>
+      <Button title="Zelf oppakken" variant="ghost" size="sm" disabled={bezig} onPress={() => intrekkenDelegatie(d._id)} />
+    </View>)}
+    {overTeLaten.length > 0 && <View style={{ alignSelf: 'flex-start' }}>
+      <Button title="Aan collega overlaten" variant="ghost" size="sm" disabled={bezig || pending} icon={<UserRound size={16} color={kleuren.foreground} strokeWidth={2} />} onPress={() => setOverlaten(true)} />
+    </View>}
+    <BottomSheet isOpen={overlaten} onClose={() => setOverlaten(false)} title="Wat laat je over?">
+      <Text style={[tekst.sub, { color: kleuren.mutedForeground, marginBottom: 8 }]}>Een collega uit je ploeg vult dit in. Het blijft open staan tot iemand het doet.</Text>
+      {overTeLaten.map((onderdeel, i) => <View key={onderdeel}>
+        {i > 0 && <Scheiding />}
+        <Drukvlak onPress={() => { setOverlaten(false); void delegeer(onderdeel); }} accessibilityLabel={`${LABELS[onderdeel]} aan collega overlaten`} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52 }}>
+          <Text style={[tekst.callout, { color: kleuren.foreground, flex: 1 }]}>{LABELS[onderdeel]}</Text>
+          <ChevronRight size={18} color={kleuren.mutedForeground} strokeWidth={2} />
+        </Drukvlak>
+      </View>)}
+    </BottomSheet>
     {melding && <View accessibilityLiveRegion="polite"><Melding toon="succes" tekst={melding} /></View>}{fout && <Melding toon="gemist" tekst={fout} />}
   </Kaart>;
 }

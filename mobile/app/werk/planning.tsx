@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import { Linking, Platform, Text, View } from 'react-native';
 import { useQuery } from 'convex/react';
 import { useRouter } from 'expo-router';
-import { AlertTriangle, CalendarX2, Clock, MapPin, Navigation, UserX } from 'lucide-react-native';
+import { AlertTriangle, CalendarX2, ChevronRight, Clock, MapPin, Navigation, UserX } from 'lucide-react-native';
 import { useVeldCache } from '../../hooks/use-veld-cache';
 import { api } from '../../convex/_generated/api';
 import { VeldScherm } from '../../components/veld/VeldScherm';
 import { useBuitenModus } from '../../components/veld/BuitenModus';
 import { Button } from '../../components/ui';
-import { Drukvlak, Kaart, LegeStaat, Melding, PeriodeKiezer, Segment, StatusPil, WeekStrook, type Toon } from '../../components/werk/Bouwstenen';
+import { Drukvlak, Kaart, LegeStaat, Melding, PeriodeKiezer, Scheiding, Segment, StatusPil, WeekStrook, type Toon } from '../../components/werk/Bouwstenen';
 import { vandaagAmsterdam, schuifDag, urenLabel, werkPeriode } from '../../lib/werk-periode';
 import { dagLabel, dagNummer, korteDatum, periodeLabel, weekNummer, weekdagKort, weekdagNaam } from '../../lib/datum-labels';
 import { tekst } from '../../theme';
@@ -61,6 +61,7 @@ function PlanningInhoud() {
 
 function PlanningDag({ datum, vandaag, compact }: { datum: string; vandaag: string; compact: boolean }) {
   const { kleuren } = useBuitenModus();
+  const router = useRouter();
   const liveDag = useQuery(api.urenSegmenten.getVeldDag, { datum }) as VeldDagData | null | undefined;
   const { data: dag, uitCache } = useVeldCache(`dag:${datum}`, liveDag);
   const isVandaag = datum === vandaag;
@@ -95,6 +96,42 @@ function PlanningDag({ datum, vandaag, compact }: { datum: string; vandaag: stri
       );
     }
     return <View style={{ gap: 10 }}>{kop}<LegeStaat icoon={CalendarX2} titel="Geen klussen ingepland" uitleg={dag.team ? `Je staat bij ${dag.team.naam}, maar er staan nog geen klussen op deze dag.` : 'Er staat voor deze dag nog niets op de planning.'} /></View>;
+  }
+
+  if (compact) {
+    // Weekweergave: per klus één regel; tikken opent het klusscherm.
+    return (
+      <View style={{ gap: 8 }}>
+        {kop}
+        <Kaart padding={4} style={{ paddingHorizontal: 16, gap: 0 }}>
+          {dag.stops.map((stop, i) => {
+            const gelogd = dag.segmenten.some(s => s.werkitemId === stop.werkitemId && s.categorie === 'werken' && s.status !== 'concept');
+            const gemist = !gelogd && datum < vandaag;
+            const naam = stop.klantNaam ?? stop.naam;
+            const sub = [urenLabel(stop.geplandeMinuten), stop.adres?.split(',').slice(-1)[0]?.replace(/^\s*\d{4}\s?[A-Z]{2}\s*/, '').trim()].filter(Boolean).join(' · ');
+            return (
+              <View key={String(stop.werkitemId)}>
+                {i > 0 && <Scheiding />}
+                <Drukvlak
+                  onPress={() => router.push({ pathname: '/werk/klus/[id]', params: { id: String(stop.werkitemId), datum, naam } })}
+                  accessibilityLabel={`${naam}, ${sub}${gelogd ? ', gelogd' : gemist ? ', uren ontbreken' : ''}`}
+                  accessibilityHint="Opent de klus"
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 60, paddingVertical: 10 }}
+                >
+                  <View style={{ width: 4, alignSelf: 'stretch', borderRadius: 2, backgroundColor: stop.type === 'onderhoudsbeurt' ? kleuren.werkOnderhoud : kleuren.werkAanleg }} />
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={[tekst.kop, { color: kleuren.foreground }]} numberOfLines={1}>{naam}</Text>
+                    <Text style={[tekst.voetnoot, tekst.cijfers, { color: kleuren.mutedForeground, fontSize: 14 }]} numberOfLines={1}>{sub}</Text>
+                  </View>
+                  {gelogd ? <StatusPil label="Gelogd" toon="succes" /> : gemist ? <StatusPil label="Uren ontbreken" toon="gemist" /> : null}
+                  <ChevronRight size={18} color={kleuren.mutedForeground} strokeWidth={2} />
+                </Drukvlak>
+              </View>
+            );
+          })}
+        </Kaart>
+      </View>
+    );
   }
 
   return (
