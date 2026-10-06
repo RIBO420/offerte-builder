@@ -2,15 +2,16 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '@clerk/clerk-expo';
 import { wijzigVoorstelTijd, splitsVoorPauze, tijdMinuten, minutenTijd } from '../../lib/dagvoorstel-tijden';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, Text, TextInput, View } from 'react-native';
 import { useVeldOpdracht } from '../../hooks/use-veld-opdracht';
 import * as Crypto from 'expo-crypto';
-import { SlidersHorizontal } from 'lucide-react-native';
+import { Check, Coffee, Plus, SlidersHorizontal } from 'lucide-react-native';
 import { Button, Checkbox } from '../ui';
-import { Kaart, Scheiding } from '../werk/Bouwstenen';
+import { Kaart, Melding, Scheiding } from '../werk/Bouwstenen';
 import { tekst } from '../../theme';
 import { WerksoortKeuze, type Werksoort } from './WerksoortKeuze';
 import { KlusKiezer } from './KlusKiezer';
+import { VerwijderKnop } from './VerwijderKnop';
 import { useVeldKleuren } from './BuitenModus';
 import { CATEGORIE_LABELS, isGeldigTijdvak, type SegmentCategorie, type VeldDagData } from '../../types/veld';
 
@@ -23,7 +24,7 @@ const minuten = (tijd: string) => Number(tijd.slice(0, 2)) * 60 + Number(tijd.sl
 const tijd = (waarde: number) => `${Math.floor(waarde / 60).toString().padStart(2, '0')}:${(waarde % 60).toString().padStart(2, '0')}`;
 
 /** Bewerk uitsluitend nog niet bevestigde voorstellen; één atomaire opslag. */
-export function DagvoorstelEditor({ dag, datum }: { dag: VeldDagData; datum: string }) {
+export function DagvoorstelEditor({ dag, datum, onOpgeslagen }: { dag: VeldDagData; datum: string; onOpgeslagen?: (melding: string) => void }) {
   const kleuren = useVeldKleuren(); const { verstuur } = useVeldOpdracht();
   const { userId, orgId } = useAuth();
   const conceptSleutel = userId && orgId ? `toptuinen:dagconcept:v1:${orgId}:${userId}:${datum}` : null;
@@ -33,9 +34,10 @@ export function DagvoorstelEditor({ dag, datum }: { dag: VeldDagData; datum: str
   const [regels, setRegels] = useState<Regel[] | null>(null);
   const [revisie, setRevisie] = useState(0); const [schuifMee, setSchuifMee] = useState(true);
   const [bezig, setBezig] = useState(false); const [fout, setFout] = useState<string | null>(null);
+  const [melding, setMelding] = useState<string | null>(null);
   const poging = useRef<{ payload: string; sleutel: string } | null>(null);
   const actief = useRef(false);
-  if (conceptEigenaar !== conceptSleutel) { setConceptEigenaar(conceptSleutel); setRegels(null); setPauzeForm(null); setFout(null); }
+  if (conceptEigenaar !== conceptSleutel) { setConceptEigenaar(conceptSleutel); setRegels(null); setPauzeForm(null); setFout(null); setMelding(null); }
   const schrijfConcept = useCallback((inhoud: string | null) => {
     if (!conceptSleutel) return Promise.resolve();
     schrijfKeten.current = schrijfKeten.current.catch(() => undefined).then(() => inhoud === null ? AsyncStorage.removeItem(conceptSleutel) : AsyncStorage.setItem(conceptSleutel, inhoud));
@@ -47,7 +49,7 @@ export function DagvoorstelEditor({ dag, datum }: { dag: VeldDagData; datum: str
   }, [regels, revisie, schrijfConcept, conceptEigenaar, conceptSleutel]);
   const openen = async () => {
     if (bezig) return;
-    setBezig(true); setFout(null); poging.current = null;
+    setBezig(true); setFout(null); setMelding(null); poging.current = null;
     try {
       const tekst = conceptSleutel ? await AsyncStorage.getItem(conceptSleutel) : null;
       if (tekst) {
@@ -94,14 +96,19 @@ export function DagvoorstelEditor({ dag, datum }: { dag: VeldDagData; datum: str
     actief.current = true; setBezig(true); setFout(null);
     try { const result = await verstuur('dagvoorstel', payload, poging.current.sleutel);
       if (result.status === 'conflict') setFout(result.fout ?? 'Controleer de wachtende invoer bovenaan de dag.');
-      else { await schrijfConcept(null); setRegels(null); poging.current = null; }
+      else {
+        await schrijfConcept(null); setRegels(null); poging.current = null;
+        const bericht = result.status === 'wacht' ? 'Dagvoorstel bewaard op dit toestel. Wordt verstuurd zodra je verbinding hebt.' : 'Dagvoorstel opgeslagen.';
+        // De voorstelkaart verdwijnt vaak na opslaan; de ouder toont de bevestiging dan buiten de kaart.
+        if (onOpgeslagen) onOpgeslagen(bericht); else setMelding(bericht);
+      }
     }
     catch (error) { setFout(error instanceof Error ? error.message : 'Opslaan is mislukt. Probeer opnieuw.'); }
     finally { actief.current = false; setBezig(false); }
   };
   const veld = { color: kleuren.foreground, backgroundColor: kleuren.input, borderWidth: 1, borderColor: kleuren.border, borderRadius: 12, minHeight: 48, paddingHorizontal: 14, paddingVertical: 12, fontSize: 17 };
   const foutRegel = fout && <Text accessibilityRole="alert" style={[tekst.sub, { color: kleuren.danger }]}>{fout}</Text>;
-  if (!regels) return <View style={{ gap: 8 }}><Button title="Dagvoorstel aanpassen" variant="outline" disabled={bezig} onPress={openen} icon={<SlidersHorizontal size={16} color={kleuren.foreground} strokeWidth={2} />} />{foutRegel}</View>;
+  if (!regels) return <View style={{ gap: 8 }}>{melding && <View accessibilityLiveRegion="polite"><Melding toon="succes" icoon={Check} tekst={melding} /></View>}<Button title="Dagvoorstel aanpassen" variant="outline" disabled={bezig} onPress={openen} icon={<SlidersHorizontal size={16} color={kleuren.foreground} strokeWidth={2} />} />{foutRegel}</View>;
   return <View style={{ gap: 12 }}>
     <Text accessibilityRole="header" style={[tekst.titel3, { color: kleuren.foreground }]}>Controleer je dagvoorstel</Text>
     <Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>Je concept wordt op dit toestel bewaard. Begin verschuiven behoudt de duur; eind wijzigen past de duur aan.</Text>
@@ -116,7 +123,7 @@ export function DagvoorstelEditor({ dag, datum }: { dag: VeldDagData; datum: str
         </View>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>{Object.entries(CATEGORIE_LABELS).map(([categorie, label]) => {
           const actief = r.categorie === categorie;
-          return <Pressable key={categorie} disabled={bezig} accessibilityRole="radio" accessibilityState={{ checked: actief }} onPress={() => aanpassen(index, { categorie: categorie as SegmentCategorie, werksoort: undefined })} style={({ pressed }) => ({ minHeight: 44, paddingHorizontal: 14, justifyContent: 'center', borderRadius: 999, backgroundColor: actief ? kleuren.primary : kleuren.muted, opacity: bezig ? 0.45 : pressed ? 0.7 : 1 })}><Text style={[tekst.sub, { color: actief ? kleuren.primaryForeground : kleuren.foreground, fontWeight: actief ? '600' : '500' }]}>{label}</Text></Pressable>;
+          return <Pressable key={categorie} disabled={bezig} accessibilityRole="radio" accessibilityState={{ checked: actief }} onPress={() => aanpassen(index, { categorie: categorie as SegmentCategorie, werksoort: undefined })} style={({ pressed }) => ({ minHeight: 44, paddingHorizontal: 14, justifyContent: 'center', borderRadius: 999, borderWidth: 1, borderColor: actief ? kleuren.primary : kleuren.randSterk, backgroundColor: actief ? kleuren.primary : kleuren.vulling, opacity: bezig ? 0.45 : pressed ? 0.7 : 1 })}><Text style={[tekst.sub, { color: actief ? kleuren.primaryForeground : kleuren.foreground, fontWeight: actief ? '600' : '500' }]}>{label}</Text></Pressable>;
         })}</View>
         {r.categorie === 'anders' && <WerksoortKeuze waarde={r.werksoort} wijzigen={werksoort => aanpassen(index, { werksoort })} disabled={bezig} />}
         <View style={{ flexDirection: 'row', gap: 10 }}>{(['beginTijd', 'eindTijd'] as const).map(veld => <View key={veld} style={{ flex: 1, gap: 6 }}>
@@ -130,17 +137,20 @@ export function DagvoorstelEditor({ dag, datum }: { dag: VeldDagData; datum: str
         {afwijkend && <><TextInput accessibilityLabel={`Reden afwijking segment ${index + 1}`} value={r.afwijkingReden} editable={!bezig} placeholder="Waarom wijkt de duur af?" placeholderTextColor={kleuren.mutedForeground} onChangeText={afwijkingReden => aanpassen(index, { afwijkingReden })} style={veld} /><Checkbox label="Reden nu overslaan" checked={r.afwijkingOvergeslagen} onCheckedChange={afwijkingOvergeslagen => aanpassen(index, { afwijkingOvergeslagen })} disabled={bezig} /></>}
         {pauzeForm?.index === index && <View style={{ gap: 8, backgroundColor: kleuren.muted, borderRadius: 14, padding: 12 }}><Text style={[tekst.kop, { color: kleuren.foreground }]}>Werk splitsen rond een genomen pauze</Text><TextInput accessibilityLabel="Begin van pauze" keyboardType="numbers-and-punctuation" maxLength={5} placeholder="12:00" placeholderTextColor={kleuren.mutedForeground} value={pauzeForm.begin} onChangeText={begin => setPauzeForm({ ...pauzeForm, begin })} style={veld} /><TextInput accessibilityLabel="Pauzeduur in minuten" keyboardType="number-pad" value={pauzeForm.duur} onChangeText={duur => setPauzeForm({ ...pauzeForm, duur })} style={veld} /><Button title="Pauze invoegen" variant="outline" onPress={pauze} /><Button title="Geen pauze invoegen" variant="ghost" onPress={() => setPauzeForm(null)} /></View>}
         <Scheiding />
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
-          {r.categorie === 'werken' && <Button title="Pauze in dit werkblok" variant="ghost" size="sm" disabled={bezig} onPress={() => setPauzeForm({ index, begin: minutenTijd(Math.min(tijdMinuten(r.beginTijd) + 120, tijdMinuten(r.eindTijd) - 30)), duur: '30' })} />}
-          <Button title="Extra blok hierna" variant="ghost" size="sm" disabled={bezig} onPress={() => extraBlok(index)} />
-          <Button title="Uit voorstel verwijderen" variant="ghost" size="sm" disabled={bezig} onPress={() => setRegels(regels.filter((_, i) => i !== index))} />
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          {r.categorie === 'werken' && <Button title="Pauze in dit werkblok" variant="outline" size="sm" disabled={bezig} accessibilityLabel={`Pauze in werkblok segment ${index + 1}`} icon={<Coffee size={16} color={kleuren.foreground} strokeWidth={2} />} onPress={() => setPauzeForm({ index, begin: minutenTijd(Math.min(tijdMinuten(r.beginTijd) + 120, tijdMinuten(r.eindTijd) - 30)), duur: '30' })} />}
+          <Button title="Extra blok hierna" variant="outline" size="sm" disabled={bezig} accessibilityLabel={`Extra blok na segment ${index + 1}`} icon={<Plus size={16} color={kleuren.foreground} strokeWidth={2} />} onPress={() => extraBlok(index)} />
+          <VerwijderKnop title="Uit voorstel verwijderen" accessibilityLabel={`Segment ${index + 1} uit voorstel verwijderen`} variant="outline" size="sm" disabled={bezig} onPress={() => setRegels(regels.filter((_, i) => i !== index))} />
         </View>
       </Kaart>;
     })}
     {foutRegel}
     <Button title="Hele voorstel opslaan" size="lg" loading={bezig} disabled={!regels.length || (dag.revisie ?? 0) !== revisie} onPress={opslaan} fullWidth />
     <Button title="Sluiten en concept bewaren" variant="ghost" disabled={bezig} onPress={() => setRegels(null)} />
-    <Button title="Concept verwijderen" variant="ghost" disabled={bezig} onPress={async () => { try { await schrijfConcept(null); setRegels(null); } catch { setFout('Concept verwijderen mislukt.'); } }} />
+    <VerwijderKnop title="Concept verwijderen" disabled={bezig} onPress={() => Alert.alert('Concept verwijderen?', 'Je aanpassingen aan het dagvoorstel op dit toestel gaan verloren. Het oorspronkelijke voorstel blijft staan.', [
+      { text: 'Annuleren', style: 'cancel' },
+      { text: 'Verwijderen', style: 'destructive', onPress: async () => { try { await schrijfConcept(null); setRegels(null); } catch { setFout('Concept verwijderen mislukt.'); } } },
+    ])} />
   </View>;
 }
 

@@ -158,7 +158,7 @@ function KrachtenInhoud() {
                 const actief = categorie === key;
                 return (
                   <Drukvlak key={key} onPress={() => { setCategorie(key as SegmentCategorie); setWerksoort(undefined); }} disabled={bezig} haptic="selection" accessibilityLabel={l} accessibilityState={{ selected: actief }}
-                    style={{ minHeight: 44, paddingHorizontal: 14, borderRadius: 22, justifyContent: 'center', backgroundColor: actief ? kleuren.primarySoft : kleuren.muted }}>
+                    style={{ minHeight: 44, paddingHorizontal: 14, borderRadius: 22, justifyContent: 'center', borderWidth: 1, borderColor: actief ? kleuren.primary : kleuren.randSterk, backgroundColor: actief ? kleuren.primarySoft : kleuren.vulling }}>
                     <Text style={[tekst.sub, { color: actief ? kleuren.primary : kleuren.foreground, fontWeight: actief ? '700' : '500' }]}>{l}</Text>
                   </Drukvlak>
                 );

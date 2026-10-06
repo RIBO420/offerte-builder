@@ -309,6 +309,17 @@ function JeDag({ dag, gelogd }: { dag: VeldDagData; gelogd: number }) {
 // ── Kantoor: eerste actieve project ─────────────────────────────────────────
 
 interface ProjectVoortgang { _id: string; naam: string; status: string; voortgang?: number | null; klantNaam?: string }
+const PROJECT_STATUS: Record<string, string> = {
+  voorcalculatie: 'Voorcalculatie', gepland: 'Gepland', in_uitvoering: 'In uitvoering', afgerond: 'Afgerond',
+  nacalculatie_compleet: 'Nacalculatie klaar', gefactureerd: 'Gefactureerd', uitgevoerd: 'Uitgevoerd',
+  vervallen: 'Vervallen', deels_uitgevoerd: 'Deels uitgevoerd',
+};
+/** Nooit een ruwe statuscode tonen: bekende labels, anders underscores weg en hoofdletter. */
+const statusLabel = (status: string) => {
+  if (PROJECT_STATUS[status]) return PROJECT_STATUS[status];
+  const t = status.replaceAll('_', ' ');
+  return t.charAt(0).toUpperCase() + t.slice(1);
+};
 
 function ProjectVlak({ projecten }: { projecten: ProjectVoortgang[] }) {
   const kleuren = useColors();
@@ -342,7 +353,7 @@ function ProjectVlak({ projecten }: { projecten: ProjectVoortgang[] }) {
                 icoon={Hammer}
                 toon="neutraal"
                 titel={p.naam}
-                sub={typeof p.voortgang === 'number' ? `${p.voortgang}% · ${p.klantNaam || p.status}` : p.klantNaam || p.status}
+                sub={typeof p.voortgang === 'number' ? `${p.voortgang}% · ${p.klantNaam || statusLabel(p.status)}` : p.klantNaam || statusLabel(p.status)}
                 onPress={() => router.push(`/project/${p._id}`)}
               />
             </View>

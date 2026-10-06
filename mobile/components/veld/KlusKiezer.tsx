@@ -7,7 +7,7 @@ import type { Id } from '../../convex/_generated/dataModel';
 import type { VeldStop } from '../../types/veld';
 import { useVeldServerActie } from '../../hooks/use-veld-server-actie';
 import { useVeldKleuren } from './BuitenModus';
-import { Check, CloudOff, Search, UserPlus } from 'lucide-react-native';
+import { Check, CloudOff, Plus, Search, UserPlus } from 'lucide-react-native';
 import { Button } from '../ui';
 import { Melding, Scheiding } from '../werk/Bouwstenen';
 import { tekst } from '../../theme';
@@ -67,7 +67,7 @@ export function KlusKiezer({ datum, stops, waarde, wijzigen, disabled = false }:
           <Text style={[tekst.kop, { color: kleuren.foreground }]}>{k.naam}{k.gepland ? <Text style={{ color: kleuren.mutedForeground, fontWeight: '400' }}> · gepland</Text> : ''}</Text>
           {(k.adres || k.plaats) && <Text style={gedempt}>{[k.adres, k.plaats].filter(Boolean).join(', ')}</Text>}
           {k.werkitems.map(w => <Button key={w.werkitemId} title={`Kies ${w.naam}`} variant="outline" onPress={() => { wijzigen(w.werkitemId); setOpen(false); }} />)}
-          <Button title={`Nieuwe klus bij ${k.naam}`} variant="ghost" disabled={!online} onPress={() => { setKlant({ klantId: k.klantId, naam: k.naam }); setOmschrijving(''); }} />
+          <Button title={`Nieuwe klus bij ${k.naam}`} variant="outline" disabled={!online} icon={<Plus size={16} color={kleuren.foreground} strokeWidth={2} />} onPress={() => { setKlant({ klantId: k.klantId, naam: k.naam }); setOmschrijving(''); }} />
         </View>)}
         {klanten?.meerResultaten && <Text style={gedempt}>Verfijn je zoekopdracht om meer klanten te vinden.</Text>}
         {klanten && klanten.klanten.length === 0 && <Text style={gedempt}>Geen klant gevonden.</Text>}

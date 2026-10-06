@@ -17,8 +17,9 @@ import { useVeldOpdracht } from '../../hooks/use-veld-opdracht';
 import * as Crypto from 'expo-crypto';
 import { DagvoorstelEditor } from './DagvoorstelEditor';
 import { KlusKiezer } from './KlusKiezer';
+import { VerwijderKnop } from './VerwijderKnop';
 import { useVeldServerActie } from '../../hooks/use-veld-server-actie';
-import { Check, CheckCheck, Clock, CloudUpload, Pencil, Plus, Trash2 } from 'lucide-react-native';
+import { Check, CheckCheck, Clock, CloudUpload, Pencil, Plus, StickyNote, Trash2 } from 'lucide-react-native';
 import { BottomSheet, Button, Input } from '../ui';
 import { Drukvlak, IcoonTegel, Kaart, Melding, Scheiding, SectieKop, StatusPil } from '../werk/Bouwstenen';
 import { tekst } from '../../theme';
@@ -52,6 +53,10 @@ export function SegmentenLijst({
   const { voerUit } = useVeldServerActie();
   const { wachtrij, verstuur } = useVeldOpdracht();
   const actieBezig = useRef(false);
+  const [bevestigBezig, setBevestigBezig] = useState<string | null>(null);
+  // Bevestiging hoort bij één dag; bij wisselen van dag verdwijnt ze vanzelf.
+  const [succes, setSucces] = useState<{ datum: string; tekst: string } | null>(null);
+  const meld = useCallback((tekst: string) => setSucces({ datum, tekst }), [datum]);
   const dagWacht = wachtrij.some(r =>
     ((r.type === 'dagvoorstel' || r.type === 'segmentToevoegen') && r.payload.datum === datum) ||
     (r.type === 'segmentWijzigen' && dag.segmenten.some(s => s._id === r.payload.id)));
@@ -66,17 +71,18 @@ export function SegmentenLijst({
     return stop ? stop.klantNaam ?? stop.naam : null;
   };
 
-  const bevestigVoorstellen = async (voorstellen: VoorstelSegment[]) => {
+  const bevestigVoorstellen = async (voorstellen: VoorstelSegment[], knop: string) => {
     if (actieBezig.current || dagWacht) return;
-    actieBezig.current = true;
+    actieBezig.current = true; setBevestigBezig(knop); setSucces(null);
     try {
       const resultaat = await verstuur('dagvoorstel', { datum, verwachteRevisie: dag.revisie, segmenten: voorstellen.map(v => ({ categorie: v.categorie, beginTijd: v.beginTijd, eindTijd: v.eindTijd, ...(v.werkitemId ? { werkitemId: v.werkitemId } : {}) })) });
       if (resultaat.status === 'conflict') toonFout(resultaat.fout, 'Bevestigen is mislukt. Controleer de wachtrij.');
+      else meld(resultaat.status === 'wacht' ? 'Bevestiging bewaard op dit toestel. Wordt verstuurd zodra je verbinding hebt.' : voorstellen.length > 1 ? `${voorstellen.length} segmenten bevestigd.` : 'Segment bevestigd.');
     } catch (fout) { toonFout(fout, 'Bevestigen is mislukt'); }
-    finally { actieBezig.current = false; }
+    finally { actieBezig.current = false; setBevestigBezig(null); }
   };
-  const handleBevestigVoorstel = (voorstel: VoorstelSegment) => bevestigVoorstellen([voorstel]);
-  const handleBevestigAlle = () => bevestigVoorstellen(dag.voorstellen);
+  const handleBevestigVoorstel = (voorstel: VoorstelSegment, i: number) => bevestigVoorstellen([voorstel], String(i));
+  const handleBevestigAlle = () => bevestigVoorstellen(dag.voorstellen, 'alle');
 
   const handleVerwijder = (segment: VeldSegment) => {
     Alert.alert(
@@ -120,6 +126,7 @@ export function SegmentenLijst({
       />
 
       {dagWacht && <Melding toon="wachten" icoon={CloudUpload} tekst="Uren van deze dag wachten op synchronisatie. Controleer de wachtrij voordat je verder wijzigt." />}
+      {succes?.datum === datum && <View accessibilityLiveRegion="polite"><Melding toon="succes" icoon={Check} tekst={succes.tekst} /></View>}
       {/* Voorgestelde segmenten uit de dagkaart (§8.10) */}
       {magBewerken && !dagWacht && dag.voorstellen.length > 0 && (
         <Kaart style={{ borderStyle: 'dashed', backgroundColor: kleuren.surface }}>
@@ -135,10 +142,12 @@ export function SegmentenLijst({
               size="sm"
               title={`Alles (${dag.voorstellen.length})`}
               icon={<CheckCheck size={16} color={kleuren.primary} strokeWidth={2} />}
+              loading={bevestigBezig === 'alle'}
+              disabled={!!bevestigBezig}
               onPress={handleBevestigAlle}
             />
           </View>
-          <DagvoorstelEditor dag={dag} datum={datum} />
+          <DagvoorstelEditor dag={dag} datum={datum} onOpgeslagen={meld} />
           <View>
             {dag.voorstellen.map((voorstel, i) => (
               <View key={`${voorstel.beginTijd}-${voorstel.categorie}-${i}`}>
@@ -159,8 +168,11 @@ export function SegmentenLijst({
                     variant="secondary"
                     size="sm"
                     title="Bevestig"
+                    accessibilityLabel={`Bevestig ${voorstel.beginTijd}–${voorstel.eindTijd} ${CATEGORIE_LABELS[voorstel.categorie]}`}
                     icon={<Check size={16} color={kleuren.primary} strokeWidth={2} />}
-                    onPress={() => handleBevestigVoorstel(voorstel)}
+                    loading={bevestigBezig === String(i)}
+                    disabled={!!bevestigBezig}
+                    onPress={() => handleBevestigVoorstel(voorstel, i)}
                   />
                 </View>
               </View>
@@ -201,14 +213,14 @@ export function SegmentenLijst({
                         {stopNaam(segment.werkitemId)}
                       </Text>
                     )}
-                    {wachtend && <Text accessibilityLiveRegion="polite" style={[tekst.voetnoot, { color: kleuren.warning, fontSize: 14, lineHeight: 19 }]}>Wachtende wijziging: {String(wachtend.payload.beginTijd ?? segment.beginTijd)}–{String(wachtend.payload.eindTijd ?? segment.eindTijd)} {String(wachtend.payload.categorie ?? segment.categorie)}{typeof wachtend.payload.notitie === 'string' ? ` · ${wachtend.payload.notitie}` : ''}. Nog niet bevestigd.</Text>}
+                    {wachtend && <Text accessibilityLiveRegion="polite" style={[tekst.voetnoot, { color: kleuren.warning, fontSize: 14, lineHeight: 19 }]}>Wachtende wijziging: {String(wachtend.payload.beginTijd ?? segment.beginTijd)}–{String(wachtend.payload.eindTijd ?? segment.eindTijd)} {CATEGORIE_LABELS[(wachtend.payload.categorie ?? segment.categorie) as SegmentCategorie] ?? String(wachtend.payload.categorie).replaceAll('_', ' ')}{typeof wachtend.payload.notitie === 'string' ? ` · ${wachtend.payload.notitie}` : ''}. Nog niet bevestigd.</Text>}
                     {segment.notitie ? (
                       <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground, fontSize: 14, fontStyle: 'italic' }]} numberOfLines={2}>
                         &quot;{segment.notitie}&quot;
                       </Text>
                     ) : null}
                   </View>
-                  {!bewerkbaar && !dagWacht && dag.isEigenDag && <Button title="Notitie" variant="ghost" size="sm" onPress={() => { setBewerkSegment(segment); setFormOpen(true); }} />}
+                  {!bewerkbaar && !dagWacht && dag.isEigenDag && <Button title="Notitie" variant="outline" size="sm" accessibilityLabel={`Notitie bij ${segment.beginTijd}–${segment.eindTijd}`} icon={<StickyNote size={16} color={kleuren.foreground} strokeWidth={2} />} onPress={() => { setBewerkSegment(segment); setFormOpen(true); }} />}
                   {bewerkbaar && (
                     <View style={{ flexDirection: 'row', gap: 4 }}>
                       <Drukvlak
@@ -217,7 +229,7 @@ export function SegmentenLijst({
                           setBewerkSegment(segment);
                           setFormOpen(true);
                         }}
-                        style={{ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: kleuren.muted }}
+                        style={{ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: kleuren.vulling }}
                       >
                         <Pencil size={18} color={kleuren.foreground} strokeWidth={2} />
                       </Drukvlak>
@@ -366,7 +378,10 @@ function SegmentFormSheet({
     <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground, fontSize: 14, lineHeight: 19 }]}>{conceptMelding ?? 'Je invoer wordt op dit toestel bewaard bij sluiten of herstart.'}</Text>
     {geladen && !herstelPoging && revisie !== dag.revisie && <Text accessibilityRole="alert" style={[tekst.sub, { color: kleuren.warning }]}>De dag is gewijzigd sinds dit concept. Controleer je tijden en laad de actuele dagrevisie voordat je opslaat.</Text>}
     {geladen && !herstelPoging && revisie !== dag.revisie && <Button title="Gecontroleerd, actuele revisie gebruiken" variant="outline" onPress={() => setRevisie(dag.revisie)} />}
-    <Button title="Concept verwijderen" variant="ghost" disabled={bezig} onPress={async () => { try { await verwijderConcept(); onClose(); } catch { setTijdFout('Concept verwijderen mislukt.'); } }} />
+    <VerwijderKnop title="Concept verwijderen" disabled={bezig} onPress={() => Alert.alert('Concept verwijderen?', 'Je bewaarde invoer op dit toestel gaat verloren. Opgeslagen uren blijven staan.', [
+      { text: 'Annuleren', style: 'cancel' },
+      { text: 'Verwijderen', style: 'destructive', onPress: async () => { try { await verwijderConcept(); onClose(); } catch { setTijdFout('Concept verwijderen mislukt.'); } } },
+    ])} />
   </View>;
   if (!geladen || herstelPoging) return <BottomSheet isOpen={open} onClose={onClose} title="Bewaarde ureninvoer">
     <View style={{ gap: 12 }}>
@@ -416,7 +431,9 @@ function SegmentFormSheet({
                       justifyContent: 'center',
                       paddingHorizontal: 14,
                       borderRadius: 999,
-                      backgroundColor: actief ? kleuren.primary : kleuren.muted,
+                      borderWidth: 1,
+                      borderColor: actief ? kleuren.primary : kleuren.randSterk,
+                      backgroundColor: actief ? kleuren.primary : kleuren.vulling,
                     }}
                   >
                     <Text

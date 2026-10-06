@@ -14,6 +14,7 @@ import { useCurrentUser } from '../../hooks/use-current-user';
 import { isKantoorRole } from '../../lib/roles';
 import { vandaagAmsterdam, schuifDag } from '../../lib/werk-periode';
 import { korteDatum, weekdagNaam } from '../../lib/datum-labels';
+import { amsterdamTijd } from '../../lib/retour-tijd';
 import { tekst } from '../../theme';
 
 type FotoDag = { bezoeken: { werkitemId: string; naam: string; klantNaam: string | null; fotos: { id: string; fase: 'voor' | 'na'; url: string | null; doorNaam: string; createdAt?: number }[] }[] };
@@ -27,6 +28,9 @@ function Fotos() {
   const { data, uitCache } = useVeldCache(`fotos:${kantoor ? 'kantoor' : 'eigen'}:${datum}`, kantoor ? alle : eigen);
   const selecteer = (dag: string) => { setDatum(dag); };
   const bezoeken = data?.bezoeken.filter(b => `${b.klantNaam ?? ''} ${b.naam}`.toLowerCase().includes(zoek.toLowerCase()));
+  // Alleen foto's met een url zijn te tonen; de rest (nog in upload of verlopen) melden we apart.
+  const zichtbaar = bezoeken?.filter(b => b.fotos.some(f => f.url)) ?? [];
+  const nietTeTonen = bezoeken?.reduce((n, b) => n + b.fotos.filter(f => !f.url).length, 0) ?? 0;
   const vandaag = vandaagAmsterdam();
   const veld = { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 8, backgroundColor: kleuren.muted, borderRadius: 12, minHeight: 44, paddingHorizontal: 12 };
   const invoer = { flex: 1, color: kleuren.foreground, fontSize: 16, minHeight: 44, paddingVertical: 10 };
@@ -51,7 +55,7 @@ function Fotos() {
     {uitCache && <Melding tekst="Laatst geladen overzicht. Foto’s openen vraagt mogelijk verbinding." />}
     {!data && <Kaart variant="stil"><Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>Foto’s laden…</Text></Kaart>}
 
-    {bezoeken?.filter(b => b.fotos.some(f => f.url)).map((b, i) => (
+    {zichtbaar.map((b, i) => (
       <Kaart key={`${b.werkitemId}-${i}`}>
         <View style={{ gap: 2 }}>
           <Text style={[tekst.kop, { color: kleuren.foreground }]} numberOfLines={2}>{b.klantNaam ?? b.naam}</Text>
@@ -63,14 +67,15 @@ function Fotos() {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <StatusPil label={f.fase === 'voor' ? 'Voor' : 'Na'} toon={f.fase === 'na' ? 'succes' : 'neutraal'} />
               <Text style={[tekst.voetnoot, tekst.cijfers, { color: kleuren.mutedForeground, fontSize: 14, flex: 1 }]} numberOfLines={2}>
-                {f.doorNaam}{f.createdAt ? ` · ${new Date(f.createdAt).toLocaleString('nl-NL', { timeZone: 'Europe/Amsterdam' })}` : ''}
+                {f.doorNaam}{f.createdAt ? ` · ${amsterdamTijd(f.createdAt)}` : ''}
               </Text>
             </View>
           </View>
         ))}
       </Kaart>
     ))}
-    {data && !bezoeken?.some(b => b.fotos.length) && <LegeStaat icoon={ImageOff} titel="Geen foto’s gevonden" uitleg="Er zijn geen foto’s voor deze dag of zoekterm." />}
+    {nietTeTonen > 0 && <Melding toon="wachten" tekst={nietTeTonen === 1 ? '1 foto kan nu niet worden getoond. Mogelijk is de upload nog bezig; probeer het later opnieuw.' : `${nietTeTonen} foto’s kunnen nu niet worden getoond. Mogelijk is de upload nog bezig; probeer het later opnieuw.`} />}
+    {data && !zichtbaar.length && !nietTeTonen && <LegeStaat icoon={ImageOff} titel="Geen foto’s gevonden" uitleg="Er zijn geen foto’s voor deze dag of zoekterm." />}
 
     <Button title="Naar mijn werkdag" variant="outline" fullWidth onPress={() => router.push({ pathname: '/(tabs)/uren', params: { datum } })} />
   </>;
