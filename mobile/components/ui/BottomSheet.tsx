@@ -1,19 +1,21 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Dimensions, Pressable, Modal, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  withSpring,
   withTiming,
+  Easing,
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
-import { springConfigs } from '../../theme/animations';
 import { tekst } from '../../theme/typography';
 import { useVeldKleuren } from '../veld/BuitenModus';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const DISMISS_THRESHOLD = 100;
+// Zoals een iOS-blad: snel omhoog en zacht uitlopen, zonder na te veren.
+const OPEN = { duration: 320, easing: Easing.out(Easing.cubic) };
+const DICHT = { duration: 220, easing: Easing.in(Easing.cubic) };
 
 interface BottomSheetProps {
   isOpen: boolean;
@@ -31,14 +33,17 @@ export function BottomSheet({
   const kleuren = useVeldKleuren();
   const translateY = useSharedValue(SCREEN_HEIGHT);
   const backdropOpacity = useSharedValue(0);
+  // Blijft gemonteerd tot de sluitanimatie klaar is, anders verdwijnt het blad in één klap.
+  const [zichtbaar, setZichtbaar] = useState(isOpen);
+  if (isOpen && !zichtbaar) setZichtbaar(true);
 
   useEffect(() => {
     if (isOpen) {
-      translateY.set(withSpring(0, springConfigs.default));
-      backdropOpacity.set(withTiming(1, { duration: 300 }));
+      translateY.set(withTiming(0, OPEN));
+      backdropOpacity.set(withTiming(1, { duration: 240 }));
     } else {
-      translateY.set(withSpring(SCREEN_HEIGHT, springConfigs.default));
-      backdropOpacity.set(withTiming(0, { duration: 200 }));
+      backdropOpacity.set(withTiming(0, DICHT));
+      translateY.set(withTiming(SCREEN_HEIGHT, DICHT, klaar => { if (klaar) scheduleOnRN(setZichtbaar, false); }));
     }
     // Shared values zijn stabiele referenties; opnemen in deps is gedragsneutraal.
   }, [isOpen, translateY, backdropOpacity]);
@@ -54,13 +59,13 @@ export function BottomSheet({
       }
     })
     .onEnd((event) => {
-      if (event.translationY > DISMISS_THRESHOLD) {
-        translateY.set(withSpring(SCREEN_HEIGHT, springConfigs.default));
-        backdropOpacity.set(withTiming(0, { duration: 200 }, () => {
+      if (event.translationY > DISMISS_THRESHOLD || event.velocityY > 800) {
+        translateY.set(withTiming(SCREEN_HEIGHT, DICHT));
+        backdropOpacity.set(withTiming(0, DICHT, () => {
           scheduleOnRN(handleClose);
         }));
       } else {
-        translateY.set(withSpring(0, springConfigs.default));
+        translateY.set(withTiming(0, { duration: 200, easing: Easing.out(Easing.cubic) }));
       }
     });
 
@@ -72,7 +77,7 @@ export function BottomSheet({
     opacity: backdropOpacity.get(),
   }));
 
-  if (!isOpen) return null;
+  if (!zichtbaar) return null;
 
   // Als Modal over het hele scherm, waar het blad ook in de boom staat (bv. in een
   // lijst binnen een ScrollView). Een Modal is een eigen root, dus hij krijgt een
