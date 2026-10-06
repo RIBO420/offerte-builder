@@ -407,7 +407,7 @@ export default function LoginScreen() {
                         lineHeight: undefined,
                         borderRadius: 12,
                         borderWidth: 1,
-                        borderColor: errorMessage ? kleuren.danger : gevuld ? kleuren.primary : kleuren.border,
+                        borderColor: errorMessage ? kleuren.danger : gevuld ? kleuren.primary : kleuren.randSterk,
                         backgroundColor: kleuren.input,
                         color: kleuren.foreground,
                         textAlign: 'center',

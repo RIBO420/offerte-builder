@@ -12,7 +12,7 @@ import { useVeldOpdracht } from '../../hooks/use-veld-opdracht';
 import { tekst } from '../../theme';
 
 const stappen = [
-  ['Jouw werkdag', 'Bij Uren zie je de planning en je dagvoorstel. Controleer de tijden en pauzes voordat je ze bevestigt. Je kunt zelf een extra blok toevoegen.'],
+  ['Jouw werkdag', 'Bij Mijn dag zie je je klussen en je dagvoorstel. Controleer de tijden en pauzes voordat je ze bevestigt. Je kunt zelf een extra blok toevoegen.'],
   ['Werk samen aan de klus', 'Voeg een foto toe en meld of de klus klaar is. Geef bij een onvoltooide klus de reden en resterende tijd aan. Een collega kan de gedeelde vragen beantwoorden; geef dat dan expliciet aan.'],
   ['Afval en terug naar de loods', 'Geef per klus aan hoeveel afval meegaat. Meld apart hoe vol de fysieke aanhanger terugkomt naar de loods, met de juiste aanhanger en tijd.'],
   ['Ook zonder verbinding', 'Opgeslagen opdrachten staan in de wachtrij totdat ze bevestigd zijn. Controleer meldingen en los conflicten op. Je kunt de dag indienen als alles is gesynchroniseerd en de klusvragen beantwoord zijn.'],

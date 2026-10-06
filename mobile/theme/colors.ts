@@ -28,7 +28,7 @@ export const colors = {
   destructiveForeground: '#FFFFFF',
 
   border: '#262D28',
-  input: '#1C221E',
+  input: '#202823',
   ring: '#7BD389',
 
   // Tabiconen, placeholders, uitgeschakeld

@@ -64,7 +64,7 @@ export function BezoekKaart({ bezoek, datum, ingebed = false }: { bezoek: Bezoek
   const intrekkenDelegatie = async (id: Id<'werkbezoekDelegaties'>) => {
     try { await voerUit('werkbezoek:trekDelegatieIn', { id }); } catch (error) { setFout(error instanceof Error ? error.message : 'Intrekken mislukt.'); }
   };
-  const veld = { color: kleuren.foreground, backgroundColor: kleuren.input, borderWidth: 1, borderColor: kleuren.border, borderRadius: 12, minHeight: 48, paddingHorizontal: 14, paddingVertical: 12, fontSize: 17 };
+  const veld = { color: kleuren.foreground, backgroundColor: kleuren.input, borderWidth: 1, borderColor: kleuren.randSterk, borderRadius: 12, minHeight: 48, paddingHorizontal: 14, paddingVertical: 12, fontSize: 17 };
   return <Kaart style={{ gap: 14 }}>
     <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
       <Text accessibilityRole="header" style={[tekst.titel3, { color: kleuren.foreground, flex: 1 }]} numberOfLines={2}>{ingebed ? 'Voor je vertrekt' : bezoek.klantNaam ?? bezoek.naam}</Text>

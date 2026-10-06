@@ -40,7 +40,7 @@ function randKleur(k: ColorScheme, status: InputStatus, focus: boolean, fout: bo
   if (fout || status === 'invalid') return k.danger;
   if (focus) return k.primary;
   if (status === 'valid') return k.success;
-  return k.border;
+  return k.randSterk;
 }
 
 export const Input = forwardRef<TextInput, InputProps>(

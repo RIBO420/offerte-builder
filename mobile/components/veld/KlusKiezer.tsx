@@ -27,7 +27,7 @@ export function KlusKiezer({ datum, stops, waarde, wijzigen, disabled = false }:
   const [bezig, setBezig] = useState(false); const [fout, setFout] = useState<string | null>(null);
   const [nieuwWerk, setNieuwWerk] = useState<{ werkitemId: Id<'projecten'>; naam: string } | null>(null);
   const poging = useRef<{ inhoud: string; sleutel: string } | null>(null); const vergrendeld = useRef(false);
-  const stijl = { color: kleuren.foreground, backgroundColor: kleuren.input, borderWidth: 1, borderColor: kleuren.border, borderRadius: 12, minHeight: 48, paddingHorizontal: 14, paddingVertical: 12, fontSize: 17 };
+  const stijl = { color: kleuren.foreground, backgroundColor: kleuren.input, borderWidth: 1, borderColor: kleuren.randSterk, borderRadius: 12, minHeight: 48, paddingHorizontal: 14, paddingVertical: 12, fontSize: 17 };
   const gedempt = [tekst.sub, { color: kleuren.mutedForeground }];
   const selecteer = (id: Id<'projecten'>) => { wijzigen(waarde === id ? null : id); setFout(null); };
   const maak = async () => {

@@ -111,7 +111,7 @@ export function DagvoorstelEditor({ dag, datum, onOpgeslagen, onBewerken }: { da
     catch (error) { setFout(error instanceof Error ? error.message : 'Opslaan is mislukt. Probeer opnieuw.'); }
     finally { actief.current = false; setBezig(false); }
   };
-  const veld = { color: kleuren.foreground, backgroundColor: kleuren.input, borderWidth: 1, borderColor: kleuren.border, borderRadius: 12, minHeight: 44, paddingHorizontal: 12, paddingVertical: 10, fontSize: 16 };
+  const veld = { color: kleuren.foreground, backgroundColor: kleuren.input, borderWidth: 1, borderColor: kleuren.randSterk, borderRadius: 12, minHeight: 44, paddingHorizontal: 12, paddingVertical: 10, fontSize: 16 };
   const foutRegel = fout && <Text accessibilityRole="alert" style={[tekst.sub, { color: kleuren.danger }]}>{fout}</Text>;
   if (!regels) return <View style={{ gap: 8 }}>{melding && <View accessibilityLiveRegion="polite"><Melding toon="succes" icoon={Check} tekst={melding} /></View>}<Button title="Aanpassen" variant="ghost" disabled={bezig} onPress={openen} icon={<SlidersHorizontal size={16} color={kleuren.foreground} strokeWidth={2} />} />{foutRegel}</View>;
   const klusNaam = (id?: string) => { const stop = dag.stops.find(s => String(s.werkitemId) === id); return stop ? stop.klantNaam ?? stop.naam : null; };

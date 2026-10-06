@@ -118,7 +118,7 @@ export function AanhangerRetourKaart({ datum, teamId, ingebed = false }: { datum
     }
   };
 
-  const tekstveld = { color: kleuren.foreground, backgroundColor: kleuren.input, borderColor: kleuren.border, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, minHeight: 48, fontSize: 17 };
+  const tekstveld = { color: kleuren.foreground, backgroundColor: kleuren.input, borderColor: kleuren.randSterk, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, minHeight: 48, fontSize: 17 };
   const veldLabel = [tekst.voetnoot, { color: kleuren.mutedForeground, fontWeight: '600' as const }];
   return (
     <View style={{ gap: 10 }}>
