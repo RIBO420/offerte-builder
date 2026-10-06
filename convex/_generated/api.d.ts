@@ -164,6 +164,7 @@ import type * as users from "../users.js";
 import type * as uurtarieven from "../uurtarieven.js";
 import type * as validators from "../validators.js";
 import type * as veldDekking from "../veldDekking.js";
+import type * as veldDemoSeed from "../veldDemoSeed.js";
 import type * as veldHerinnerEmail from "../veldHerinnerEmail.js";
 import type * as veldHerinneringen from "../veldHerinneringen.js";
 import type * as veldKlanten from "../veldKlanten.js";
@@ -349,6 +350,7 @@ declare const fullApi: ApiFromModules<{
   uurtarieven: typeof uurtarieven;
   validators: typeof validators;
   veldDekking: typeof veldDekking;
+  veldDemoSeed: typeof veldDemoSeed;
   veldHerinnerEmail: typeof veldHerinnerEmail;
   veldHerinneringen: typeof veldHerinneringen;
   veldKlanten: typeof veldKlanten;
