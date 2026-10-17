@@ -4,17 +4,12 @@ import { Cel, Cijferstrip } from "@/components/ui/cijferstrip";
 import { formatCurrency, formatKwartaalJaar } from "@/lib/format";
 
 /**
- * De cijferstrook: hoe staat de zaak ervoor?
+ * De geldcijfers van de dagstaat: hoe staat de zaak ervoor?
  *
- * Eén balk in plaats van vier losse kaarten. Vier kaarten met dezelfde rand,
- * dezelfde padding en dezelfde tekstgrootte lezen als "alles is even
- * belangrijk"; één instrument met hairline-scheidingen leest als één antwoord
- * met vier wijzers — en scheelt ook nog een rij marges.
- *
- * Het frame zelf (`Cijferstrip` + `Cel`, inclusief de gap-px-hairlines) is
- * losgetrokken naar `@/components/ui/cijferstrip` zodat het klantdossier
- * dezelfde strook gebruikt in plaats van hem na te bouwen. Hier blijft staan
- * wat over het dashboard gaat: welke vier cijfers, en hoe ze verdelen.
+ * Eén instrument met hairline-scheidingen in plaats van losse kaarten. Het
+ * frame zelf (`Cijferstrip` + `Cel`) staat in `@/components/ui/cijferstrip`,
+ * zodat het klantdossier dezelfde strook gebruikt. Hier blijft staan wat over
+ * het dashboard gaat: welke cijfers, en hoe ze verdelen.
  *
  * Omzet is het enige heldcijfer van de pagina (Outfit); de rest is bewust
  * stiller. Sparklines zijn hier weg en komen niet terug: de vorige versie
@@ -70,9 +65,9 @@ export function berekenVerschilPct(huidig?: number, vorig?: number): number {
   return Math.round(((huidig - vorig) / vorig) * 100);
 }
 
-// ── Cijferbalk ──────────────────────────────────────────────────────────────
+// ── Cijferkolom (dashboard A) ───────────────────────────────────────────────
 
-export interface CijferbalkProps {
+export interface CijferKolomProps {
   /** Getekende omzet incl. btw, alle tijd (gedeelde omzetdefinitie). */
   getekendeOmzet: number;
   omzetTrendPct: number;
@@ -81,12 +76,16 @@ export interface CijferbalkProps {
   vervaldenBedrag: number;
   gefactureerdDitKwartaal: number;
   gefactureerdTrendPct: number;
-  actieveProjecten: number;
-  afgerondeProjecten: number;
-  totaalProjecten: number;
 }
 
-export function Cijferbalk({
+/**
+ * De geldcijfers als blok bovenaan de geldkolom: het heldcijfer over de volle
+ * breedte, openstaand en gefactureerd eronder naast elkaar. Actieve projecten
+ * staan hier niet meer: dat is werk, en hoort in de kop van "Lopend werk".
+ *
+ * Een trendchip van 0% zegt niets en kost wel aandacht; die valt weg.
+ */
+export function CijferKolom({
   getekendeOmzet,
   omzetTrendPct,
   openstaandBedrag,
@@ -94,44 +93,40 @@ export function Cijferbalk({
   vervaldenBedrag,
   gefactureerdDitKwartaal,
   gefactureerdTrendPct,
-  actieveProjecten,
-  afgerondeProjecten,
-  totaalProjecten,
-}: CijferbalkProps) {
+}: CijferKolomProps) {
   const kwartaalLabel = formatKwartaalJaar(new Date());
 
   return (
-    <Cijferstrip
-      label="Kerncijfers"
-      className="@container/cijfers"
-      kolommen="grid-cols-1 @[26rem]/cijfers:grid-cols-2 @[52rem]/cijfers:grid-cols-12"
-    >
+    <Cijferstrip label="Kerncijfers" className="@container/cijfers" kolommen="grid-cols-2">
       <Cel
         label="Getekende omzet"
         href="/rapportages"
-        span="@[52rem]/cijfers:col-span-5"
+        span="col-span-2 px-4 py-4"
         waarde={getekendeOmzet}
+        waardeClassName="text-[42px]"
         groot
         voet={<span className="text-muted-foreground">alle tijd, incl. btw</span>}
         chip={
-          <TrendChip
-            pct={omzetTrendPct}
-            label={`getekend dit kwartaal t.o.v. vorig kwartaal`}
-          />
+          omzetTrendPct !== 0 ? (
+            <TrendChip
+              pct={omzetTrendPct}
+              label="getekend dit kwartaal t.o.v. vorig kwartaal"
+            />
+          ) : undefined
         }
       />
 
       <Cel
         label="Openstaand"
         href="/facturen"
-        span="@[52rem]/cijfers:col-span-3"
+        span="px-4"
         waarde={openstaandBedrag}
         voet={
           vervaldeAantal === 0 ? (
             <span className="text-status-geaccepteerd-text">Alles op tijd</span>
           ) : (
-            <span className="text-status-vervallen-text">
-              {vervaldeAantal} vervallen ({formatCurrency(vervaldenBedrag, "nl-NL", false)})
+            <span className="text-status-vervallen-text tabular-nums">
+              {vervaldeAantal} vervallen · {formatCurrency(vervaldenBedrag, "nl-NL", false)}
             </span>
           )
         }
@@ -140,27 +135,13 @@ export function Cijferbalk({
       <Cel
         label="Gefactureerd"
         href="/facturen"
-        span="@[52rem]/cijfers:col-span-2"
+        span="px-4"
         waarde={gefactureerdDitKwartaal}
         voet={<span className="text-muted-foreground tabular-nums">{kwartaalLabel}</span>}
         chip={
-          <TrendChip
-            pct={gefactureerdTrendPct}
-            label="t.o.v. vorig kwartaal"
-          />
-        }
-      />
-
-      <Cel
-        label="Actieve projecten"
-        href="/projecten"
-        span="@[52rem]/cijfers:col-span-2"
-        waarde={actieveProjecten}
-        format="number"
-        voet={
-          <span className="text-muted-foreground tabular-nums">
-            {afgerondeProjecten} afgerond / {totaalProjecten} totaal
-          </span>
+          gefactureerdTrendPct !== 0 ? (
+            <TrendChip pct={gefactureerdTrendPct} label="t.o.v. vorig kwartaal" />
+          ) : undefined
         }
       />
     </Cijferstrip>

@@ -4,41 +4,6 @@ import type { CSSProperties, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * Het raster van de dagstaat.
- *
- * Twaalf kolommen, één keer gedefinieerd, met **container**-queries in plaats
- * van viewport-breakpoints: het dashboard staat in `main` naast een sidebar die
- * in- en uitklapt, dus de schermbreedte zegt niets over de ruimte die de blokken
- * echt hebben. `@container/dagstaat` staat op de paginawrapper; elk blok kiest
- * zijn span op de breedte van díé container.
- *
- * Drie tiers, zo gekozen dat geen enkele tier een gat in het raster laat:
- *
- * | Tier | Container | Indeling |
- * |---|---|---|
- * | S | < 26rem  | één kolom, DOM-volgorde = prioriteitsvolgorde |
- * | M | 26–50rem | werkstrook vol breed, de twee paren naast elkaar (7/5 en 6/6) |
- * | L | ≥ 50rem  | de volle bento uit het masterplan (7/5 · 12 · 8/4 · 6/6 · 12) |
- *
- * Let op bij het bijstellen: een container-query meet de **content-box**, dus de
- * `p-6`/`md:p-8` van de wrapper telt niet mee. Gemeten content-boxen (sidebar
- * uitgeklapt): 1680px viewport → 1288px (L), 1280 → 952 (L), tablet 768 → 440
- * (M), mobiel 375 → 327 (S). Op tablet eet de sidebar 256px, dus daar is een
- * cel écht een halve telefoon breed — de werkstrook blijft er bewust vol breed
- * en alleen de rustiger paren splitsen.
- */
-export const DAGSTAAT_SPAN = {
-  aandacht: "col-span-12 @[50rem]/dagstaat:col-span-7",
-  taken: "col-span-12 @[50rem]/dagstaat:col-span-5",
-  cijfers: "col-span-12",
-  pipeline: "col-span-12 @[26rem]/dagstaat:col-span-7 @[50rem]/dagstaat:col-span-8",
-  conversie: "col-span-12 @[26rem]/dagstaat:col-span-5 @[50rem]/dagstaat:col-span-4",
-  lopendWerk: "col-span-12 @[26rem]/dagstaat:col-span-6",
-  laatsteOffertes: "col-span-12 @[26rem]/dagstaat:col-span-6",
-  vloot: "col-span-12",
-} as const;
-
-/**
  * Eén gestaggerde reveal bij binnenkomst, verder rust: 80 ms per blok,
  * ease-out-quint (`cubic-bezier(.23,1,.32,1)`) — echte dingen remmen af, ze
  * stuiteren niet.
@@ -94,37 +59,45 @@ export function DagstaatReveal({
   );
 }
 
-export function BentoBlok({
-  span,
-  stap,
-  className,
-  children,
-}: {
-  /** Een waarde uit {@link DAGSTAAT_SPAN}. */
-  span: string;
-  /** Positie in de reveal-volgorde (0 = eerst). */
-  stap: number;
-  className?: string;
-  children: ReactNode;
-}) {
+// ── Dashboard A: twee kolommen ──────────────────────────────────────────────
+//
+// Werk links (wat je moet dóén), geld en offertes rechts (wat je moet wéten).
+// Eén splitsing op inhoud in plaats van een bento van acht even zware cellen:
+// je weet per kolom welk soort vraag hij beantwoordt. Onder 60rem containerbreedte
+// stapelen de kolommen, werk eerst — de DOM-volgorde is de prioriteitsvolgorde.
+// De geldkolom is begrensd (max 26rem): cijfers worden niet beter leesbaar
+// door ze breder te maken, de werkkolom wel.
+
+export function DagstaatKolommen({ children }: { children: ReactNode }) {
   return (
-    <div
-      style={revealStijl(stap)}
-      // min-w-0: zonder dit neemt een grid-item de intrinsieke breedte van zijn
-      // langste regel aan en duwt het de pagina zijwaarts open. Harde regel 1.
-      // [&>*]:h-full trekt het paneel door tot de hoogte van zijn buur, zodat
-      // een rij van twee cellen één blok leest en geen trapje.
-      className={cn(
-        "dagstaat-reveal flex min-w-0 flex-col [&>*]:h-full",
-        span,
-        className
-      )}
-    >
+    <div className="grid grid-cols-1 items-start gap-6 @[60rem]/dagstaat:grid-cols-[minmax(0,1fr)_minmax(20rem,26rem)] @[60rem]/dagstaat:gap-8">
       {children}
     </div>
   );
 }
 
-export function DagstaatBento({ children }: { children: ReactNode }) {
-  return <div className="grid grid-cols-12 gap-3">{children}</div>;
+export function DagstaatKolom({
+  label,
+  icoon,
+  children,
+}: {
+  /** Kolomkop in labelstijl ("Werk", "Geld en offertes"). */
+  label: string;
+  icoon?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    // min-w-0: zonder dit neemt een grid-item de breedte van zijn langste
+    // regel aan en duwt het de pagina zijwaarts open. Harde regel 1.
+    <section aria-label={label} className="flex min-w-0 flex-col gap-3">
+      <p
+        aria-hidden="true"
+        className="flex items-center gap-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase [&>svg]:size-4"
+      >
+        {icoon}
+        {label}
+      </p>
+      {children}
+    </section>
+  );
 }

@@ -2,9 +2,7 @@
 
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  BentoBlok,
-  DAGSTAAT_SPAN,
-  DagstaatBento,
+  DagstaatKolommen,
   DagstaatReveal,
   DagstaatRevealStijl,
 } from "./dagstaat-bento";
@@ -12,11 +10,9 @@ import {
 /**
  * Het skelet van de dagstaat.
  *
- * Bewust hetzelfde raster, dezelfde spans en dezelfde blokhoogtes als de echte
- * pagina: de blokken staan straks precies waar het skelet ze neerzet, dus er is
- * geen sprong als de data binnenkomt. De hoogtes hieronder zijn gemeten op de
- * echte pagina (1680×1000, L-tier): werkstrook 222, cijferbalk 111,
- * pipeline/conversie 151, werkpaar 231, vlootstrip 42.
+ * Bewust dezelfde twee kolommen als de echte pagina (dashboard A), zodat de
+ * blokken straks staan waar het skelet ze neerzet. De hoogtes zijn een
+ * benadering van de gevulde panelen.
  *
  * Op smallere cellen zijn ze een benadering — daar wikkelen echte regels en
  * skeletbalken niet, en een skelet dat één seconde leeft is die precisie niet
@@ -73,96 +69,75 @@ export function DagstaatSkelet() {
 
       <DagstaatReveal stap={0}>
         <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
-          <Skeleton className="h-6 w-[34rem] max-w-full" />
+          <div className="flex flex-col gap-2">
+            <Skeleton className="h-3 w-48" />
+            <Skeleton className="h-9 w-80 max-w-full" />
+            <Skeleton className="h-4 w-[30rem] max-w-full" />
+          </div>
           <Skeleton className="h-9 w-36 rounded-lg" />
         </div>
       </DagstaatReveal>
 
-      <DagstaatBento>
-        <BentoBlok span={DAGSTAAT_SPAN.aandacht} stap={1}>
-          <Paneel hoogte="@[50rem]/dagstaat:h-[222px]" primair>
-            <KopBalk />
-            <Regels aantal={4} />
-          </Paneel>
-        </BentoBlok>
+      <DagstaatKolommen>
+        <div className="flex min-w-0 flex-col gap-3">
+          <Skeleton className="h-4 w-16" />
+          <DagstaatReveal stap={1}>
+            <Paneel hoogte="h-[262px]" primair>
+              <KopBalk />
+              <Regels aantal={4} hoog />
+            </Paneel>
+          </DagstaatReveal>
+          <DagstaatReveal stap={2}>
+            <Paneel hoogte="h-[150px]" primair>
+              <KopBalk />
+              <Regels aantal={2} />
+            </Paneel>
+          </DagstaatReveal>
+          <DagstaatReveal stap={3}>
+            <Paneel hoogte="h-[210px]">
+              <KopBalk metActie />
+              <Regels aantal={3} hoog />
+            </Paneel>
+          </DagstaatReveal>
+        </div>
 
-        <BentoBlok span={DAGSTAAT_SPAN.taken} stap={2}>
-          <Paneel hoogte="@[50rem]/dagstaat:h-[222px]" primair>
-            <KopBalk />
-            <Regels aantal={5} />
-          </Paneel>
-        </BentoBlok>
-
-        <BentoBlok span={DAGSTAAT_SPAN.cijfers} stap={3}>
-          <Paneel hoogte="@[50rem]/dagstaat:h-[111px]">
-            <div className="grid h-full grid-cols-1 gap-px bg-border @[26rem]/dagstaat:grid-cols-2 @[52rem]/dagstaat:grid-cols-12">
-              {[
-                "@[52rem]/dagstaat:col-span-5",
-                "@[52rem]/dagstaat:col-span-3",
-                "@[52rem]/dagstaat:col-span-2",
-                "@[52rem]/dagstaat:col-span-2",
-              ].map((span, i) => (
-                <div
-                  // Twee cellen delen dezelfde span-klasse, dus de klasse is
-                  // geen sleutel; de positie in de balk wél.
-                  key={i}
-                  className={`flex flex-col gap-2 bg-card px-3 py-2.5 ${span}`}
-                >
+        <div className="flex min-w-0 flex-col gap-3">
+          <Skeleton className="h-4 w-32" />
+          <DagstaatReveal stap={2}>
+            <Paneel hoogte="h-[190px]">
+              <div className="grid h-full grid-cols-2 gap-px bg-border">
+                <div className="col-span-2 flex flex-col gap-2 bg-card px-4 py-4">
+                  <Skeleton className="h-3 w-28" />
+                  <Skeleton className="h-10 w-52" />
                   <Skeleton className="h-3 w-24" />
-                  <Skeleton className={i === 0 ? "h-9 w-44" : "h-6 w-24"} />
-                  <Skeleton className="mt-auto h-3 w-28" />
                 </div>
-              ))}
-            </div>
-          </Paneel>
-        </BentoBlok>
-
-        <BentoBlok span={DAGSTAAT_SPAN.pipeline} stap={4}>
-          <Paneel hoogte="@[50rem]/dagstaat:h-[151px]">
-            <KopBalk metActie />
-            <div className="space-y-3 px-3 py-3">
-              <Skeleton className="h-2.5 w-full rounded-full" />
-              <Skeleton className="h-3 w-3/4" />
-              <Skeleton className="h-3 w-1/2" />
-            </div>
-          </Paneel>
-        </BentoBlok>
-
-        <BentoBlok span={DAGSTAAT_SPAN.conversie} stap={5}>
-          <Paneel hoogte="@[50rem]/dagstaat:h-[151px]">
-            <KopBalk metActie />
-            <div className="flex items-center justify-center gap-4 px-3 py-3">
-              <Skeleton className="size-[84px] rounded-full" />
-              <div className="space-y-1.5">
-                <Skeleton className="h-3 w-20" />
-                <Skeleton className="h-3 w-24" />
+                {[0, 1].map((i) => (
+                  <div key={i} className="flex flex-col gap-2 bg-card px-4 py-2.5">
+                    <Skeleton className="h-3 w-20" />
+                    <Skeleton className="h-6 w-24" />
+                  </div>
+                ))}
               </div>
-            </div>
-          </Paneel>
-        </BentoBlok>
-
-        <BentoBlok span={DAGSTAAT_SPAN.lopendWerk} stap={6}>
-          <Paneel hoogte="@[50rem]/dagstaat:h-[231px]">
-            <KopBalk metActie />
-            <Regels aantal={3} hoog />
-          </Paneel>
-        </BentoBlok>
-
-        <BentoBlok span={DAGSTAAT_SPAN.laatsteOffertes} stap={7}>
-          <Paneel hoogte="@[50rem]/dagstaat:h-[231px]">
-            <KopBalk metActie />
-            <Regels aantal={5} />
-          </Paneel>
-        </BentoBlok>
-
-        <BentoBlok span={DAGSTAAT_SPAN.vloot} stap={8}>
-          <div className="flex h-[42px] items-center gap-2 rounded-lg border bg-card px-3 py-2">
-            <Skeleton className="size-1.5 rounded-full" />
-            <Skeleton className="h-3 w-56" />
-            <Skeleton className="ml-auto h-3 w-16" />
-          </div>
-        </BentoBlok>
-      </DagstaatBento>
+            </Paneel>
+          </DagstaatReveal>
+          <DagstaatReveal stap={3}>
+            <Paneel hoogte="h-[250px]">
+              <KopBalk metActie />
+              <div className="space-y-3 px-3 py-3">
+                {[0, 1, 2, 3].map((i) => (
+                  <Skeleton key={i} className="h-3 w-full" />
+                ))}
+              </div>
+            </Paneel>
+          </DagstaatReveal>
+          <DagstaatReveal stap={4}>
+            <Paneel hoogte="h-[230px]">
+              <KopBalk metActie />
+              <Regels aantal={5} />
+            </Paneel>
+          </DagstaatReveal>
+        </div>
+      </DagstaatKolommen>
     </div>
   );
 }

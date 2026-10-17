@@ -8,41 +8,47 @@
  */
 
 import Link from "next/link";
-import { CalendarClock, List } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
-import { Button } from "@/components/ui/button";
 import { Weekbord } from "@/components/planbord/weekbord";
+
+/** Drie weergaven van dezelfde planning; de tab is de navigatie. */
+const WEERGAVEN = [
+  { href: "/planning/weekbord", label: "Weekbord" },
+  { href: "/planning/lijst", label: "Lijst" },
+  { href: "/planning/dagkaart", label: "Dagkaart" },
+] as const;
 
 export default function WeekbordPagina() {
   return (
     <>
       <PageHeader />
       <div className="flex flex-1 flex-col gap-4 p-4 md:p-6">
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
-              Weekbord
-            </h1>
-            <p className="text-muted-foreground">
-              Rijen zijn teams, kolommen zijn dagen. Sleep opdrachten uit de bak
-              om te plannen; sleep blokken om te verplaatsen of de duur aan te
-              passen.
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" asChild>
-              <Link href="/planning/lijst">
-                <List className="mr-2 h-4 w-4" />
-                Lijst
-              </Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href="/planning/dagkaart">
-                <CalendarClock className="mr-2 h-4 w-4" />
-                Dagkaart
-              </Link>
-            </Button>
-          </div>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          {/* De uitleg ("rijen zijn teams…") staat niet meer als alinea boven
+              het bord: het bord legt zichzelf uit, en de sleephint staat in de
+              opdrachtenbak, waar je hem nodig hebt. */}
+          <h1 className="font-display text-2xl font-semibold tracking-tight md:text-[28px]">
+            Weekbord
+          </h1>
+          <nav aria-label="Weergave" className="flex gap-0.5 rounded-lg bg-muted p-[3px]">
+            {WEERGAVEN.map((weergave) => {
+              const actief = weergave.href === "/planning/weekbord";
+              return (
+                <Link
+                  key={weergave.href}
+                  href={weergave.href}
+                  aria-current={actief ? "page" : undefined}
+                  className={`flex h-[34px] items-center rounded-md px-3.5 text-sm transition-colors ${
+                    actief
+                      ? "bg-card font-semibold text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {weergave.label}
+                </Link>
+              );
+            })}
+          </nav>
         </div>
         <Weekbord />
       </div>

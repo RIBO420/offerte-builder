@@ -46,43 +46,41 @@ const PRIORITEIT_STIP: Record<string, string> = {
 
 const STANDAARD_ZICHTBAAR = 4;
 
-/** Eén regel in de werkstrook: stip · titel · toelichting · doorklik. */
+/**
+ * Eén regel in de werkstrook: stip · titel met toelichting eronder · actie.
+ *
+ * Dashboard A: twee regels per signaal. In de werkkolom is de breedte er, en
+ * "wie" (de titel) leest pas snel als hij niet om ruimte hoeft te vechten met
+ * "wat" (de toelichting) op dezelfde regel.
+ */
 function Regel({
   prioriteit,
   titel,
   toelichting,
+  toelichtingTitel,
   actie,
 }: {
   prioriteit: "hoog" | "middel" | "laag";
   titel: string;
-  toelichting: string;
+  toelichting: React.ReactNode;
+  /** Platte tekst van de toelichting voor `title` (afgeknipte regels). */
+  toelichtingTitel: string;
   actie: React.ReactNode;
 }) {
   return (
-    <li className="flex items-center gap-2.5 px-3 py-1.5">
+    <li className="flex items-center gap-3 px-3 py-2.5">
       <span
-        className={`mt-px size-1.5 shrink-0 rounded-full ${PRIORITEIT_STIP[prioriteit] ?? PRIORITEIT_STIP.laag}`}
+        className={`size-2 shrink-0 rounded-full ${PRIORITEIT_STIP[prioriteit] ?? PRIORITEIT_STIP.laag}`}
         aria-hidden="true"
       />
       <span className="sr-only">Prioriteit {prioriteit}. </span>
-      {/* Container-query, geen breakpoint: past het blok twee kolommen tekst,
-          dan staan titel en toelichting op één regel (32px hoog i.p.v. 52px).
-          Dat is precies de hoogte die de werkstrook boven de vouw houdt. De
-          drempel ligt op 30rem en niet lager: bij 440px (tablet) knipte de
-          titel op 55% af tot "Dubbele planning: …" — dan weet je nog niets. */}
-      <div className="min-w-0 flex-1 @[30rem]/sectie:flex @[30rem]/sectie:items-baseline @[30rem]/sectie:gap-2">
-        {/* Op een telefoon mag de titel over twee regels: daar is de cel 200px
-            breed en zegt "Dubbele plannin…" niets. Vanaf 30rem staat hij weer
-            op één regel naast de toelichting. */}
-        <p
-          className="line-clamp-2 text-[13px] leading-5 font-medium @[30rem]/sectie:block @[30rem]/sectie:max-w-[55%] @[30rem]/sectie:shrink-0 @[30rem]/sectie:truncate"
-          title={titel}
-        >
+      <div className="min-w-0 flex-1">
+        <p className="line-clamp-2 text-sm leading-5 font-semibold @[30rem]/sectie:truncate" title={titel}>
           {titel}
         </p>
         <p
-          className="min-w-0 truncate text-xs leading-4 text-muted-foreground @[30rem]/sectie:leading-5"
-          title={toelichting}
+          className="min-w-0 truncate text-xs leading-4 text-muted-foreground"
+          title={toelichtingTitel}
         >
           {toelichting}
         </p>
@@ -94,9 +92,9 @@ function Regel({
 
 /**
  * "Aandacht nodig" is het zwaarste blok van de dagstaat: het amberen
- * werkvlak `--surface-aandacht` (1,23:1 op de achtergrond, tekst ≥ 4,17:1),
- * een warme ankerrand links, en het grootste vlak van de werkstrook (7 van 12
- * kolommen). Alles daaronder is bewust stiller.
+ * werkvlak `--surface-aandacht` (1,23:1 op de achtergrond, tekst ≥ 4,17:1)
+ * met een rand die naar terracotta trekt, bovenaan de werkkolom. Alles
+ * daaronder is bewust stiller.
  *
  * De twee blokken van de werkstrook delen niet langer één tint: attentie is
  * leem/amber, eigen werk is loofgroen (`--surface-primair`, "Mijn taken"
@@ -136,9 +134,23 @@ export function AandachtNodig({
       sleutel: `offerte-${offerte._id}`,
       prioriteit: "hoog" as const,
       titel: offerte.klantNaam,
-      toelichting: `${offerte.offerteNummer} · getekend, nog geen project`,
+      toelichting: (
+        <>
+          <span className="font-mono">{offerte.offerteNummer}</span> · getekend, nog geen
+          project
+        </>
+      ),
+      toelichtingTitel: `${offerte.offerteNummer} · getekend, nog geen project`,
+      // Omlijnd, niet gevuld: per scherm is er één gevulde hoofdknop (Nieuwe
+      // offerte). Vier gevulde knoppen onder elkaar lazen als vier keer "dit
+      // eerst" — de Eén-Hoofdknop-regel uit DESIGN.md.
       actie: (
-        <Button asChild size="sm" className="h-6 rounded-md px-2.5 text-[11px] font-semibold">
+        <Button
+          asChild
+          size="sm"
+          variant="outline"
+          className="h-8 rounded-md border-primary/45 bg-transparent px-3 text-xs font-semibold text-primary hover:bg-primary/10 hover:text-primary"
+        >
           <Link href={`/projecten/nieuw?offerte=${offerte._id}`}>Start project</Link>
         </Button>
       ),
@@ -148,6 +160,7 @@ export function AandachtNodig({
       prioriteit: warning.prioriteit,
       titel: warning.titel,
       toelichting: warning.beschrijving,
+      toelichtingTitel: warning.beschrijving,
       actie: (
         <Link
           href={BESTEMMING[warning.type] ?? "/meldingen"}
@@ -176,7 +189,7 @@ export function AandachtNodig({
       icoon={<AlertTriangle className="text-accent-warm" />}
       telling={totaal}
       gewicht="primair"
-      className="border-l-2 border-l-accent-warm bg-surface-aandacht"
+      className="border-[color-mix(in_oklch,var(--accent-warm)_35%,var(--border))] bg-surface-aandacht"
     >
       <ul className="divide-y divide-border/60">
         {zichtbaar.map((regel) => (
@@ -185,6 +198,7 @@ export function AandachtNodig({
             prioriteit={regel.prioriteit}
             titel={regel.titel}
             toelichting={regel.toelichting}
+            toelichtingTitel={regel.toelichtingTitel}
             actie={regel.actie}
           />
         ))}

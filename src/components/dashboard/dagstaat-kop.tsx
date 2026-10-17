@@ -1,14 +1,15 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { format, getISOWeek } from "date-fns";
+import { nl } from "date-fns/locale";
 
 /**
  * De kop van de dagstaat is de samenvatting, geen versiering.
  *
- * Waar hier eerst een begroeting van 30px stond met daaronder een losse regel
- * "15 offertes • 11 projecten", staat nu één regel waarin de begroeting en de
- * staat van de zaak samenvallen. De tellers zijn dus niet weggehaald maar
- * opgegaan in de zin — en de ~70px die dat scheelt gaat naar de werkstrook.
+ * Datumregel, begroeting en één samenvattingsregel met de vier tellers. De
+ * tellers komen uit `dagstaatClausules`, dus de formulering (enkelvoud,
+ * meervoud, "niets vraagt je aandacht") blijft op één plek.
  */
 
 export interface DagstaatCijfers {
@@ -85,36 +86,58 @@ export function dagstaatZin(groet: string, cijfers: DagstaatCijfers): string {
   return `${groet} — ${staart}.`;
 }
 
+/**
+ * "Zaterdag 17 oktober · week 42" — de bovenregel van de kop. ISO-weeknummer,
+ * want zo telt de planning (het weekbord begint op maandag).
+ */
+export function dagstaatDatumregel(datum: Date): string {
+  const dag = format(datum, "EEEE d MMMM", { locale: nl });
+  return `${dag.charAt(0).toUpperCase()}${dag.slice(1)} · week ${getISOWeek(datum)}`;
+}
+
 export function DagstaatKop({
   groet,
   cijfers,
   actie,
+  datum = new Date(),
 }: {
   groet: string;
   cijfers: DagstaatCijfers;
   /** Rechts in de kop. Zie de opmerking bij de aanroeper: black box. */
   actie?: ReactNode;
+  /** Alleen voor tests; de pagina laat hem weg. */
+  datum?: Date;
 }) {
   const clausules = dagstaatClausules(cijfers);
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
-      {/* Outfit blijft voorbehouden aan de kop en het ene heldcijfer. De zin
-          zelf is gedempt; alleen de getallen staan in foreground, zodat je hem
-          kunt scannen zonder hem te lezen. */}
-      <h1 className="font-display min-w-0 text-pretty text-[17px] leading-6 font-semibold tracking-tight @[40rem]/dagstaat:text-[19px] @[40rem]/dagstaat:leading-7">
-        {groet}
-        {clausules.map((clausule, i) => (
-          <span key={clausule.staart} className="font-normal text-muted-foreground">
-            {i === 0 ? " — " : ", "}
-            <span className="font-semibold text-foreground tabular-nums">
-              {clausule.getal}
-            </span>{" "}
-            {clausule.staart}
-          </span>
-        ))}
-        <span className="font-normal text-muted-foreground">.</span>
-      </h1>
+    // Dashboard A (okt 2026): drie regels in plaats van één. De datum zet de
+    // dag neer, de begroeting is de kop en de samenvatting staat eronder als
+    // scanbare regel. Eén lange kopzin las als alinea: je moest hem lezen om
+    // te weten wat er speelt, nu vang je de vier getallen in één blik.
+    <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+      <div className="flex min-w-0 flex-col gap-1.5">
+        <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+          {dagstaatDatumregel(datum)}
+        </p>
+        {/* Outfit blijft voorbehouden aan de kop en het ene heldcijfer. */}
+        <h1 className="font-display text-balance text-[26px] leading-tight font-semibold tracking-tight @[40rem]/dagstaat:text-[34px]">
+          {groet}
+        </h1>
+        {/* Gedempt; alleen de getallen staan in foreground, zodat je de regel
+            kunt scannen zonder hem te lezen. */}
+        <p className="text-pretty text-[15px] leading-6 text-muted-foreground">
+          {clausules.map((clausule, i) => (
+            <span key={clausule.staart}>
+              {i > 0 && " · "}
+              <span className="font-semibold text-foreground tabular-nums">
+                {clausule.getal}
+              </span>{" "}
+              {clausule.staart}
+            </span>
+          ))}
+        </p>
+      </div>
       {actie && <div className="shrink-0">{actie}</div>}
     </div>
   );

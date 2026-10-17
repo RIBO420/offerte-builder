@@ -18,177 +18,118 @@ export interface OfferteStats {
   totaal: number;
 }
 
-// ── Pipeline ────────────────────────────────────────────────────────────────
+// ── Pijplijn + conversie (dashboard A) ──────────────────────────────────────
 
-function Staafje({ stats }: { stats: OfferteStats }) {
-  const totaal = stats.totaal || 1;
-
-  return (
-    <div className="flex h-2.5 w-full gap-0.5 overflow-hidden rounded-full">
-      {PIPELINE_FASEN.map((fase) => {
-        if (stats[fase] === 0) return null;
-        return (
-          <div
-            key={fase}
-            className="rounded-full transition-[width] duration-500"
-            style={{
-              width: `${(stats[fase] / totaal) * 100}%`,
-              backgroundColor: STATUS_STIP[fase],
-              minWidth: 4,
-            }}
-          />
-        );
-      })}
-    </div>
-  );
-}
-
-/**
- * "Waar staan mijn offertes?" — één staaf met een legenda die de tellers draagt.
- * De vier stat-boxen die hier ooit onder stonden herhaalden exact de segmenten.
- */
-export function PipelinePaneel({ stats }: { stats: OfferteStats }) {
-  return (
-    // flex flex-col: `BentoBlok` zet `[&>*]:h-full` op het paneel, dus dit
-    // paneel is even hoog als de conversie ernaast. Zonder flexkolom is die
-    // extra hoogte dode ruimte ónder de inhoud en hangt de staaf tegen de kop.
-    // → zie de toelichting bij `ConversiePaneel`.
-    <SectiePaneel
-      titel="Offerte pipeline"
-      telling={stats.totaal}
-      acties={<AlleLink href="/offertes" tekst="Alle offertes" />}
-      className="flex flex-col"
-    >
-      <div className="flex flex-1 flex-col justify-center gap-3 px-3 py-3">
-        <Staafje stats={stats} />
-
-        {/* Legenda: label + teller bij elk segment. Wikkelt vanzelf als het
-            blok smal wordt — nooit een horizontale schuifbalk. */}
-        <ul className="flex flex-wrap gap-x-4 gap-y-1.5">
-          {PIPELINE_FASEN.map((fase) => (
-            <li
-              key={fase}
-              className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground"
-            >
-              <span
-                className="size-2 shrink-0 rounded-full"
-                style={{ backgroundColor: STATUS_STIP[fase] }}
-                aria-hidden="true"
-              />
-              {PIPELINE_FASE_LABEL[fase]}
-              <span className="font-semibold tabular-nums text-foreground">
-                {stats[fase]}
-              </span>
-            </li>
-          ))}
-        </ul>
-
-        {stats.concept > 0 && (
-          <p className="text-[11px] text-muted-foreground">
-            {/* §5.3b: wizard-autosaves zijn geen pipeline. Wel zichtbaar, niet meegeteld. */}
-            {stats.concept} concept{stats.concept === 1 ? "" : "en"} nog niet in de
-            pipeline
-          </p>
-        )}
-      </div>
-    </SectiePaneel>
-  );
-}
-
-// ── Conversie ───────────────────────────────────────────────────────────────
-
-/**
- * "Hoeveel van wat de deur uitgaat, wordt getekend?" De ring is het cijfer;
- * de twee regels eronder maken hem controleerbaar.
- */
-export function ConversiePaneel({
-  rate,
-  aantalGetekend,
-  aantalVerstuurd,
-  gemiddeldeWaarde,
-}: {
+export interface ConversieCijfers {
   rate: number;
   aantalGetekend: number;
   aantalVerstuurd: number;
   gemiddeldeWaarde: number;
+}
+
+/**
+ * De geldkolom heeft één offertepaneel: per fase een eigen balk (in een
+ * smalle kolom lees je vier balken sneller dan één gestapelde staaf met een
+ * legenda), en de conversie als voetregel eronder — het is hetzelfde
+ * onderwerp, dus geen eigen doos.
+ *
+ * De balken schalen op de grootste fase, niet op het totaal: zo is het
+ * verschil tussen fasen zichtbaar, ook als één fase domineert.
+ */
+export function OffertePijplijnPaneel({
+  stats,
+  conversie,
+}: {
+  stats: OfferteStats;
+  conversie: ConversieCijfers;
 }) {
-  const pct = Math.min(100, Math.max(0, rate));
-  const omtrek = 2 * Math.PI * 40;
+  const grootste = Math.max(1, ...PIPELINE_FASEN.map((fase) => stats[fase]));
+  const pct = Math.min(100, Math.max(0, conversie.rate));
+  const omtrek = 2 * Math.PI * 23;
   const streep = (pct / 100) * omtrek;
 
   return (
-    // De doorklik hoort er niet alleen inhoudelijk (de conversie-analyse leeft
-    // op /rapportages) maar houdt de kop ook even hoog als die van de pipeline
-    // ernaast — zonder actie is de kop 33px en met 41px, en dat verschil zie je
-    // meteen als twee panelen naast elkaar staan.
     <SectiePaneel
-      titel="Conversie"
-      acties={<AlleLink href="/rapportages" tekst="Rapportage" />}
-      // `BentoBlok` zet `[&>*]:h-full` op het paneel, dus dit paneel wordt tot
-      // de hoogte van de pipeline ernaast getrokken. Dat mag níét met `h-full`
-      // op de inhoud worden opgevangen: die 100% telt de 41px kop mee, dus de
-      // inhoud werd 41px te laag gezet en liep onder de paneelrand door
-      // (gemeten: ring 7,5px buiten het paneel, weggeknipt door overflow-hidden).
-      // Kop + inhoud als flexkolom, inhoud `flex-1`: dan is "het midden" precies
-      // de ruimte ónder de kop, op elke containerbreedte.
-      className="flex flex-col"
+      titel="Offertepijplijn"
+      kopbalk
+      telling={stats.totaal}
+      acties={<AlleLink href="/offertes" tekst="Alle offertes" />}
     >
-      {/* flex-wrap: in de smalste cel (tablet, ~180px) zakt de uitleg onder de
-          ring in plaats van ernaast te blijven duwen. Nooit zijwaarts scrollen.
-          `content-center` hoort daarbij: zodra er twee regels zijn, centreert
-          `items-center` alleen bínnen een regel — de regels zelf staan pas
-          gecentreerd met `align-content`. Geen `min-h-0`: de automatische
-          min-hoogte van een flexitem is precies wat afknippen voorkomt als de
-          inhoud hoger is dan de buur. */}
-      <div className="flex flex-1 flex-wrap content-center items-center justify-center gap-x-4 gap-y-2 px-3 py-3">
+      <div className="flex flex-col gap-3 px-3 py-3">
+        <dl className="grid grid-cols-[6.5rem_minmax(0,1fr)_2rem] items-center gap-x-2.5 gap-y-2">
+          {PIPELINE_FASEN.map((fase) => (
+            <div key={fase} className="contents">
+              <dt className="truncate text-[13px] text-muted-foreground">
+                {PIPELINE_FASE_LABEL[fase]}
+              </dt>
+              <dd className="h-2 overflow-hidden rounded-full bg-muted" aria-hidden="true">
+                <div
+                  className="h-full rounded-full transition-[width] duration-500"
+                  style={{
+                    width: `${(stats[fase] / grootste) * 100}%`,
+                    backgroundColor: STATUS_STIP[fase],
+                    minWidth: stats[fase] > 0 ? 4 : 0,
+                  }}
+                />
+              </dd>
+              <dd className="text-right text-sm font-semibold tabular-nums">
+                {stats[fase]}
+              </dd>
+            </div>
+          ))}
+        </dl>
+
+        {stats.concept > 0 && (
+          <p className="text-[11px] text-muted-foreground">
+            {/* §5.3b: wizard-autosaves zijn geen pipeline. Wel zichtbaar, niet meegeteld. */}
+            + {stats.concept} concept{stats.concept === 1 ? "" : "en"} nog niet in de
+            pipeline
+          </p>
+        )}
+      </div>
+
+      <div className="flex items-center gap-3 border-t px-3 py-3">
         <svg
-          width={84}
-          height={84}
-          viewBox="0 0 100 100"
+          width={56}
+          height={56}
+          viewBox="0 0 56 56"
           role="img"
           aria-label={`Conversie ${Math.round(pct)} procent`}
           className="shrink-0"
         >
-          <circle cx={50} cy={50} r={40} fill="none" stroke="var(--border)" strokeWidth={8} />
+          <circle cx={28} cy={28} r={23} fill="none" stroke="var(--border)" strokeWidth={6} />
           <circle
-            cx={50}
-            cy={50}
-            r={40}
+            cx={28}
+            cy={28}
+            r={23}
             fill="none"
             stroke="var(--chart-1)"
-            strokeWidth={8}
+            strokeWidth={6}
             strokeDasharray={`${streep} ${omtrek - streep}`}
             strokeDashoffset={omtrek * 0.25}
             strokeLinecap="round"
             className="transition-[stroke-dasharray] duration-700"
           />
           <text
-            x={50}
-            y={50}
+            x={28}
+            y={28}
             textAnchor="middle"
             dominantBaseline="central"
-            fontSize={24}
-            fontWeight={800}
-            fill="var(--primary)"
+            fontSize={13}
+            fontWeight={700}
+            fill="var(--foreground)"
           >
             {Math.round(pct)}%
           </text>
         </svg>
-
-        <dl className="min-w-0 space-y-1 text-[11px]">
-          <div className="flex flex-wrap items-baseline gap-x-1.5">
-            <dt className="text-muted-foreground">Getekend</dt>
-            <dd className="font-semibold tabular-nums">
-              {aantalGetekend}/{aantalVerstuurd}
-            </dd>
-          </div>
-          <div className="flex flex-wrap items-baseline gap-x-1.5">
-            <dt className="text-muted-foreground">Gemiddeld</dt>
-            <dd className="font-semibold tabular-nums">
-              {formatCurrency(gemiddeldeWaarde, "nl-NL", false)}
-            </dd>
-          </div>
-        </dl>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold">Conversie</p>
+          <p className="text-xs text-muted-foreground tabular-nums">
+            {conversie.aantalGetekend} van {conversie.aantalVerstuurd} getekend · gem.{" "}
+            {formatCurrency(conversie.gemiddeldeWaarde, "nl-NL", false)}
+          </p>
+        </div>
+        <AlleLink href="/rapportages" tekst="Rapportage" />
       </div>
     </SectiePaneel>
   );

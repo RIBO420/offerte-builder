@@ -2,10 +2,9 @@
  * De dagstaat vervangt het oude dashboard van 2205px hoog. Twee dingen die
  * daarbij makkelijk stilletjes terugvallen, staan hier vast:
  *
- * 1. De kop ís de samenvatting. De tellers ("15 offertes · 11 projecten") die
- *    eerst als losse regel onder de begroeting stonden, zijn erin opgegaan —
- *    inclusief enkelvoud/meervoud, want "1 dingen vragen je aandacht" leest als
- *    een bug.
+ * 1. De kop draagt de samenvatting: onder de begroeting staan de vier tellers
+ *    als één scanbare regel — inclusief enkelvoud/meervoud, want "1 dingen
+ *    vragen je aandacht" leest als een bug.
  * 2. Lijsten cappen, maar amputeren niet. "Aandacht nodig" toont vier regels en
  *    houdt de rest één klik weg; die klik moet er ook echt zijn, anders is het
  *    verstoppen.
@@ -79,7 +78,7 @@ describe("dagstaatClausules", () => {
 });
 
 describe("DagstaatKop", () => {
-  it("zet de tellers in de kopregel zelf, niet in een tweede regel eronder", () => {
+  it("zet datum, begroeting en de tellers in drie eigen regels", () => {
     render(
       <DagstaatKop
         groet="Goedemiddag, Ricardo"
@@ -89,13 +88,18 @@ describe("DagstaatKop", () => {
           projectenLopend: 2,
           offertesPipeline: 15,
         }}
+        datum={new Date(2026, 9, 17)}
         actie={<button type="button">Nieuwe offerte</button>}
       />
     );
 
+    expect(screen.getByText("Zaterdag 17 oktober · week 42")).toBeInTheDocument();
     const kop = screen.getByRole("heading", { level: 1 });
-    expect(kop.textContent?.replace(/\s+/g, " ")).toBe(
-      "Goedemiddag, Ricardo — 3 dingen vragen je aandacht, 4 taken staan open, 2 projecten lopen, 15 offertes in de pipeline."
+    expect(kop).toHaveTextContent(/^Goedemiddag, Ricardo$/);
+    expect(
+      screen.getByText(/dingen vragen je aandacht/).closest("p")?.textContent?.replace(/\s+/g, " ")
+    ).toBe(
+      "3 dingen vragen je aandacht · 4 taken staan open · 2 projecten lopen · 15 offertes in de pipeline"
     );
     // De actie hangt ernaast, niet erin: de knop is eigendom van een ander blok.
     expect(kop).not.toContainElement(

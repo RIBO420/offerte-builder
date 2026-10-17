@@ -39,6 +39,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
+  ArrowRight,
   ChevronLeft,
   ChevronRight,
   AlertTriangle,
@@ -59,6 +60,7 @@ import {
   type PlanbordEvent,
   type PlanbordResource,
 } from "./adapter";
+import { getISOWeek } from "date-fns";
 import {
   PERIODES,
   bereikLabel,
@@ -89,13 +91,17 @@ import {
 const WerkitemBlok = memo(function WerkitemBlok({
   event,
   spanKolommen,
+  loopDoor = false,
   magMuteren,
   onOntplan,
   onDupliceer,
   onSplits,
 }: {
   event: PlanbordEvent;
+  /** Breedte in startcellen; mag een breuk zijn (smallere weekendkolommen). */
   spanKolommen: number;
+  /** Het blok loopt door na het zichtbare bereik: rechts geen afronding, wel een pijl. */
+  loopDoor?: boolean;
   magMuteren: boolean;
   onOntplan: (event: PlanbordEvent) => void;
   onDupliceer: (event: PlanbordEvent) => void;
@@ -130,27 +136,55 @@ const WerkitemBlok = memo(function WerkitemBlok({
       ref={setBlokRef}
       data-testid="werkitem-blok"
       style={{
-        width: `calc(${spanKolommen * 100}% + ${(spanKolommen - 1) * 0}px)`,
+        // Breedte in startcellen. Weekendkolommen zijn op de weekweergave
+        // smaller, dus de factor kan een breuk zijn — de aanroeper rekent hem
+        // uit op de kolomgewichten. De px-term telt de padding (2×6px) en de
+        // 1px celrand mee die tussen de overgestoken cellen liggen.
+        width: `calc(${spanKolommen * 100}% + ${(spanKolommen - 1) * 13}px)`,
         transform: CSS.Translate.toString(blokTransform),
         zIndex: blokSleept ? 40 : 10,
       }}
-      className={`group relative rounded border p-1 text-xs shadow-sm ${
+      // Statuskleur uit de tokenreceptuur (DESIGN.md): project = gepland
+      // (steenblauw), onderhoudsbeurt = groen. Geen rauwe paletkleuren meer.
+      className={`group relative border px-2.5 py-1.5 text-xs transition-shadow hover:shadow-md ${
+        loopDoor ? "rounded-l-md rounded-r-sm border-r-0" : "rounded-md"
+      } ${
         isBeurt
-          ? "border-emerald-300 bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950"
-          : "border-blue-300 bg-blue-100 dark:border-blue-800 dark:bg-blue-950"
-      } ${magMuteren ? "cursor-grab" : ""} ${blokSleept ? "opacity-70" : ""}`}
+          ? "border-status-geaccepteerd-border bg-status-geaccepteerd"
+          : "border-status-gepland-border bg-status-gepland"
+      } ${magMuteren ? "cursor-grab" : ""} ${blokSleept ? "opacity-70 shadow-lg" : ""}`}
     >
       <div {...blokListeners} {...blokAttributes}>
-        <p className="truncate pr-4 font-medium">{event.titel}</p>
-        <p className="truncate text-[10px] text-muted-foreground">
-          {event.startTijd && event.eindTijd
-            ? `${event.startTijd}–${event.eindTijd}`
-            : event.geschatteUren != null
-              ? `${event.geschatteUren} u`
-              : isBeurt
-                ? "Beurt"
-                : "Project"}
-          {duurDagen > 0 ? ` · ${duurDagen + 1} dgn` : ""}
+        <p className="truncate pr-4 text-[13px] leading-5 font-semibold" title={event.titel}>
+          {event.titel}
+        </p>
+        <p
+          className={`flex items-center gap-1.5 truncate text-[11px] leading-4 tabular-nums ${
+            isBeurt ? "text-status-geaccepteerd-text" : "text-status-gepland-text"
+          }`}
+        >
+          <span
+            aria-hidden="true"
+            className={`size-1.5 shrink-0 rounded-full ${
+              isBeurt ? "bg-status-geaccepteerd-dot" : "bg-status-gepland-dot"
+            }`}
+          />
+          <span className="truncate">
+            {event.startTijd && event.eindTijd
+              ? `${event.startTijd}–${event.eindTijd}`
+              : event.geschatteUren != null
+                ? `${event.geschatteUren} u`
+                : isBeurt
+                  ? "Beurt"
+                  : "Project"}
+            {duurDagen > 0 ? ` · ${duurDagen + 1} dgn` : ""}
+          </span>
+          {loopDoor && (
+            <ArrowRight
+              className="ml-auto h-3 w-3 shrink-0"
+              aria-label="loopt door na deze periode"
+            />
+          )}
         </p>
       </div>
       {magMuteren && (
@@ -210,12 +244,14 @@ const TeamDagCel = memo(function TeamDagCel({
   datum,
   children,
   weekend,
+  vandaag,
   teamAfwezig,
 }: {
   teamId: Id<"teams"> | null;
   datum: string;
   children: React.ReactNode;
   weekend: boolean;
+  vandaag: boolean;
   teamAfwezig: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({
@@ -226,16 +262,36 @@ const TeamDagCel = memo(function TeamDagCel({
     <div
       ref={setNodeRef}
       data-testid="team-dag-cel"
-      className={`min-h-[72px] space-y-1 border-b border-r p-1 ${
-        weekend ? "bg-muted/40" : ""
-      } ${teamAfwezig ? "bg-red-50 dark:bg-red-950/30" : ""} ${
-        isOver ? "bg-primary/10 ring-1 ring-inset ring-primary" : ""
-      }`}
+      // group/cel: de bemanning- en dagkaartknoppen staan pas in beeld bij
+      // hover of focus. Op elke cel "3/3" met twee iconen was ruis; wat
+      // afwijkt (afwezig, aangepast) blijft wél altijd zichtbaar.
+      className={`group/cel flex min-h-[84px] min-w-0 flex-col gap-1 border-b border-l border-border/60 p-1.5 ${
+        weekend ? WEEKEND_ARCERING : ""
+      } ${vandaag ? "bg-primary/[0.06]" : ""} ${
+        teamAfwezig ? "bg-status-afgewezen/60" : ""
+      } ${isOver ? "bg-primary/10 ring-1 ring-inset ring-primary" : ""}`}
     >
       {children}
     </div>
   );
 });
+
+/**
+ * Weekend: schuine arcering naast de tint, zodat "geen gewone werkdag" ook
+ * zonder kleur leesbaar is (DESIGN.md, Shapes). Zelfde patroon als het
+ * dagbalk-gat.
+ */
+const WEEKEND_ARCERING =
+  "bg-[repeating-linear-gradient(135deg,color-mix(in_oklch,var(--foreground)_4%,transparent)_0_5px,transparent_5px_10px)]";
+
+/** Op de weekweergave krijgen za en zo ruim de helft van een werkdag. */
+const WEEKEND_GEWICHT = 0.6;
+
+/** "week 42" of "week 42–45" — ISO-weken, want de planning begint op maandag. */
+function weekLabel(start: string, eind: string): string {
+  const [van, tot] = [start, eind].map((d) => getISOWeek(new Date(`${d}T12:00:00`)));
+  return van === tot ? `week ${van}` : `week ${van}–${tot}`;
+}
 
 // ============================================
 // Weekbord
@@ -383,55 +439,100 @@ export function Weekbord() {
     [planMetWaarschuwing]
   );
 
+  const vandaag = vandaagIso();
+  // Weekweergave: vloeiend raster zonder minimumbreedte, met smallere
+  // weekendkolommen — nooit zijwaarts scrollen (harde regel 1). Langere
+  // periodes houden hun minimumbreedte: 28+ kolommen passen niet zonder.
+  const compact = kolommen.length <= 7;
+  const kolomGewicht = (datum: string) =>
+    compact && isWeekend(datum) ? WEEKEND_GEWICHT : 1;
+  // De teamkolom geeft mee op een smal scherm (max 28%), anders blijven er
+  // op een telefoon alleen splinters van de dagkolommen over.
+  const rasterKolommen = `${compact ? "min(220px, 28%)" : "160px"} ${kolommen
+    .map((datum) => `minmax(0, ${kolomGewicht(datum)}fr)`)
+    .join(" ")}`;
   const kolomBreedte = kolommen.length > 14 ? 64 : 110;
+  const minBordBreedte = compact ? undefined : 160 + kolommen.length * kolomBreedte;
+  /** Breedte van een blok in startcellen, op de kolomgewichten. */
+  const spanFactor = (start: string, eind: string) => {
+    const zichtbaar = kolommen.filter((d) => d >= start && d <= eind);
+    if (zichtbaar.length === 0) return 1;
+    const som = zichtbaar.reduce((t, d) => t + kolomGewicht(d), 0);
+    return som / kolomGewicht(zichtbaar[0]);
+  };
+  const werkdagen = kolommen.filter((d) => !isWeekend(d));
   const bemanningCel = (teamId: Id<"teams">, datum: string) =>
     context ? naarBemanningCel(context, teamId, datum) : null;
   const eventsZonderTeam = events.filter((e) => e.resourceId === null);
 
   return (
-    <div className="flex gap-4">
+    <div className="flex flex-wrap items-start gap-4">
       <DndContext sensors={sensors} onDragEnd={onDragEnd}>
-        <div className="min-w-0 flex-1 space-y-3">
-          {/* Periodetoggle + navigatie */}
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-1" data-testid="periodetoggle">
-              {PERIODES.map((p) => (
-                <Button
-                  key={p.id}
-                  size="sm"
-                  variant={periode === p.id ? "default" : "outline"}
-                  onClick={() => setPeriode(p.id)}
+        <div className="min-w-0 flex-[999_1_40rem] space-y-3">
+          {/* Navigatie links, periode en afwezigheid rechts */}
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <div className="flex items-center gap-3">
+              <div className="flex overflow-hidden rounded-lg border">
+                <button
+                  type="button"
+                  aria-label="Vorige periode"
+                  onClick={() => setAnker(schuifAnker(periode, anker, -1))}
+                  className="grid size-9 place-items-center text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                 >
-                  {p.label}
-                </Button>
-              ))}
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAnker(vandaagIso())}
+                  className="h-9 border-x px-3 text-sm font-medium transition-colors hover:bg-accent"
+                >
+                  Vandaag
+                </button>
+                <button
+                  type="button"
+                  aria-label="Volgende periode"
+                  onClick={() => setAnker(schuifAnker(periode, anker, 1))}
+                  className="grid size-9 place-items-center text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+              <p className="flex items-baseline gap-2">
+                <span className="text-base font-semibold tabular-nums">
+                  {bereikLabel(bereik.start, bereik.eind)}
+                </span>
+                <span className="text-[13px] text-muted-foreground tabular-nums">
+                  {weekLabel(bereik.start, bereik.eind)}
+                </span>
+              </p>
             </div>
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                aria-label="Vorige periode"
-                onClick={() => setAnker(schuifAnker(periode, anker, -1))}
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              <div
+                role="radiogroup"
+                aria-label="Periode"
+                data-testid="periodetoggle"
+                className="flex flex-wrap gap-0.5 rounded-lg bg-muted p-[3px]"
               >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <span className="min-w-40 text-center text-sm font-medium">
-                {bereikLabel(bereik.start, bereik.eind)}
-              </span>
-              <Button
-                size="sm"
-                variant="outline"
-                aria-label="Volgende periode"
-                onClick={() => setAnker(schuifAnker(periode, anker, 1))}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => setAnker(vandaagIso())}>
-                Vandaag
-              </Button>
+                {PERIODES.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={periode === p.id}
+                    onClick={() => setPeriode(p.id)}
+                    className={`h-[30px] whitespace-nowrap rounded-md px-2.5 text-[13px] transition-colors ${
+                      periode === p.id
+                        ? "bg-card font-semibold text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
               {magMuteren && (
-                <Button size="sm" variant="outline" onClick={() => setAfwezigheidOpen(true)}>
-                  <CalendarOff className="mr-1 h-4 w-4" />
+                <Button size="sm" variant="outline" className="h-9" onClick={() => setAfwezigheidOpen(true)}>
+                  <CalendarOff className="mr-1.5 h-4 w-4" />
                   Afwezigheid
                 </Button>
               )}
@@ -478,25 +579,41 @@ export function Weekbord() {
           )}
 
           {/* Het bord */}
-          <div className="overflow-x-auto rounded-lg border">
-            <div style={{ minWidth: 160 + kolommen.length * kolomBreedte }}>
+          <div className={`rounded-xl border bg-card ${compact ? "overflow-hidden" : "overflow-x-auto"}`}>
+            <div style={{ minWidth: minBordBreedte }}>
               {/* Kolomkoppen */}
-              <div
-                className="grid border-b bg-muted/50"
-                style={{ gridTemplateColumns: `160px repeat(${kolommen.length}, 1fr)` }}
-              >
-                <div className="border-r p-2 text-xs font-semibold">Team</div>
+              <div className="grid border-b" style={{ gridTemplateColumns: rasterKolommen }}>
+                <div className="flex flex-col justify-center px-3.5 py-2.5">
+                  <span className="text-[13px] font-semibold">
+                    {resources.length} {resources.length === 1 ? "ploeg" : "ploegen"}
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">bezetting werkdagen</span>
+                </div>
                 {kolommen.map((datum) => {
                   const label = kolomLabel(datum);
+                  const isVandaag = datum === vandaag;
                   return (
                     <div
                       key={datum}
-                      className={`border-r p-1 text-center text-[11px] ${
-                        isWeekend(datum) ? "bg-muted/60" : ""
-                      } ${datum === vandaagIso() ? "font-bold text-primary" : ""}`}
+                      className={`min-w-0 border-l border-border/60 px-2.5 py-2 ${
+                        isWeekend(datum) && !isVandaag ? WEEKEND_ARCERING : ""
+                      } ${isVandaag ? "bg-primary/[0.06] shadow-[inset_0_-2px_0_var(--primary)]" : ""}`}
                     >
-                      <div>{label.dag}</div>
-                      <div>{label.datum}</div>
+                      <p
+                        className={`truncate text-[11px] ${
+                          isVandaag ? "font-semibold text-primary" : "text-muted-foreground"
+                        }`}
+                      >
+                        {label.dag}
+                        {isVandaag && <span className="sr-only"> (vandaag)</span>}
+                      </p>
+                      <p
+                        className={`truncate text-[15px] leading-5 font-semibold tabular-nums ${
+                          isVandaag ? "" : "text-muted-foreground"
+                        }`}
+                      >
+                        {compact ? label.datum.split(" ")[0] : label.datum}
+                      </p>
                     </div>
                   );
                 })}
@@ -516,123 +633,170 @@ export function Weekbord() {
                   }}
                 />
               ) : (
-                resources.map((team) => (
-                  <div
-                    key={team.id}
-                    className="grid"
-                    style={{ gridTemplateColumns: `160px repeat(${kolommen.length}, 1fr)` }}
-                  >
-                    <div className="border-b border-r p-2">
-                      <p className="text-sm font-medium">{team.naam}</p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {team.ledenDefault.length} vaste leden
-                      </p>
-                    </div>
-                    {kolommen.map((datum) => {
-                      const cel = bemanningCel(team.id, datum);
-                      const dagEvents = eventsVoorTeamDag(events, team.id, datum).filter(
-                        // Alleen renderen op de eerste zichtbare dag van het blok
-                        (ev) => ev.start === datum || (ev.start < bereik.start && datum === bereik.start)
-                      );
-                      return (
-                        <TeamDagCel
-                          key={datum}
-                          teamId={team.id}
-                          datum={datum}
-                          weekend={isWeekend(datum)}
-                          teamAfwezig={cel?.teamAfwezig ?? false}
-                        >
-                          {dagEvents.map((ev) => {
-                            const zichtbareStart = ev.start < bereik.start ? bereik.start : ev.start;
-                            const zichtbaarEind = ev.eind > bereik.eind ? bereik.eind : ev.eind;
-                            const span = Math.min(
-                              dagenTussen(zichtbareStart, zichtbaarEind) + 1,
-                              kolommen.length
-                            );
-                            return (
-                              <WerkitemBlok
-                                key={ev.id}
-                                event={ev}
-                                spanKolommen={Math.max(1, span)}
-                                magMuteren={magMuteren}
-                                onOntplan={onOntplan}
-                                onDupliceer={setDupliceerEvent}
-                                onSplits={setSplitsEvent}
-                              />
-                            );
-                          })}
-                          {cel && (
-                            <div className="flex items-center justify-between pt-0.5">
-                              <button
-                                data-testid="bemanning-knop"
-                                title={
-                                  cel.bron === "aangepast"
-                                    ? "Bemanning aangepast voor deze dag"
-                                    : "Vaste teamleden"
-                                }
-                                disabled={!magMuteren}
-                                onClick={() =>
-                                  setBemanningDoel({
-                                    teamId: team.id,
-                                    teamNaam: team.naam,
-                                    datum,
-                                  })
-                                }
-                                className={`flex items-center gap-0.5 rounded px-1 text-[10px] ${
-                                  cel.afwezigen.length > 0 || cel.teamAfwezig
-                                    ? "text-red-600"
-                                    : "text-muted-foreground"
-                                } ${cel.bron === "aangepast" ? "font-semibold" : ""} ${
-                                  magMuteren ? "hover:bg-muted" : ""
+                resources.map((team) => {
+                  const bezet = werkdagen.map(
+                    (datum) => eventsVoorTeamDag(events, team.id, datum).length > 0
+                  );
+                  const aantalBezet = bezet.filter(Boolean).length;
+                  return (
+                    <div
+                      key={team.id}
+                      className="grid"
+                      style={{ gridTemplateColumns: rasterKolommen }}
+                    >
+                      <div className="flex min-w-0 flex-col justify-center gap-1 border-b border-border/60 px-3.5 py-2.5">
+                        <p className="truncate text-sm font-semibold" title={team.naam}>
+                          {team.naam}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {team.ledenDefault.length} vaste leden
+                        </p>
+                        {werkdagen.length > 0 && werkdagen.length <= 7 && (
+                          <p className="flex items-center gap-2">
+                            <span aria-hidden="true" className="flex gap-[3px]">
+                              {bezet.map((isBezet, i) => (
+                                <span
+                                  key={werkdagen[i]}
+                                  className={`h-1 w-3.5 rounded-full ${
+                                    isBezet ? "bg-status-gepland-dot" : "bg-muted"
+                                  }`}
+                                />
+                              ))}
+                            </span>
+                            <span
+                              className={`text-[11px] tabular-nums ${
+                                aantalBezet === 0 ? "text-accent-warm" : "text-muted-foreground"
+                              }`}
+                            >
+                              <span className="sr-only">Bezet op </span>
+                              {aantalBezet}/{werkdagen.length}
+                              <span className="sr-only"> werkdagen</span>
+                              {aantalBezet === 0 ? " · vrij" : ""}
+                            </span>
+                          </p>
+                        )}
+                      </div>
+                      {kolommen.map((datum) => {
+                        const cel = bemanningCel(team.id, datum);
+                        const dagEvents = eventsVoorTeamDag(events, team.id, datum).filter(
+                          // Alleen renderen op de eerste zichtbare dag van het blok
+                          (ev) => ev.start === datum || (ev.start < bereik.start && datum === bereik.start)
+                        );
+                        const afwijkend =
+                          !!cel &&
+                          (cel.afwezigen.length > 0 || cel.teamAfwezig || cel.bron === "aangepast");
+                        return (
+                          <TeamDagCel
+                            key={datum}
+                            teamId={team.id}
+                            datum={datum}
+                            weekend={isWeekend(datum)}
+                            vandaag={datum === vandaag}
+                            teamAfwezig={cel?.teamAfwezig ?? false}
+                          >
+                            {dagEvents.map((ev) => {
+                              const zichtbareStart = ev.start < bereik.start ? bereik.start : ev.start;
+                              const zichtbaarEind = ev.eind > bereik.eind ? bereik.eind : ev.eind;
+                              return (
+                                <WerkitemBlok
+                                  key={ev.id}
+                                  event={ev}
+                                  spanKolommen={spanFactor(zichtbareStart, zichtbaarEind)}
+                                  loopDoor={ev.eind > bereik.eind}
+                                  magMuteren={magMuteren}
+                                  onOntplan={onOntplan}
+                                  onDupliceer={setDupliceerEvent}
+                                  onSplits={setSplitsEvent}
+                                />
+                              );
+                            })}
+                            {cel && (
+                              <div
+                                className={`mt-auto flex items-center justify-between gap-1 transition-opacity ${
+                                  afwijkend
+                                    ? ""
+                                    : "opacity-0 group-hover/cel:opacity-100 focus-within:opacity-100"
                                 }`}
                               >
-                                <Users className="h-3 w-3" />
-                                {cel.medewerkerIds.length - cel.afwezigen.length}/
-                                {cel.medewerkerIds.length}
-                              </button>
-                              <span className="flex items-center gap-0.5">
-                                <Link
-                                  data-testid="dagkaart-link"
-                                  href={`/planning/dagkaart?team=${team.id}&datum=${datum}`}
-                                  title="Open dagkaart (route-weergave van deze team-dag)"
-                                  className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                                <button
+                                  type="button"
+                                  data-testid="bemanning-knop"
+                                  title={
+                                    cel.bron === "aangepast"
+                                      ? "Bemanning aangepast voor deze dag"
+                                      : "Vaste teamleden"
+                                  }
+                                  disabled={!magMuteren}
+                                  onClick={() =>
+                                    setBemanningDoel({
+                                      teamId: team.id,
+                                      teamNaam: team.naam,
+                                      datum,
+                                    })
+                                  }
+                                  className={`flex min-h-6 min-w-0 items-center gap-1 rounded-full px-1.5 text-[11px] tabular-nums ${
+                                    afwijkend
+                                      ? "border border-status-verzonden-border bg-status-verzonden text-status-verzonden-text"
+                                      : "text-muted-foreground"
+                                  } ${magMuteren && !afwijkend ? "hover:bg-muted" : ""}`}
                                 >
-                                  <CalendarClock className="h-3 w-3" />
-                                </Link>
-                                {magMuteren && (
-                                  <button
-                                    data-testid="uitval-knop"
-                                    title="Ziekte/uitval: team deze dag loskoppelen"
-                                    onClick={() =>
-                                      setUitvalDoel({
-                                        teamId: team.id,
-                                        teamNaam: team.naam,
-                                        datum,
-                                      })
-                                    }
-                                    className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-red-600"
+                                  <Users className="h-3 w-3 shrink-0" aria-hidden="true" />
+                                  <span className="truncate">
+                                    {cel.medewerkerIds.length - cel.afwezigen.length}/
+                                    {cel.medewerkerIds.length}
+                                    {cel.teamAfwezig
+                                      ? " · team afwezig"
+                                      : cel.afwezigen.length > 0
+                                        ? ` · ${cel.afwezigen.length} afwezig`
+                                        : cel.bron === "aangepast"
+                                          ? " · aangepast"
+                                          : ""}
+                                  </span>
+                                </button>
+                                <span className="flex shrink-0 items-center gap-0.5">
+                                  <Link
+                                    data-testid="dagkaart-link"
+                                    href={`/planning/dagkaart?team=${team.id}&datum=${datum}`}
+                                    title="Open dagkaart (route-weergave van deze team-dag)"
+                                    aria-label="Open dagkaart"
+                                    className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
                                   >
-                                    <UserX className="h-3 w-3" />
-                                  </button>
-                                )}
-                              </span>
-                            </div>
-                          )}
-                        </TeamDagCel>
-                      );
-                    })}
-                  </div>
-                ))
+                                    <CalendarClock className="h-3.5 w-3.5" />
+                                  </Link>
+                                  {magMuteren && (
+                                    <button
+                                      type="button"
+                                      data-testid="uitval-knop"
+                                      title="Ziekte/uitval: team deze dag loskoppelen"
+                                      aria-label="Ziekte of uitval melden"
+                                      onClick={() =>
+                                        setUitvalDoel({
+                                          teamId: team.id,
+                                          teamNaam: team.naam,
+                                          datum,
+                                        })
+                                      }
+                                      className="grid size-6 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-status-afgewezen-text"
+                                    >
+                                      <UserX className="h-3.5 w-3.5" />
+                                    </button>
+                                  )}
+                                </span>
+                              </div>
+                            )}
+                          </TeamDagCel>
+                        );
+                      })}
+                    </div>
+                  );
+                })
               )}
 
               {/* Gepland zonder team */}
               {eventsZonderTeam.length > 0 && (
-                <div
-                  className="grid"
-                  style={{ gridTemplateColumns: `160px repeat(${kolommen.length}, 1fr)` }}
-                >
-                  <div className="border-b border-r p-2">
-                    <p className="text-sm font-medium text-amber-700">Zonder team</p>
+                <div className="grid" style={{ gridTemplateColumns: rasterKolommen }}>
+                  <div className="border-b border-border/60 px-3.5 py-2.5">
+                    <p className="text-sm font-semibold text-status-verzonden-text">Zonder team</p>
                     <Badge variant="outline" className="text-[10px]">
                       nog toewijzen
                     </Badge>
@@ -643,6 +807,7 @@ export function Weekbord() {
                       teamId={null}
                       datum={datum}
                       weekend={isWeekend(datum)}
+                      vandaag={datum === vandaag}
                       teamAfwezig={false}
                     >
                       {eventsVoorTeamDag(eventsZonderTeam, null, datum)
@@ -668,6 +833,27 @@ export function Weekbord() {
               )}
             </div>
           </div>
+
+          {/* Legenda: kleur is nooit het enige signaal, maar wel het snelste. */}
+          <ul aria-label="Legenda" className="flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-muted-foreground">
+            <li className="flex items-center gap-1.5">
+              <span aria-hidden="true" className="size-2 rounded-full bg-status-gepland-dot" />
+              Project
+            </li>
+            <li className="flex items-center gap-1.5">
+              <span aria-hidden="true" className="size-2 rounded-full bg-status-geaccepteerd-dot" />
+              Onderhoudsbeurt
+            </li>
+            <li className="flex items-center gap-1.5">
+              <span aria-hidden="true" className="size-2 rounded-full bg-status-verzonden-dot" />
+              Afwijkende bemanning of afwezigheid
+            </li>
+            <li className="flex items-center gap-1.5">
+              <span aria-hidden="true" className={`h-2.5 w-4 rounded-sm outline outline-1 outline-border ${WEEKEND_ARCERING}`} />
+              Weekend
+            </li>
+          </ul>
+
           {!magMuteren && (
             <p className="text-xs text-muted-foreground">
               Je kijkt mee met het planbord. Alleen kantoor (directie of

@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   ArrowRight,
+  FileText,
   FolderKanban,
   Clock,
   Truck,
@@ -29,21 +30,17 @@ import { MijnTaken, useMijnTaken } from "@/components/dashboard/mijn-taken";
 import { useAdminDashboardData } from "@/hooks/use-dashboard";
 import { AandachtNodig } from "@/components/dashboard/aandacht-nodig";
 import {
-  Cijferbalk,
+  CijferKolom,
   berekenVerschilPct,
 } from "@/components/dashboard/cijferbalk";
-import {
-  ConversiePaneel,
-  PipelinePaneel,
-} from "@/components/dashboard/pipeline-paneel";
+import { OffertePijplijnPaneel } from "@/components/dashboard/pipeline-paneel";
 import {
   LaatsteOffertesPaneel,
   LopendWerkPaneel,
 } from "@/components/dashboard/werk-panelen";
 import {
-  BentoBlok,
-  DAGSTAAT_SPAN,
-  DagstaatBento,
+  DagstaatKolom,
+  DagstaatKolommen,
   DagstaatReveal,
   DagstaatRevealStijl,
 } from "@/components/dashboard/dagstaat-bento";
@@ -323,16 +320,15 @@ export default function DashboardPage() {
       )}
 
       {/* ── Admin: de dagstaat ───────────────────────────────────────────
-          Werk vóór cijfers, cijfers vóór naslag. De volgorde in de DOM ís de
-          prioriteitsvolgorde, zodat mobiel (één kolom) exact dezelfde lezing
-          krijgt als de bento op breed — indikken, niet verstoppen.
+          Dashboard A (okt 2026): twee kolommen, werk links en geld en
+          offertes rechts. De volgorde in de DOM ís de prioriteitsvolgorde, zodat
+          mobiel (één kolom) dezelfde lezing krijgt — indikken, niet verstoppen.
 
-          `@container/dagstaat` staat hier: de blokken kiezen hun kolomspan op
-          de breedte van deze wrapper, niet op de viewport. Geen `max-w-7xl`
-          meer — die kapte op 1680px 136px zinvolle breedte af en duwde de
-          pagina daarmee juist langer. */}
+          `@container/dagstaat` staat hier: de kolommen splitsen op de breedte
+          van deze wrapper, niet op de viewport. De begrenzing (86rem) houdt de
+          werkkolom op leesbare regellengte op een breed scherm. */}
       {isAdmin && (
-        <div className="@container/dagstaat flex flex-1 flex-col gap-4 p-6 md:p-8">
+        <div className="@container/dagstaat mx-auto flex w-full max-w-[86rem] flex-1 flex-col gap-6 p-6 md:p-8">
           {adminData.isLoading ? (
             <DagstaatSkelet />
           ) : (
@@ -373,106 +369,111 @@ export default function DashboardPage() {
                 </DagstaatReveal>
               )}
 
-              <DagstaatBento>
-                {/* Werkstrook: wat je moet dóén staat boven wat je moet wéten. */}
-                <BentoBlok span={DAGSTAAT_SPAN.aandacht} stap={1}>
-                  <AandachtNodig
-                    acceptedWithoutProject={adminData.acceptedWithoutProject ?? []}
-                    warnings={warnings.map(
-                      (w: {
-                        id: string;
-                        type: string;
-                        prioriteit: "hoog" | "middel" | "laag";
-                        titel: string;
-                        beschrijving: string;
-                        actie?: string;
-                      }) => ({
-                        id: w.id,
-                        type: w.type,
-                        prioriteit: w.prioriteit,
-                        titel: w.titel,
-                        beschrijving: w.beschrijving,
-                        actie: w.actie,
-                      })
-                    )}
-                  />
-                </BentoBlok>
+              <DagstaatKolommen>
+                {/* Werk: wat je moet dóén staat boven wat je moet wéten. */}
+                <DagstaatKolom label="Werk" icoon={<FolderKanban aria-hidden="true" />}>
+                  <DagstaatReveal stap={1}>
+                    <AandachtNodig
+                      acceptedWithoutProject={adminData.acceptedWithoutProject ?? []}
+                      warnings={warnings.map(
+                        (w: {
+                          id: string;
+                          type: string;
+                          prioriteit: "hoog" | "middel" | "laag";
+                          titel: string;
+                          beschrijving: string;
+                          actie?: string;
+                        }) => ({
+                          id: w.id,
+                          type: w.type,
+                          prioriteit: w.prioriteit,
+                          titel: w.titel,
+                          beschrijving: w.beschrijving,
+                          actie: w.actie,
+                        })
+                      )}
+                    />
+                  </DagstaatReveal>
 
-                <BentoBlok span={DAGSTAAT_SPAN.taken} stap={2}>
-                  <MijnTaken verbergAlsLeeg={false} />
-                </BentoBlok>
+                  <DagstaatReveal stap={2}>
+                    <MijnTaken verbergAlsLeeg={false} />
+                  </DagstaatReveal>
 
-                {/* Cijferstrook — gevoed door de gedeelde omzetdefinities, dus
-                    dashboard en /rapportages tonen nooit een andere omzet. */}
-                <BentoBlok span={DAGSTAAT_SPAN.cijfers} stap={3}>
-                  <Cijferbalk
-                    getekendeOmzet={adminData.revenueStats?.totalAcceptedValue ?? 0}
-                    omzetTrendPct={berekenVerschilPct(
-                      adminData.kwartaalVergelijking?.revenueThisQ,
-                      adminData.kwartaalVergelijking?.revenuePrevQ
-                    )}
-                    openstaandBedrag={adminData.financieel?.openstaandBedrag ?? 0}
-                    vervaldeAantal={adminData.financieel?.vervaldeAantal ?? 0}
-                    vervaldenBedrag={adminData.financieel?.vervaldenBedrag ?? 0}
-                    gefactureerdDitKwartaal={
-                      adminData.kwartaalVergelijking?.gefactureerdThisQ ?? 0
-                    }
-                    gefactureerdTrendPct={berekenVerschilPct(
-                      adminData.kwartaalVergelijking?.gefactureerdThisQ,
-                      adminData.kwartaalVergelijking?.gefactureerdPrevQ
-                    )}
-                    actieveProjecten={adminData.projectStats?.in_uitvoering ?? 0}
-                    afgerondeProjecten={adminData.projectStats?.afgerond ?? 0}
-                    totaalProjecten={adminData.projectStats?.totaal ?? 0}
-                  />
-                </BentoBlok>
+                  <DagstaatReveal stap={3}>
+                    <LopendWerkPaneel
+                      projecten={adminData.activeProjects ?? []}
+                      samenvatting={{
+                        afgerond: adminData.projectStats?.afgerond ?? 0,
+                        totaal: adminData.projectStats?.totaal ?? 0,
+                      }}
+                    />
+                  </DagstaatReveal>
 
-                <BentoBlok span={DAGSTAAT_SPAN.pipeline} stap={4}>
-                  <PipelinePaneel
-                    stats={
-                      adminData.offerteStats ?? {
-                        concept: 0,
-                        voorcalculatie: 0,
-                        verzonden: 0,
-                        geaccepteerd: 0,
-                        afgewezen: 0,
-                        totaal: 0,
+                  <DagstaatReveal stap={4}>
+                    <VlootBadge
+                      hasIssues={adminData.vlootSummary?.hasIssues ?? false}
+                      issueCount={adminData.vlootSummary?.issueCount ?? 0}
+                      summary={adminData.vlootSummary?.summary ?? "Alles operationeel"}
+                    />
+                  </DagstaatReveal>
+                </DagstaatKolom>
+
+                {/* Geld en offertes — gevoed door de gedeelde omzetdefinities,
+                    dus dashboard en /rapportages tonen nooit een andere omzet. */}
+                <DagstaatKolom label="Geld en offertes" icoon={<FileText aria-hidden="true" />}>
+                  <DagstaatReveal stap={2}>
+                    <CijferKolom
+                      getekendeOmzet={adminData.revenueStats?.totalAcceptedValue ?? 0}
+                      omzetTrendPct={berekenVerschilPct(
+                        adminData.kwartaalVergelijking?.revenueThisQ,
+                        adminData.kwartaalVergelijking?.revenuePrevQ
+                      )}
+                      openstaandBedrag={adminData.financieel?.openstaandBedrag ?? 0}
+                      vervaldeAantal={adminData.financieel?.vervaldeAantal ?? 0}
+                      vervaldenBedrag={adminData.financieel?.vervaldenBedrag ?? 0}
+                      gefactureerdDitKwartaal={
+                        adminData.kwartaalVergelijking?.gefactureerdThisQ ?? 0
                       }
-                    }
-                  />
-                </BentoBlok>
+                      gefactureerdTrendPct={berekenVerschilPct(
+                        adminData.kwartaalVergelijking?.gefactureerdThisQ,
+                        adminData.kwartaalVergelijking?.gefactureerdPrevQ
+                      )}
+                    />
+                  </DagstaatReveal>
 
-                <BentoBlok span={DAGSTAAT_SPAN.conversie} stap={5}>
-                  <ConversiePaneel
-                    rate={adminData.revenueStats?.conversionRate ?? 0}
-                    aantalGetekend={adminData.revenueStats?.totalAcceptedCount ?? 0}
-                    aantalVerstuurd={
-                      (adminData.offerteStats?.verzonden ?? 0) +
-                      (adminData.offerteStats?.geaccepteerd ?? 0) +
-                      (adminData.offerteStats?.afgewezen ?? 0)
-                    }
-                    gemiddeldeWaarde={
-                      adminData.revenueStats?.averageOfferteValue ?? 0
-                    }
-                  />
-                </BentoBlok>
+                  <DagstaatReveal stap={3}>
+                    <OffertePijplijnPaneel
+                      stats={
+                        adminData.offerteStats ?? {
+                          concept: 0,
+                          voorcalculatie: 0,
+                          verzonden: 0,
+                          geaccepteerd: 0,
+                          afgewezen: 0,
+                          totaal: 0,
+                        }
+                      }
+                      conversie={{
+                        rate: adminData.revenueStats?.conversionRate ?? 0,
+                        aantalGetekend: adminData.revenueStats?.totalAcceptedCount ?? 0,
+                        aantalVerstuurd:
+                          (adminData.offerteStats?.verzonden ?? 0) +
+                          (adminData.offerteStats?.geaccepteerd ?? 0) +
+                          (adminData.offerteStats?.afgewezen ?? 0),
+                        gemiddeldeWaarde:
+                          adminData.revenueStats?.averageOfferteValue ?? 0,
+                      }}
+                    />
+                  </DagstaatReveal>
 
-                <BentoBlok span={DAGSTAAT_SPAN.lopendWerk} stap={6}>
-                  <LopendWerkPaneel projecten={adminData.activeProjects ?? []} />
-                </BentoBlok>
-
-                <BentoBlok span={DAGSTAAT_SPAN.laatsteOffertes} stap={7}>
-                  <LaatsteOffertesPaneel offertes={adminData.recentOffertes ?? []} />
-                </BentoBlok>
-
-                <BentoBlok span={DAGSTAAT_SPAN.vloot} stap={8}>
-                  <VlootBadge
-                    hasIssues={adminData.vlootSummary?.hasIssues ?? false}
-                    issueCount={adminData.vlootSummary?.issueCount ?? 0}
-                    summary={adminData.vlootSummary?.summary ?? "Alles operationeel"}
-                  />
-                </BentoBlok>
-              </DagstaatBento>
+                  <DagstaatReveal stap={4}>
+                    <LaatsteOffertesPaneel
+                      offertes={adminData.recentOffertes ?? []}
+                      kopbalk
+                    />
+                  </DagstaatReveal>
+                </DagstaatKolom>
+              </DagstaatKolommen>
             </>
           )}
         </div>
