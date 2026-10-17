@@ -7,16 +7,9 @@
  * per team-dag — bereikbaar via de knop hieronder of per cel op het bord.
  */
 
-import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
+import { PlanningTabs } from "@/components/planbord/planning-tabs";
 import { Weekbord } from "@/components/planbord/weekbord";
-
-/** Drie weergaven van dezelfde planning; de tab is de navigatie. */
-const WEERGAVEN = [
-  { href: "/planning/weekbord", label: "Weekbord" },
-  { href: "/planning/lijst", label: "Lijst" },
-  { href: "/planning/dagkaart", label: "Dagkaart" },
-] as const;
 
 export default function WeekbordPagina() {
   return (
@@ -30,25 +23,7 @@ export default function WeekbordPagina() {
           <h1 className="font-display text-2xl font-semibold tracking-tight md:text-[28px]">
             Weekbord
           </h1>
-          <nav aria-label="Weergave" className="flex gap-0.5 rounded-lg bg-muted p-[3px]">
-            {WEERGAVEN.map((weergave) => {
-              const actief = weergave.href === "/planning/weekbord";
-              return (
-                <Link
-                  key={weergave.href}
-                  href={weergave.href}
-                  aria-current={actief ? "page" : undefined}
-                  className={`flex h-[34px] items-center rounded-md px-3.5 text-sm transition-colors ${
-                    actief
-                      ? "bg-card font-semibold text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {weergave.label}
-                </Link>
-              );
-            })}
-          </nav>
+          <PlanningTabs actief="/planning/weekbord" />
         </div>
         <Weekbord />
       </div>

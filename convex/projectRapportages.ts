@@ -510,6 +510,17 @@ export const getProjectVoortgang = query({
       takenByProject.set(projectIds[idx].toString(), taken);
     });
 
+    // Ploegnamen voor het planningsoverzicht (één get per uniek team). Alleen
+    // teams van deze organisatie: een vreemde teamId levert geen naam op.
+    const teamIds = [
+      ...new Set(projecten.flatMap((p) => (p.teamId ? [p.teamId] : []))),
+    ];
+    const teams = await Promise.all(teamIds.map((id) => ctx.db.get(id)));
+    const teamNaamById = new Map<string, string>();
+    teams.forEach((team) => {
+      if (team && team.orgId === orgId) teamNaamById.set(team._id.toString(), team.naam);
+    });
+
     // Build project progress data
     type ProjectVoortgang = {
       projectId: string;
@@ -536,6 +547,10 @@ export const getProjectVoortgang = query({
       // Team info
       teamleden: string[];
       laatsteActiviteit: string | null;
+      // Planning (weekbord): datums en ploeg, null als nog niet ingepland
+      geplandeStart: string | null;
+      geplandeEind: string | null;
+      teamNaam: string | null;
     };
 
     const projectVoortgangList: ProjectVoortgang[] = [];
@@ -616,6 +631,9 @@ export const getProjectVoortgang = query({
         dagenOver,
         teamleden,
         laatsteActiviteit,
+        geplandeStart: project.geplandeStart ?? null,
+        geplandeEind: project.geplandeEind ?? project.geplandeStart ?? null,
+        teamNaam: project.teamId ? (teamNaamById.get(project.teamId.toString()) ?? null) : null,
       });
     }
 
