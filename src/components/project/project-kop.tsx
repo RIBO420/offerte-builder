@@ -14,7 +14,8 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { useQuery } from "convex/react";
-import { Check, Lock } from "lucide-react";
+import type { FunctionReturnType } from "convex/server";
+import { Calculator, Check, Euro, Lock, ShieldCheck } from "lucide-react";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { klantNaam } from "@convex/lib/offerteKlant";
@@ -105,11 +106,16 @@ export function projectFasen(status: string): Fase[] {
   ];
 }
 
-const NEVEN: { tab: ProjectTab; label: string; pad: string }[] = [
-  { tab: "voorcalculatie", label: "Voorcalculatie", pad: "voorcalculatie" },
-  { tab: "kosten", label: "Kosten", pad: "kosten" },
-  { tab: "kwaliteit", label: "Kwaliteit", pad: "kwaliteit" },
+const NEVEN: { tab: ProjectTab; label: string; pad: string; icoon: typeof Calculator }[] = [
+  { tab: "voorcalculatie", label: "Voorcalculatie", pad: "voorcalculatie", icoon: Calculator },
+  { tab: "kosten", label: "Kosten", pad: "kosten", icoon: Euro },
+  { tab: "kwaliteit", label: "Kwaliteit", pad: "kwaliteit", icoon: ShieldCheck },
 ];
+
+/** Uren in Nederlandse notatie, hooguit 1 decimaal. */
+function urenTekst(uren: number): string {
+  return uren.toLocaleString("nl-NL", { maximumFractionDigits: 1 });
+}
 
 function pad(projectId: string, tab: ProjectTab): string {
   return tab === "overzicht" ? `/projecten/${projectId}` : `/projecten/${projectId}/${tab}`;
@@ -139,6 +145,14 @@ export function ProjectKop({
   // Zelfde query als het overzicht; Convex dedupliceert op query + args.
   const details = useQuery(api.projecten.getWithDetails, {
     id: projectId as Id<"projecten">,
+  });
+  // Kerngetallen voor de naslagknoppen. Dezelfde queries als de kosten- en
+  // kwaliteitspagina zelf, dus daar kost dit niets extra (Convex dedupliceert).
+  const budget = useQuery(api.projectKosten.getBudgetVergelijking, {
+    projectId: projectId as Id<"projecten">,
+  });
+  const kwaliteit = useQuery(api.kwaliteitsControles.getProjectSummary, {
+    projectId: projectId as Id<"projecten">,
   });
 
   if (details === undefined) {
@@ -260,24 +274,77 @@ export function ProjectKop({
           );
         })}
 
-        <span className="ml-auto flex flex-wrap items-center gap-x-4">
-          {NEVEN.map((neven) => (
-            <Link
-              key={neven.tab}
-              href={`/projecten/${projectId}/${neven.pad}`}
-              aria-current={actief === neven.tab ? "page" : undefined}
-              className={cn(
-                "flex h-11 items-center border-b-2 text-[13px] transition-colors",
-                actief === neven.tab
-                  ? "border-primary font-semibold text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {neven.label}
-            </Link>
-          ))}
-        </span>
+        {/* Naslag: geen fasen maar achtergrond bij het project. Knoppen met
+            een kerngetal, zodat je zonder te klikken ziet hoe het ervoor staat. */}
+        <div role="group" aria-label="Naslag" className="ml-auto flex flex-wrap items-center gap-1.5 py-1.5">
+          {NEVEN.map((neven) => {
+            const isActief = actief === neven.tab;
+            const getal = naslagGetal(neven.tab, budget, kwaliteit);
+            const Icoon = neven.icoon;
+            return (
+              <Link
+                key={neven.tab}
+                href={`/projecten/${projectId}/${neven.pad}`}
+                aria-current={isActief ? "page" : undefined}
+                className={cn(
+                  "inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 text-[13px] transition-[background-color,border-color,color] duration-150 active:scale-[0.96]",
+                  isActief
+                    ? "border-primary/50 bg-primary/10 font-semibold text-foreground"
+                    : "bg-card font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+                )}
+              >
+                <Icoon className="size-[15px] shrink-0" strokeWidth={1.75} aria-hidden="true" />
+                {neven.label}
+                {getal && (
+                  <span
+                    title={getal.uitleg}
+                    className={cn(
+                      "rounded-[5px] px-1.5 text-xs leading-5 font-medium tabular-nums",
+                      isActief ? "bg-primary/15 text-foreground" : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {getal.tekst}
+                    <span className="sr-only"> — {getal.uitleg}</span>
+                  </span>
+                )}
+              </Link>
+            );
+          })}
+        </div>
       </nav>
     </div>
   );
+}
+
+type BudgetVergelijking =
+  | FunctionReturnType<typeof api.projectKosten.getBudgetVergelijking>
+  | undefined;
+type KwaliteitSamenvatting =
+  | FunctionReturnType<typeof api.kwaliteitsControles.getProjectSummary>
+  | undefined;
+
+/** Het kerngetal op een naslagknop, of null als er (nog) niets zinnigs te tonen is. */
+function naslagGetal(
+  tab: ProjectTab,
+  budget: BudgetVergelijking,
+  kwaliteit: KwaliteitSamenvatting
+): { tekst: string; uitleg: string } | null {
+  const data = budget?.data;
+  if (tab === "voorcalculatie") {
+    if (!data || data.gepland.uren <= 0) return null;
+    return { tekst: `${urenTekst(data.gepland.uren)} u`, uitleg: "begrote normuren" };
+  }
+  if (tab === "kosten") {
+    if (!data || data.gepland.totaal <= 0) return null;
+    const pct = Math.round((data.werkelijk.totaal / data.gepland.totaal) * 100);
+    return { tekst: `${pct}%`, uitleg: `${pct}% van de begroting besteed` };
+  }
+  if (tab === "kwaliteit") {
+    const scopes = data ? Object.keys(data.gepland.urenPerScope).length : 0;
+    const totaal = Math.max(scopes, kwaliteit?.totaal ?? 0);
+    if (totaal === 0) return null;
+    const goed = kwaliteit?.goedgekeurd ?? 0;
+    return { tekst: `${goed}/${totaal}`, uitleg: `${goed} van ${totaal} scopes goedgekeurd` };
+  }
+  return null;
 }

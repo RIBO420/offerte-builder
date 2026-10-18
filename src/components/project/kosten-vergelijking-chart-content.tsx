@@ -1,315 +1,198 @@
 "use client";
 
+/**
+ * Grafieken van het kostendashboard: begroot tegen besteed per soort, en de
+ * afwijking per soort in procenten. Kleuren uit de tokens (begroot grijs,
+ * besteed terracotta, boven begroting `destructive`); elke staaf draagt zijn
+ * waarde als label, zodat kleur nooit het enige signaal is.
+ */
+
 import { memo, useMemo } from "react";
 import {
-  BarChart,
   Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  LabelList,
+  ReferenceLine,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  ReferenceLine,
 } from "recharts";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { BarChart3 } from "lucide-react";
+import { formatCurrency } from "@/lib/format/currency";
+import { formatAfwijkingProcent } from "@/lib/format/uren-kort";
+import { SectieLegeStaat } from "@/components/ui/sectie-paneel";
+import { euro, SOORT_LABEL, type SoortRegel } from "./kosten/stand";
 
-interface KostenVergelijkingData {
-  gepland: number;
-  werkelijk: number;
-  afwijking: number;
-  afwijkingPercentage: number;
+const AS = { fontSize: 12, fill: "var(--muted-foreground)" };
+
+interface TooltipRij {
+  name: string;
+  value: number;
+  color: string;
 }
 
-interface KostenVergelijkingChartProps {
-  materiaal: KostenVergelijkingData;
-  arbeid: KostenVergelijkingData;
-  machine: KostenVergelijkingData;
-  overig?: KostenVergelijkingData;
-  height?: number;
-  showPercentage?: boolean;
-}
-
-// Custom tooltip component
-interface CustomTooltipProps {
-  active?: boolean;
-  payload?: Array<{
-    name: string;
-    value: number;
-    color: string;
-    dataKey: string;
-  }>;
-  label?: string;
-}
-
-const CustomTooltip = memo(function CustomTooltip({
+function BedragTooltip({
   active,
   payload,
   label,
-}: CustomTooltipProps) {
-  if (!active || !payload || !payload.length) return null;
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("nl-NL", {
-      style: "currency",
-      currency: "EUR",
-    }).format(value);
-  };
-
+}: {
+  active?: boolean;
+  payload?: TooltipRij[];
+  label?: string;
+}) {
+  if (!active || !payload?.length) return null;
   return (
-    <div className="bg-popover text-popover-foreground border border-border rounded-lg shadow-lg p-3 text-sm">
-      <p className="font-medium mb-2">{label}</p>
-      {payload.map((entry, index) => (
-        <div key={index} className="flex items-center gap-2">
-          <div
-            className="w-3 h-3 rounded-full"
-            style={{ backgroundColor: entry.color }}
-          />
-          <span className="text-muted-foreground">{entry.name}:</span>
-          <span className="font-medium text-foreground">
-            {formatCurrency(entry.value)}
-          </span>
-        </div>
+    <div className="rounded-md border bg-popover p-2.5 text-xs text-popover-foreground shadow-md">
+      <p className="mb-1 font-medium">{label}</p>
+      {payload.map((rij) => (
+        <p key={rij.name} className="flex items-center gap-2 tabular-nums">
+          <span aria-hidden="true" className="size-2 rounded-full" style={{ backgroundColor: rij.color }} />
+          <span className="text-muted-foreground">{rij.name}</span>
+          <span className="ms-auto font-medium">{formatCurrency(rij.value)}</span>
+        </p>
       ))}
     </div>
   );
-});
-
+}
 
 export const KostenVergelijkingChartContent = memo(function KostenVergelijkingChartContent({
-  materiaal,
-  arbeid,
-  machine,
-  overig,
-  height = 350,
-}: KostenVergelijkingChartProps) {
-  const chartData = useMemo(() => {
-    const data = [
-      {
-        type: "Materiaal",
-        key: "materiaal",
-        gepland: materiaal.gepland,
-        werkelijk: materiaal.werkelijk,
-        afwijking: materiaal.afwijking,
-        afwijkingPercentage: materiaal.afwijkingPercentage,
-      },
-      {
-        type: "Arbeid",
-        key: "arbeid",
-        gepland: arbeid.gepland,
-        werkelijk: arbeid.werkelijk,
-        afwijking: arbeid.afwijking,
-        afwijkingPercentage: arbeid.afwijkingPercentage,
-      },
-      {
-        type: "Machine",
-        key: "machine",
-        gepland: machine.gepland,
-        werkelijk: machine.werkelijk,
-        afwijking: machine.afwijking,
-        afwijkingPercentage: machine.afwijkingPercentage,
-      },
-    ];
+  regels,
+  height = 300,
+}: {
+  regels: SoortRegel[];
+  height?: number;
+}) {
+  const data = useMemo(
+    () =>
+      regels
+        .filter((r) => r.soort !== "overig" || r.begroot > 0 || r.besteed > 0)
+        .map((r) => ({ soort: SOORT_LABEL[r.soort], begroot: r.begroot, besteed: r.besteed })),
+    [regels]
+  );
 
-    if (overig && (overig.gepland > 0 || overig.werkelijk > 0)) {
-      data.push({
-        type: "Overig",
-        key: "overig",
-        gepland: overig.gepland,
-        werkelijk: overig.werkelijk,
-        afwijking: overig.afwijking,
-        afwijkingPercentage: overig.afwijkingPercentage,
-      });
-    }
-
-    return data;
-  }, [materiaal, arbeid, machine, overig]);
-
-  const hasData = chartData.some((d) => d.gepland > 0 || d.werkelijk > 0);
-
-  if (!hasData) {
-    return (
-      <Card>
-        <CardContent className="py-8 text-center text-muted-foreground">
-          <BarChart3 className="h-8 w-8 mx-auto mb-2 opacity-50" />
-          <p>Geen kosten data beschikbaar voor grafiek.</p>
-        </CardContent>
-      </Card>
-    );
+  if (!data.some((d) => d.begroot > 0 || d.besteed > 0)) {
+    return <SectieLegeStaat tekst="Nog geen begroting of kosten om te vergelijken." />;
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <BarChart3 className="h-5 w-5" />
-          Kosten: Gepland vs Werkelijk
-        </CardTitle>
-        <CardDescription>
-          Vergelijking van geplande en werkelijke kosten per type
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div style={{ height }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} />
-              <XAxis
-                dataKey="type"
-                tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
-                stroke="hsl(var(--border))"
-              />
-              <YAxis
-                tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
-                stroke="hsl(var(--border))"
-                tickFormatter={(value) => `\u20AC${value.toLocaleString("nl-NL")}`}
-                label={{
-                  value: "Kosten (EUR)",
-                  angle: -90,
-                  position: "insideLeft",
-                  style: { textAnchor: "middle", fontSize: 12, fill: "hsl(var(--muted-foreground))" },
-                }}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend
-                wrapperStyle={{ paddingTop: "10px", color: "hsl(var(--foreground))" }}
-                iconType="circle"
-                formatter={(value) => <span style={{ color: "hsl(var(--foreground))" }}>{value}</span>}
-              />
-              <Bar
-                dataKey="gepland"
-                name="Gepland"
-                fill="hsl(var(--muted-foreground))"
-                radius={[4, 4, 0, 0]}
-              />
-              <Bar
-                dataKey="werkelijk"
-                name="Werkelijk"
-                fill="hsl(var(--primary))"
-                radius={[4, 4, 0, 0]}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </CardContent>
-    </Card>
+    <figure className="flex flex-col gap-2 px-3 py-3">
+      <figcaption className="font-display text-sm font-semibold">Begroot tegen besteed</figcaption>
+      <div style={{ height }} className="min-w-0">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} margin={{ top: 20, right: 8, left: 0, bottom: 0 }} barGap={4}>
+            <CartesianGrid vertical={false} stroke="var(--border)" />
+            <XAxis dataKey="soort" tick={AS} stroke="var(--border)" tickLine={false} />
+            <YAxis
+              tick={AS}
+              stroke="var(--border)"
+              tickLine={false}
+              axisLine={false}
+              width={64}
+              tickFormatter={(v: number) => euro(v)}
+            />
+            <Tooltip content={<BedragTooltip />} cursor={{ fill: "var(--muted)", opacity: 0.5 }} />
+            <Bar dataKey="begroot" name="Begroot" fill="var(--muted-foreground)" fillOpacity={0.5} radius={[4, 4, 0, 0]}>
+              <LabelList dataKey="begroot" position="top" fontSize={11} fill="var(--muted-foreground)" formatter={(v: unknown) => euro(Number(v))} />
+            </Bar>
+            <Bar dataKey="besteed" name="Besteed" fill="var(--accent-warm)" radius={[4, 4, 0, 0]}>
+              <LabelList dataKey="besteed" position="top" fontSize={11} fill="var(--foreground)" formatter={(v: unknown) => euro(Number(v))} />
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      <ul aria-label="Legenda" className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+        <li className="flex items-center gap-1.5">
+          <span aria-hidden="true" className="h-1.5 w-3.5 rounded-full bg-muted-foreground/50" />
+          Begroot
+        </li>
+        <li className="flex items-center gap-1.5">
+          <span aria-hidden="true" className="h-1.5 w-3.5 rounded-full bg-accent-warm" />
+          Besteed
+        </li>
+      </ul>
+    </figure>
   );
 });
 
-// Alternative deviation-focused chart
-interface KostenAfwijkingChartProps {
-  materiaal: KostenVergelijkingData;
-  arbeid: KostenVergelijkingData;
-  machine: KostenVergelijkingData;
-  overig?: KostenVergelijkingData;
-  height?: number;
-}
-
-// Helper function to get color based on deviation percentage
-function getColorForDeviation(percentage: number): string {
-  const absPercentage = Math.abs(percentage);
-  if (absPercentage <= 5) {
-    return "hsl(var(--chart-2))"; // green
-  }
-  if (absPercentage <= 15) {
-    return "hsl(var(--chart-4))"; // yellow/orange
-  }
-  return "hsl(var(--destructive))"; // red
-}
-
 export const KostenAfwijkingChartContent = memo(function KostenAfwijkingChartContent({
-  materiaal,
-  arbeid,
-  machine,
-  overig,
-  height = 300,
-}: KostenAfwijkingChartProps) {
-  const chartData = useMemo(() => {
-    const data = [
-      {
-        type: "Materiaal",
-        afwijking: materiaal.afwijkingPercentage,
-        fill: getColorForDeviation(materiaal.afwijkingPercentage),
-      },
-      {
-        type: "Arbeid",
-        afwijking: arbeid.afwijkingPercentage,
-        fill: getColorForDeviation(arbeid.afwijkingPercentage),
-      },
-      {
-        type: "Machine",
-        afwijking: machine.afwijkingPercentage,
-        fill: getColorForDeviation(machine.afwijkingPercentage),
-      },
-    ];
+  regels,
+  afgerond,
+  height = 220,
+}: {
+  regels: SoortRegel[];
+  afgerond: boolean;
+  height?: number;
+}) {
+  // Alleen soorten mét begroting hebben een afwijking in procenten.
+  const data = useMemo(
+    () =>
+      regels
+        .filter((r) => r.begroot > 0)
+        .map((r) => ({
+          soort: SOORT_LABEL[r.soort],
+          afwijking: Math.round(((r.besteed - r.begroot) / r.begroot) * 100),
+        })),
+    [regels]
+  );
 
-    if (overig && (overig.gepland > 0 || overig.werkelijk > 0)) {
-      data.push({
-        type: "Overig",
-        afwijking: overig.afwijkingPercentage,
-        fill: getColorForDeviation(overig.afwijkingPercentage),
-      });
-    }
-
-    return data.sort((a, b) => Math.abs(b.afwijking) - Math.abs(a.afwijking));
-  }, [materiaal, arbeid, machine, overig]);
+  if (data.length === 0) return null;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-sm">Afwijkingen per Type</CardTitle>
-        <CardDescription>
-          Procentuele afwijking van het budget
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div style={{ height }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={chartData}
-              layout="vertical"
-              margin={{ left: 10, right: 30 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" strokeOpacity={0.5} horizontal={false} />
-              <XAxis
-                type="number"
-                unit="%"
-                tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
-                stroke="hsl(var(--border))"
-                domain={["auto", "auto"]}
+    <figure className="flex flex-col gap-1 border-t px-3 py-3">
+      <figcaption className="flex flex-col gap-0.5">
+        <span className="font-display text-sm font-semibold">Afwijking per soort</span>
+        <span className="text-xs text-muted-foreground">
+          {afgerond
+            ? "Besteed tegenover begroot, in procenten."
+            : "Het project loopt nog: negatief betekent nog niet besteed, niet bespaard."}
+        </span>
+      </figcaption>
+      <div style={{ height }} className="min-w-0">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} layout="vertical" margin={{ top: 4, right: 48, left: 0, bottom: 0 }}>
+            <CartesianGrid horizontal={false} stroke="var(--border)" />
+            <XAxis
+              type="number"
+              tick={AS}
+              stroke="var(--border)"
+              tickLine={false}
+              domain={[(min: number) => Math.min(min, 0), (max: number) => Math.max(max, 0)]}
+              tickFormatter={(v: number) => formatAfwijkingProcent(v)}
+            />
+            <YAxis dataKey="soort" type="category" width={80} tick={AS} stroke="var(--border)" tickLine={false} />
+            <Tooltip
+              formatter={(v) => [formatAfwijkingProcent(Number(v)), "Afwijking"]}
+              contentStyle={{
+                backgroundColor: "var(--popover)",
+                borderColor: "var(--border)",
+                borderRadius: "0.5rem",
+                color: "var(--popover-foreground)",
+                fontSize: 12,
+              }}
+              cursor={{ fill: "var(--muted)", opacity: 0.5 }}
+            />
+            <ReferenceLine x={0} stroke="var(--muted-foreground)" />
+            <Bar dataKey="afwijking" radius={4}>
+              {data.map((d) => (
+                <Cell
+                  key={d.soort}
+                  fill={d.afwijking > 0 ? "var(--destructive)" : "var(--muted-foreground)"}
+                  fillOpacity={d.afwijking > 0 ? 1 : 0.5}
+                />
+              ))}
+              <LabelList
+                dataKey="afwijking"
+                position="right"
+                fontSize={11}
+                fill="var(--foreground)"
+                formatter={(v: unknown) => formatAfwijkingProcent(Number(v))}
               />
-              <YAxis
-                dataKey="type"
-                type="category"
-                width={80}
-                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                stroke="hsl(var(--border))"
-              />
-              <Tooltip
-                formatter={(value) => [`${value}%`, "Afwijking"]}
-                contentStyle={{
-                  backgroundColor: "hsl(var(--popover))",
-                  borderColor: "hsl(var(--border))",
-                  borderRadius: "0.5rem",
-                }}
-              />
-              <ReferenceLine x={0} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />
-              <Bar dataKey="afwijking" radius={[0, 4, 4, 0]}>
-                {chartData.map((entry, index) => (
-                  <rect key={index} fill={entry.fill} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </CardContent>
-    </Card>
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </figure>
   );
 });

@@ -1,135 +1,103 @@
 "use client";
 
-import { useState } from "react";
-import { QC_STATUS_CONFIG, statusClasses, type QCStatus } from "@/lib/constants/statuses";
+/**
+ * Eén scope op de kwaliteitspagina van een project, mét gestarte controle:
+ * de checklist (afvinken, punten toevoegen/verwijderen), voortgang, foto's en
+ * goed-/afkeuren. Een afgeronde controle (goedgekeurd/afgekeurd) toont de
+ * uitkomst en klapt de punten in.
+ *
+ * Scopes zónder controle tekent de pagina zelf (zelfde paneelvorm), zodat de
+ * stapel scopes als één lijst leest.
+ */
+
+import { useId, useState } from "react";
 import { useMutation } from "convex/react";
+import { Check, ChevronDown, Plus, X } from "lucide-react";
 import { api } from "../../../convex/_generated/api";
-import { Id } from "../../../convex/_generated/dataModel";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import type { Doc } from "../../../convex/_generated/dataModel";
+import { QC_STATUS_CONFIG, type QCStatus } from "@/lib/constants/statuses";
+import { scopeLabel } from "@/lib/rapportage-labels";
+import { SectiePaneel } from "@/components/ui/sectie-paneel";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  ClipboardCheck,
-  Check,
-  X,
-  ChevronDown,
-  ChevronUp,
-  Loader2,
-} from "lucide-react";
+import { VoortgangsBalk, procent, scopeStip } from "@/components/project/project-cijfers";
+import { QCFotoUpload } from "@/components/project/qc-foto-upload";
 import { cn } from "@/lib/utils";
 import { logger } from "@/lib/logger";
 import { showErrorToast } from "@/lib/toast-utils";
+import { getMutationErrorMessage } from "@/lib/error-handling";
 
-// QC Status types and labels
-// Statuskleuren uit de centrale bron (WS4): zelfde status = zelfde kleur.
-function qcEntry(status: QCStatus) {
-  const config = QC_STATUS_CONFIG[status];
-  return {
-    label: config.label,
-    color: statusClasses(config),
-    icon: config.icon as React.ComponentType<{ className?: string }>,
-  };
-}
-
-const statusConfig: Record<
-  QCStatus,
-  {
-    label: string;
-    color: string;
-    icon: React.ComponentType<{ className?: string }>;
-  }
-> = {
-  open: qcEntry("open"),
-  in_uitvoering: qcEntry("in_uitvoering"),
-  goedgekeurd: qcEntry("goedgekeurd"),
-  afgekeurd: qcEntry("afgekeurd"),
-};
-
-// Scope display names
-const scopeLabels: Record<string, string> = {
-  grondwerk: "Grondwerk",
-  bestrating: "Bestrating",
-  parkeerplaats: "Parkeerplaats",
-  beregening: "Beregening",
-  borders: "Borders",
-  gras: "Gras",
-  houtwerk: "Houtwerk",
-  water_elektra: "Water & Elektra",
-  specials: "Specials",
-  gras_onderhoud: "Gras (Onderhoud)",
-  borders_onderhoud: "Borders (Onderhoud)",
-  heggen: "Heggen",
-  bomen: "Bomen",
-  overig: "Overig",
-};
-
-interface ChecklistItem {
-  id: string;
-  omschrijving: string;
-  isAfgevinkt: boolean;
-  afgevinktAt?: number;
-  afgevinktDoor?: string;
-  notities?: string;
-}
+type Controle = Doc<"kwaliteitsControles">;
 
 interface QCChecklistCardProps {
-  id: Id<"kwaliteitsControles">;
-  scope: string;
-  status: QCStatus;
-  checklistItems: ChecklistItem[];
-  opmerkingen?: string;
-  goedgekeurdDoor?: string;
-  goedgekeurdAt?: number;
-  onApprove?: () => void;
-  onReject?: () => void;
+  controle: Controle;
+  onApprove: () => void;
+  onReject: () => void;
+  /**
+   * Is "Goedkeuren" de ene gevulde hoofdknop van het scherm? De pagina kiest
+   * er hooguit één; anders is de knop omlijnd.
+   */
+  goedkeurenGevuld?: boolean;
   userName?: string;
-  defaultExpanded?: boolean;
+}
+
+function formatTimestamp(timestamp: number) {
+  return new Date(timestamp).toLocaleString("nl-NL", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 export function QCChecklistCard({
-  id,
-  scope,
-  status,
-  checklistItems,
-  opmerkingen,
-  goedgekeurdDoor,
-  goedgekeurdAt,
+  controle,
   onApprove,
   onReject,
+  goedkeurenGevuld = false,
   userName = "Gebruiker",
-  defaultExpanded = false,
 }: QCChecklistCardProps) {
-  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+  const {
+    _id: id,
+    scope,
+    checklistItems,
+    opmerkingen,
+    goedgekeurdDoor,
+    goedgekeurdAt,
+  } = controle;
+  const status = controle.status as QCStatus;
+  const isReadOnly = status === "goedgekeurd" || status === "afgekeurd";
+
+  const lijstId = useId();
+  const hintId = useId();
+  const nieuwId = useId();
+
+  const [puntenOpen, setPuntenOpen] = useState(false);
   const [updatingItems, setUpdatingItems] = useState<Set<string>>(new Set());
+  const [verwijderend, setVerwijderend] = useState<string | null>(null);
+  const [nieuwPunt, setNieuwPunt] = useState("");
+  const [toevoegenBezig, setToevoegenBezig] = useState(false);
 
-  const updateChecklistItem = useMutation(
-    api.kwaliteitsControles.updateChecklistItem,
-  );
+  const updateChecklistItem = useMutation(api.kwaliteitsControles.updateChecklistItem);
+  const addChecklistItem = useMutation(api.kwaliteitsControles.addChecklistItem);
+  const removeChecklistItem = useMutation(api.kwaliteitsControles.removeChecklistItem);
 
-  // Calculate progress
   const checkedCount = checklistItems.filter((item) => item.isAfgevinkt).length;
   const totalCount = checklistItems.length;
-  const progress =
-    totalCount > 0 ? Math.round((checkedCount / totalCount) * 100) : 0;
+  const progress = procent(checkedCount, totalCount);
+  const allChecked = totalCount > 0 && checkedCount === totalCount;
+  const label = scopeLabel(scope);
 
-  // Get status config
-  const {
-    label: statusLabel,
-    color: statusColor,
-    icon: StatusIcon,
-  } = statusConfig[status];
+  // Afgeronde controles klappen in; een lopende controle staat altijd open.
+  const toonPunten = !isReadOnly || puntenOpen;
 
-  // Handle checkbox toggle
   const handleCheckboxChange = async (itemId: string, checked: boolean) => {
+    // Niet uitschakelen tijdens het opslaan: een uitgeschakeld vinkje verliest
+    // de toetsenbordfocus. Een tweede klik negeren we gewoon.
+    if (updatingItems.has(itemId)) return;
     setUpdatingItems((prev) => new Set(prev).add(itemId));
     try {
       await updateChecklistItem({
@@ -155,184 +123,250 @@ export function QCChecklistCard({
     }
   };
 
-  // Format timestamp
-  const formatTimestamp = (timestamp: number) => {
-    return new Date(timestamp).toLocaleString("nl-NL", {
-      day: "numeric",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+  const handleToevoegen = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const omschrijving = nieuwPunt.trim();
+    if (!omschrijving || toevoegenBezig) return;
+    setToevoegenBezig(true);
+    try {
+      await addChecklistItem({ id, omschrijving });
+      setNieuwPunt("");
+    } catch (error) {
+      logger.error("Toevoegen checklist-item mislukt", error, {
+        module: "project/qc-checklist",
+        kwaliteitsControleId: id,
+      });
+      showErrorToast("Punt kon niet worden toegevoegd", {
+        description: getMutationErrorMessage(error),
+      });
+    } finally {
+      setToevoegenBezig(false);
+    }
   };
 
-  const isReadOnly = status === "goedgekeurd" || status === "afgekeurd";
-  const allChecked = checkedCount === totalCount && totalCount > 0;
+  const handleVerwijderen = async (itemId: string) => {
+    if (verwijderend) return;
+    setVerwijderend(itemId);
+    try {
+      await removeChecklistItem({ id, itemId });
+    } catch (error) {
+      logger.error("Verwijderen checklist-item mislukt", error, {
+        module: "project/qc-checklist",
+        itemId,
+      });
+      showErrorToast("Punt kon niet worden verwijderd", {
+        description: getMutationErrorMessage(error),
+      });
+    } finally {
+      setVerwijderend(null);
+    }
+  };
+
+  const kleur = QC_STATUS_CONFIG[status]?.color;
 
   return (
-    <Card
-      className={cn(
-        "transition-all",
-        status === "goedgekeurd" &&
-          "border-green-200 bg-green-50/30 dark:border-green-800 dark:bg-green-950/20",
-        status === "afgekeurd" &&
-          "border-red-200 bg-red-50/30 dark:border-red-800 dark:bg-red-950/20",
-      )}
-    >
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-              <ClipboardCheck className="h-5 w-5 text-muted-foreground" />
-            </div>
-            <div>
-              <CardTitle className="text-base">
-                {scopeLabels[scope] || scope}
-              </CardTitle>
-              <CardDescription className="flex items-center gap-2 mt-1">
-                <span>
-                  {checkedCount}/{totalCount} items
-                </span>
-                {goedgekeurdDoor && goedgekeurdAt && (
-                  <span className="text-xs">
-                    - Goedgekeurd door {goedgekeurdDoor} op{" "}
-                    {formatTimestamp(goedgekeurdAt)}
-                  </span>
-                )}
-              </CardDescription>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Badge className={statusColor}>
-              <StatusIcon className="mr-1 h-3 w-3" />
-              {statusLabel}
-            </Badge>
+    <SectiePaneel
+      id={`qc-${scope}`}
+      titel={label}
+      kopbalk
+      icoon={
+        <span aria-hidden="true" className={cn("block size-2.5 rounded-full", scopeStip(scope))} />
+      }
+      acties={
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
+          <StatusBadge status={status} domain="qc" size="sm" />
+          {isReadOnly && (
             <Button
               variant="ghost"
-              size="icon-sm"
-              onClick={() => setIsExpanded(!isExpanded)}
-              aria-expanded={isExpanded}
-              aria-label={isExpanded ? "Invouwen" : "Uitvouwen"}
+              size="sm"
+              onClick={() => setPuntenOpen((open) => !open)}
+              aria-expanded={puntenOpen}
+              aria-controls={lijstId}
+              className="text-muted-foreground"
             >
-              {isExpanded ? (
-                <ChevronUp className="h-4 w-4" />
-              ) : (
-                <ChevronDown className="h-4 w-4" />
-              )}
+              <span className="tabular-nums">
+                {puntenOpen ? "Punten verbergen" : `${totalCount} punten tonen`}
+              </span>
+              <ChevronDown
+                aria-hidden="true"
+                className={cn("transition-transform", puntenOpen && "rotate-180")}
+              />
             </Button>
-          </div>
+          )}
         </div>
-
-        {/* Progress bar */}
-        <div className="mt-3 space-y-1">
-          <div className="flex justify-between text-sm text-muted-foreground">
-            <span>Voortgang</span>
-            <span>{progress}%</span>
+      }
+    >
+      <div className="flex flex-col gap-4 p-4">
+        {/* Uitkomst van een afgeronde controle */}
+        {isReadOnly && kleur && (
+          <div
+            className={cn(
+              "rounded-md border px-3 py-2 text-[13px]",
+              kleur.bg,
+              kleur.border,
+              kleur.text
+            )}
+          >
+            {status === "goedgekeurd" ? (
+              <p className="tabular-nums">
+                <span className="font-semibold">Goedgekeurd</span>
+                {goedgekeurdDoor && <> door {goedgekeurdDoor}</>}
+                {goedgekeurdAt && <> op {formatTimestamp(goedgekeurdAt)}</>}
+              </p>
+            ) : (
+              <p className="font-semibold">Afgekeurd</p>
+            )}
+            {opmerkingen && (
+              <p className="mt-0.5">
+                {status === "afgekeurd" ? "Reden: " : "Opmerking: "}
+                {opmerkingen}
+              </p>
+            )}
           </div>
-          <Progress
-            value={progress}
-            className={cn("h-2", progress === 100 && "[&>div]:bg-green-500")}
+        )}
+
+        {/* Voortgang */}
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-baseline justify-between gap-3 text-[13px]">
+            <span className="tabular-nums">
+              <span className="font-semibold">
+                {checkedCount} van {totalCount}
+              </span>{" "}
+              <span className="text-muted-foreground">punten afgevinkt</span>
+            </span>
+            <span className="tabular-nums text-muted-foreground">{progress}%</span>
+          </div>
+          <VoortgangsBalk
+            waarde={progress}
+            vulling={allChecked ? "bg-status-geaccepteerd-dot" : "bg-status-in-uitvoering-dot"}
           />
         </div>
-      </CardHeader>
 
-      {isExpanded && (
-        <CardContent className="pt-0">
-          {/* Checklist items */}
-          <div className="space-y-3 border-t pt-4">
-            {checklistItems.map((item) => {
-              const isUpdating = updatingItems.has(item.id);
+        {toonPunten && (
+          <div id={lijstId} className="flex flex-col gap-4">
+            {!isReadOnly && opmerkingen && (
+              <p className="rounded-md bg-muted px-3 py-2 text-[13px] text-muted-foreground">
+                <span className="font-medium text-foreground">Opmerking:</span> {opmerkingen}
+              </p>
+            )}
 
-              return (
-                <div
-                  key={item.id}
-                  className={cn(
-                    "flex items-start gap-3 rounded-lg p-2 -mx-2 transition-colors",
-                    item.isAfgevinkt && "bg-green-50/50 dark:bg-green-950/20",
-                  )}
-                >
-                  <div className="pt-0.5">
-                    {isUpdating ? (
-                      <div className="flex h-[18px] w-[18px] items-center justify-center">
-                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                      </div>
-                    ) : (
+            {totalCount > 0 ? (
+              <ul aria-label={`Controlepunten ${label}`} className="flex flex-col">
+                {checklistItems.map((item) => {
+                  const checkboxId = `${id}-${item.id}`;
+                  const isUpdating = updatingItems.has(item.id);
+                  return (
+                    <li key={item.id} className="flex items-start gap-2.5 py-1.5">
                       <Checkbox
-                        id={item.id}
+                        id={checkboxId}
                         checked={item.isAfgevinkt}
                         onCheckedChange={(checked) =>
                           handleCheckboxChange(item.id, checked === true)
                         }
-                        disabled={isReadOnly || isUpdating}
-                        className={cn(
-                          item.isAfgevinkt &&
-                            "data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600",
-                        )}
+                        disabled={isReadOnly}
+                        aria-busy={isUpdating || undefined}
+                        className="mt-0.5"
                       />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <Label
-                      htmlFor={item.id}
-                      className={cn(
-                        "text-sm font-normal cursor-pointer leading-relaxed",
-                        item.isAfgevinkt &&
-                          "text-muted-foreground line-through",
+                      <div className="min-w-0 flex-1">
+                        <Label
+                          htmlFor={checkboxId}
+                          className={cn(
+                            "block text-[13px] leading-5 font-normal text-pretty",
+                            !isReadOnly && "cursor-pointer",
+                            item.isAfgevinkt && "text-muted-foreground line-through"
+                          )}
+                        >
+                          {item.omschrijving}
+                        </Label>
+                        {item.isAfgevinkt && item.afgevinktAt && (
+                          <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
+                            Afgevinkt
+                            {item.afgevinktDoor && <> door {item.afgevinktDoor}</>} ·{" "}
+                            {formatTimestamp(item.afgevinktAt)}
+                          </p>
+                        )}
+                      </div>
+                      {!isReadOnly && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-xs"
+                          onClick={() => handleVerwijderen(item.id)}
+                          disabled={verwijderend === item.id}
+                          aria-label={`Punt verwijderen: ${item.omschrijving}`}
+                          className="text-muted-foreground hover:text-destructive"
+                        >
+                          <X aria-hidden="true" />
+                        </Button>
                       )}
-                    >
-                      {item.omschrijving}
-                    </Label>
-                    {item.isAfgevinkt && item.afgevinktAt && (
-                      <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
-                        <Check className="h-3 w-3 text-green-600" />
-                        {item.afgevinktDoor && `${item.afgevinktDoor} - `}
-                        {formatTimestamp(item.afgevinktAt)}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Opmerkingen */}
-          {opmerkingen && (
-            <div className="mt-4 rounded-lg bg-muted/50 p-3">
-              <p className="text-sm text-muted-foreground">
-                <strong>Opmerkingen:</strong> {opmerkingen}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="text-[13px] text-muted-foreground">
+                Deze controle heeft nog geen punten. Voeg er hieronder een toe.
               </p>
-            </div>
-          )}
+            )}
 
-          {/* Action buttons */}
-          {!isReadOnly && (
-            <div className="mt-4 flex gap-2 border-t pt-4">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onReject}
-                className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
-              >
-                <X className="mr-1.5 h-4 w-4" />
-                Afkeuren
-              </Button>
-              <Button
-                size="sm"
-                onClick={onApprove}
-                disabled={!allChecked}
-                className="bg-green-600 hover:bg-green-700 text-white"
-              >
-                <Check className="mr-1.5 h-4 w-4" />
-                Goedkeuren
-              </Button>
-              {!allChecked && (
-                <p className="text-xs text-muted-foreground self-center ml-2">
-                  Vink eerst alle items af
-                </p>
-              )}
+            {!isReadOnly && (
+              <form onSubmit={handleToevoegen} className="flex flex-wrap gap-2">
+                <Label htmlFor={nieuwId} className="sr-only">
+                  Punt toevoegen aan {label}
+                </Label>
+                <Input
+                  id={nieuwId}
+                  value={nieuwPunt}
+                  onChange={(e) => setNieuwPunt(e.target.value)}
+                  placeholder="Eigen punt toevoegen…"
+                  disabled={toevoegenBezig}
+                  className="min-w-0 flex-1 basis-48"
+                />
+                <Button
+                  type="submit"
+                  variant="outline"
+                  disabled={!nieuwPunt.trim() || toevoegenBezig}
+                >
+                  <Plus aria-hidden="true" />
+                  Toevoegen
+                </Button>
+              </form>
+            )}
+
+            <div className="flex flex-col gap-2 border-t pt-4">
+              <h3 className="text-[13px] font-semibold">Foto&apos;s</h3>
+              <QCFotoUpload
+                kwaliteitsControleId={id}
+                fotos={controle.fotos ?? []}
+                disabled={isReadOnly}
+              />
             </div>
-          )}
-        </CardContent>
-      )}
-    </Card>
+          </div>
+        )}
+
+        {!isReadOnly && (
+          <div className="flex flex-wrap items-center gap-2 border-t pt-4">
+            <Button
+              variant={goedkeurenGevuld ? "default" : "outline"}
+              onClick={onApprove}
+              disabled={!allChecked}
+              aria-describedby={!allChecked ? hintId : undefined}
+            >
+              <Check aria-hidden="true" />
+              Goedkeuren
+            </Button>
+            <Button variant="outline" onClick={onReject} className="text-destructive hover:text-destructive">
+              <X aria-hidden="true" />
+              Afkeuren
+            </Button>
+            {!allChecked && (
+              <p id={hintId} className="text-xs text-muted-foreground">
+                Goedkeuren kan als alle punten zijn afgevinkt.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+    </SectiePaneel>
   );
 }

@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Check, X, Loader2, AlertTriangle } from "lucide-react";
 import { logger } from "@/lib/logger";
+import { scopeLabel as labelVoorScope } from "@/lib/rapportage-labels";
 
 interface QCApprovalDialogProps {
   open: boolean;
@@ -27,24 +28,6 @@ interface QCApprovalDialogProps {
   type: "approve" | "reject";
   onSuccess?: () => void;
 }
-
-// Scope display names
-const scopeLabels: Record<string, string> = {
-  grondwerk: "Grondwerk",
-  bestrating: "Bestrating",
-  parkeerplaats: "Parkeerplaats",
-  beregening: "Beregening",
-  borders: "Borders",
-  gras: "Gras",
-  houtwerk: "Houtwerk",
-  water_elektra: "Water & Elektra",
-  specials: "Specials",
-  gras_onderhoud: "Gras (Onderhoud)",
-  borders_onderhoud: "Borders (Onderhoud)",
-  heggen: "Heggen",
-  bomen: "Bomen",
-  overig: "Overig",
-};
 
 export function QCApprovalDialog({
   open,
@@ -63,7 +46,7 @@ export function QCApprovalDialog({
   const reject = useMutation(api.kwaliteitsControles.reject);
 
   const isApproval = type === "approve";
-  const scopeLabel = scopeLabels[scope] || scope;
+  const scopeLabel = labelVoorScope(scope);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,16 +117,22 @@ export function QCApprovalDialog({
             <DialogTitle className="flex items-center gap-2">
               {isApproval ? (
                 <>
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 dark:bg-green-900">
-                    <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
-                  </div>
+                  <span
+                    aria-hidden="true"
+                    className="flex size-8 items-center justify-center rounded-full border border-status-geaccepteerd-border bg-status-geaccepteerd text-status-geaccepteerd-text"
+                  >
+                    <Check className="size-4" />
+                  </span>
                   Kwaliteitscontrole goedkeuren
                 </>
               ) : (
                 <>
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-100 dark:bg-red-900">
-                    <X className="h-4 w-4 text-red-600 dark:text-red-400" />
-                  </div>
+                  <span
+                    aria-hidden="true"
+                    className="flex size-8 items-center justify-center rounded-full border border-status-afgewezen-border bg-status-afgewezen text-status-afgewezen-text"
+                  >
+                    <X className="size-4" />
+                  </span>
                   Kwaliteitscontrole afkeuren
                 </>
               )}
@@ -158,8 +147,11 @@ export function QCApprovalDialog({
           <div className="space-y-4 py-4">
             {/* Error message */}
             {error && (
-              <div className="flex items-center gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-300">
-                <AlertTriangle className="h-4 w-4 shrink-0" />
+              <div
+                role="alert"
+                className="flex items-center gap-2 rounded-lg border border-status-afgewezen-border bg-status-afgewezen p-3 text-sm text-status-afgewezen-text"
+              >
+                <AlertTriangle aria-hidden="true" className="size-4 shrink-0" />
                 {error}
               </div>
             )}
@@ -167,7 +159,7 @@ export function QCApprovalDialog({
             {/* Name input */}
             <div className="space-y-2">
               <Label htmlFor="naam">
-                Jouw naam <span className="text-red-500">*</span>
+                Jouw naam <span aria-hidden="true" className="text-destructive">*</span>
               </Label>
               <Input
                 id="naam"
@@ -191,7 +183,7 @@ export function QCApprovalDialog({
                 {isApproval
                   ? "Opmerkingen (optioneel)"
                   : "Reden voor afkeuring"}{" "}
-                {!isApproval && <span className="text-red-500">*</span>}
+                {!isApproval && <span aria-hidden="true" className="text-destructive">*</span>}
               </Label>
               <Textarea
                 id="opmerkingen"
@@ -210,12 +202,12 @@ export function QCApprovalDialog({
 
             {/* Warning for rejection */}
             {!isApproval && (
-              <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
-                <p className="font-medium">Let op:</p>
-                <p className="mt-1">
+              <div className="rounded-lg border bg-surface-aandacht p-3 text-sm">
+                <p className="font-medium">Let op</p>
+                <p className="mt-1 text-muted-foreground">
                   Na afkeuring moeten de werkzaamheden opnieuw worden
-                  gecontroleerd. De status wordt teruggezet naar
-                  &quot;afgekeurd&quot;.
+                  gecontroleerd. De controle krijgt de status
+                  &quot;Afgekeurd&quot;.
                 </p>
               </div>
             )}
@@ -233,25 +225,21 @@ export function QCApprovalDialog({
             <Button
               type="submit"
               disabled={isSubmitting}
-              className={
-                isApproval
-                  ? "bg-green-600 hover:bg-green-700 text-white"
-                  : "bg-red-600 hover:bg-red-700 text-white"
-              }
+              variant={isApproval ? "default" : "destructive"}
             >
               {isSubmitting ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 aria-hidden="true" className="animate-spin" />
                   Bezig...
                 </>
               ) : isApproval ? (
                 <>
-                  <Check className="mr-2 h-4 w-4" />
+                  <Check aria-hidden="true" />
                   Goedkeuren
                 </>
               ) : (
                 <>
-                  <X className="mr-2 h-4 w-4" />
+                  <X aria-hidden="true" />
                   Afkeuren
                 </>
               )}

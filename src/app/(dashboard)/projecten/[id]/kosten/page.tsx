@@ -6,10 +6,13 @@ import { useQuery } from "convex/react";
 import { api } from "../../../../../../convex/_generated/api";
 import { Id } from "../../../../../../convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Euro } from "lucide-react";
+import { ArrowLeft, Euro, Plus } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { ProjectKop } from "@/components/project/project-kop";
-import { ProjectKostenDashboard } from "@/components/project/project-kosten-dashboard";
+import {
+  ProjectKostenDashboard,
+  useKostenToevoegen,
+} from "@/components/project/project-kosten-dashboard";
 import { ProjectKostenSkeleton } from "@/components/skeletons";
 
 export default function ProjectKostenPage({
@@ -19,6 +22,7 @@ export default function ProjectKostenPage({
 }) {
   const { id } = use(params);
   const projectId = id as Id<"projecten">;
+  const toevoegen = useKostenToevoegen();
 
   // Get project details for breadcrumb
   const projectDetails = useQuery(
@@ -59,10 +63,18 @@ export default function ProjectKostenPage({
       <PageHeader customLabels={{ [`/projecten/${id}`]: projectDetails.project?.naam || "Project" }} />
 
       <div className="flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6">
-        <ProjectKop projectId={id} actief="kosten" />
+        <ProjectKop
+          projectId={id}
+          actief="kosten"
+          acties={
+            <Button onClick={() => toevoegen.openen()}>
+              <Plus className="size-4" aria-hidden="true" />
+              Kosten toevoegen
+            </Button>
+          }
+        />
 
-        {/* Kosten Dashboard */}
-        <ProjectKostenDashboard projectId={id} />
+        <ProjectKostenDashboard projectId={id} toevoegen={toevoegen} />
       </div>
     </>
   );

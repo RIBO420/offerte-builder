@@ -5,8 +5,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 function ChartSkeleton() {
   return (
-    <div className="w-full h-[300px] flex items-center justify-center">
-      <Skeleton className="w-full h-full" />
+    <div className="h-[300px] w-full p-3">
+      <Skeleton className="h-full w-full" />
     </div>
   );
 }

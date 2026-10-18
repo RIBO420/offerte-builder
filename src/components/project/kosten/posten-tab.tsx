@@ -1,23 +1,14 @@
 "use client";
 
-import React from "react";
-import { REVEAL_KLASSE } from "@/components/pagina-reveal";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+/**
+ * Posten: alle kostenposten van het project als lijst, met filters op soort en
+ * periode. Geen tabel: elke post is één regel met omschrijving en bedrag en een
+ * gedempte regel eronder (datum · soort · scope), zodat de lijst op elke
+ * breedte past zonder zijwaarts te scrollen.
+ */
+
+import { memo } from "react";
+import { CalendarIcon, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -26,11 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import {
   AlertDialog,
@@ -43,29 +30,31 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import {
-  Euro,
-  Filter,
-  X,
-  Trash2,
-  CalendarIcon,
-} from "lucide-react";
+import { SectieLegeStaat } from "@/components/ui/sectie-paneel";
+import { formatCurrency } from "@/lib/format/currency";
+import { formatDate } from "@/lib/format/date";
 import { format } from "date-fns";
 import { nl } from "@/lib/date-locale";
-import { kostenTypeConfig, scopeDisplayNames, formatCurrency } from "./helpers";
+import { scopeNaam } from "./helpers";
+import { SOORT_LABEL, type KostSoort } from "./stand";
 
-interface KostEntry {
+export interface KostPost {
   id: string;
   datum: string;
-  type: "materiaal" | "arbeid" | "machine" | "overig";
+  type: KostSoort;
   omschrijving: string;
   scope: string;
   totaal: number;
   bron?: string;
 }
 
+export interface PostVerwijderen {
+  id: string;
+  type: KostSoort;
+}
+
 interface PostenTabProps {
-  kosten: KostEntry[] | undefined;
+  kosten: KostPost[];
   filterType: string;
   onFilterTypeChange: (type: string) => void;
   filterStartDate: Date | undefined;
@@ -74,74 +63,104 @@ interface PostenTabProps {
   onFilterEndDateChange: (date: Date | undefined) => void;
   hasActiveFilters: boolean;
   onClearFilters: () => void;
-  onDeleteItem: (item: { id: string; type: "materiaal" | "arbeid" | "machine" | "overig" }) => void;
-  onConfirmDelete: () => void;
+  onVerwijder: (post: PostVerwijderen) => void;
 }
 
-const KostRow = React.memo(function KostRow({
-  kost,
-  onDelete,
+const PostRegel = memo(function PostRegel({
+  post,
+  onVerwijder,
 }: {
-  kost: KostEntry;
-  onDelete: (item: { id: string; type: "materiaal" | "arbeid" | "machine" | "overig" }) => void;
+  post: KostPost;
+  onVerwijder: (post: PostVerwijderen) => void;
 }) {
-  const typeConfig = kostenTypeConfig[kost.type];
-  const TypeIcon = typeConfig.icon;
-
   return (
-    <tr className={`border-b ${REVEAL_KLASSE}`}>
-      <TableCell className="font-medium">
-        {format(new Date(kost.datum), "d MMM yyyy", { locale: nl })}
-      </TableCell>
-      <TableCell>
-        <Badge variant="secondary" className="gap-1">
-          <TypeIcon className="h-3 w-3" />
-          {typeConfig.label}
-        </Badge>
-      </TableCell>
-      <TableCell className="max-w-[200px] truncate">
-        {kost.omschrijving}
-      </TableCell>
-      <TableCell>
-        <Badge variant="outline">
-          {scopeDisplayNames[kost.scope] || kost.scope}
-        </Badge>
-      </TableCell>
-      <TableCell className="text-right tabular-nums font-medium">
-        {formatCurrency(kost.totaal)}
-      </TableCell>
-      <TableCell>
-        {kost.bron === "urenSegmenten" ? <Button asChild variant="ghost" size="sm"><a href="/uren" aria-label="Dagregistratie corrigeren">Uren</a></Button> : <AlertDialog>
+    <li className="grid grid-cols-[minmax(0,1fr)_auto_minmax(2.5rem,auto)] items-center gap-x-3 rounded-md px-3 py-2 hover:bg-muted/50">
+      <div className="min-w-0">
+        <p className="truncate text-sm font-medium" title={post.omschrijving}>
+          {post.omschrijving}
+        </p>
+        <p className="truncate text-xs text-muted-foreground">
+          {formatDate(post.datum)} · {SOORT_LABEL[post.type]} · {scopeNaam(post.scope)}
+        </p>
+      </div>
+      <span className="text-end text-sm font-semibold tabular-nums">
+        {formatCurrency(post.totaal)}
+      </span>
+      {post.bron === "urenSegmenten" ? (
+        <Button
+          asChild
+          variant="ghost"
+          size="xs"
+          className="justify-self-end text-muted-foreground"
+        >
+          <a href="/uren" aria-label="Dagregistratie corrigeren">
+            Uren
+          </a>
+        </Button>
+      ) : (
+        <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button
               variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-muted-foreground hover:text-destructive"
-              onClick={() => onDelete({ id: kost.id, type: kost.type })}
-              aria-label="Verwijderen"
+              size="icon-sm"
+              className="justify-self-end text-muted-foreground hover:text-destructive"
+              aria-label={`${post.omschrijving} verwijderen`}
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className="size-4" />
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle>Kostenpost verwijderen?</AlertDialogTitle>
               <AlertDialogDescription>
-                Weet je zeker dat je deze kostenpost wilt verwijderen? Dit kan niet ongedaan worden gemaakt.
+                {post.omschrijving} ({formatCurrency(post.totaal)}) wordt verwijderd. Dit kan
+                niet ongedaan worden gemaakt.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Annuleren</AlertDialogCancel>
-              <AlertDialogAction className="bg-destructive text-destructive-foreground">
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={() => onVerwijder({ id: post.id, type: post.type })}
+              >
                 Verwijderen
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
-        </AlertDialog>}
-      </TableCell>
-    </tr>
+        </AlertDialog>
+      )}
+    </li>
   );
 });
+
+function DatumFilter({
+  label,
+  waarde,
+  onChange,
+}: {
+  label: "Van" | "Tot";
+  waarde: Date | undefined;
+  onChange: (date: Date | undefined) => void;
+}) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          size="sm"
+          className="justify-start font-normal"
+          aria-label={waarde ? `${label} ${formatDate(waarde)}` : `${label} datum kiezen`}
+        >
+          <CalendarIcon className="size-4 text-muted-foreground" />
+          {waarde ? format(waarde, "d MMM", { locale: nl }) : label}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar mode="single" selected={waarde} onSelect={onChange} locale={nl} initialFocus />
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 export function PostenTab({
   kosten,
@@ -153,116 +172,52 @@ export function PostenTab({
   onFilterEndDateChange,
   hasActiveFilters,
   onClearFilters,
-  onDeleteItem,
+  onVerwijder,
 }: PostenTabProps) {
   return (
-    <div className="space-y-4">
-      {/* Filters */}
-      <Card>
-        <CardContent className="py-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <Select value={filterType} onValueChange={onFilterTypeChange}>
-                <SelectTrigger>
-                  <Filter className="h-4 w-4 mr-2" />
-                  <SelectValue placeholder="Filter op type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Alle types</SelectItem>
-                  <SelectItem value="materiaal">Materiaal</SelectItem>
-                  <SelectItem value="arbeid">Arbeid</SelectItem>
-                  <SelectItem value="machine">Machine</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex gap-2">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-[140px] justify-start">
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {filterStartDate ? format(filterStartDate, "d MMM", { locale: nl }) : "Van"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={filterStartDate}
-                    onSelect={onFilterStartDateChange}
-                    locale={nl}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-[140px] justify-start">
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {filterEndDate ? format(filterEndDate, "d MMM", { locale: nl }) : "Tot"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={filterEndDate}
-                    onSelect={onFilterEndDateChange}
-                    locale={nl}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-              {hasActiveFilters && (
-                <Button variant="ghost" size="icon" onClick={onClearFilters} aria-label="Filters wissen">
-                  <X className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="flex flex-col">
+      <div className="flex flex-wrap items-center gap-2 border-b px-3 py-2.5">
+        <Select value={filterType} onValueChange={onFilterTypeChange}>
+          <SelectTrigger size="sm" className="w-40" aria-label="Filter op soort">
+            <SelectValue placeholder="Alle soorten" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Alle soorten</SelectItem>
+            <SelectItem value="materiaal">Materiaal</SelectItem>
+            <SelectItem value="arbeid">Arbeid</SelectItem>
+            <SelectItem value="machine">Machine</SelectItem>
+          </SelectContent>
+        </Select>
+        <DatumFilter label="Van" waarde={filterStartDate} onChange={onFilterStartDateChange} />
+        <DatumFilter label="Tot" waarde={filterEndDate} onChange={onFilterEndDateChange} />
+        {hasActiveFilters && (
+          <Button variant="ghost" size="sm" onClick={onClearFilters} className="text-muted-foreground">
+            <X className="size-4" />
+            Filters wissen
+          </Button>
+        )}
+        <span className="ms-auto text-xs text-muted-foreground tabular-nums">
+          {kosten.length} {kosten.length === 1 ? "post" : "posten"}
+          {hasActiveFilters && " (gefilterd)"}
+        </span>
+      </div>
 
-      {/* Cost entries table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Kostenposten</CardTitle>
-          <CardDescription>
-            {kosten?.length || 0} {kosten?.length === 1 ? "post" : "posten"}
-            {hasActiveFilters && " (gefilterd)"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {!kosten || kosten.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <Euro className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p>Geen kostenposten gevonden</p>
-              {hasActiveFilters && (
-                <Button variant="link" onClick={onClearFilters} className="mt-2">
-                  Filters wissen
-                </Button>
-              )}
-            </div>
-          ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Datum</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Omschrijving</TableHead>
-                    <TableHead>Scope</TableHead>
-                    <TableHead className="text-right">Bedrag</TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {kosten.map((kost) => (
-                    <KostRow key={kost.id} kost={kost} onDelete={onDeleteItem} />
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {kosten.length === 0 ? (
+        <SectieLegeStaat
+          tekst={hasActiveFilters ? "Geen posten binnen deze filters." : "Nog geen kostenposten."}
+          hint={
+            hasActiveFilters
+              ? "Wis de filters om alle posten te zien."
+              : "Posten komen uit uren-, machine- en materiaalregistraties."
+          }
+        />
+      ) : (
+        <ul className="flex flex-col p-1">
+          {kosten.map((post) => (
+            <PostRegel key={`${post.type}-${post.id}`} post={post} onVerwijder={onVerwijder} />
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

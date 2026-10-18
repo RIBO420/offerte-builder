@@ -1,53 +1,19 @@
 "use client";
 
-import { use, useState } from "react";
-import { QC_STATUS_CONFIG } from "@/lib/constants/statuses";
+import { use, useId, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
+import { ArrowLeft, ChevronDown, FileText, Loader2 } from "lucide-react";
 import { api } from "../../../../../../convex/_generated/api";
-import { Id } from "../../../../../../convex/_generated/dataModel";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import type { Doc, Id } from "../../../../../../convex/_generated/dataModel";
+import { QC_STATUS_CONFIG, type QCStatus } from "@/lib/constants/statuses";
+import { scopeLabel } from "@/lib/rapportage-labels";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { PageHeader } from "@/components/page-header";
+import { SectiePaneel } from "@/components/ui/sectie-paneel";
 import { ProjectKop } from "@/components/project/project-kop";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import {
-  ArrowLeft,
-  Loader2,
-  ClipboardCheck,
-  Plus,
-  CheckCircle2,
-  XCircle,
-  Clock,
-  AlertCircle,
-  FileText,
-  Camera,
-} from "lucide-react";
+import { scopeStip } from "@/components/project/project-cijfers";
 import { QCChecklistCard } from "@/components/project/qc-checklist-card";
-import { QCFotoUpload } from "@/components/project/qc-foto-upload";
 import { QCApprovalDialog } from "@/components/project/qc-approval-dialog";
 import { QCPageSkeleton } from "@/components/skeletons";
 import { cn } from "@/lib/utils";
@@ -55,37 +21,25 @@ import { logger } from "@/lib/logger";
 import { showErrorToast } from "@/lib/toast-utils";
 import { getMutationErrorMessage } from "@/lib/error-handling";
 
-// QC Status types
-type QCStatus = "open" | "in_uitvoering" | "goedgekeurd" | "afgekeurd";
+type Controle = Doc<"kwaliteitsControles">;
 
-// Scope display names
-const scopeLabels: Record<string, string> = {
-  grondwerk: "Grondwerk",
-  bestrating: "Bestrating",
-  parkeerplaats: "Parkeerplaats",
-  beregening: "Beregening",
-  borders: "Borders",
-  gras: "Gras",
-  houtwerk: "Houtwerk",
-  water_elektra: "Water & Elektra",
-  specials: "Specials",
-  gras_onderhoud: "Gras (Onderhoud)",
-  borders_onderhoud: "Borders (Onderhoud)",
-  heggen: "Heggen",
-  bomen: "Bomen",
-  overig: "Overig",
-};
+/** De vier tellers van de standregel, in werkvolgorde. */
+const TELLERS: { status: QCStatus; label: string }[] = [
+  { status: "open", label: "open" },
+  { status: "in_uitvoering", label: "bezig" },
+  { status: "goedgekeurd", label: "goedgekeurd" },
+  { status: "afgekeurd", label: "afgekeurd" },
+];
 
-// Statuskleuren uit de centrale bron (WS4): zelfde status = zelfde kleur.
-const statusSummaryConfig: Record<
-  QCStatus,
-  { label: string; color: string; bgColor: string }
-> = Object.fromEntries(
-  Object.entries(QC_STATUS_CONFIG).map(([key, config]) => [
-    key,
-    { label: config.label, color: config.color.text, bgColor: config.color.bg },
-  ])
-) as Record<QCStatus, { label: string; color: string; bgColor: string }>;
+/**
+ * De ene gevulde hoofdknop van het scherm: eerst de eerste scope die nog geen
+ * controle heeft; zijn alle scopes gestart, dan "Goedkeuren" van de eerste
+ * controle waarvan alle punten zijn afgevinkt.
+ */
+type HoofdActie =
+  | { soort: "starten"; scope: string }
+  | { soort: "goedkeuren"; id: Id<"kwaliteitsControles"> }
+  | null;
 
 export default function KwaliteitscontrolePage({
   params,
@@ -96,42 +50,22 @@ export default function KwaliteitscontrolePage({
   const router = useRouter();
   const projectId = id as Id<"projecten">;
 
-  // State for dialogs
-  const [showNewQCDialog, setShowNewQCDialog] = useState(false);
-  const [selectedScope, setSelectedScope] = useState<string>("");
-  const [isCreating, setIsCreating] = useState(false);
+  const [startendeScope, setStartendeScope] = useState<string | null>(null);
   const [approvalDialog, setApprovalDialog] = useState<{
     open: boolean;
     id: Id<"kwaliteitsControles"> | null;
     scope: string;
     type: "approve" | "reject";
-  }>({
-    open: false,
-    id: null,
-    scope: "",
-    type: "approve",
-  });
-  const [expandedQC, setExpandedQC] =
-    useState<Id<"kwaliteitsControles"> | null>(null);
+  }>({ open: false, id: null, scope: "", type: "approve" });
 
-  // Queries
-  const projectDetails = useQuery(
-    api.projecten.getWithDetails,
-    projectId ? { id: projectId } : "skip",
-  );
-  const qcControles = useQuery(
-    api.kwaliteitsControles.getByProject,
-    projectId ? { projectId } : "skip",
-  );
-  const qcSummary = useQuery(
-    api.kwaliteitsControles.getProjectSummary,
-    projectId ? { projectId } : "skip",
-  );
+  const projectDetails = useQuery(api.projecten.getWithDetails, { id: projectId });
+  const qcControles = useQuery(api.kwaliteitsControles.getByProject, { projectId });
+  // Bestaande query met de standaardlijsten per scope: daarmee tonen we vóór
+  // het starten welke punten een controle krijgt.
+  const standaardLijsten = useQuery(api.kwaliteitsControles.getAllDefaultChecklists, {});
 
-  // Mutations
   const createQC = useMutation(api.kwaliteitsControles.create);
 
-  // Loading state
   if (projectDetails === undefined || qcControles === undefined) {
     return (
       <>
@@ -141,16 +75,15 @@ export default function KwaliteitscontrolePage({
     );
   }
 
-  // Project not found
   if (!projectDetails) {
     return (
       <>
         <PageHeader customLabels={{ [`/projecten/${id}/kwaliteit`]: "Niet gevonden" }} />
         <div className="flex flex-1 flex-col items-center justify-center gap-4">
-          <FileText className="h-12 w-12 text-muted-foreground/50" />
-          <h2 className="text-lg font-medium">Project niet gevonden</h2>
+          <FileText className="size-12 text-muted-foreground/50" aria-hidden="true" />
+          <h2 className="font-display text-lg font-medium">Project niet gevonden</h2>
           <Button variant="outline" onClick={() => router.push("/projecten")}>
-            <ArrowLeft className="mr-2 h-4 w-4" />
+            <ArrowLeft aria-hidden="true" />
             Terug naar projecten
           </Button>
         </div>
@@ -160,327 +93,289 @@ export default function KwaliteitscontrolePage({
 
   const { project, offerte } = projectDetails;
 
-  // Get available scopes from offerte
-  const availableScopes = offerte?.scopes || [];
-  const existingQCScopes = new Set(qcControles?.map((qc) => qc.scope) || []);
-  const scopesWithoutQC = availableScopes.filter(
-    (scope) => !existingQCScopes.has(scope),
+  // Scopes uit de offerte, in offertevolgorde; een controle voor een scope die
+  // (niet meer) in de offerte staat, blijft zichtbaar achteraan.
+  const controlePerScope = new Map<string, Controle>(qcControles.map((qc) => [qc.scope, qc]));
+  const offerteScopes = offerte?.scopes ?? [];
+  const scopes = [
+    ...offerteScopes,
+    ...qcControles.map((qc) => qc.scope).filter((s) => !offerteScopes.includes(s)),
+  ].filter((s, i, lijst) => lijst.indexOf(s) === i);
+
+  const standaardPerScope = new Map<string, string[]>(
+    (standaardLijsten ?? []).map((lijst) => [
+      lijst.scope,
+      lijst.items.map((item) => item.omschrijving),
+    ])
   );
+  // Zelfde terugval als `create`: onbekende scope krijgt de lijst "overig".
+  const standaardVoor = (scope: string) =>
+    standaardLijsten === undefined
+      ? undefined
+      : (standaardPerScope.get(scope) ?? standaardPerScope.get("overig") ?? []);
 
-  // Handle create new QC
-  const handleCreateQC = async () => {
-    if (!selectedScope) return;
+  const telling: Record<QCStatus, number> = {
+    open: 0,
+    in_uitvoering: 0,
+    goedgekeurd: 0,
+    afgekeurd: 0,
+  };
+  for (const qc of qcControles) {
+    if (qc.status in telling) telling[qc.status as QCStatus] += 1;
+  }
 
-    setIsCreating(true);
+  const eersteZonder = scopes.find((s) => !controlePerScope.has(s));
+  const eersteKlaar = scopes
+    .map((s) => controlePerScope.get(s))
+    .find(
+      (qc): qc is Controle =>
+        !!qc &&
+        (qc.status === "open" || qc.status === "in_uitvoering") &&
+        qc.checklistItems.length > 0 &&
+        qc.checklistItems.every((item) => item.isAfgevinkt)
+    );
+  const hoofdActie: HoofdActie = eersteZonder
+    ? { soort: "starten", scope: eersteZonder }
+    : eersteKlaar
+      ? { soort: "goedkeuren", id: eersteKlaar._id }
+      : null;
+
+  const handleStart = async (scope: string) => {
+    if (startendeScope) return;
+    setStartendeScope(scope);
     try {
-      const newId = await createQC({
-        projectId,
-        scope: selectedScope,
-      });
-      setShowNewQCDialog(false);
-      setSelectedScope("");
-      setExpandedQC(newId);
+      await createQC({ projectId, scope });
     } catch (error) {
       logger.error("Aanmaken kwaliteitscontrole mislukt", error, {
         module: "projecten/kwaliteit",
         projectId,
-        scope: selectedScope,
+        scope,
       });
-      // Zonder toast sloot de dialoog niet en gebeurde er verder niets zichtbaars;
-      // de gebruiker bleef in het ongewisse of de controle nu was aangemaakt.
-      showErrorToast("Kwaliteitscontrole kon niet worden aangemaakt", {
+      showErrorToast("Kwaliteitscontrole kon niet worden gestart", {
         description: getMutationErrorMessage(error),
       });
     } finally {
-      setIsCreating(false);
+      setStartendeScope(null);
     }
   };
 
-  // Handle approval/rejection
-  const handleApprove = (qcId: Id<"kwaliteitsControles">, scope: string) => {
-    setApprovalDialog({
-      open: true,
-      id: qcId,
-      scope,
-      type: "approve",
-    });
-  };
-
-  const handleReject = (qcId: Id<"kwaliteitsControles">, scope: string) => {
-    setApprovalDialog({
-      open: true,
-      id: qcId,
-      scope,
-      type: "reject",
-    });
-  };
+  const openBeoordeling = (qc: Controle, type: "approve" | "reject") =>
+    setApprovalDialog({ open: true, id: qc._id, scope: qc.scope, type });
 
   return (
     <>
       <PageHeader customLabels={{ [`/projecten/${id}`]: project.naam }} />
 
-      <div className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
-        <ProjectKop
-          projectId={id}
-          actief="kwaliteit"
-          acties={
-            <Button
-              onClick={() => setShowNewQCDialog(true)}
-              disabled={scopesWithoutQC.length === 0}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Nieuwe QC-check
-            </Button>
-          }
-        />
+      <div className="flex flex-1 flex-col gap-5 p-4 md:p-8">
+        {/* Geen "Nieuwe QC-check" in de kop: elke scope heeft hieronder zijn
+            eigen startknop, dat is één handeling minder en altijd duidelijk
+            welke scope je start. */}
+        <ProjectKop projectId={id} actief="kwaliteit" />
 
-        {/* Summary Cards */}
-        {qcSummary && (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-            {/* Overall Progress */}
-            <Card className="sm:col-span-2 lg:col-span-1">
-              <CardHeader className="pb-2">
-                <CardDescription>Totale voortgang</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-bold">
-                      {qcSummary.voortgangPercentage}%
-                    </span>
-                  </div>
-                  <Progress
-                    value={qcSummary.voortgangPercentage}
-                    className="h-2"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    {qcSummary.afgevinktItems}/{qcSummary.totaalItems} items
-                    afgevinkt
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+        <div className="@container/kwaliteit">
+          <div className="grid items-start gap-5 @4xl/kwaliteit:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)]">
+            <div className="flex min-w-0 flex-col gap-4">
+              {/* Stand in één regel */}
+              <section
+                aria-label="Stand van de controles"
+                className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-lg border bg-card px-4 py-3"
+              >
+                <p className="text-[15px] tabular-nums">
+                  <span className="font-semibold">
+                    {telling.goedgekeurd} van {scopes.length}
+                  </span>{" "}
+                  <span className="text-muted-foreground">
+                    {scopes.length === 1 ? "scope" : "scopes"} gecontroleerd
+                  </span>
+                </p>
+                <span aria-hidden="true" className="hidden h-[18px] w-px bg-border @md/kwaliteit:block" />
+                <ul className="flex flex-wrap items-center gap-x-5 gap-y-1">
+                  {TELLERS.map(({ status, label }) => (
+                    <li
+                      key={status}
+                      className="flex items-center gap-1.5 text-[13px] tabular-nums text-muted-foreground"
+                    >
+                      <span
+                        aria-hidden="true"
+                        className={cn("size-2 rounded-full", QC_STATUS_CONFIG[status].color.dot)}
+                      />
+                      {telling[status]} {label}
+                    </li>
+                  ))}
+                </ul>
+              </section>
 
-            {/* Status counters */}
-            {(
-              [
-                "open",
-                "in_uitvoering",
-                "goedgekeurd",
-                "afgekeurd",
-              ] as QCStatus[]
-            ).map((status) => {
-              const config = statusSummaryConfig[status];
-              const count =
-                status === "open"
-                  ? qcSummary.open
-                  : status === "in_uitvoering"
-                    ? qcSummary.inUitvoering
-                    : status === "goedgekeurd"
-                      ? qcSummary.goedgekeurd
-                      : qcSummary.afgekeurd;
-
-              return (
-                <Card key={status} className={cn("border-0", config.bgColor)}>
-                  <CardHeader className="pb-2">
-                    <CardDescription className={config.color}>
-                      {config.label}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center gap-2">
-                      {status === "open" && (
-                        <Clock className={cn("h-5 w-5", config.color)} />
-                      )}
-                      {status === "in_uitvoering" && (
-                        <AlertCircle className={cn("h-5 w-5", config.color)} />
-                      )}
-                      {status === "goedgekeurd" && (
-                        <CheckCircle2 className={cn("h-5 w-5", config.color)} />
-                      )}
-                      {status === "afgekeurd" && (
-                        <XCircle className={cn("h-5 w-5", config.color)} />
-                      )}
-                      <span className={cn("text-2xl font-bold", config.color)}>
-                        {count}
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        )}
-
-        {/* QC Checks List */}
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold">
-            Kwaliteitscontroles per scope
-          </h2>
-
-          {qcControles && qcControles.length > 0 ? (
-            <div className="space-y-4">
-              {qcControles.map((qc) => (
-                <div key={qc._id} className="space-y-4">
-                  <QCChecklistCard
-                    id={qc._id}
-                    scope={qc.scope}
-                    status={qc.status as QCStatus}
-                    checklistItems={qc.checklistItems}
-                    opmerkingen={qc.opmerkingen}
-                    goedgekeurdDoor={qc.goedgekeurdDoor}
-                    goedgekeurdAt={qc.goedgekeurdAt}
-                    onApprove={() => handleApprove(qc._id, qc.scope)}
-                    onReject={() => handleReject(qc._id, qc.scope)}
-                    defaultExpanded={expandedQC === qc._id}
-                  />
-
-                  {/* Photo upload section */}
-                  <Card className="ml-4 border-l-4 border-l-muted">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="flex items-center gap-2 text-base">
-                        <Camera className="h-4 w-4" />
-                        {"Foto's"} - {scopeLabels[qc.scope] || qc.scope}
-                      </CardTitle>
-                      <CardDescription>
-                        {"Upload foto's van voor en na de werkzaamheden"}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <QCFotoUpload
-                        kwaliteitsControleId={qc._id}
-                        fotos={qc.fotos || []}
-                        disabled={
-                          qc.status === "goedgekeurd" ||
-                          qc.status === "afgekeurd"
+              {scopes.length === 0 ? (
+                <SectiePaneel
+                  titel="Scopes"
+                  kopbalk
+                  legeRegel={{
+                    tekst: "Geen scopes in de offerte",
+                    hint: "Een controle start je per scope uit de offerte.",
+                  }}
+                />
+              ) : (
+                scopes.map((scope) => {
+                  const qc = controlePerScope.get(scope);
+                  if (qc) {
+                    return (
+                      <QCChecklistCard
+                        key={scope}
+                        controle={qc}
+                        onApprove={() => openBeoordeling(qc, "approve")}
+                        onReject={() => openBeoordeling(qc, "reject")}
+                        goedkeurenGevuld={
+                          hoofdActie?.soort === "goedkeuren" && hoofdActie.id === qc._id
                         }
                       />
-                    </CardContent>
-                  </Card>
-                </div>
-              ))}
+                    );
+                  }
+                  const gevuld = hoofdActie?.soort === "starten" && hoofdActie.scope === scope;
+                  return (
+                    <ScopeZonderControle
+                      key={scope}
+                      scope={scope}
+                      punten={standaardVoor(scope)}
+                      gevuld={gevuld}
+                      bezig={startendeScope === scope}
+                      uitgeschakeld={startendeScope !== null}
+                      onStart={() => handleStart(scope)}
+                    />
+                  );
+                })
+              )}
             </div>
-          ) : (
-            <Card className="border-dashed">
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <ClipboardCheck className="h-12 w-12 text-muted-foreground/50" />
-                <h3 className="mt-4 text-lg font-medium">
-                  Nog geen kwaliteitscontroles
-                </h3>
-                <p className="mt-2 text-center text-sm text-muted-foreground max-w-sm">
-                  Start met het aanmaken van kwaliteitscontroles voor de
-                  verschillende scopes van dit project.
-                </p>
-                <Button
-                  className="mt-4"
-                  onClick={() => setShowNewQCDialog(true)}
-                  disabled={scopesWithoutQC.length === 0}
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Eerste QC Check aanmaken
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-        </div>
 
-        {/* Scopes without QC */}
-        {scopesWithoutQC.length > 0 &&
-          qcControles &&
-          qcControles.length > 0 && (
-            <Card className="border-dashed bg-muted/30">
-              <CardHeader>
-                <CardTitle className="text-base">
-                  Scopes zonder QC check
-                </CardTitle>
-                <CardDescription>
-                  De volgende scopes hebben nog geen kwaliteitscontrole
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-2">
-                  {scopesWithoutQC.map((scope) => (
-                    <Badge key={scope} variant="outline">
-                      {scopeLabels[scope] || scope}
-                    </Badge>
+            <aside aria-label="Zo werkt een controle" className="flex min-w-0 flex-col gap-4">
+              <SectiePaneel titel="Zo werkt een controle" kopbalk>
+                <ol className="flex flex-col gap-3 p-4 text-[13px]">
+                  {[
+                    ["Start per scope.", "De punten komen uit de standaardlijst."],
+                    ["Vink af op locatie", "en voeg foto's toe als bewijs."],
+                    ["Keur goed of af.", "Goedkeuren kan als alle punten zijn afgevinkt."],
+                  ].map(([kop, rest], i) => (
+                    <li key={kop} className="flex gap-2.5">
+                      <span
+                        aria-hidden="true"
+                        className="grid size-[22px] flex-none place-items-center rounded-full border text-[11px] font-semibold tabular-nums"
+                      >
+                        {i + 1}
+                      </span>
+                      <span className="min-w-0 pt-px">
+                        <span className="font-semibold">{kop}</span>{" "}
+                        <span className="text-muted-foreground">{rest}</span>
+                      </span>
+                    </li>
                   ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                </ol>
+              </SectiePaneel>
+            </aside>
+          </div>
+        </div>
       </div>
 
-      {/* New QC Dialog */}
-      <Dialog open={showNewQCDialog} onOpenChange={setShowNewQCDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Nieuwe kwaliteitscontrole</DialogTitle>
-            <DialogDescription>
-              Selecteer een scope om een nieuwe kwaliteitscontrole aan te maken.
-              De standaard checklist items worden automatisch toegevoegd.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="scope">Scope</Label>
-              <Select value={selectedScope} onValueChange={setSelectedScope}>
-                <SelectTrigger id="scope">
-                  <SelectValue placeholder="Selecteer een scope" />
-                </SelectTrigger>
-                <SelectContent>
-                  {scopesWithoutQC.length > 0 ? (
-                    scopesWithoutQC.map((scope) => (
-                      <SelectItem key={scope} value={scope}>
-                        {scopeLabels[scope] || scope}
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem value="_none" disabled>
-                      Alle scopes hebben al een QC check
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowNewQCDialog(false)}>
-              Annuleren
-            </Button>
-            <Button
-              onClick={handleCreateQC}
-              disabled={!selectedScope || isCreating}
-            >
-              {isCreating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Aanmaken...
-                </>
-              ) : (
-                <>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Aanmaken
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Approval Dialog */}
       {approvalDialog.id && (
         <QCApprovalDialog
           open={approvalDialog.open}
-          onOpenChange={(open) =>
-            setApprovalDialog((prev) => ({ ...prev, open }))
-          }
+          onOpenChange={(open) => setApprovalDialog((prev) => ({ ...prev, open }))}
           kwaliteitsControleId={approvalDialog.id}
           scope={approvalDialog.scope}
           type={approvalDialog.type}
         />
       )}
     </>
+  );
+}
+
+/**
+ * Een scope zonder controle: status "Nog niet gestart", de startknop en een
+ * uitklapbare preview van de standaardpunten die de controle krijgt. De scope
+ * met de gevulde startknop staat open, de rest is ingeklapt.
+ */
+function ScopeZonderControle({
+  scope,
+  punten,
+  gevuld,
+  bezig,
+  uitgeschakeld,
+  onStart,
+}: {
+  scope: string;
+  /** undefined = standaardlijsten laden nog. */
+  punten: string[] | undefined;
+  gevuld: boolean;
+  bezig: boolean;
+  uitgeschakeld: boolean;
+  onStart: () => void;
+}) {
+  const [open, setOpen] = useState(gevuld);
+  const lijstId = useId();
+  const label = scopeLabel(scope);
+  const aantal = punten?.length ?? 0;
+
+  return (
+    <SectiePaneel
+      id={`qc-${scope}`}
+      titel={label}
+      kopbalk
+      icoon={<span aria-hidden="true" className={cn("block size-2.5 rounded-full", scopeStip(scope))} />}
+      acties={
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
+          {/* Geen QC-status (er is nog geen controle), dus een neutrale pil in
+              dezelfde vorm als StatusBadge. */}
+          <span className="inline-flex items-center rounded-full border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+            Nog niet gestart
+          </span>
+          {aantal > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setOpen((o) => !o)}
+              aria-expanded={open}
+              aria-controls={lijstId}
+              className="text-muted-foreground"
+            >
+              <span className="tabular-nums">{aantal} standaardpunten</span>
+              <ChevronDown
+                aria-hidden="true"
+                className={cn("transition-transform", open && "rotate-180")}
+              />
+            </Button>
+          )}
+          <Button
+            variant={gevuld ? "default" : "outline"}
+            size="sm"
+            onClick={onStart}
+            disabled={uitgeschakeld}
+            aria-label={`Controle starten voor ${label}`}
+          >
+            {bezig && <Loader2 aria-hidden="true" className="animate-spin" />}
+            Controle starten
+          </Button>
+        </div>
+      }
+    >
+      {open && aantal > 0 && (
+        <div id={lijstId} className="px-4 pt-3 pb-3.5">
+          <p className="pb-1 text-xs tabular-nums text-muted-foreground">
+            {aantal} standaardpunten · na het starten kun je er punten aan toevoegen
+          </p>
+          <ul aria-label={`Standaardpunten ${label}`}>
+            {punten?.map((punt, i) => (
+              <li
+                key={`${i}-${punt}`}
+                className="flex items-start gap-2.5 py-1.5 text-[13px] text-muted-foreground"
+              >
+                <span
+                  aria-hidden="true"
+                  className="mt-0.5 size-4 flex-none rounded-[4px] border-[1.5px] border-border"
+                />
+                {punt}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </SectiePaneel>
   );
 }
