@@ -88,7 +88,7 @@ export function UrenBegroting({
               >
                 <span
                   className={cn(
-                    "h-full bg-accent-warm transition-[width] duration-500 ease-out motion-reduce:transition-none",
+                    "h-full bg-accent-warm transition-[width] duration-500 ease-standaard motion-reduce:transition-none",
                     !over && "rounded-full"
                   )}
                   style={{ width: `${begrootDeel}%` }}

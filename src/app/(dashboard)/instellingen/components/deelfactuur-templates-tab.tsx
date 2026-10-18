@@ -314,7 +314,7 @@ export function DeelfactuurTemplatesTab() {
                 {stappen.map((stap, i) => (
                   <div
                     key={i}
-                    className="h-full first:rounded-l-full last:rounded-r-full transition-all"
+                    className="h-full first:rounded-l-full last:rounded-r-full transition-[width] duration-500 ease-standaard motion-reduce:transition-none"
                     style={{
                       width: `${Math.min(stap.percentage, 100)}%`,
                       backgroundColor: `hsl(${142 + i * 30}, 60%, ${50 + i * 5}%)`,

@@ -211,7 +211,7 @@ export default function DashboardPage() {
                       href={`/projecten/${project._id}`}
                       className="group"
                     >
-                      <Card className="p-4 transition-all hover:shadow-md hover:border-orange-300 dark:hover:border-orange-800">
+                      <Card className="p-4 transition-[box-shadow,border-color] hover:shadow-md hover:border-orange-300 dark:hover:border-orange-800">
                         <div className="flex items-center gap-3 mb-3">
                           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/30">
                             <FolderKanban className="h-4 w-4 text-orange-600 dark:text-orange-400" aria-hidden="true" />
@@ -240,7 +240,7 @@ export default function DashboardPage() {
                           aria-label={`Projectvoortgang: ${project.voortgang === null ? "Urenbron kiezen" : `${project.voortgang}%`}`}
                         >
                           <div
-                            className="h-full bg-orange-600 rounded-full transition-all duration-500"
+                            className="h-full bg-orange-600 rounded-full transition-[width] duration-500 ease-standaard motion-reduce:transition-none"
                             style={{ width: `${project.voortgang ?? 0}%` }}
                           />
                         </div>
@@ -275,7 +275,7 @@ export default function DashboardPage() {
               <h2 className="font-medium text-sm text-muted-foreground mb-3">Snelkoppelingen</h2>
               <div className="grid gap-3 md:grid-cols-2">
                 <Link href="/wagenpark" className="group">
-                  <Card className="p-4 transition-all hover:shadow-md hover:border-blue-300 dark:hover:border-blue-800">
+                  <Card className="p-4 transition-[box-shadow,border-color] hover:shadow-md hover:border-blue-300 dark:hover:border-blue-800">
                     <div className="flex items-center gap-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
                         <Truck className="h-5 w-5 text-blue-600 dark:text-blue-400" aria-hidden="true" />
@@ -294,7 +294,7 @@ export default function DashboardPage() {
                 </Link>
 
                 <Link href="/instellingen/machines" className="group">
-                  <Card className="p-4 transition-all hover:shadow-md hover:border-green-300 dark:hover:border-green-800">
+                  <Card className="p-4 transition-[box-shadow,border-color] hover:shadow-md hover:border-green-300 dark:hover:border-green-800">
                     <div className="flex items-center gap-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
                         <Wrench className="h-5 w-5 text-green-600 dark:text-green-400" aria-hidden="true" />

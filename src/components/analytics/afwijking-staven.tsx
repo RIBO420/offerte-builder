@@ -83,7 +83,7 @@ export function AfwijkingStaven({
                 {/* De nullijn: een haarlijn in de vlakkleur, geen streepjes. */}
                 <span className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-border" />
                 <span
-                  className="absolute inset-y-0 rounded-full transition-[width] duration-500 ease-out motion-reduce:transition-none"
+                  className="absolute inset-y-0 rounded-full transition-[width] duration-500 ease-standaard motion-reduce:transition-none"
                   style={{
                     width: `${arm}%`,
                     left: boven ? "50%" : undefined,

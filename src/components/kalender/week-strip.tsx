@@ -99,7 +99,7 @@ export function WeekStrip({
                   }}
                   disabled={!isSelecteerbaar}
                   className={cn(
-                    "flex flex-col items-center gap-1 rounded-lg border p-2 text-center transition-all",
+                    "flex flex-col items-center gap-1 rounded-lg border p-2 text-center transition-[color,background-color,border-color,box-shadow]",
                     isSelecteerbaar
                       ? "cursor-pointer hover:shadow-sm"
                       : "cursor-not-allowed opacity-50",

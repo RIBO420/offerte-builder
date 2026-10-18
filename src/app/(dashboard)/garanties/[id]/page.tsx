@@ -165,7 +165,7 @@ export default function GarantieDetailPage({
                 {/* Progress bar */}
                 <div className="relative h-4 w-full rounded-full bg-muted overflow-hidden">
                   <div
-                    className={`absolute left-0 top-0 h-full rounded-full transition-all ${
+                    className={`absolute left-0 top-0 h-full rounded-full transition-[width,background-color] duration-500 ease-standaard motion-reduce:transition-none ${
                       garantie.status === "verlopen"
                         ? "bg-red-500"
                         : days <= 30

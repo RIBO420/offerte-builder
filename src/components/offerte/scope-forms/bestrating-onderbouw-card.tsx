@@ -120,7 +120,7 @@ export function BestratingOnderbouwCard({
         />
 
         <div
-          className="grid transition-all duration-200 ease-in-out"
+          className="grid transition-[grid-template-rows,opacity] duration-200 ease-standaard motion-reduce:transition-none"
           style={{
             gridTemplateRows: estimatedZandVolume !== null ? "1fr" : "0fr",
             opacity: estimatedZandVolume !== null ? 1 : 0,

@@ -147,7 +147,7 @@ export function LopendWerkPaneel({
                     aria-label={`Voortgang ${project.naam}`}
                   >
                     <div
-                      className="h-full rounded-full bg-accent-warm transition-[width] duration-500"
+                      className="h-full rounded-full bg-accent-warm transition-[width] duration-500 ease-standaard motion-reduce:transition-none"
                       style={{
                         width: `${pct ?? 0}%`,
                         backgroundImage:

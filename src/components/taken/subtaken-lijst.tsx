@@ -71,7 +71,7 @@ export function SubtakenLijst({ taak }: { taak: VerrijkteTaak }) {
             aria-label={`${klaar} van ${totaal} subtaken klaar`}
           >
             <div
-              className="h-full rounded-full bg-primary transition-[width] duration-200"
+              className="h-full rounded-full bg-primary transition-[width] duration-500 ease-standaard motion-reduce:transition-none"
               style={{ width: `${percentage}%` }}
             />
           </div>

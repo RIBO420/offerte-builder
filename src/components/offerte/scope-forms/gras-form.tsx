@@ -124,7 +124,7 @@ export function GrasForm({ data, onChange, onValidationChange }: GrasFormProps) 
             />
 
             <div
-              className="grid transition-all duration-200 ease-in-out"
+              className="grid transition-[grid-template-rows,opacity] duration-200 ease-standaard motion-reduce:transition-none"
               style={{
                 gridTemplateRows: isKunstgras ? "1fr" : "0fr",
                 opacity: isKunstgras ? 1 : 0,
@@ -269,7 +269,7 @@ export function GrasForm({ data, onChange, onValidationChange }: GrasFormProps) 
             />
 
             <div
-              className="grid transition-all duration-200 ease-in-out"
+              className="grid transition-[grid-template-rows,opacity] duration-200 ease-standaard motion-reduce:transition-none"
               style={{
                 gridTemplateRows: watchedValues.drainage ? "1fr" : "0fr",
                 opacity: watchedValues.drainage ? 1 : 0,
@@ -335,7 +335,7 @@ export function GrasForm({ data, onChange, onValidationChange }: GrasFormProps) 
             />
 
             <div
-              className="grid transition-all duration-200 ease-in-out"
+              className="grid transition-[grid-template-rows,opacity] duration-200 ease-standaard motion-reduce:transition-none"
               style={{
                 gridTemplateRows: watchedValues.opsluitbanden ? "1fr" : "0fr",
                 opacity: watchedValues.opsluitbanden ? 1 : 0,
@@ -377,7 +377,7 @@ export function GrasForm({ data, onChange, onValidationChange }: GrasFormProps) 
 
             {/* Verticuteren - alleen bij bestaande ondergrond */}
             <div
-              className="grid transition-all duration-200 ease-in-out"
+              className="grid transition-[grid-template-rows,opacity] duration-200 ease-standaard motion-reduce:transition-none"
               style={{
                 gridTemplateRows: watchedValues.ondergrond === "bestaand" ? "1fr" : "0fr",
                 opacity: watchedValues.ondergrond === "bestaand" ? 1 : 0,
@@ -419,7 +419,7 @@ export function GrasForm({ data, onChange, onValidationChange }: GrasFormProps) 
 
             {/* Indicatie */}
             <div
-              className="grid transition-all duration-200 ease-in-out"
+              className="grid transition-[grid-template-rows,opacity] duration-200 ease-standaard motion-reduce:transition-none"
               style={{
                 gridTemplateRows: watchedValues.oppervlakte > 0 ? "1fr" : "0fr",
                 opacity: watchedValues.oppervlakte > 0 ? 1 : 0,

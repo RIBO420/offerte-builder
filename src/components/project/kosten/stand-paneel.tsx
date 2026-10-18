@@ -72,7 +72,7 @@ function VoortgangsRij({
       <dd className="contents">
         <span aria-hidden="true" className="block h-2.5 overflow-hidden rounded-full bg-muted">
           <span
-            className={cn("block h-full rounded-full transition-[width] duration-300", vulling)}
+            className={cn("block h-full rounded-full transition-[width] duration-500 ease-standaard motion-reduce:transition-none", vulling)}
             style={{ width: `${breedte}%` }}
           />
         </span>

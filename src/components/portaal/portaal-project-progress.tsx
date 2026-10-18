@@ -106,7 +106,7 @@ export function PortaalProjectProgress({
       <div className="relative">
         <div className="h-2 w-full rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
           <div
-            className="h-full rounded-full bg-[#4ADE80] transition-all duration-500"
+            className="h-full rounded-full bg-[#4ADE80] transition-[width] duration-500 ease-standaard motion-reduce:transition-none"
             style={{ width: `${progressPercent}%` }}
           />
         </div>

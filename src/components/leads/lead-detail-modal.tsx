@@ -1138,7 +1138,7 @@ export function LeadDetailModal({
                             key={storageId}
                             type="button"
                             onClick={() => setLightboxIndex(index)}
-                            className="block aspect-square rounded-lg border overflow-hidden hover:ring-2 hover:ring-primary transition-all cursor-pointer"
+                            className="block aspect-square rounded-lg border overflow-hidden hover:ring-2 hover:ring-primary transition-shadow cursor-pointer"
                           >
                             <img
                               src={url}

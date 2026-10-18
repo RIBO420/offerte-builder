@@ -131,7 +131,7 @@ const MargeIndicator = memo(function MargeIndicator({
         >
           <div
             className={cn(
-              "h-full rounded-full transition-all duration-500 ease-out",
+              "h-full rounded-full transition-[width] duration-500 ease-standaard motion-reduce:transition-none",
               config.bgColor
             )}
             style={{ width: `${displayWidth}%` }}
@@ -268,7 +268,7 @@ const CircularMargeIndicator = memo(function CircularMargeIndicator({
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
-          className={cn(strokeColors[level], "transition-all duration-500 ease-out")}
+          className={cn(strokeColors[level], "transition-[stroke-dashoffset] duration-500 ease-standaard motion-reduce:transition-none")}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">

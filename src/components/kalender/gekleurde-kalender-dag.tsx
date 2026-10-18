@@ -59,7 +59,7 @@ export function GekleurdeKalenderDag({
       aria-pressed={isGeselecteerd}
       className={cn(
         // Basis-afmetingen gelijk aan CalendarDayButton uit calendar.tsx
-        "flex aspect-square size-auto w-full min-w-[var(--cell-size)] items-center justify-center rounded-md text-sm transition-all",
+        "flex aspect-square size-auto w-full min-w-[var(--cell-size)] items-center justify-center rounded-md text-sm transition-[color,background-color,box-shadow]",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
         // Buiten-maand / disabled / verleden
         (modifiers.outside || modifiers.disabled) && !item

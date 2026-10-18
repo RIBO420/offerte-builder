@@ -83,7 +83,7 @@ export function BestratingZonesCard({
 
             {/* Zone samenvatting */}
             <div
-              className="grid transition-all duration-200 ease-in-out"
+              className="grid transition-[grid-template-rows,opacity] duration-200 ease-standaard motion-reduce:transition-none"
               style={{
                 gridTemplateRows: totalZoneOppervlakte > 0 ? "1fr" : "0fr",
                 opacity: totalZoneOppervlakte > 0 ? 1 : 0,

@@ -33,7 +33,7 @@ export function ProjectCard({ id, offerteStatus, existingProject }: ProjectCardP
     <Card
       variant="elevated"
       className={cn(
-        "transition-all duration-300",
+        "transition-[border-color,background-color,box-shadow]",
         existingProject
           ? "border-green-300 dark:border-green-700 bg-green-50/50 dark:bg-green-950/20 hover:border-green-400 dark:hover:border-green-600 hover:shadow-md"
           : offerteStatus === "geaccepteerd"

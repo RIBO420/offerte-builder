@@ -78,7 +78,7 @@ export function RangStaven({
               aria-hidden="true"
             >
               <div
-                className="h-full rounded-full transition-[width] duration-500 ease-out motion-reduce:transition-none"
+                className="h-full rounded-full transition-[width] duration-500 ease-standaard motion-reduce:transition-none"
                 style={{
                   width: `${breedte}%`,
                   backgroundColor: regel.vraagtAandacht

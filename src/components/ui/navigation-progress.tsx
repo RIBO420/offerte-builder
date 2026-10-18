@@ -83,8 +83,8 @@ function NavigationProgressInner() {
       <div
         className={`h-full bg-primary ${
           state === "loading"
-            ? "w-[80%] transition-all duration-500 ease-out"
-            : "w-full transition-all duration-200 ease-in opacity-0"
+            ? "w-[80%] transition-[width] duration-500 ease-standaard motion-reduce:transition-none"
+            : "w-full transition-[width,opacity] duration-200 ease-standaard opacity-0 motion-reduce:transition-none"
         }`}
         style={{
           boxShadow: state === "loading" ? "0 0 8px hsl(var(--primary) / 0.4)" : "none",

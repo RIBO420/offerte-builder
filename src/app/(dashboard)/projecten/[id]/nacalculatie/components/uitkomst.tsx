@@ -114,7 +114,7 @@ function VergelijkBalk({
       <span className="text-muted-foreground">{label}</span>
       <span aria-hidden="true" className="h-2.5 overflow-hidden rounded-full bg-muted">
         <span
-          className={cn("block h-full rounded-full transition-[width] duration-500 ease-out motion-reduce:transition-none", kleur)}
+          className={cn("block h-full rounded-full transition-[width] duration-500 ease-standaard motion-reduce:transition-none", kleur)}
           style={{ width: `${breedte}%` }}
         />
       </span>

@@ -195,7 +195,7 @@ export function WaterElektraForm({ data, onChange, onValidationChange }: WaterEl
             </div>
 
             <div
-              className="grid transition-all duration-200 ease-in-out"
+              className="grid transition-[grid-template-rows,opacity] duration-200 ease-standaard motion-reduce:transition-none"
               style={{
                 gridTemplateRows: !heeftElektra ? "1fr" : "0fr",
                 opacity: !heeftElektra ? 1 : 0,
@@ -212,7 +212,7 @@ export function WaterElektraForm({ data, onChange, onValidationChange }: WaterEl
 
         {/* Verplichte sleuven sectie - alleen tonen als er elektra is */}
         <div
-          className="grid transition-all duration-200 ease-in-out"
+          className="grid transition-[grid-template-rows,opacity] duration-200 ease-standaard motion-reduce:transition-none"
           style={{
             gridTemplateRows: heeftElektra ? "1fr" : "0fr",
             opacity: heeftElektra ? 1 : 0,

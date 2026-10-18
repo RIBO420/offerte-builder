@@ -299,7 +299,7 @@ export function BordersForm({ data, onChange, onValidationChange }: BordersFormP
                         type="button"
                         onClick={() => setOrientatie(orientatie === "noord" ? undefined : "noord")}
                         className={cn(
-                          "flex flex-col items-center justify-center rounded-lg border px-3 py-2 text-xs font-medium transition-all hover:bg-accent",
+                          "flex flex-col items-center justify-center rounded-lg border px-3 py-2 text-xs font-medium transition-[color,background-color,border-color,box-shadow] hover:bg-accent",
                           "min-w-[56px] min-h-[44px]",
                           orientatie === "noord"
                             ? "border-primary bg-primary/10 text-primary ring-1 ring-primary"
@@ -321,7 +321,7 @@ export function BordersForm({ data, onChange, onValidationChange }: BordersFormP
                         type="button"
                         onClick={() => setOrientatie(orientatie === "west" ? undefined : "west")}
                         className={cn(
-                          "flex flex-col items-center justify-center rounded-lg border px-3 py-2 text-xs font-medium transition-all hover:bg-accent",
+                          "flex flex-col items-center justify-center rounded-lg border px-3 py-2 text-xs font-medium transition-[color,background-color,border-color,box-shadow] hover:bg-accent",
                           "min-w-[56px] min-h-[44px]",
                           orientatie === "west"
                             ? "border-primary bg-primary/10 text-primary ring-1 ring-primary"
@@ -340,7 +340,7 @@ export function BordersForm({ data, onChange, onValidationChange }: BordersFormP
                       type="button"
                       onClick={() => setOrientatie(orientatie === "nvt" ? undefined : "nvt")}
                       className={cn(
-                        "flex items-center justify-center rounded-lg border px-3 py-2 text-xs font-medium transition-all hover:bg-accent",
+                        "flex items-center justify-center rounded-lg border px-3 py-2 text-xs font-medium transition-[color,background-color,border-color,box-shadow] hover:bg-accent",
                         "min-w-[56px] min-h-[44px]",
                         orientatie === "nvt"
                           ? "border-muted-foreground bg-muted text-muted-foreground ring-1 ring-muted-foreground"
@@ -357,7 +357,7 @@ export function BordersForm({ data, onChange, onValidationChange }: BordersFormP
                         type="button"
                         onClick={() => setOrientatie(orientatie === "oost" ? undefined : "oost")}
                         className={cn(
-                          "flex flex-col items-center justify-center rounded-lg border px-3 py-2 text-xs font-medium transition-all hover:bg-accent",
+                          "flex flex-col items-center justify-center rounded-lg border px-3 py-2 text-xs font-medium transition-[color,background-color,border-color,box-shadow] hover:bg-accent",
                           "min-w-[56px] min-h-[44px]",
                           orientatie === "oost"
                             ? "border-primary bg-primary/10 text-primary ring-1 ring-primary"
@@ -379,7 +379,7 @@ export function BordersForm({ data, onChange, onValidationChange }: BordersFormP
                         type="button"
                         onClick={() => setOrientatie(orientatie === "zuid" ? undefined : "zuid")}
                         className={cn(
-                          "flex flex-col items-center justify-center rounded-lg border px-3 py-2 text-xs font-medium transition-all hover:bg-accent",
+                          "flex flex-col items-center justify-center rounded-lg border px-3 py-2 text-xs font-medium transition-[color,background-color,border-color,box-shadow] hover:bg-accent",
                           "min-w-[56px] min-h-[44px]",
                           orientatie === "zuid"
                             ? "border-primary bg-primary/10 text-primary ring-1 ring-primary"
@@ -490,17 +490,17 @@ export function BordersForm({ data, onChange, onValidationChange }: BordersFormP
                     {/* Visual distribution bar */}
                     <div className="flex h-4 w-full overflow-hidden rounded-full">
                       <div
-                        className="bg-chart-4 transition-all duration-200"
+                        className="bg-chart-4 transition-[width] duration-200 ease-standaard motion-reduce:transition-none"
                         style={{ width: `${bodemMix.zandPercentage}%` }}
                         title={`Zand: ${bodemMix.zandPercentage}%`}
                       />
                       <div
-                        className="bg-chart-1 transition-all duration-200"
+                        className="bg-chart-1 transition-[width] duration-200 ease-standaard motion-reduce:transition-none"
                         style={{ width: `${bodemMix.compostPercentage}%` }}
                         title={`Compost: ${bodemMix.compostPercentage}%`}
                       />
                       <div
-                        className="bg-scope-grondwerk transition-all duration-200"
+                        className="bg-scope-grondwerk transition-[width] duration-200 ease-standaard motion-reduce:transition-none"
                         style={{ width: `${bodemMix.teelaardPercentage}%` }}
                         title={`Teelaard: ${bodemMix.teelaardPercentage}%`}
                       />

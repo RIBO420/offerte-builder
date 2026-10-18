@@ -233,7 +233,7 @@ function DonutChart({
                     strokeLinecap="butt"
                     className={cn(
                       "cursor-pointer origin-center",
-                      "transition-all duration-300 ease-out"
+                      "transition-[transform,opacity,stroke-dasharray] duration-300 ease-standaard motion-reduce:transition-none"
                     )}
                     style={{
                       transform: `scale(${scale})`,
@@ -468,7 +468,7 @@ function DonutChartWithLegend({
                     strokeDasharray={`${segment.dashArray} ${circumference}`}
                     strokeDashoffset={segment.dashOffset}
                     strokeLinecap="butt"
-                    className="cursor-pointer transition-all duration-300 ease-out"
+                    className="cursor-pointer transition-[transform,opacity,stroke-dasharray] duration-300 ease-standaard motion-reduce:transition-none"
                     style={{
                       transform: `scale(${scale})`,
                       transformOrigin: `${center}px ${center}px`,
@@ -525,7 +525,7 @@ function DonutChartWithLegend({
             key={`legend-${segment.label}`}
             type="button"
             className={cn(
-              "flex items-center gap-2 px-2 py-1 rounded-md transition-all duration-200",
+              "flex items-center gap-2 px-2 py-1 rounded-md transition-[background-color,opacity,box-shadow] duration-200",
               "hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
               hoveredIndex !== null && hoveredIndex !== segment.index && "opacity-50"
             )}
@@ -633,7 +633,7 @@ function MiniDonut({
             strokeDasharray={`${mounted ? dashArray : 0} ${circumference}`}
             strokeDashoffset={circumference * 0.25} // Start from top
             strokeLinecap="round"
-            className="transition-all duration-500 ease-out"
+            className="transition-[stroke-dasharray] duration-500 ease-standaard motion-reduce:transition-none"
           />
         </svg>
       </TooltipTrigger>

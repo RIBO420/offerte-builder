@@ -32,7 +32,7 @@ export function SkipLink({
         "focus:text-primary-foreground focus:shadow-lg",
         "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
         // Animation
-        "transition-all",
+        "transition-shadow",
         className
       )}
     >

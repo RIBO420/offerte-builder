@@ -64,7 +64,7 @@ export function OffertePijplijnPaneel({
               </dt>
               <dd className="h-2 overflow-hidden rounded-full bg-muted" aria-hidden="true">
                 <div
-                  className="h-full rounded-full transition-[width] duration-500"
+                  className="h-full rounded-full transition-[width] duration-500 ease-standaard motion-reduce:transition-none"
                   style={{
                     width: `${(stats[fase] / grootste) * 100}%`,
                     backgroundColor: STATUS_STIP[fase],
@@ -108,7 +108,7 @@ export function OffertePijplijnPaneel({
             strokeDasharray={`${streep} ${omtrek - streep}`}
             strokeDashoffset={omtrek * 0.25}
             strokeLinecap="round"
-            className="transition-[stroke-dasharray] duration-700"
+            className="transition-[stroke-dasharray] duration-500 ease-standaard motion-reduce:transition-none"
           />
           <text
             x={28}

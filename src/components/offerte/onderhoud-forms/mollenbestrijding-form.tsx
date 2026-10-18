@@ -412,7 +412,7 @@ export function MollenbestrijdingForm({
                             type="button"
                             onClick={() => field.onChange(pakket.id)}
                             className={[
-                              "relative flex flex-col rounded-xl border-2 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                              "relative flex flex-col rounded-xl border-2 text-left transition-[color,background-color,border-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                               isSelected
                                 ? `ring-2 ${pakket.stijl.ring} border-transparent shadow-md`
                                 : "border-border hover:border-muted-foreground/40 hover:shadow-sm",

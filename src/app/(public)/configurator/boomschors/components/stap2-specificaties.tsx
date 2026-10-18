@@ -76,7 +76,7 @@ export function Stap2Specificaties({ specificaties, onChange, errors }: Stap2Pro
                 key={key}
                 htmlFor={`soort-${key}`}
                 className={cn(
-                  "relative flex cursor-pointer rounded-xl border-2 p-4 gap-3 transition-all",
+                  "relative flex cursor-pointer rounded-xl border-2 p-4 gap-3 transition-[color,background-color,border-color,box-shadow]",
                   isGeselecteerd
                     ? "border-primary bg-primary/5"
                     : "border-border bg-card hover:border-primary/40 hover:bg-muted/30"
@@ -154,7 +154,7 @@ export function Stap2Specificaties({ specificaties, onChange, errors }: Stap2Pro
                   type="button"
                   onClick={() => handleChange("laagDikte", dikte)}
                   className={cn(
-                    "flex-1 rounded-lg border-2 py-2 text-sm font-medium transition-all",
+                    "flex-1 rounded-lg border-2 py-2 text-sm font-medium transition-[color,background-color,border-color,box-shadow]",
                     specificaties.laagDikte === dikte
                       ? "border-primary bg-primary text-primary-foreground"
                       : "border-border bg-card hover:border-primary/40"
@@ -228,7 +228,7 @@ export function Stap2Specificaties({ specificaties, onChange, errors }: Stap2Pro
           <label
             htmlFor="bezorging-ophalen"
             className={cn(
-              "relative flex cursor-pointer rounded-xl border-2 p-4 gap-3 transition-all",
+              "relative flex cursor-pointer rounded-xl border-2 p-4 gap-3 transition-[color,background-color,border-color,box-shadow]",
               specificaties.bezorging === "ophalen"
                 ? "border-primary bg-primary/5"
                 : "border-border bg-card hover:border-primary/40 hover:bg-muted/30"
@@ -254,7 +254,7 @@ export function Stap2Specificaties({ specificaties, onChange, errors }: Stap2Pro
           <label
             htmlFor="bezorging-bezorgen"
             className={cn(
-              "relative flex cursor-pointer rounded-xl border-2 p-4 gap-3 transition-all",
+              "relative flex cursor-pointer rounded-xl border-2 p-4 gap-3 transition-[color,background-color,border-color,box-shadow]",
               specificaties.bezorging === "bezorgen"
                 ? "border-primary bg-primary/5"
                 : "border-border bg-card hover:border-primary/40 hover:bg-muted/30"

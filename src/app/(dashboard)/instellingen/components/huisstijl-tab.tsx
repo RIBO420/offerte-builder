@@ -586,7 +586,7 @@ export function HuisstijlTab({ instellingen }: HuisstijlTabProps) {
                     type="button"
                     onClick={() => handleTemplateStijlChange(stijl.value)}
                     disabled={isSaving}
-                    className={`relative flex flex-1 flex-col items-start rounded-lg border-2 p-4 text-left transition-all hover:shadow-sm ${
+                    className={`relative flex flex-1 flex-col items-start rounded-lg border-2 p-4 text-left transition-[color,background-color,border-color,box-shadow] hover:shadow-sm ${
                       isActive
                         ? "border-primary bg-primary/5 shadow-sm"
                         : "border-border hover:border-primary/30"

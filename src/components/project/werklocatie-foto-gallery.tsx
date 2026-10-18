@@ -203,7 +203,7 @@ export function WerklocatieFotoGallery({
                   />
 
                   {/* Overlay with actions */}
-                  <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/0 opacity-0 transition-all group-hover:bg-black/40 group-hover:opacity-100">
+                  <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/0 opacity-0 transition-[background-color,opacity] group-hover:bg-black/40 group-hover:opacity-100">
                     <Button
                       size="icon"
                       variant="secondary"

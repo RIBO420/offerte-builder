@@ -76,7 +76,7 @@ export function StapGazonSpecs({
                 type="button"
                 onClick={() => onChange("typeGras", type)}
                 className={cn(
-                  "text-left p-4 rounded-lg border-2 transition-all cursor-pointer hover:shadow-sm",
+                  "text-left p-4 rounded-lg border-2 transition-[color,background-color,border-color,box-shadow] cursor-pointer hover:shadow-sm",
                   data.typeGras === type
                     ? config.kleur + " shadow-sm"
                     : "border-border hover:border-muted-foreground/40 bg-card"
@@ -119,7 +119,7 @@ export function StapGazonSpecs({
                 type="button"
                 onClick={() => onChange("ondergrond", type)}
                 className={cn(
-                  "w-full text-left px-4 py-3 rounded-lg border-2 transition-all cursor-pointer hover:shadow-sm flex items-start justify-between gap-4",
+                  "w-full text-left px-4 py-3 rounded-lg border-2 transition-[color,background-color,border-color,box-shadow] cursor-pointer hover:shadow-sm flex items-start justify-between gap-4",
                   data.ondergrond === type
                     ? "border-green-500 bg-green-50 shadow-sm"
                     : "border-border hover:border-muted-foreground/40 bg-card"

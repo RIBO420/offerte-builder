@@ -77,7 +77,7 @@ export const CapaciteitIndicator = React.memo(function CapaciteitIndicator({
         </div>
         <div className="h-1.5 w-full rounded-full bg-muted">
           <div
-            className={cn("h-full rounded-full transition-all", kleuren.fill)}
+            className={cn("h-full rounded-full transition-[width] duration-500 ease-standaard motion-reduce:transition-none", kleuren.fill)}
             style={{ width: `${Math.min(bezetting, 100)}%` }}
           />
         </div>

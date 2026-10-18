@@ -145,7 +145,7 @@ export function OnboardingChecklist({
                     <Link
                       href={step.href}
                       className={cn(
-                        "group flex items-center gap-3 rounded-lg p-3 transition-all",
+                        "group flex items-center gap-3 rounded-lg p-3 transition-colors",
                         step.completed
                           ? "bg-status-geaccepteerd/40"
                           : "bg-white/50 dark:bg-white/5 hover:bg-white dark:hover:bg-white/10"

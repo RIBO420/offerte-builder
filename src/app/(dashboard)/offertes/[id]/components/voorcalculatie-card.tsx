@@ -36,7 +36,7 @@ export function VoorcalculatieCard({ id, offerteStatus, voorcalculatie }: Voorca
     <Card
       variant="elevated"
       className={cn(
-        "transition-all duration-300",
+        "transition-[border-color,background-color,box-shadow]",
         voorcalculatie
           ? "border-primary/30 bg-primary/5"
           : "border-amber-200 dark:border-amber-800 bg-amber-50/30 dark:bg-amber-950/10"

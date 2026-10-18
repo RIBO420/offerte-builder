@@ -112,7 +112,7 @@ function PriceBreakdownChart({
             <TooltipTrigger asChild>
               <div
                 className={cn(
-                  "h-full transition-all duration-200 cursor-default",
+                  "h-full transition-[width,background-color] duration-200 ease-standaard cursor-default",
                   segment.color,
                   segment.hoverColor,
                   index === 0 && "rounded-l-lg",
