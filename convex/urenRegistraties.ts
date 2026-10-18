@@ -259,15 +259,35 @@ export const importBatch = mutation({
 });
 
 // Update entry
+/**
+ * Patch voor `update`: undefined laat een veld staan; bij de wisbare velden
+ * (taakId, scope, notities) wist `null` of lege tekst het veld (Convex-patch met
+ * undefined verwijdert het veld).
+ */
+export function urenUpdatePatch(args: {
+  datum?: string; medewerker?: string; uren?: number;
+  taakId?: Id<"planningTaken"> | null; scope?: string | null; notities?: string | null;
+}) {
+  const patch: { datum?: string; medewerker?: string; uren?: number; taakId?: Id<"planningTaken">; scope?: string; notities?: string } = {};
+  if (args.datum !== undefined) patch.datum = args.datum;
+  if (args.medewerker !== undefined) patch.medewerker = args.medewerker;
+  if (args.uren !== undefined) patch.uren = args.uren;
+  if (args.taakId !== undefined) patch.taakId = args.taakId ?? undefined;
+  if (args.scope !== undefined) patch.scope = args.scope?.trim() ? args.scope : undefined;
+  if (args.notities !== undefined) patch.notities = args.notities?.trim() ? args.notities : undefined;
+  return patch;
+}
+
 export const update = mutation({
   args: {
     id: v.id("urenRegistraties"),
     datum: v.optional(v.string()),
     medewerker: v.optional(v.string()),
     uren: v.optional(v.number()),
-    taakId: v.optional(v.id("planningTaken")),
-    scope: v.optional(v.string()),
-    notities: v.optional(v.string()),
+    // undefined = ongewijzigd laten; null (of lege tekst) = veld wissen.
+    taakId: v.optional(v.union(v.id("planningTaken"), v.null())),
+    scope: v.optional(v.union(v.string(), v.null())),
+    notities: v.optional(v.union(v.string(), v.null())),
   },
   handler: async (ctx, args) => {
     await requireKantoor(ctx);
@@ -284,17 +304,8 @@ export const update = mutation({
       throw new ConvexError("Geen toegang tot deze registratie");
     }
 
-    const { id, ...updates } = args;
-    const filteredUpdates: Record<string, unknown> = {};
-
-    for (const [key, value] of Object.entries(updates)) {
-      if (value !== undefined) {
-        filteredUpdates[key] = value;
-      }
-    }
-
-    await ctx.db.patch(id, filteredUpdates);
-    return id;
+    await ctx.db.patch(args.id, urenUpdatePatch(args));
+    return args.id;
   },
 });
 

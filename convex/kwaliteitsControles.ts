@@ -512,10 +512,11 @@ export const reject = mutation({
   args: {
     id: v.id("kwaliteitsControles"),
     reden: v.string(),
+    /** Genegeerd: de afkeurder komt uit de auth, niet uit de client. Blijft voor compatibiliteit. */
     afgekeurdDoor: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireNotViewer(ctx);
+    const user = await requireNotViewer(ctx);
     const controle = await ctx.db.get(args.id);
 
     if (!controle) {
@@ -530,6 +531,8 @@ export const reject = mutation({
     await ctx.db.patch(args.id, {
       status: "afgekeurd",
       opmerkingen: args.reden,
+      afgekeurdDoor: user.name?.trim() || user.email,
+      afgekeurdAt: now,
       updatedAt: now,
     });
 
@@ -687,9 +690,11 @@ export const getDashboardStats = query({
 export const getProjectSummary = query({
   args: { projectId: v.id("projecten") },
   handler: async (ctx, args) => {
-    await requireOrgId(ctx);
-    // Verify ownership of project
-    await getOwnedProject(ctx, args.projectId);
+    const orgId = await requireOrgId(ctx);
+    // Draait in de gedeelde ProjectKop: een verwijderd of vreemd project geeft
+    // null (zoals projecten.getWithDetails), geen throw en geen informatie.
+    const project = await ctx.db.get(args.projectId);
+    if (!project || project.orgId?.toString() !== orgId.toString()) return null;
 
     const controles = await ctx.db
       .query("kwaliteitsControles")

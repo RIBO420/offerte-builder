@@ -472,6 +472,21 @@ export const listByMonth = query({
  * Get planning summary per week for a quarter.
  * Quarter 1 = Jan-Mar, 2 = Apr-Jun, 3 = Jul-Sep, 4 = Oct-Dec
  */
+/**
+ * Datumbereik van alle ISO-weken die een kwartaal raken: maandag van de week
+ * van de eerste kwartaaldag t/m zondag van de week van de laatste kwartaaldag.
+ */
+export function kwartaalWeekBereik(year: number, quarter: number): { startDatum: string; eindDatum: string } {
+  const startMonth = (quarter - 1) * 3; // 0-based
+  const eerste = new Date(Date.UTC(year, startMonth, 1));
+  const laatste = new Date(Date.UTC(year, startMonth + 3, 0));
+  const maandag = new Date(eerste);
+  maandag.setUTCDate(eerste.getUTCDate() - ((eerste.getUTCDay() + 6) % 7));
+  const zondag = new Date(laatste);
+  zondag.setUTCDate(laatste.getUTCDate() + ((7 - laatste.getUTCDay()) % 7));
+  return { startDatum: maandag.toISOString().slice(0, 10), eindDatum: zondag.toISOString().slice(0, 10) };
+}
+
 export const listByQuarter = query({
   args: {
     year: v.number(),
@@ -481,12 +496,9 @@ export const listByQuarter = query({
     const { rijScopeIds, zichtbareMedewerkers } =
       await haalPlanningContext(ctx);
 
-    const startMonth = (args.quarter - 1) * 3 + 1;
-    const endMonth = startMonth + 2;
-
-    const startDatum = `${args.year}-${String(startMonth).padStart(2, "0")}-01`;
-    const lastDay = new Date(args.year, endMonth, 0).getDate();
-    const eindDatum = `${args.year}-${String(endMonth).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+    // De UI toont elke ISO-week die het kwartaal raakt; haal dus ook de dagen
+    // van de randweken buiten het kwartaal op, anders lijken die halfleeg.
+    const { startDatum, eindDatum } = kwartaalWeekBereik(args.year, args.quarter);
 
     const alleToewijzingen = await ctx.db
       .query("weekPlanning")
@@ -521,11 +533,12 @@ export const listByQuarter = query({
       const yearStart = new Date(Date.UTC(tempDate.getUTCFullYear(), 0, 1));
       const weekNum = Math.ceil(((tempDate.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
 
-      const weekKey = `${args.year}-W${weekNum}`;
+      // ISO-jaar + week: in Q1/Q4 kan een randweek bij het buurjaar horen.
+      const weekKey = `${tempDate.getUTCFullYear()}-W${weekNum}`;
       if (!perWeek[weekKey]) {
-        // Calculate Monday of this week
-        const monday = new Date(d);
-        monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+        // Maandag van deze week, in UTC (tijdzone-onafhankelijk)
+        const monday = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+        monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7));
         const beschikbaar = zichtbareMedewerkers.length * urenPerDag * 5; // 5 werkdagen
 
         perWeek[weekKey] = {
@@ -558,7 +571,8 @@ export const listByQuarter = query({
             : 0,
         aantalMedewerkers: w.medewerkers.size,
       }))
-      .sort((a, b) => a.weekNummer - b.weekNummer);
+      // Op datum: W53/W1 van een buurjaar staat zo aan de juiste rand.
+      .sort((a, b) => a.startDatum.localeCompare(b.startDatum));
 
     return {
       weken: result,

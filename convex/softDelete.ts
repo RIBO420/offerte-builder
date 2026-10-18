@@ -160,9 +160,12 @@ export const permanentlyDeleteProject = internalMutation({
   handler: async (ctx, args) => {
     bewaakOrgVanDocument(await ctx.db.get(args.id), args.orgId, "project");
 
+    // Uitvoeringshistorie (uren, foto's, antwoorden) wordt nooit gepurged. Het
+    // project blijft in de prullenbak staan (deletedAt blijft): het terugzetten
+    // naar het archief liet weggegooide projecten daar onverwacht weer opduiken.
+    // Herstellen of archiveren is een bewuste keuze van kantoor.
     if (await heeftWerkitemHistorie(ctx, args.id)) {
-      await ctx.db.patch(args.id, { isArchived: true, archivedAt: Date.now(), deletedAt: undefined, updatedAt: Date.now() });
-      return;
+      return null;
     }
 
     // Delete related voorcalculaties
@@ -344,11 +347,11 @@ export const cleanupExpiredItems = internalMutation({
 
     // Permanently delete expired projecten
     for (const project of expired.projecten) {
-      await ctx.runMutation(internal.softDelete.permanentlyDeleteProject, {
+      const verwijderd = await ctx.runMutation(internal.softDelete.permanentlyDeleteProject, {
         id: project._id,
         orgId: project.orgId,
       });
-      deletedProjecten++;
+      if (verwijderd) deletedProjecten++;
     }
 
     return {
@@ -652,11 +655,11 @@ export const runDailyCleanup = internalMutation({
 
     // Permanently delete expired projecten
     for (const project of expiredProjecten) {
-      await ctx.runMutation(internal.softDelete.permanentlyDeleteProject, {
+      const verwijderd = await ctx.runMutation(internal.softDelete.permanentlyDeleteProject, {
         id: project._id,
         orgId: project.orgId,
       });
-      deletedProjecten++;
+      if (verwijderd) deletedProjecten++;
     }
 
     // ============================================
