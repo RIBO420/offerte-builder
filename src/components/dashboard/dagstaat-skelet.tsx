@@ -74,9 +74,13 @@ export function DagstaatSkelet() {
       <DagstaatKolommen>
         <div className="flex min-w-0 flex-col gap-3">
           <Skeleton className="h-4 w-16" />
-          <Paneel hoogte="h-[262px]" primair>
-            <KopBalk />
-            <Regels aantal={4} hoog />
+          {/* Aandacht nodig: meestal leeg, en leeg is één regel (titel +
+              "niets vraagt je aandacht") — geen hoog blok dat daarna inklapt. */}
+          <Paneel hoogte="h-11" primair>
+            <div className="flex h-full items-center gap-2 px-3">
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-3 w-40 max-w-[40%]" />
+            </div>
           </Paneel>
           <Paneel hoogte="h-[150px]" primair>
             <KopBalk />
@@ -86,6 +90,12 @@ export function DagstaatSkelet() {
             <KopBalk metActie />
             <Regels aantal={3} hoog />
           </Paneel>
+          {/* Vloot-regel (VlootBadge): stip, samenvatting, link rechts */}
+          <div className="flex h-[42px] items-center gap-2 rounded-lg border bg-card px-3">
+            <Skeleton className="size-1.5 rounded-full" />
+            <Skeleton className="h-3 w-52 max-w-[60%]" />
+            <Skeleton className="ml-auto h-3 w-14" />
+          </div>
         </div>
 
         <div className="flex min-w-0 flex-col gap-3">

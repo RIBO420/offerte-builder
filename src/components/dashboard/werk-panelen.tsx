@@ -58,7 +58,12 @@ export function LopendWerkPaneel({
   samenvatting,
 }: {
   projecten: LopendProject[];
-  samenvatting?: { afgerond: number; totaal: number };
+  /**
+   * `lopend`: het echte aantal projecten in uitvoering (projectStats). De
+   * server stuurt maar een handvol `projecten` mee, dus telling en "Nog N
+   * lopend" komen hieruit en niet uit de afgekapte lijst.
+   */
+  samenvatting?: { afgerond: number; totaal: number; lopend?: number };
 }) {
   const kopActies = (
     <>
@@ -86,12 +91,13 @@ export function LopendWerkPaneel({
   }
 
   const zichtbaar = projecten.slice(0, MAX_PROJECTEN);
+  const aantalLopend = Math.max(samenvatting?.lopend ?? 0, projecten.length);
 
   return (
     <SectiePaneel
       titel="Lopend werk"
       kopbalk={!!samenvatting}
-      telling={projecten.length}
+      telling={aantalLopend}
       acties={kopActies}
     >
       <ul className="divide-y divide-border/60">
@@ -174,11 +180,11 @@ export function LopendWerkPaneel({
           );
         })}
       </ul>
-      {projecten.length > zichtbaar.length && (
+      {aantalLopend > zichtbaar.length && (
         <div className="border-t px-3 py-1">
           <AlleLink
             href="/projecten"
-            tekst={`Nog ${projecten.length - zichtbaar.length} lopend`}
+            tekst={`Nog ${aantalLopend - zichtbaar.length} lopend`}
           />
         </div>
       )}

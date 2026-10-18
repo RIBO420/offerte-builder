@@ -17,6 +17,11 @@ export interface DagstaatCijfers {
   aandacht: number;
   /** Aan mij toegewezen klanttaken die nog open staan. */
   takenOpen: number;
+  /**
+   * De takenquery is begrensd (limit): zat de lijst vol, dan zijn er
+   * mogelijk meer en toont de kop "25+" in plaats van een te laag getal.
+   */
+  takenAfgekapt?: boolean;
   /** Projecten met status `in_uitvoering`. */
   projectenLopend: number;
   /** Offertes in de pipeline (exclusief concepten — §5.3b). */
@@ -53,8 +58,11 @@ export function dagstaatClausules(cijfers: DagstaatCijfers): DagstaatClausule[] 
 
   if (cijfers.takenOpen > 0) {
     clausules.push({
-      getal: String(cijfers.takenOpen),
-      staart: cijfers.takenOpen === 1 ? "taak staat open" : "taken staan open",
+      getal: `${cijfers.takenOpen}${cijfers.takenAfgekapt ? "+" : ""}`,
+      staart:
+        cijfers.takenOpen === 1 && !cijfers.takenAfgekapt
+          ? "taak staat open"
+          : "taken staan open",
     });
   }
 

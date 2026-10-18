@@ -81,7 +81,7 @@ export function VoormanDashboard() {
                     {project!.team.map((lid) => (
                       <div
                         key={lid.id}
-                        className="flex items-center justify-between rounded-md border px-2.5 py-1.5"
+                        className="flex items-center justify-between gap-2 rounded-md border px-2.5 py-1.5"
                       >
                         <div className="min-w-0">
                           <p className="text-xs font-medium truncate">{lid.naam}</p>
@@ -89,7 +89,7 @@ export function VoormanDashboard() {
                             <p className="text-[10px] text-muted-foreground">{lid.functie}</p>
                           )}
                         </div>
-                        {lid.heeftUren === null ? <span className="text-[10px] text-muted-foreground">Bron kiezen door kantoor</span> : lid.heeftUren ? (
+                        {lid.heeftUren === null ? <span className="shrink-0 text-[10px] text-muted-foreground">Bron kiezen door kantoor</span> : lid.heeftUren ? (
                           <CheckCircle2 className="h-3.5 w-3.5 text-green-500 dark:text-green-400 shrink-0" />
                         ) : (
                           <XCircle className="h-3.5 w-3.5 text-red-400 dark:text-red-300 shrink-0" />

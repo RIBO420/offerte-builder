@@ -184,12 +184,17 @@ export function useDashboardData() {
 
 // Comprehensive dashboard hook - batches ALL dashboard data in a single round-trip
 // Use this for the main dashboard page to minimize query round-trips
-export function useFullDashboardData() {
+/**
+ * @param opties.skip  Query niet draaien (bv. voor admins, die alleen
+ *   `useAdminDashboardData` gebruiken). `isLoading` is dan `false`.
+ */
+export function useFullDashboardData(opties: { skip?: boolean } = {}) {
   const { user } = useCurrentUser();
+  const skip = opties.skip ?? false;
 
   const data = useQuery(
     api.offertes.getFullDashboardData,
-    user?._id ? {} : "skip"
+    user?._id && !skip ? {} : "skip"
   );
 
   // Memoize all values to prevent unnecessary re-renders
@@ -217,7 +222,7 @@ export function useFullDashboardData() {
     facturenStats,
     recentFacturen,
     // Loading state
-    isLoading: user && data === undefined,
+    isLoading: !skip && user && data === undefined,
   };
 }
 

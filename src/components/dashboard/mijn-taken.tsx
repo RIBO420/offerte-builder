@@ -21,8 +21,11 @@ const STANDAARD_ZICHTBAAR = 5;
  * dit paneel toont ze. Convex dedupliceert op (query, args), dus dit is
  * dezelfde subscriptie — geen extra round-trip.
  */
+/** Bovengrens van de takenquery; een volle lijst betekent "mogelijk meer". */
+export const MIJN_TAKEN_LIMIET = 25;
+
 export function useMijnTaken() {
-  return useQuery(api.klantTaken.mijnTaken, { limit: 25 });
+  return useQuery(api.klantTaken.mijnTaken, { limit: MIJN_TAKEN_LIMIET });
 }
 
 /**

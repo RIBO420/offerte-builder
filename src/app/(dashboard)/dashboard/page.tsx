@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useSyncExternalStore } from "react";
 import { REVEAL_KLASSE } from "@/components/pagina-reveal";
 import { useQuery, useConvexAuth } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
@@ -26,7 +27,11 @@ import { useOnboarding } from "@/hooks/use-onboarding";
 import { WelcomeModal, OnboardingChecklist } from "@/components/onboarding";
 import { VoormanDashboard } from "@/components/dashboard/voorman-dashboard";
 import { WarningsFeed } from "@/components/dashboard/warnings-feed";
-import { MijnTaken, useMijnTaken } from "@/components/dashboard/mijn-taken";
+import {
+  MIJN_TAKEN_LIMIET,
+  MijnTaken,
+  useMijnTaken,
+} from "@/components/dashboard/mijn-taken";
 import { useAdminDashboardData } from "@/hooks/use-dashboard";
 import { AandachtNodig } from "@/components/dashboard/aandacht-nodig";
 import {
@@ -48,17 +53,46 @@ import { NieuweOfferteSplitButton } from "@/components/offerte/nieuwe-offerte-sp
 import { VlootBadge } from "@/components/dashboard/vloot-badge";
 import { getGreeting } from "@/lib/greeting";
 
+/**
+ * Welke dashboardvariant deze browser de vorige keer kreeg. Zolang de rol nog
+ * laadt, kiest het skelet daarop: een directielid ziet dan meteen het
+ * dagstaatskelet in plaats van eerst het medewerkerskelet (andere breedte,
+ * andere blokken). Alleen een hint voor het skelet; de echte keuze maakt de
+ * rol. Leest null op de server en bij geblokkeerde opslag.
+ */
+const VARIANT_SLEUTEL = "tt-dashboard-variant";
+const geenAbonnement = () => () => {};
+function leesVariantHint(): string | null {
+  try {
+    return window.localStorage.getItem(VARIANT_SLEUTEL);
+  } catch {
+    return null;
+  }
+}
+
 export default function DashboardPage() {
   const { clerkUser, user, isLoading: isUserLoading } = useCurrentUser();
   const isAdmin = useIsAdmin();
+  const rolBekend = !isUserLoading && !!user;
+  const variantHint = useSyncExternalStore(geenAbonnement, leesVariantHint, () => null);
+  useEffect(() => {
+    if (!rolBekend) return;
+    try {
+      window.localStorage.setItem(VARIANT_SLEUTEL, isAdmin ? "dagstaat" : "medewerker");
+    } catch {
+      // Opslag geblokkeerd: dan alleen geen skelethint.
+    }
+  }, [rolBekend, isAdmin]);
 
-  // Medewerker data — still uses the old batched query
+  // Medewerker data — still uses the old batched query. Admins gebruiken
+  // alleen useAdminDashboardData; voor hen (en zolang de rol laadt) draait
+  // deze query niet.
   const {
     offerteStats,
     projectStats,
     activeProjects,
     isLoading,
-  } = useFullDashboardData();
+  } = useFullDashboardData({ skip: !rolBekend || isAdmin });
 
   // Admin data — consolidated single query
   const adminData = useAdminDashboardData();
@@ -92,13 +126,19 @@ export default function DashboardPage() {
   // Wait until the user's role is known before choosing a dashboard variant.
   // useIsAdmin() returns false while loading, so without this gate the medewerker
   // view flashes for admins/directie before the role resolves.
-  if (isUserLoading || !user) {
+  if (!rolBekend) {
     return (
       <>
         <PageHeader />
-        <div className="flex flex-1 flex-col gap-6 p-6 md:p-8 max-w-7xl">
-          <DashboardSkeleton />
-        </div>
+        {variantHint === "dagstaat" ? (
+          <div className="@container/dagstaat mx-auto flex w-full max-w-[86rem] flex-1 flex-col gap-6 p-6 md:p-8">
+            <DagstaatSkelet />
+          </div>
+        ) : (
+          <div className="flex flex-1 flex-col gap-6 p-6 md:p-8 max-w-7xl">
+            <DashboardSkeleton />
+          </div>
+        )}
       </>
     );
   }
@@ -338,6 +378,7 @@ export default function DashboardPage() {
                     (adminData.acceptedWithoutProject ?? []).length +
                     warnings.length,
                   takenOpen: mijnTaken?.length ?? 0,
+                  takenAfgekapt: (mijnTaken?.length ?? 0) >= MIJN_TAKEN_LIMIET,
                   projectenLopend: adminData.projectStats?.in_uitvoering ?? 0,
                   offertesPipeline: adminData.offerteStats?.totaal ?? 0,
                 }}
@@ -393,6 +434,7 @@ export default function DashboardPage() {
                     samenvatting={{
                       afgerond: adminData.projectStats?.afgerond ?? 0,
                       totaal: adminData.projectStats?.totaal ?? 0,
+                      lopend: adminData.projectStats?.in_uitvoering ?? 0,
                     }}
                   />
 
