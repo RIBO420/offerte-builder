@@ -1,4 +1,4 @@
-import React, { Fragment, useState } from 'react';
+import React, { Fragment, useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@clerk/clerk-expo';
@@ -29,13 +29,17 @@ function Intro() {
   const [stap, setStap] = useState(0);
   const [bezig, setBezig] = useState(false);
   const [fout, setFout] = useState<string | null>(null);
+  // Eenmaal getoond = gezien op dit toestel, ook als de app halverwege sluit.
+  useEffect(() => { void bevestigIntroLokaal(introScope(orgId, userId)); }, [orgId, userId]);
   const klaar = async (overgeslagen: boolean) => {
     setBezig(true); setFout(null);
     try {
-      const resultaat = await verstuur('intro', { overgeslagen });
-      if (resultaat.status === 'conflict') { setFout(resultaat.fout ?? 'Voorkeur opslaan mislukt.'); return; }
-      if (resultaat.status === 'verzonden') bevestigIntroLokaal(introScope(orgId, userId));
-      router.replace('/(tabs)');
+      await bevestigIntroLokaal(introScope(orgId, userId));
+      // De servermarkering loopt via de wachtrij; ook als die nog wacht of faalt
+      // komt de intro niet terug (lokaal blijvend bevestigd).
+      await verstuur('intro', { overgeslagen }).catch(() => undefined);
+      // Vanuit Profiel ligt de tabs-stack er al onder: terug, geen tweede instantie.
+      if (router.canGoBack()) router.back(); else router.replace('/(tabs)');
     } catch (error) { setFout(error instanceof Error ? error.message : 'Opslaan mislukt.'); }
     finally { setBezig(false); }
   };

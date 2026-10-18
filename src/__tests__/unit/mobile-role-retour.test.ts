@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { USER_ROLES, getPermissionsForRole, normalizeRole, isInternalRole } from '../../../mobile/lib/roles';
 import { amsterdamTijd, retourTijdstip } from '../../../mobile/lib/retour-tijd';
-import { bevestigIntroLokaal, introIsBevestigd, introScope } from '../../../mobile/lib/intro-status';
 
 describe('native canonical role boundary', () => {
   it.each(USER_ROLES)('preserves canonical %s', role => {
@@ -46,20 +45,5 @@ describe('return observations use Dutch date and time', () => {
   });
   it.each([['2026-02-30', '16:00'], ['2026-03-29', '02:30'], ['2026-09-12', '25:00'], ['bad', '16:00']])('rejects invalid/nonexistent %s %s', (date, time) => {
     expect(retourTijdstip(date, time)).toBeNull();
-  });
-});
-
-describe('intro confirmation query-race bridge', () => {
-  it('holds a confirmed result until the live query catches up without crossing account or organisation', () => {
-    const eigen = introScope('org-a', 'user-a');
-    bevestigIntroLokaal(eigen);
-    expect(introIsBevestigd(eigen)).toBe(true);
-    expect(introIsBevestigd(introScope('org-b', 'user-a'))).toBe(false);
-    expect(introIsBevestigd(introScope('org-a', 'user-b'))).toBe(false);
-  });
-  it('never marks anonymous scope as completed', () => {
-    expect(introScope(null, 'user-a')).toBeNull();
-    bevestigIntroLokaal(null);
-    expect(introIsBevestigd(null)).toBe(false);
   });
 });

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { useCurrentUser } from '../../hooks/use-current-user';
 import { isInternalRole } from '../../lib/roles';
@@ -5,7 +6,7 @@ import { GeenToegang } from '../../components/GeenToegang';
 import { Redirect, Tabs } from 'expo-router';
 import { useQuery } from 'convex/react';
 import { useAuth } from '@clerk/clerk-expo';
-import { introIsBevestigd, introScope } from '../../lib/intro-status';
+import { bevestigIntroLokaal, introScope, moetIntroTonen, useIntroLokaalGezien } from '../../lib/intro-status';
 import { api } from '../../convex/_generated/api';
 import { useVeldCache } from '../../hooks/use-veld-cache';
 import { useVeldOpdracht } from '../../hooks/use-veld-opdracht';
@@ -23,8 +24,13 @@ function MedewerkerTabs() {
   const liveIntro = useQuery(api.appVoorkeuren.getIntro, {});
   const { data: intro } = useVeldCache('intro', liveIntro);
   const { wachtrij } = useVeldOpdracht();
-  const introBewaard = wachtrij.some(opdracht => opdracht.type === 'intro' && opdracht.status !== 'conflict');
-  if (intro?.gezien === false && !introBewaard && !introIsBevestigd(introScope(orgId, userId))) return <Redirect href="/werk/intro" />;
+  const scope = introScope(orgId, userId);
+  const lokaalGezien = useIntroLokaalGezien(scope);
+  // Server weet het al (rij of eerdere activiteit): ook lokaal vastleggen, zodat
+  // een offline start zonder cache de intro niet alsnog toont.
+  useEffect(() => { if (intro?.gezien === true && lokaalGezien === false) void bevestigIntroLokaal(scope); }, [intro?.gezien, lokaalGezien, scope]);
+  const inWachtrij = wachtrij.some(opdracht => opdracht.type === 'intro' && opdracht.status !== 'conflict');
+  if (moetIntroTonen({ serverGezien: intro?.gezien, inWachtrij, lokaalGezien })) return <Redirect href="/werk/intro" />;
   return (
     <Tabs
       tabBar={(props) => <FloatingTabBar {...props} />}
