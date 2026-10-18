@@ -1,4 +1,4 @@
-import { vereisProjectUrenViaId } from "./lib/projectUrenBron";
+import { projectUrenVoorOrg } from "./lib/projectUrenBron";
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireOrg, requireOrgId } from "./auth";
@@ -368,18 +368,9 @@ export const getTeamPrestaties = query({
     const validMedewerkers = medewerkers.filter((m) => m !== null);
     const activeMedewerkers = validMedewerkers.filter((m) => m.isActief);
 
-    // Haal alle projecten op voor performance berekeningen
-    const projecten = await ctx.db
-      .query("projecten")
-      .withIndex("by_org", (q) => q.eq("orgId", orgId))
-      .collect();
-
-    // Haal alle urenregistraties op
-    const alleUrenRegistraties: Awaited<ReturnType<typeof vereisProjectUrenViaId>> = [];
-    for (const project of projecten) {
-      const registraties = await vereisProjectUrenViaId(ctx, project._id);
-      alleUrenRegistraties.push(...registraties);
-    }
+    // Eén scan per grootboek; conflictprojecten tellen niet mee en worden gemeld.
+    const urenScan = await projectUrenVoorOrg(ctx, orgId);
+    const alleUrenRegistraties = urenScan.registraties;
 
     // Bereken team statistieken
     let totaalUren = 0;
@@ -448,6 +439,7 @@ export const getTeamPrestaties = query({
         urenPerLid,
         teamSpecialisaties,
       },
+      urenBronConflicten: urenScan.conflicten.map((c) => ({ projectId: c.projectId, naam: c.naam })),
     };
   },
 });
@@ -465,17 +457,9 @@ export const getAllTeamsPrestaties = query({
 
     const activeTeams = teams.filter((t) => t.isActief);
 
-    // Haal projecten en uren voor context
-    const projecten = await ctx.db
-      .query("projecten")
-      .withIndex("by_org", (q) => q.eq("orgId", orgId))
-      .collect();
-
-    const alleUrenRegistraties: Awaited<ReturnType<typeof vereisProjectUrenViaId>> = [];
-    for (const project of projecten) {
-      const registraties = await vereisProjectUrenViaId(ctx, project._id);
-      alleUrenRegistraties.push(...registraties);
-    }
+    // Eén scan per grootboek; conflictprojecten tellen niet mee en worden gemeld.
+    const urenScan = await projectUrenVoorOrg(ctx, orgId);
+    const alleUrenRegistraties = urenScan.registraties;
 
     // Bereken statistieken per team
     const teamStats = await Promise.all(
@@ -510,6 +494,7 @@ export const getAllTeamsPrestaties = query({
       teams: teamStats,
       totaalTeams: activeTeams.length,
       totaalMedewerkers: teamStats.reduce((sum, t) => sum + t.aantalLeden, 0),
+      urenBronConflicten: urenScan.conflicten.map((c) => ({ projectId: c.projectId, naam: c.naam })),
     };
   },
 });

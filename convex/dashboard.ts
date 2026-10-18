@@ -1,4 +1,4 @@
-import { projectUrenBron } from "./lib/projectUrenBron";
+import { projectUrenBron, projectUrenVoorOrg } from "./lib/projectUrenBron";
 /**
  * Consolidated Admin Dashboard Query
  *
@@ -193,9 +193,6 @@ export const getAdminDashboardData = query({
       }
     }
 
-    const projectUren = await Promise.all(allProjects.map(p => projectUrenBron(ctx, p)));
-    const urenBronnen = new Map(allProjects.map((p, i) => [p._id, projectUren[i]]));
-    const urenBronConflicten = allProjects.filter((_, i) => projectUren[i].status === "conflict").map(p => ({ projectId: p._id, naam: p.naam }));
 
     // === ACTIVE PROJECTS WITH PROGRESS ===
     // Pre-build offerte map for O(1) klant lookups (no N+1)
@@ -207,6 +204,22 @@ export const getAdminDashboardData = query({
 
     const projectIds = activeProjectsRaw.map((p) => p._id);
     const offerteIdsForProjects = activeProjectsRaw.map((p) => p.offerteId);
+
+    // Uren: geen N+1 over de hele projectentabel meer. De maand-KPI komt uit één
+    // begrensde scan per grootboek; alleen de (max. 5) actieve projecten hebben
+    // hun all-time-totaal nodig voor de voortgangsbalk.
+    const [maandUren, actieveUren] = await Promise.all([
+      projectUrenVoorOrg(ctx, orgId, { vanaf: monthStartStr, projecten: allProjects }),
+      Promise.all(activeProjectsRaw.map((p) => projectUrenBron(ctx, p))),
+    ]);
+    const urenBronnen = new Map(activeProjectsRaw.map((p, i) => [p._id, actieveUren[i]]));
+    const conflictIds = new Set<string>(maandUren.conflicten.map((c) => c.projectId));
+    const urenBronConflicten = [
+      ...maandUren.conflicten.map((c) => ({ projectId: c.projectId, naam: c.naam })),
+      ...activeProjectsRaw
+        .filter((p, i) => actieveUren[i].status === "conflict" && !conflictIds.has(p._id))
+        .map((p) => ({ projectId: p._id, naam: p.naam })),
+    ];
 
     // Batch fetch voorcalculaties and uren for active projects in parallel
     const [voorcalculatiesByProject, voorcalculatiesByOfferte, urenByProject] =
@@ -335,7 +348,7 @@ export const getAdminDashboardData = query({
     };
 
     // Uren this month
-    const urenDezeMaand = urenBronConflicten.length ? null : projectUren.flatMap(p => p.regels).filter(r => r.datum >= monthStartStr).reduce((n, r) => n + r.minuten / 60, 0);
+    const urenDezeMaand = maandUren.conflicten.length ? null : maandUren.registraties.reduce((n, r) => n + r.uren, 0);
 
     // Quarter comparison
     // §5.3b: concepten tellen niet mee in de kwartaal-KPI's van de pipeline.

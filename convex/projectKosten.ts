@@ -1,4 +1,4 @@
-import { vereisProjectUrenViaId } from "./lib/projectUrenBron";
+import { projectUrenRegistraties, vereisProjectUrenViaId, type ProjectUrenRegistratie } from "./lib/projectUrenBron";
 /**
  * Project Kosten Functions - Real-time project cost tracking
  *
@@ -60,6 +60,11 @@ async function instellingenVanOrg(
     .unique();
 }
 
+/** "8,58" — max. 2 decimalen, Nederlandse notatie (zelfde locale als portaal.ts). */
+export function formatUrenOmschrijving(uren: number): string {
+  return uren.toLocaleString("nl-NL", { maximumFractionDigits: 2 });
+}
+
 /**
  * Helper: Calculate arbeidskosten from urenRegistraties.
  */
@@ -68,9 +73,11 @@ async function calculateArbeidskosten(
   projectId: Id<"projecten">,
   orgId: Id<"organisaties">,
   startDate?: string,
-  endDate?: string
+  endDate?: string,
+  /** Al (niet-gooiend) opgehaalde registraties; anders gooit een urenbronconflict. */
+  voorgeladen?: ProjectUrenRegistratie[]
 ) {
-  const urenRegistraties = await vereisProjectUrenViaId(ctx, projectId);
+  const urenRegistraties = voorgeladen ?? await vereisProjectUrenViaId(ctx, projectId);
 
   // Get instellingen for uurtarief
   const instellingen = await instellingenVanOrg(ctx, orgId);
@@ -103,7 +110,7 @@ async function calculateArbeidskosten(
       id: u._id.toString(),
       type: "arbeid" as const,
       datum: u.datum,
-      omschrijving: `${u.medewerker} - ${u.uren} uur`,
+      omschrijving: `${u.medewerker} - ${formatUrenOmschrijving(u.uren)} uur`,
       scope: u.scope || "algemeen",
       hoeveelheid: u.uren,
       eenheid: "uur",
@@ -836,7 +843,10 @@ export const getBudgetVergelijking = query({
   },
   handler: async (ctx, args) => {
     const orgId = await requireOrgId(ctx);
-    const project = await getOwnedProject(ctx, args.projectId);
+    // Draait in de gedeelde ProjectKop op elke projectpagina: een verwijderd of
+    // vreemd project geeft null (geen informatie, geen error-boundary).
+    const project = await ctx.db.get(args.projectId);
+    if (!project || project.orgId?.toString() !== orgId.toString()) return null;
 
     // Get voorcalculatie - first try by offerte, then by project
     let voorcalculatie = await voorcalculatieVanOfferte(ctx, project.offerteId);
@@ -857,9 +867,17 @@ export const getBudgetVergelijking = query({
       };
     }
 
+    // Urenbronconflict: niet gooien (dan crasht elke projectpagina, ook
+    // /nacalculatie waar de bron juist gekozen wordt), maar dezelfde
+    // error/data-vorm als hierboven.
+    const urenSelectie = await projectUrenRegistraties(ctx, project);
+    if (urenSelectie.status === "conflict") {
+      return { error: "URENBRON_CONFLICT", data: null };
+    }
+
     // Calculate actual costs
     const [arbeidskosten, machinekosten, materiaalkosten] = await Promise.all([
-      calculateArbeidskosten(ctx, args.projectId, orgId),
+      calculateArbeidskosten(ctx, args.projectId, orgId, undefined, undefined, urenSelectie.registraties),
       calculateMachinekosten(ctx, args.projectId),
       calculateMateriaalkosten(ctx, args.projectId),
     ]);
@@ -1264,8 +1282,11 @@ export const getBudgetStatus = query({
 
     if (budget <= 0) return { budget: 0, werkelijkeKosten: 0, percentage: 0, drempel80: false, drempel100: false };
 
-    // Bereken werkelijke kosten uit uren + machines + projectKosten tabel
-    const uren = await vereisProjectUrenViaId(ctx, args.projectId);
+    // Bereken werkelijke kosten uit uren + machines + projectKosten tabel.
+    // Urenbronconflict → null (zelfde neutrale staat als "geen budget"), geen throw.
+    const urenSelectie = await projectUrenRegistraties(ctx, project);
+    if (urenSelectie.status === "conflict") return null;
+    const uren = urenSelectie.registraties;
 
     const machines = await ctx.db
       .query("machineGebruik")
@@ -1328,8 +1349,11 @@ export const checkBudgetThreshold = mutation({
       : 0;
     if (budget <= 0) return;
 
-    // Bereken werkelijke kosten
-    const uren = await vereisProjectUrenViaId(ctx, args.projectId);
+    // Bereken werkelijke kosten. Bij een urenbronconflict is het totaal onbekend:
+    // geen melding, en vooral geen fout in de aanroepende flow.
+    const urenSelectie = await projectUrenRegistraties(ctx, project);
+    if (urenSelectie.status === "conflict") return;
+    const uren = urenSelectie.registraties;
     const machines = await ctx.db
       .query("machineGebruik")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))

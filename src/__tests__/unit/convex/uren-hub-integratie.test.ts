@@ -186,7 +186,7 @@ describe("F13 veldklanten en echte ongeplande uitvoering", () => {
   });
   it("weigert vreemde of gearchiveerde klanten zonder writes", async () => {
     const { nieuweKlant: _nieuwe, ...args } = invoer();
-    for (const fields of [{ orgId: foreignOrg }, { orgId: org, isArchived: true }]) {
+    for (const fields of [{ orgId: foreignOrg }, { orgId: org, isArchived: true }, { orgId: org, pipelineStatus: "lead" }]) {
       const klantId = db.insertSync("klanten", { naam: "Niet kiesbaar", ...fields });
       await expect(run(maakUitvoeringsklus, { ...args, klantId })).rejects.toThrow("Klant niet gevonden");
     }
@@ -215,6 +215,7 @@ describe("F13 veldklanten en echte ongeplande uitvoering", () => {
     const z = db.insertSync("klanten", { orgId: org, naam: "Z gepland", adres: "Tuin 1", postcode: "", plaats: "Breda" });
     db.insertSync("klanten", { orgId: foreignOrg, naam: "Vreemd" });
     db.insertSync("klanten", { orgId: org, naam: "Archief", isArchived: true });
+    db.insertSync("klanten", { orgId: org, naam: "B lead", adres: "", postcode: "", plaats: "Breda", pipelineStatus: "lead" });
     const team = db.insertSync("teams", { orgId: org, leden: [medewerker], isActief: true });
     db.insertSync("projecten", { orgId: org, klantId: a, naam: "Niet voor mij", geplandeStart: datum, teamId: team, toegewezenMedewerkerIds: [] });
     const werkitem = db.insertSync("projecten", { orgId: org, klantId: z, naam: "Mijn taak", geplandeStart: datum, toegewezenMedewerkerIds: [medewerker] });
@@ -229,7 +230,7 @@ describe("F13 veldklanten en echte ongeplande uitvoering", () => {
 });
 
 describe("Entiteitexports respecteren de projecturenbron", () => {
-  it("exporteert gekozen segmenten in project- en medewerkerstatistiek en blokkeert bronconflict", async () => {
+  it("exporteert gekozen segmenten in project- en medewerkerstatistiek en markeert bronconflict zonder te crashen", async () => {
     const klantId = db.insertSync("klanten", { orgId: org, naam: "Losse klant", plaats: "Breda" });
     const project = db.insertSync("projecten", { orgId: org, klantId, naam: "Werk", urenBron: "segmenten", status: "in_uitvoering" });
     db.insertSync("urenRegistraties", { orgId: org, projectId: project, medewerker: "Test Worker", medewerkerId: medewerker, datum, uren: 9 });
@@ -240,8 +241,12 @@ describe("Entiteitexports respecteren de projecturenbron", () => {
     expect(projects[0].klantNaam).toBe("Losse klant");
     expect(people[0].totaalUren).toBe(2);
     await db.patch(project, { urenBron: undefined });
-    await expect(run(exportProjecten, {}, "directie")).rejects.toThrow("Kies de urenbron");
-    await expect(run(exportMedewerkers, {}, "directie")).rejects.toThrow("Kies de urenbron");
+    // Eén conflictproject mag de projectenlijst (die deze export bij laden draait) niet slopen:
+    // het totaal van dát project is onbekend (null), nooit 0 of de som van beide bronnen.
+    const metConflict = await run<{ geregistreerdeUren: number | null; urenBronConflict: boolean }[]>(exportProjecten, {}, "directie");
+    expect(metConflict[0]).toMatchObject({ geregistreerdeUren: null, urenBronConflict: true });
+    const mensenMetConflict = await run<{ totaalUren: number | null; urenBronConflict: boolean }[]>(exportMedewerkers, {}, "directie");
+    expect(mensenMetConflict[0]).toMatchObject({ totaalUren: null, urenBronConflict: true });
   });
 });
 

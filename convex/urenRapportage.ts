@@ -1,4 +1,4 @@
-import { projectUrenBron } from "./lib/projectUrenBron";
+import { projectUrenBron, projectUrenVoorOrg } from "./lib/projectUrenBron";
 import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { veldContext } from "./urenSegmenten";
@@ -109,12 +109,8 @@ export const getProjectUrenConflicten = query({
   handler: async ctx => {
     const veld = await veldContext(ctx);
     if (veld.rol !== "kantoor") throw new ConvexError("Alleen kantoor kan urenbronnen beheren");
-    const projecten = await ctx.db.query("projecten").withIndex("by_org", q => q.eq("orgId", veld.orgId)).collect();
-    const resultaten = await Promise.all(projecten.filter(p => !p.urenBron).map(async p => {
-      const resultaat = await projectUrenBron(ctx, p);
-      return resultaat.status === "conflict" ? { projectId: p._id, naam: p.naam, legacyMinuten: resultaat.legacyMinuten, segmentMinuten: resultaat.segmentMinuten } : null;
-    }));
-    return resultaten.filter((r): r is NonNullable<typeof r> => r !== null);
+    // Eén scan per grootboek i.p.v. twee queries per project; zelfde beslisregel.
+    return (await projectUrenVoorOrg(ctx, veld.orgId)).conflicten;
   },
 });
 

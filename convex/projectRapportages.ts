@@ -1,4 +1,4 @@
-import { vereisProjectUrenViaId } from "./lib/projectUrenBron";
+import { projectUrenRegistraties, projectUrenVoorOrg, vereisProjectUrenViaId } from "./lib/projectUrenBron";
 /**
  * Project Rapportages - Project reporting and analytics
  *
@@ -467,11 +467,8 @@ export const getProjectVoortgang = query({
           voorcalculatieVanOfferte(ctx, id)
         ),
       ]),
-      Promise.all(
-        projectIds.map((id) =>
-          vereisProjectUrenViaId(ctx, id)
-        )
-      ),
+      // Niet-gooiend: één conflictproject mag de hele voortgangslijst niet slopen.
+      Promise.all(projecten.map((p) => projectUrenRegistraties(ctx, p))),
       // offerteId kan ontbreken bij losse werkitems; positie behouden met null
       Promise.all(offerteIds.map((id) => (id ? ctx.db.get(id) : null))),
       Promise.all(
@@ -495,9 +492,11 @@ export const getProjectVoortgang = query({
       }
     });
 
-    const urenByProject = new Map<string, typeof urenRegistratiesResults[0]>();
+    const urenByProject = new Map<string, typeof urenRegistratiesResults[0]["registraties"]>();
+    const urenBronConflictIds = new Set<string>();
     urenRegistratiesResults.forEach((uren, idx) => {
-      urenByProject.set(projectIds[idx].toString(), uren);
+      if (uren.status === "conflict") urenBronConflictIds.add(projectIds[idx].toString());
+      urenByProject.set(projectIds[idx].toString(), uren.registraties);
     });
 
     const offerteById = new Map<string, NonNullable<typeof offertesResults[0]>>();
@@ -551,6 +550,7 @@ export const getProjectVoortgang = query({
       geplandeStart: string | null;
       geplandeEind: string | null;
       teamNaam: string | null;
+      urenBronConflict: boolean;
     };
 
     const projectVoortgangList: ProjectVoortgang[] = [];
@@ -634,6 +634,8 @@ export const getProjectVoortgang = query({
         geplandeStart: project.geplandeStart ?? null,
         geplandeEind: project.geplandeEind ?? project.geplandeStart ?? null,
         teamNaam: project.teamId ? (teamNaamById.get(project.teamId.toString()) ?? null) : null,
+        /** Beide urenbronnen zonder keuze: gewerktUren is onbekend (hier 0). */
+        urenBronConflict: urenBronConflictIds.has(project._id.toString()),
       });
     }
 
@@ -745,14 +747,11 @@ export const getProjectTimeline = query({
       });
     }
 
-    const projectIds = projecten.map((p) => p._id);
-
-    // Get all urenRegistraties for these projects
-    const urenResults = await Promise.all(
-      projectIds.map((id) =>
-        vereisProjectUrenViaId(ctx, id)
-      )
-    );
+    // Eén project: zichtbaar falen bij een urenbronconflict. Org-breed: één scan
+    // per grootboek; conflictprojecten tellen niet mee.
+    const urenResults = args.projectId
+      ? [await vereisProjectUrenViaId(ctx, args.projectId)]
+      : [(await projectUrenVoorOrg(ctx, orgId, { projecten })).registraties];
 
 
     // Aggregate by date

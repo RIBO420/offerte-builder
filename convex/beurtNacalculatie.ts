@@ -1,4 +1,4 @@
-import { projectUrenBron, vereisProjectUrenRegistraties } from "./lib/projectUrenBron";
+import { selecteerProjectUren } from "./lib/projectUrenBron";
 /**
  * Beurt-nacalculatie — Convex-functies (PRD §3.4, slotstuk fase 2).
  *
@@ -73,6 +73,18 @@ async function suggestieDrempel(
   );
 }
 
+/**
+ * Beurten die (nog) niet in de nacalculatie kunnen: een onopgelost
+ * urenbronconflict, of gekozen historische uren zonder activiteitstype (die
+ * tellen wel bij projectkosten, maar niet voor werk/reis/BES-normen).
+ */
+export interface BeurtOvergeslagen {
+  werkitemId: Id<"projecten">;
+  naam: string;
+  datum: string | null;
+  reden: "urenbron_conflict" | "historische_uren_zonder_activiteitstype";
+}
+
 export interface BeurtNacalcRij {
   werkitemId: Id<"projecten">;
   naam: string;
@@ -97,6 +109,7 @@ async function verzamelBeurtNacalculatie(
 ): Promise<{
   rijen: BeurtNacalcRij[];
   bijdragenPerBeurt: BouwsteenBijdrage[][];
+  overgeslagen: BeurtOvergeslagen[];
 }> {
   // Uitgevoerde/gefactureerde/deels uitgevoerde beurten van deze organisatie.
   // Belt & braces bovenop de indexquery: type/status/scope expliciet, en
@@ -137,20 +150,34 @@ async function verzamelBeurtNacalculatie(
 
   const rijen: BeurtNacalcRij[] = [];
   const bijdragenPerBeurt: BouwsteenBijdrage[][] = [];
+  const overgeslagen: BeurtOvergeslagen[] = [];
 
   for (const beurt of relevant) {
-    const urenSelectie = await projectUrenBron(ctx, beurt);
-    if (urenSelectie.status === "conflict") await vereisProjectUrenRegistraties(ctx, beurt);
-    if (urenSelectie.bron === "legacy" && (urenSelectie.minuten ?? 0) > 0) {
-      throw new ConvexError({ code: "URENBRON_CATEGORIEEN_ONTBREKEN", projectId: beurt._id, projectNaam: beurt.naam,
-        message: `De gekozen historische uren van ${beurt.naam} hebben geen activiteitstype. Ze tellen mee bij projectkosten, maar kunnen niet worden gebruikt om werk-, reis- en BES-normen te leren.` });
+    // Werkelijke tijd uit bevestigde/ingediende segmenten (§2.6); de bronkeuze
+    // gebruikt dezelfde pure regel als elk ander urenoverzicht. Nooit gooien:
+    // één beurt mag de hele lijst (en de normuur-suggesties) niet blokkeren.
+    const [legacyRijen, segmenten] = await Promise.all([
+      ctx.db
+        .query("urenRegistraties")
+        .withIndex("by_project", (q) => q.eq("projectId", beurt._id))
+        .collect(),
+      ctx.db
+        .query("urenSegmenten")
+        .withIndex("by_werkitem", (q) => q.eq("werkitemId", beurt._id))
+        .collect(),
+    ]);
+    const urenSelectie = selecteerProjectUren(beurt, legacyRijen, segmenten);
+    const beurtDatum = beurt.geplandeStart ?? beurt.voorzieneDatum ?? null;
+    if (urenSelectie.status === "conflict") {
+      overgeslagen.push({ werkitemId: beurt._id, naam: beurt.naam, datum: beurtDatum, reden: "urenbron_conflict" });
+      continue;
     }
-    if (urenSelectie.bron === "legacy") continue;
-    // Werkelijke tijd uit bevestigde/ingediende segmenten (§2.6)
-    const segmenten = await ctx.db
-      .query("urenSegmenten")
-      .withIndex("by_werkitem", (q) => q.eq("werkitemId", beurt._id))
-      .collect();
+    // Alleen overslaan als er écht historische uren gekozen zijn; een beurt
+    // zonder enige uren valt hieronder vanzelf af ("niets gelogd").
+    if (urenSelectie.bron === "legacy" && urenSelectie.legacyAantal > 0) {
+      overgeslagen.push({ werkitemId: beurt._id, naam: beurt.naam, datum: beurtDatum, reden: "historische_uren_zonder_activiteitstype" });
+      continue;
+    }
     // by_werkitem is bedrijfsoverstijgend → org-postfilter. Dit stond op het
     // legacy userId-bedrijfseigenaarsveld; de segmenten dragen sinds de
     // uren-sweep (6ea8d38) hun eigen orgId.
@@ -243,7 +270,8 @@ async function verzamelBeurtNacalculatie(
 
   // Nieuwste eerst — consistent met de andere rapportagelijsten
   rijen.sort((a, b) => (b.datum ?? "").localeCompare(a.datum ?? ""));
-  return { rijen, bijdragenPerBeurt };
+  overgeslagen.sort((a, b) => (b.datum ?? "").localeCompare(a.datum ?? ""));
+  return { rijen, bijdragenPerBeurt, overgeslagen };
 }
 
 /** Suggestielijst opbouwen uit de aggregatie (gedeeld door beide queries). */
@@ -305,7 +333,7 @@ export const getBeurtNacalculatie = query({
     const orgId = await requireOrgId(ctx);
     assertGeldigePeriode(args.vanDatum, args.totDatum);
 
-    const { rijen, bijdragenPerBeurt } = await verzamelBeurtNacalculatie(
+    const { rijen, bijdragenPerBeurt, overgeslagen } = await verzamelBeurtNacalculatie(
       ctx,
       orgId,
       args
@@ -317,7 +345,7 @@ export const getBeurtNacalculatie = query({
       bijdragenPerBeurt,
       drempel
     );
-    return { beurten: rijen, suggesties, drempel };
+    return { beurten: rijen, overgeslagen, suggesties, drempel };
   },
 });
 

@@ -22,7 +22,7 @@ import { adresRegel } from "./lib/adres";
 import { klantVeld } from "./lib/offerteKlant";
 import { requireAdmin, requireKantoor } from "./roles";
 import { voorcalculatieVanProject, voorcalculatieVanOfferte } from "./lib/voorcalculatieLookup";
-import { vereisProjectUrenRegistraties } from "./lib/projectUrenBron";
+import { medewerkerInConflict, projectUrenVoorOrg, registratieVanMedewerker } from "./lib/projectUrenBron";
 
 // ============================================
 // Status and Type Labels
@@ -190,6 +190,14 @@ export const exportProjecten = query({
     // Filter out deleted and archived projects
     const activeProjecten = projecten.filter((p) => !p.deletedAt && !p.isArchived);
 
+    // Eén scan per grootboek voor alle projecten. Een urenbronconflict maakt de
+    // uren van dát project onbekend (null), niet de hele export onbruikbaar.
+    const urenScan = await projectUrenVoorOrg(ctx, orgId, { projecten: activeProjecten });
+    const urenPerProject = new Map<string, number>();
+    for (const r of urenScan.registraties) {
+      urenPerProject.set(r.projectId, (urenPerProject.get(r.projectId) ?? 0) + r.uren);
+    }
+
     // Get related offerte info
     const result = await Promise.all(
       activeProjecten.map(async (project) => {
@@ -207,13 +215,8 @@ export const exportProjecten = query({
           voorcalculatie = await voorcalculatieVanOfferte(ctx, project.offerteId);
         }
 
-        // Get totaal geregistreerde uren
-        const urenRegistraties = await vereisProjectUrenRegistraties(ctx, project);
-
-        const totaalGeregistreerdeUren = urenRegistraties.reduce(
-          (sum, u) => sum + u.uren,
-          0
-        );
+        const urenBronConflict = urenScan.perProject.get(project._id)?.status === "conflict";
+        const totaalGeregistreerdeUren = urenPerProject.get(project._id) ?? 0;
 
         return {
           projectNaam: project.naam,
@@ -223,7 +226,8 @@ export const exportProjecten = query({
           klantPlaats: offerte?.klant?.plaats ?? eigenKlant?.plaats ?? "",
           offerteBedrag: offerte?.totalen?.totaalInclBtw ?? 0,
           begroteUren: voorcalculatie?.normUrenTotaal ?? 0,
-          geregistreerdeUren: Math.round(totaalGeregistreerdeUren * 10) / 10,
+          geregistreerdeUren: urenBronConflict ? null : Math.round(totaalGeregistreerdeUren * 10) / 10,
+          urenBronConflict,
           geschatteDagen: voorcalculatie?.geschatteDagen ?? 0,
           teamGrootte: voorcalculatie?.teamGrootte ?? 0,
           aangemaakt: project.createdAt,
@@ -353,17 +357,14 @@ export const exportMedewerkers = query({
     // ÁLLE bedrijven, waarna alleen op naam werd gematcht. Twee bedrijven met
     // een "Jan de Vries" telden elkaars uren mee. Nu via de projecten van deze
     // organisatie, dezelfde route als exportUren hierboven.
-    const projecten = await ctx.db
-      .query("projecten")
-      .withIndex("by_org", (q) => q.eq("orgId", orgId))
-      .collect();
-    const urenArrays = await Promise.all(projecten.map(project => vereisProjectUrenRegistraties(ctx, project)));
-    const urenRegistraties = urenArrays.flat();
+    // Eén scan per grootboek (by_org_datum). Wie uren heeft op een project met
+    // een onopgelost urenbronconflict krijgt totaalUren null i.p.v. een te laag getal.
+    const urenScan = await projectUrenVoorOrg(ctx, orgId);
+    const urenRegistraties = urenScan.registraties;
 
     return medewerkers.map((medewerker) => {
-      const medewerkerUren = urenRegistraties.filter(
-        (ur) => ur.medewerkerId ? ur.medewerkerId === medewerker._id : ur.medewerker === medewerker.naam
-      );
+      const medewerkerUren = urenRegistraties.filter((ur) => registratieVanMedewerker(ur, medewerker));
+      const urenBronConflict = medewerkerInConflict(urenScan, medewerker);
       const totaalUren = medewerkerUren.reduce((sum, ur) => sum + ur.uren, 0);
 
       return {
@@ -374,8 +375,9 @@ export const exportMedewerkers = query({
         contractType: medewerker.contractType ?? "",
         uurtarief: medewerker.uurtarief ?? 0,
         isActief: medewerker.isActief ? "Ja" : "Nee",
-        totaalUren: Math.round(totaalUren * 10) / 10,
+        totaalUren: urenBronConflict ? null : Math.round(totaalUren * 10) / 10,
         aantalRegistraties: medewerkerUren.length,
+        urenBronConflict,
         aangemaakt: medewerker.createdAt,
         bijgewerkt: medewerker.updatedAt,
       };

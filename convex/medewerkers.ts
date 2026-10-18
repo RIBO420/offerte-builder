@@ -1,4 +1,4 @@
-import { vereisProjectUrenRegistraties, vereisProjectUrenViaId } from "./lib/projectUrenBron";
+import { medewerkerInConflict, projectUrenUitRijen, projectUrenVoorOrg, registratieVanMedewerker, type ProjectUrenRegistratie } from "./lib/projectUrenBron";
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { requireOrgContext } from "./auth";
@@ -658,9 +658,18 @@ export const getWithStats = query({
       if (!isOwnProfile) return null;
     }
 
-    const eigenProjecten = await ctx.db.query("projecten").withIndex("by_org", q => q.eq("orgId", orgId)).collect();
-    const alleUren = (await Promise.all(eigenProjecten.map(p => vereisProjectUrenRegistraties(ctx, p)))).flat();
-    const medewerkerUren = alleUren.filter(r => r.medewerkerId ? r.medewerkerId === medewerker._id : r.medewerker === medewerker.naam);
+    // Alleen de rijen van déze medewerker (via ID, naam als legacy-terugval),
+    // niet langer twee queries per project over de hele organisatie. De bron
+    // per geraakt project volgt dezelfde regel; conflictprojecten tellen niet
+    // mee en worden gemeld i.p.v. het scherm te laten crashen.
+    const [legacyViaId, legacyViaNaam, segmenten] = await Promise.all([
+      ctx.db.query("urenRegistraties").withIndex("by_medewerker_id", q => q.eq("medewerkerId", medewerker._id)).collect(),
+      ctx.db.query("urenRegistraties").withIndex("by_medewerker", q => q.eq("medewerker", medewerker.naam)).collect(),
+      ctx.db.query("urenSegmenten").withIndex("by_medewerker_datum", q => q.eq("medewerkerId", medewerker._id)).collect(),
+    ]);
+    const legacyRijen = [...legacyViaId, ...legacyViaNaam.filter(r => !r.medewerkerId)].filter(r => r.orgId === orgId);
+    const urenScan = await projectUrenUitRijen(ctx, orgId, legacyRijen, segmenten.filter(s => s.orgId === orgId), { volledig: false });
+    const medewerkerUren = urenScan.registraties.filter(r => registratieVanMedewerker(r, medewerker));
 
     // Bereken totaal gewerkte uren
     const totaalUren = medewerkerUren.reduce((sum, ur) => sum + ur.uren, 0);
@@ -694,6 +703,8 @@ export const getWithStats = query({
         gemiddeldeUrenPerRegistratie: medewerkerUren.length > 0
           ? Math.round((totaalUren / medewerkerUren.length) * 100) / 100
           : 0,
+        /** Projecten met beide urenbronnen zonder keuze: hun uren ontbreken hierboven. */
+        urenBronConflicten: urenScan.conflicten.map(c => ({ projectId: c.projectId, naam: c.naam })),
       },
     };
   },
@@ -742,8 +753,10 @@ export const getMedewerkersMetPrestaties = query({
       ? new Date(args.periode.tot).toISOString().slice(0, 10)
       : null;
 
-    const urenRegistraties = (await Promise.all(projecten.map(p => vereisProjectUrenRegistraties(ctx, p)))).flat().filter(r =>
-      (!vanDatum || r.datum >= vanDatum) && (!totDatum || r.datum <= totDatum));
+    // Eén scan per grootboek binnen de periode; conflictprojecten tellen niet
+    // mee en de betrokken medewerkers krijgen `urenBronConflict: true`.
+    const urenScan = await projectUrenVoorOrg(ctx, orgId, { vanaf: vanDatum ?? undefined, tot: totDatum ?? undefined, projecten });
+    const urenRegistraties = urenScan.registraties;
 
     // Voorcalculaties van DEZE organisatie (audit §2) — voorheen ook een
     // volledige tabelscan over alle tenants.
@@ -801,8 +814,8 @@ export const getMedewerkersMetPrestaties = query({
     // `urenRegistraties` hierboven al op deze organisatie gescoped is; eerder
     // liep hij over de héle tabel en telde hij de uren van een gelijknamige
     // collega bij een andere tenant mee.
-    const urenPerMedewerkerId = new Map<string, Awaited<ReturnType<typeof vereisProjectUrenViaId>>>();
-    const urenPerNaam = new Map<string, Awaited<ReturnType<typeof vereisProjectUrenViaId>>>();
+    const urenPerMedewerkerId = new Map<string, ProjectUrenRegistratie[]>();
+    const urenPerNaam = new Map<string, ProjectUrenRegistratie[]>();
     for (const ur of urenRegistraties) {
       if (ur.medewerkerId) {
         const key = ur.medewerkerId.toString();
@@ -888,6 +901,8 @@ export const getMedewerkersMetPrestaties = query({
           gemiddeldeUrenPerProject: aantalProjecten > 0
             ? Math.round((totaalUren / aantalProjecten) * 100) / 100
             : 0,
+          /** Uren op een project met onopgelost urenbronconflict tellen niet mee. */
+          urenBronConflict: medewerkerInConflict(urenScan, medewerker),
         },
       };
     });

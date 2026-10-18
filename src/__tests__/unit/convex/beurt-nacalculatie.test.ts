@@ -510,3 +510,51 @@ describe("neemNormuurOver", () => {
     }
   });
 });
+
+describe("getBeurtNacalculatie — urenbron (review okt 2026)", () => {
+  function insertLegacy(store: MockConvexStore, orgId: string, projectId: string) {
+    return store.insert("urenRegistraties", {
+      orgId, projectId, datum: "2026-06-01", medewerker: "Jan", uren: 3, bron: "handmatig",
+    });
+  }
+
+  it("gooit niet bij een conflict- of legacybeurt maar meldt ze apart; de rest blijft zichtbaar", async () => {
+    const { ctx, store, userId, orgId } = ctxMetRol("directie");
+    const bouwsteenId = insertBouwsteen(store, orgId);
+    const goed = insertBeurt(store, orgId, userId, bouwsteenId, { naam: "Goed" });
+    insertSegment(store, orgId, userId, goed);
+    const conflict = insertBeurt(store, orgId, userId, bouwsteenId, { naam: "Conflict" });
+    insertSegment(store, orgId, userId, conflict);
+    insertLegacy(store, orgId, conflict);
+    const historisch = insertBeurt(store, orgId, userId, bouwsteenId, { naam: "Historisch" });
+    insertLegacy(store, orgId, historisch);
+
+    const resultaat = (await handler(getBeurtNacalculatie)(ctx, {})) as {
+      beurten: { naam: string }[];
+      overgeslagen: { naam: string; reden: string }[];
+    };
+    expect(resultaat.beurten.map((b) => b.naam)).toEqual(["Goed"]);
+    expect(resultaat.overgeslagen.map((b) => [b.naam, b.reden]).sort()).toEqual([
+      ["Conflict", "urenbron_conflict"],
+      ["Historisch", "historische_uren_zonder_activiteitstype"],
+    ]);
+  });
+
+  it("een expliciet gekozen segmentbron telt gewoon mee; een beurt zonder uren wordt niet als legacy gemeld", async () => {
+    const { ctx, store, userId, orgId } = ctxMetRol("directie");
+    const bouwsteenId = insertBouwsteen(store, orgId);
+    const gekozen = insertBeurt(store, orgId, userId, bouwsteenId, { naam: "Gekozen", urenBron: "segmenten" });
+    insertSegment(store, orgId, userId, gekozen);
+    insertLegacy(store, orgId, gekozen);
+    insertBeurt(store, orgId, userId, bouwsteenId, { naam: "Leeg" });
+
+    const resultaat = (await handler(getBeurtNacalculatie)(ctx, {})) as {
+      beurten: { naam: string; werkelijkeUren: number }[];
+      overgeslagen: unknown[];
+    };
+    expect(resultaat.beurten).toHaveLength(1);
+    expect(resultaat.beurten[0]).toMatchObject({ naam: "Gekozen" });
+    expect(resultaat.beurten[0].werkelijkeUren).toBeCloseTo(2.5);
+    expect(resultaat.overgeslagen).toEqual([]);
+  });
+});

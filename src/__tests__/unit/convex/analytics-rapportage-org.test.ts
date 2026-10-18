@@ -63,7 +63,7 @@ const INDEXEN: Record<string, Record<string, string[]>> = {
   voorraad: { by_org: ["orgId"], by_user: ["userId"] },
   kwaliteitsControles: { by_org: ["orgId"], by_user: ["userId"] },
   medewerkers: { by_org: ["orgId"], by_user: ["userId"] },
-  urenSegmenten: { by_werkitem: ["werkitemId"] },
+  urenSegmenten: { by_werkitem: ["werkitemId"], by_org_datum: ["orgId", "datum"] },
   urenRegistraties: {
     by_datum: ["datum"],
     by_org_datum: ["orgId", "datum"],

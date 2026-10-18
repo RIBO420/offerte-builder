@@ -5,6 +5,7 @@ import { valideerUrenPeriode } from "./lib/urenTotalen";
 import { naamDelenVoorNieuweKlant } from "./lib/klantNaam";
 import { klantUitvoerAdres, adresRegel } from "./lib/adres";
 import { werkitemsVoorMedewerkerDag } from "./lib/bezoekBemanning";
+import { hoortInKlantenLijst } from "./leadsKlantenHelpers";
 
 function datumControle(datum: string) {
   try { valideerUrenPeriode(datum, datum); }
@@ -33,7 +34,7 @@ export const zoek = query({
       ctx.db.query("klanten").withIndex("by_org", q => q.eq("orgId", veld.orgId)).collect(),
       werkitemsVoorMedewerkerDag(ctx.db, veld.orgId, veld.medewerker._id, args.datum),
     ]);
-    const resultaat = klanten.filter(k => !k.isArchived && (!zoekterm || `${k.naam} ${k.adres} ${k.postcode} ${k.plaats}`.toLocaleLowerCase("nl").includes(zoekterm))).map(k => {
+    const resultaat = klanten.filter(k => hoortInKlantenLijst(k) && (!zoekterm || `${k.naam} ${k.adres} ${k.postcode} ${k.plaats}`.toLocaleLowerCase("nl").includes(zoekterm))).map(k => {
       const werkitems = gepland.filter(p => p.klantId === k._id).sort((a, b) => (a.volgordeBinnenDag ?? 9999) - (b.volgordeBinnenDag ?? 9999)).map(p => ({ werkitemId: p._id, naam: p.naam, uitvoeringCategorie: p.uitvoeringCategorie ?? (p.type === "onderhoudsbeurt" ? "onderhoud" as const : null) }));
       return { klantId: k._id, naam: k.naam, adres: adresRegel(klantUitvoerAdres(k)), plaats: klantUitvoerAdres(k).plaats, gepland: werkitems.length > 0, werkitems };
     }).sort((a, b) => Number(b.gepland) - Number(a.gepland) || a.naam.localeCompare(b.naam, "nl") || a.klantId.localeCompare(b.klantId));
@@ -71,7 +72,8 @@ export const maakUitvoeringsklus = mutation({
     const dag = await dagStatusVoor(ctx.db, veld.orgId, veld.medewerker._id, args.datum);
     if (dag?.status === "ingediend") throw new ConvexError("Deze dag is ingediend; laat kantoor de dag eerst heropenen");
     const bestaandeKlant = args.klantId ? await ctx.db.get(args.klantId) : null;
-    if (args.klantId && (!bestaandeKlant || bestaandeKlant.orgId !== veld.orgId || bestaandeKlant.isArchived)) throw new ConvexError("Klant niet gevonden of gearchiveerd");
+    // Zelfde regel als werkbezoek: leads en gearchiveerde klanten zijn niet kiesbaar.
+    if (args.klantId && (!bestaandeKlant || bestaandeKlant.orgId !== veld.orgId || !hoortInKlantenLijst(bestaandeKlant))) throw new ConvexError("Klant niet gevonden of gearchiveerd");
     const nu = Date.now();
     const klantId = bestaandeKlant?._id ?? await ctx.db.insert("klanten", { orgId: veld.orgId, ...nieuweKlant!, ...naamDelenVoorNieuweKlant(nieuweKlant!.naam), createdAt: nu, updatedAt: nu });
     const klantNaam = bestaandeKlant?.naam ?? nieuweKlant!.naam;

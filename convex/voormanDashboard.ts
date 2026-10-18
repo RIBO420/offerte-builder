@@ -1,4 +1,4 @@
-import { projectUrenRegistraties } from "./lib/projectUrenBron";
+import { projectUrenVoorOrg } from "./lib/projectUrenBron";
 /**
  * Voorman Dashboard Queries (SOD-002)
  *
@@ -28,9 +28,9 @@ export const getVoormanStats = query({
     // werden alleen op datum gefilterd — `by_datum` heeft geen tenant-veld, dus
     // het dashboard toonde de planning en uren van ÁLLE bedrijven van die dag.
     // De projecten van deze organisatie zijn de tenant-grens: alleen
-    // planningrijen en urenregistraties die aan een eigen project hangen,
-    // tellen mee. (Niet via `urenRegistraties.by_org_datum`, want `orgId` is
-    // daar optioneel en pre-backfill-rijen zouden stil wegvallen.)
+    // planningrijen die aan een eigen project hangen, tellen mee. Uren komen
+    // via `by_org_datum` (orgId is sinds de org-migratie verplicht op beide
+    // urentabellen) en worden daarna nog op de eigen projecten gefilterd.
     const [dagPlanningRuw, eigenProjecten, allMedewerkers] =
       await Promise.all([
         ctx.db
@@ -53,9 +53,17 @@ export const getVoormanStats = query({
     const dagPlanning = dagPlanningRuw.filter((p) =>
       eigenProjectIds.has(p.projectId.toString())
     );
-    const bronnen = await Promise.all(eigenProjecten.map(p => projectUrenRegistraties(ctx, p)));
-    const conflictProjectIds = new Set(eigenProjecten.filter((_, i) => bronnen[i].status === "conflict").map(p => p._id));
-    const urenVandaag = bronnen.flatMap(b => b.registraties).filter(u => u.datum === today);
+    // Eén begrensde scan op vandaag i.p.v. twee queries per project. De bron van
+    // de vandaag ingeplande projecten wordt ook zonder uren bepaald, zodat een
+    // conflict niet als "nog geen uren" verschijnt.
+    const urenScan = await projectUrenVoorOrg(ctx, orgId, {
+      vanaf: today,
+      tot: today,
+      projecten: eigenProjecten,
+      ookProjectIds: [...new Set(dagPlanning.map((p) => p.projectId))],
+    });
+    const conflictProjectIds = new Set(urenScan.conflicten.map((c) => c.projectId));
+    const urenVandaag = urenScan.registraties;
 
 
     // Get unique project IDs for today
@@ -178,7 +186,7 @@ export const getVoormanStats = query({
 
     return {
       datum: today,
-      urenBronConflicten: eigenProjecten.filter(p => conflictProjectIds.has(p._id)).map(p => ({ projectId: p._id, naam: p.naam })),
+      urenBronConflicten: urenScan.conflicten.map(c => ({ projectId: c.projectId, naam: c.naam })),
       projecten: projectOverzichten.filter(Boolean),
       urenOverzicht,
       totaalGepland: dagPlanning.length,
