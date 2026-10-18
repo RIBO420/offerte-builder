@@ -1,4 +1,4 @@
-import { effectieveBezoekLeden } from "./lib/bezoekBemanning";
+import { effectieveBezoekLeden, werkitemsInPeriode } from "./lib/bezoekBemanning";
 import { v, ConvexError } from "convex/values";
 import { query, type QueryCtx, type MutationCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
@@ -13,17 +13,23 @@ export function indienStatus(statussen: string[], dagIngediend: boolean): "niets
   return statussen.some(s => s === "ingediend") ? "deels" : "open";
 }
 
+/** Ondergrens voor de afwezigheidsquery: blokken die langer duren worden niet meegelezen. */
+export const AFWEZIGHEID_MAX_DUUR_DAGEN = 366;
+
 export async function leesDekking(ctx: QueryCtx | MutationCtx, orgId: Id<"organisaties">, van: string, tot: string) {
   valideerUrenPeriode(van, tot);
   if ((Date.parse(tot) - Date.parse(van)) / 86400000 > 31) throw new ConvexError("Kies maximaal een maand voor klusdekking");
+  // Afwezigheidsblokken die vóór `van` begonnen kunnen nog lopen; een blok van
+  // meer dan een jaar bestaat in de praktijk niet, dus dat is de ondergrens.
+  const afwezigVanaf = new Date(Date.parse(van) - AFWEZIGHEID_MAX_DUUR_DAGEN * 86400000).toISOString().slice(0, 10);
   const [items, segmenten, dagen, mensen, teams, bemanning, afwezig] = await Promise.all([
-    ctx.db.query("projecten").withIndex("by_org", q => q.eq("orgId", orgId)).collect(),
+    werkitemsInPeriode(ctx.db, orgId, van, tot),
     ctx.db.query("urenSegmenten").withIndex("by_org_datum", q => q.eq("orgId", orgId).gte("datum", van).lte("datum", tot)).collect(),
     ctx.db.query("urenDagen").withIndex("by_org_datum", q => q.eq("orgId", orgId).gte("datum", van).lte("datum", tot)).collect(),
     ctx.db.query("medewerkers").withIndex("by_org", q => q.eq("orgId", orgId)).collect(),
     ctx.db.query("teams").withIndex("by_org", q => q.eq("orgId", orgId)).collect(),
     ctx.db.query("teamBemanning").withIndex("by_org_datum", q => q.eq("orgId", orgId).gte("datum", van).lte("datum", tot)).collect(),
-    ctx.db.query("afwezigheidsblokken").withIndex("by_org_start", q => q.eq("orgId", orgId).lte("startDatum", tot)).collect(),
+    ctx.db.query("afwezigheidsblokken").withIndex("by_org_start", q => q.eq("orgId", orgId).gte("startDatum", afwezigVanaf).lte("startDatum", tot)).collect(),
   ]);
   const personen = new Map(mensen.map(m => [m._id, m]));
   const teamMap = new Map(teams.map(t => [t._id, t]));

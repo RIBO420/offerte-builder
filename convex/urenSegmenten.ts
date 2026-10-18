@@ -1,4 +1,4 @@
-import { werkitemsVoorMedewerkerDag } from "./lib/bezoekBemanning";
+import { werkitemsVoorMedewerkerDag, type DagBemanning } from "./lib/bezoekBemanning";
 import { assertDagGereed } from "./werkbezoek";
 /**
  * Urensegmenten + dag indienen/heropenen + "Wie is achter" — veld-rol
@@ -263,10 +263,12 @@ export async function dagkaartVoorstellen(
   orgId: Id<"organisaties">,
   teamId: Id<"teams"> | undefined,
   datum: string,
-  medewerkerId?: Id<"medewerkers">
+  medewerkerId?: Id<"medewerkers">,
+  /** Voorgeladen dagdata (laadDagBemanning) — voorkomt een herhaalde load per ploeglid. */
+  dagBemanning?: DagBemanning
 ) {
   const [items, config] = await Promise.all([
-    medewerkerId ? werkitemsVoorMedewerkerDag(db, orgId, medewerkerId, datum) : teamId ? werkitemsVoorTeamDag(db, orgId, teamId, datum) : Promise.resolve([]),
+    medewerkerId ? werkitemsVoorMedewerkerDag(db, orgId, medewerkerId, datum, dagBemanning) : teamId ? werkitemsVoorTeamDag(db, orgId, teamId, datum) : Promise.resolve([]),
     dagkaartStandaardenVoor(db, orgId, teamId, datum),
   ]);
 

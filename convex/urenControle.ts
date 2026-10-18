@@ -34,6 +34,7 @@ import {
 } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { laadDocsMap } from "./lib/batchLoad";
+import { laadDagBemanning } from "./lib/bezoekBemanning";
 import { werkitemOpDag } from "./planbordLogica";
 import {
   filterVoorstellen,
@@ -1080,10 +1081,13 @@ export const getPloegDag = query({
     );
     const leden = afwijking?.medewerkerIds ?? team.leden;
 
-    const [afgeleid, busLabel, ledenDocs] = await Promise.all([
+    // Projecten/teams/bemanning van de dag één keer laden en per lid filteren
+    // (voorheen per ploeglid een volledige scan van projecten en teams).
+    const [afgeleid, busLabel, ledenDocs, dagBemanning] = await Promise.all([
       dagkaartVoorstellen(ctx.db, veld.orgId, team._id, datum),
       busLabelVoorTeamDag(ctx, veld.orgId, team, datum),
       laadDocsMap(ctx, leden),
+      laadDagBemanning(ctx.db, veld.orgId, datum),
     ]);
 
     const perLid = await Promise.all(
@@ -1098,7 +1102,7 @@ export const getPloegDag = query({
         const [segmenten, dagRij, persoonlijk] = await Promise.all([
           segmentenVoorDag(ctx.db, veld.orgId, lidId, datum),
           dagStatusVoor(ctx.db, veld.orgId, lidId, datum),
-          dagkaartVoorstellen(ctx.db, veld.orgId, team._id, datum, lidId),
+          dagkaartVoorstellen(ctx.db, veld.orgId, team._id, datum, lidId, dagBemanning),
         ]);
         return {
           medewerker,

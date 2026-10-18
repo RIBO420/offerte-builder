@@ -1,4 +1,4 @@
-import { bezoekLedenVoor, teamDagLedenVoor } from "./lib/bezoekBemanning";
+import { bezoekLedenVoor, teamDagLedenVoor, werkitemsInPeriode } from "./lib/bezoekBemanning";
 /** Shared visit responses are operational evidence, never job completion or
  * billing commands. Visit identity is workitem + original execution date. */
 import { ConvexError, v } from "convex/values";
@@ -132,11 +132,17 @@ export const getVoorDag = query({
     datumCheck(args.datum);
     const t = await toegang(ctx);
     if (!t.medewerker) return { bezoeken: [], gereed: true };
-    const rows = await ctx.db.query("projecten").withIndex("by_org", q => q.eq("orgId", t.org._id)).collect();
+    const geplandOpDag = await werkitemsInPeriode(ctx.db, t.org._id, args.datum, args.datum);
     const segmenten = await ctx.db.query("urenSegmenten").withIndex("by_medewerker_datum", q => q.eq("medewerkerId", t.medewerker!._id).eq("datum", args.datum)).collect();
     const bewijs = await bewijsOpDag(ctx, t.org._id, args.datum);
     const eigenHistorie = new Set([...bewijs.fotos.filter(r => r.door === t.user._id), ...bewijs.afvoer.filter(r => r.door === t.user._id), ...bewijs.antwoorden.filter(r => r.door === t.user._id), ...bewijs.delegaties.filter(r => r.medewerkerId === t.medewerker!._id)].map(r => r.werkitemId));
     const gewerkt = new Set(segmenten.filter(r => r.orgId === t.org._id && r.categorie === "werken").map(r => r.werkitemId));
+    // Kandidaten: wat op de dag gepland staat (begrensde indexquery) plus waar
+    // vandaag aan gewerkt is of eigen bewijs voor bestaat — i.p.v. alle projecten.
+    const geplandIds = new Set<string>(geplandOpDag.map(p => p._id));
+    const extraIds = [...new Set([...gewerkt, ...eigenHistorie])].filter((id): id is Id<"projecten"> => !!id && !geplandIds.has(id));
+    const extra = (await Promise.all(extraIds.map(id => ctx.db.get(id)))).filter((p): p is Doc<"projecten"> => !!p && p.orgId === t.org._id);
+    const rows = [...geplandOpDag, ...extra].sort((a, b) => a._creationTime - b._creationTime);
     const bezoeken = [];
     for (const item of rows) {
       if (item.deletedAt) continue;

@@ -995,6 +995,8 @@ export default defineSchema({
     .index("by_contract", ["contractId"])
     .index("by_team_geplandeStart", ["teamId", "geplandeStart"])
     .index("by_org_geplandeStart", ["orgId", "geplandeStart"])
+    // Lopende werkitems op een dag zonder volledige tabelscan (lib/bezoekBemanning.werkitemsInPeriode)
+    .index("by_org_geplandeEind", ["orgId", "geplandeEind"])
     // Attendering-fundament (§2.1B): losse beurten waarvan het ritme-venster
     // binnen X dagen opent
     .index("by_org_volgendeVoorzieneDatum", ["orgId", "volgendeVoorzieneDatum"]),
@@ -3000,6 +3002,9 @@ export default defineSchema({
     opmerkingen: v.optional(v.string()),
     goedgekeurdDoor: v.optional(v.string()),
     goedgekeurdAt: v.optional(v.number()),
+    // Afkeuring: naam uit de auth van de afkeurder (additief, okt 2026)
+    afgekeurdDoor: v.optional(v.string()),
+    afgekeurdAt: v.optional(v.number()),
     fotos: v.optional(
       v.array(
         v.object({
