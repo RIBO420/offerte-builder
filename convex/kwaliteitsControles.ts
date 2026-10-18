@@ -696,10 +696,19 @@ export const getProjectSummary = query({
     const project = await ctx.db.get(args.projectId);
     if (!project || project.orgId?.toString() !== orgId.toString()) return null;
 
-    const controles = await ctx.db
+    const alleControles = await ctx.db
       .query("kwaliteitsControles")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
       .collect();
+
+    // Per scope telt alleen de nieuwste controle: een herkeuring vervangt de
+    // vorige, anders komt "X van N" boven het aantal scopes uit.
+    const nieuwstePerScope = new Map<string, (typeof alleControles)[number]>();
+    for (const c of alleControles) {
+      const huidige = nieuwstePerScope.get(c.scope);
+      if (!huidige || c._creationTime > huidige._creationTime) nieuwstePerScope.set(c.scope, c);
+    }
+    const controles = [...nieuwstePerScope.values()];
 
     const totaal = controles.length;
     const open = controles.filter((c) => c.status === "open").length;
