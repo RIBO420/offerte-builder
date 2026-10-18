@@ -793,7 +793,7 @@ export function Weekbord() {
                                 // Zichtbaar bij hover/focus; op touch (geen
                                 // hover) altijd. Op de krappe periodes alleen
                                 // wat afwijkt, anders staat elke cel vol iconen.
-                                className={`mt-auto flex items-center justify-between gap-1 transition-opacity ${
+                                className={`mt-auto flex flex-wrap items-center justify-between gap-1 transition-opacity ${
                                   afwijkend
                                     ? ""
                                     : `opacity-0 group-hover/cel:opacity-100 focus-within:opacity-100 ${
@@ -827,7 +827,7 @@ export function Weekbord() {
                                   } ${magMuteren && !afwijkend ? "hover:bg-muted" : ""}`}
                                 >
                                   <Users className="h-3 w-3 shrink-0" aria-hidden="true" />
-                                  {!krap && <span className="truncate">{bemanningTekst}</span>}
+                                  {dichtheid === "ruim" && <span className="truncate">{bemanningTekst}</span>}
                                 </button>
                                 {!krap && (
                                 <span className="flex shrink-0 items-center gap-0.5">
