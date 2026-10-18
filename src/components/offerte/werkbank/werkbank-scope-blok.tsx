@@ -103,11 +103,10 @@ export function WerkbankScopeBlok({
             Berekend uit normuren
           </p>
           <ul className="divide-y divide-border/60">
-            {regels.map((regel, i) => (
+            {regels.map((regel) => (
               <li
                 key={regel.id}
-                style={{ animationDelay: `${Math.min(i, 6) * 35}ms` }}
-                className="flex animate-in items-baseline gap-3 px-3 py-1.5 text-xs fade-in slide-in-from-bottom-1"
+                className="flex items-baseline gap-3 px-3 py-1.5 text-xs"
               >
                 <span className="w-[4.5rem] shrink-0 text-[10px] tracking-wide text-muted-foreground uppercase">
                   {REGEL_SOORT[regel.type]}

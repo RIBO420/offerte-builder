@@ -185,12 +185,9 @@ export function WerkbankPalet({
             </span>
           </div>
 
-          {/* key her-mount bij waardewissel → CSS-puls; basisstaat is zichtbaar
-              (fill-mode none), dus een bevroren rAF toont gewoon het bedrag. */}
-          <p
-            key={totalen.totaalInclBtw}
-            className="font-display text-[28px] leading-none font-semibold tracking-tight tabular-nums motion-safe:animate-in motion-safe:fade-in-25 motion-safe:duration-300"
-          >
+          {/* Geen animatie per wijziging: het bedrag verandert bij elke
+              toetsaanslag, een fade daarop voelt traag (okt 2026). */}
+          <p className="font-display text-[28px] leading-none font-semibold tracking-tight tabular-nums">
             {formatCurrency(totalen.totaalInclBtw)}
           </p>
 

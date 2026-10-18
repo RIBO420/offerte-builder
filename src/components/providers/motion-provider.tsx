@@ -23,11 +23,11 @@ export function MotionProvider({ children }: MotionProviderProps) {
       <MotionConfig
         reducedMotion={prefersReducedMotion ? "always" : "never"}
         transition={{
-          // Default spring physics for natural feel
+          // Bewegingsstandaard (okt 2026): kritisch gedempte veer van 300ms,
+          // zonder doorschieten — sluit aan op de 300ms-entree in CSS.
           type: "spring",
-          stiffness: 300,
-          damping: 30,
-          mass: 1,
+          duration: 0.3,
+          bounce: 0,
         }}
       >
         {children}

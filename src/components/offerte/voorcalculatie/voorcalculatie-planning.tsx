@@ -159,12 +159,9 @@ export function VoorcalculatiePlanning({
             </span>
           </div>
 
-          {/* key her-mount bij waardewissel → CSS-puls; basisstaat is zichtbaar
-              (fill-mode none), dus een bevroren rAF toont gewoon het getal. */}
-          <p
-            key={geschatteDagen}
-            className="font-display text-[28px] leading-none font-semibold tracking-tight tabular-nums motion-safe:animate-in motion-safe:fade-in-25 motion-safe:duration-300"
-          >
+          {/* Geen animatie per wijziging: het getal verandert bij elke
+              invoer, een fade daarop voelt traag (okt 2026). */}
+          <p className="font-display text-[28px] leading-none font-semibold tracking-tight tabular-nums">
             {formatDagen(geschatteDagen)}
           </p>
 
@@ -276,7 +273,7 @@ function Teamleden({
       {/* grid-template-rows: animeert zonder de layout te meten. */}
       <div
         className={cn(
-          "grid transition-[grid-template-rows] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
+          "grid transition-[grid-template-rows] duration-300 ease-standaard",
           open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
         )}
       >

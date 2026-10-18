@@ -83,7 +83,7 @@ function Rij({
       {/* grid-template-rows i.p.v. height: animeert zonder de layout te meten. */}
       <div
         className={cn(
-          "grid transition-[grid-template-rows] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
+          "grid transition-[grid-template-rows] duration-300 ease-standaard",
           open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
         )}
       >

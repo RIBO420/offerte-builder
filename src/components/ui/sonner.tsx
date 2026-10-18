@@ -85,7 +85,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
             // Duration - faster for reduced motion
             prefersReducedMotion
               ? "data-[state=entering]:duration-0 data-[state=exiting]:duration-0"
-              : "data-[state=entering]:duration-300 data-[state=exiting]:duration-200",
+              : "data-[state=entering]:duration-200 data-[state=exiting]:duration-200",
             // Easing
             "data-[state=entering]:ease-out",
             "data-[state=exiting]:ease-in",
