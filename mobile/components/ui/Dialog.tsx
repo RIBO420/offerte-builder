@@ -1,4 +1,4 @@
-import React, { ReactNode, useEffect, useMemo, createContext, useContext } from 'react';
+import React, { ReactNode, useCallback, useEffect, useMemo, useState, createContext, useContext } from 'react';
 import {
   View,
   Text,
@@ -62,6 +62,11 @@ export function Dialog({
   const kleuren = useVeldKleuren();
   // Minder beweging: alleen vervagen, geen schaal-veer.
   const rustig = useReducedMotion();
+  // De Modal blijft zichtbaar tot de uitfade klaar is; met visible={visible}
+  // verdween hij in één klap en was de sluitanimatie nooit te zien.
+  const [zichtbaar, setZichtbaar] = useState(visible);
+  if (visible && !zichtbaar) setZichtbaar(true);
+  const naUitfaden = useCallback(({ finished }: { finished: boolean }) => { if (finished) setZichtbaar(false); }, []);
 
   useEffect(() => {
     if (rustig) {
@@ -70,7 +75,7 @@ export function Dialog({
         toValue: visible ? 1 : 0,
         duration: animationDuration,
         useNativeDriver: true,
-      }).start();
+      }).start(visible ? undefined : naUitfaden);
       return;
     }
     if (visible) {
@@ -99,9 +104,9 @@ export function Dialog({
           duration: animationDuration,
           useNativeDriver: true,
         }),
-      ]).start();
+      ]).start(naUitfaden);
     }
-  }, [visible, fadeAnim, scaleAnim, animationDuration, rustig]);
+  }, [visible, fadeAnim, scaleAnim, animationDuration, rustig, naUitfaden]);
 
   const handleBackdropPress = () => {
     if (closeOnBackdropPress && onClose) {
@@ -111,7 +116,7 @@ export function Dialog({
 
   return (
     <Modal
-      visible={visible}
+      visible={zichtbaar}
       transparent
       animationType="none"
       onRequestClose={onClose}

@@ -67,6 +67,11 @@ export function SegmentenLijst({
 
 
   const [formOpen, setFormOpen] = useState(false);
+  // Het formulier blijft gemount tot de sluitanimatie klaar is (zoals de andere
+  // bladen); een nieuwe sleutel bij elk openen geeft een vers formulier.
+  const [formGemount, setFormGemount] = useState(false);
+  const [formSleutel, setFormSleutel] = useState(0);
+  const openForm = (segment: VeldSegment | null) => { setBewerkSegment(segment); setFormSleutel(n => n + 1); setFormGemount(true); setFormOpen(true); };
   const [voorstelBewerkt, setVoorstelBewerkt] = useState(false);
   const [bewerkSegment, setBewerkSegment] = useState<VeldSegment | null>(null);
 
@@ -125,8 +130,7 @@ export function SegmentenLijst({
             disabled={dagWacht}
             icon={<Plus size={16} color={kleuren.foreground} strokeWidth={2} />}
             onPress={() => {
-              setBewerkSegment(null);
-              setFormOpen(true);
+              openForm(null);
             }}
           />}
         </View>}
@@ -186,7 +190,7 @@ export function SegmentenLijst({
                 {i > 0 && <Scheiding />}
                 <Drukvlak
                   disabled={!bewerkbaar}
-                  onPress={() => { setBewerkSegment(segment); setFormOpen(true); }}
+                  onPress={() => openForm(segment)}
                   accessibilityLabel={`${segment.beginTijd} tot ${segment.eindTijd}, ${CATEGORIE_LABELS[segment.categorie]}${stopNaam(segment.werkitemId) ? `, ${stopNaam(segment.werkitemId)}` : ''}`}
                   accessibilityHint={bewerkbaar ? 'Aanpassen of verwijderen' : undefined}
                   style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingVertical: 10 }}
@@ -214,7 +218,7 @@ export function SegmentenLijst({
                       </Text>
                     ) : null}
                   </View>
-                  {!bewerkbaar && !dagWacht && dag.isEigenDag && <Button title="Notitie" variant="outline" size="sm" accessibilityLabel={`Notitie bij ${segment.beginTijd}–${segment.eindTijd}`} icon={<StickyNote size={16} color={kleuren.foreground} strokeWidth={2} />} onPress={() => { setBewerkSegment(segment); setFormOpen(true); }} />}
+                  {!bewerkbaar && !dagWacht && dag.isEigenDag && <Button title="Notitie" variant="outline" size="sm" accessibilityLabel={`Notitie bij ${segment.beginTijd}–${segment.eindTijd}`} icon={<StickyNote size={16} color={kleuren.foreground} strokeWidth={2} />} onPress={() => openForm(segment)} />}
                   {bewerkbaar && <ChevronRight size={18} color={kleuren.mutedForeground} strokeWidth={2} />}
                 </Drukvlak>
               </View>
@@ -223,19 +227,17 @@ export function SegmentenLijst({
         </Kaart>
       )}
 
-      {formOpen && <SegmentFormSheet
-        key={`${datum}:${bewerkSegment?._id ?? 'nieuw'}`}
+      {formGemount && <SegmentFormSheet
+        key={`${datum}:${formSleutel}`}
         open={formOpen}
-        onClose={() => {
-          setFormOpen(false);
-          setBewerkSegment(null);
-        }}
+        onClose={() => setFormOpen(false)}
+        onGesloten={() => { setFormGemount(false); setBewerkSegment(null); }}
         dag={dag}
         datum={datum}
         bewerkSegment={bewerkSegment}
         onVerwijder={magBewerken && bewerkSegment && bewerkSegment.status !== 'ingediend' ? () => {
           const segment = bewerkSegment;
-          setFormOpen(false); setBewerkSegment(null);
+          setFormOpen(false);
           handleVerwijder(segment);
         } : undefined}
       />}
@@ -251,6 +253,7 @@ export function SegmentenLijst({
 function SegmentFormSheet({
   open,
   onClose,
+  onGesloten,
   dag,
   datum,
   bewerkSegment,
@@ -258,6 +261,7 @@ function SegmentFormSheet({
 }: {
   open: boolean;
   onClose: () => void;
+  onGesloten: () => void;
   dag: VeldDagData;
   datum: string;
   bewerkSegment: VeldSegment | null;
@@ -364,7 +368,7 @@ function SegmentFormSheet({
       { text: 'Verwijderen', style: 'destructive', onPress: async () => { try { await verwijderConcept(); onClose(); } catch { setTijdFout('Concept verwijderen mislukt.'); } } },
     ])} />
   </View>;
-  if (!geladen || herstelPoging) return <BottomSheet isOpen={open} onClose={onClose} title="Bewaarde ureninvoer">
+  if (!geladen || herstelPoging) return <BottomSheet isOpen={open} onClose={onClose} onGesloten={onGesloten} title="Bewaarde ureninvoer">
     <View style={{ gap: 12 }}>
       <Text style={[tekst.kop, herstelPoging ? tekst.cijfers : null, { color: kleuren.foreground }]}>{herstelPoging ? `${beginTijd}–${eindTijd} · ${CATEGORIE_LABELS[categorie]}` : 'Bewaarde invoer laden…'}</Text>
       {herstelPoging && <><Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>Deze invoer is eerder aangeboden. We controleren of ze al bevestigd is. Opnieuw versturen gebruikt dezelfde sleutel en maakt geen tweede registratie.</Text><Button title="Dezelfde invoer opnieuw versturen" variant="outline" loading={bezig} onPress={handleOpslaan} disabled={!!receipt || staatInWachtrij} /></>}
@@ -373,7 +377,7 @@ function SegmentFormSheet({
     </View>
   </BottomSheet>;
 
-  if (alleenNotitie) return <BottomSheet isOpen={open} onClose={onClose} title="Notitie aanvullen">
+  if (alleenNotitie) return <BottomSheet isOpen={open} onClose={onClose} onGesloten={onGesloten} title="Notitie aanvullen">
     <View style={{ gap: 12, paddingBottom: 12 }}>
       <Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>De dag is ingediend. Je kunt alleen de notitie aanpassen.</Text>
       {conceptInfo}
@@ -387,6 +391,7 @@ function SegmentFormSheet({
     <BottomSheet
       isOpen={open}
       onClose={onClose}
+      onGesloten={onGesloten}
       title={bewerkSegment ? 'Segment aanpassen' : 'Segment toevoegen'}
     >
       <View style={{ gap: 16, paddingBottom: 12 }}>

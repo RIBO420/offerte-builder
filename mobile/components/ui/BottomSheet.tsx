@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Dimensions, Pressable, Modal, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -22,6 +22,8 @@ interface BottomSheetProps {
   onClose: () => void;
   title?: string;
   children: React.ReactNode;
+  /** Na afloop van de sluitanimatie: hier mag de ouder de inhoud pas opruimen. */
+  onGesloten?: () => void;
 }
 
 export function BottomSheet({
@@ -29,6 +31,7 @@ export function BottomSheet({
   onClose,
   title,
   children,
+  onGesloten,
 }: BottomSheetProps) {
   const kleuren = useVeldKleuren();
   const translateY = useSharedValue(SCREEN_HEIGHT);
@@ -36,17 +39,26 @@ export function BottomSheet({
   // Blijft gemonteerd tot de sluitanimatie klaar is, anders verdwijnt het blad in één klap.
   const [zichtbaar, setZichtbaar] = useState(isOpen);
   if (isOpen && !zichtbaar) setZichtbaar(true);
+  const naSluiten = useRef(onGesloten);
+  useEffect(() => { naSluiten.current = onGesloten; }, [onGesloten]);
+  // Alleen melden na een echte open→dicht-overgang, niet bij een dicht gemount blad.
+  const geopend = useRef(false);
+  const gesloten = useCallback(() => {
+    setZichtbaar(false);
+    if (geopend.current) { geopend.current = false; naSluiten.current?.(); }
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
+      geopend.current = true;
       translateY.set(withTiming(0, OPEN));
       backdropOpacity.set(withTiming(1, { duration: 240 }));
     } else {
       backdropOpacity.set(withTiming(0, DICHT));
-      translateY.set(withTiming(SCREEN_HEIGHT, DICHT, klaar => { if (klaar) scheduleOnRN(setZichtbaar, false); }));
+      translateY.set(withTiming(SCREEN_HEIGHT, DICHT, klaar => { if (klaar) scheduleOnRN(gesloten); }));
     }
     // Shared values zijn stabiele referenties; opnemen in deps is gedragsneutraal.
-  }, [isOpen, translateY, backdropOpacity]);
+  }, [isOpen, translateY, backdropOpacity, gesloten]);
 
   const handleClose = () => {
     onClose();
