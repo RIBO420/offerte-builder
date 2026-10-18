@@ -50,6 +50,7 @@ export function VeldWachtrij() {
           {r.type === 'foto' && typeof r.payload.datum === 'string' && typeof r.payload.werkitemId === 'string' && <KlusNaam datum={r.payload.datum} werkitemId={r.payload.werkitemId} />}
           {typeof r.payload.keuze === 'string' && <Text style={[tekst.sub, { color: kleuren.mutedForeground }]}>{keuzeLabel(r.type, r.payload.keuze)}</Text>}
           {Array.isArray(r.payload.segmenten) && r.payload.segmenten.map((segment, i) => <Text key={i} style={[tekst.sub, tekst.cijfers, { color: kleuren.mutedForeground }]}>{String(segment.beginTijd)}–{String(segment.eindTijd)} · {categorieLabel(segment.categorie)}</Text>)}
+          {r.status === 'wacht' && r.laatsteFout && <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground, fontSize: 14, lineHeight: 19 }]}>De server was even niet bereikbaar. De app probeert het automatisch opnieuw{r.pogingen ? ` (poging ${r.pogingen})` : ''}.</Text>}
           {r.fout && <>
             <Melding toon="gemist" tekst={r.fout} />
             <Text style={[tekst.voetnoot, { color: kleuren.mutedForeground, fontSize: 14, lineHeight: 19 }]}>Controleer de melding. Probeer dezelfde bewaarde invoer opnieuw als het probleem is opgelost. Een gewijzigde dag moet je eerst opnieuw bekijken.</Text>

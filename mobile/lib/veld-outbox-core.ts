@@ -1,3 +1,5 @@
+import { MAX_TIJDELIJKE_POGINGEN, backoffMs, type VeldFoutsoort } from './veld-foutsoort';
+
 /** Eén duurzame, account- en organisatiegebonden wachtrij voor idempotente opdrachten. */
 export type VeldOpdrachtType = 'dagvoorstel' | 'retour' | 'afronding' | 'delegatie' | 'foto' | 'afvoer' | 'segmentToevoegen' | 'segmentWijzigen' | 'intro';
 export interface VeldOpdracht {
@@ -6,7 +8,12 @@ export interface VeldOpdracht {
   payload: Record<string, unknown>;
   status: 'wacht' | 'conflict';
   aangemaaktOp: number;
+  /** Alleen bij `conflict`: de server weigerde inhoudelijk. */
   fout?: string;
+  /** Tijdelijke serverfouten: blijft `wacht`, opnieuw na `volgendePogingOp`. */
+  pogingen?: number;
+  volgendePogingOp?: number;
+  laatsteFout?: string;
 }
 export interface OutboxStorage {
   getItem(key: string): Promise<string | null>;
@@ -60,37 +67,65 @@ export class VeldOutbox {
       const rijen = await this.lees();
       await this.storage.setItem(this.key, JSON.stringify(rijen.map(r => {
         if (r.id !== id) return r;
-        const { fout: _fout, ...bewaard } = r;
+        const { fout: _fout, pogingen: _p, volgendePogingOp: _v, laatsteFout: _l, ...bewaard } = r;
         return { ...bewaard, status: 'wacht' };
       })));
     });
   }
 
+  private async patch(id: string, wijziging: (r: VeldOpdracht) => VeldOpdracht): Promise<void> {
+    await this.exclusief(async () => {
+      const actueel = await this.lees();
+      await this.storage.setItem(this.key, JSON.stringify(actueel.map(r => r.id === id ? wijziging(r) : r)));
+    });
+  }
+
+  /**
+   * Verwerkt in volgorde. Een netwerk- of tijdelijke serverfout stopt de ronde (de
+   * rest zou net zo falen en de volgorde blijft zo bewaard). Een conflict blokkeert
+   * de rest niet: die rij wacht op de gebruiker, de volgende opdrachten gaan door.
+   */
   async verwerk(opties: {
     online: () => boolean;
     juisteSessie: () => boolean;
     uitvoeren: (opdracht: VeldOpdracht) => Promise<unknown>;
-    isNetwerkFout: (fout: unknown) => boolean;
+    classificeer: (fout: unknown) => VeldFoutsoort;
+    /** Handmatig synchroniseren wacht niet op de backoff. */
+    negeerBackoff?: boolean;
+    /** Opdrachten die bij een conflict beter vervallen dan blijven hangen. */
+    vervaltBijConflict?: (opdracht: VeldOpdracht) => boolean;
+    nu?: () => number;
   }): Promise<void> {
     if (this.verwerking) return this.verwerking;
+    const nu = opties.nu ?? Date.now;
     const verwerken = async () => {
       while (opties.online() && opties.juisteSessie()) {
         const rijen = await this.lees();
-        const eerste = rijen[0];
-        if (!eerste || eerste.status === 'conflict') return;
+        const volgende = rijen.find(r => r.status === 'wacht');
+        if (!volgende) return;
+        if (!opties.negeerBackoff && (volgende.volgendePogingOp ?? 0) > nu()) return;
         try {
-          await opties.uitvoeren(eerste);
+          await opties.uitvoeren(volgende);
           // Een wissel tijdens verzending mag nooit de nieuwe sessie muteren.
           if (!opties.juisteSessie()) return;
-          await this.verwijder(eerste.id);
+          await this.verwijder(volgende.id);
         } catch (fout) {
-          if (!opties.juisteSessie() || opties.isNetwerkFout(fout)) return;
-          const bericht = fout instanceof Error ? fout.message : 'Kantoor heeft deze registratie gewijzigd. Controleer je invoer.';
-          await this.exclusief(async () => {
-            const actueel = await this.lees();
-            await this.storage.setItem(this.key, JSON.stringify(actueel.map(r => r.id === eerste.id ? { ...r, status: 'conflict', fout: bericht } : r)));
+          if (!opties.juisteSessie()) return;
+          const soort = opties.classificeer(fout);
+          if (soort === 'netwerk') return;
+          const bericht = fout instanceof Error && fout.message ? fout.message : 'Kantoor heeft deze registratie gewijzigd. Controleer je invoer.';
+          const pogingen = (volgende.pogingen ?? 0) + 1;
+          if (soort === 'tijdelijk' && pogingen < MAX_TIJDELIJKE_POGINGEN) {
+            await this.patch(volgende.id, r => ({ ...r, pogingen, volgendePogingOp: nu() + backoffMs(pogingen), laatsteFout: bericht.slice(0, 200) }));
+            return;
+          }
+          // Conflict, of tijdelijk maar te vaak: vanaf nu beslist de gebruiker.
+          if (opties.vervaltBijConflict?.(volgende)) { await this.verwijder(volgende.id); continue; }
+          const melding = soort === 'tijdelijk' ? `De server reageerde ${pogingen} keer niet goed. Probeer het later opnieuw of neem contact op met kantoor.` : bericht;
+          await this.patch(volgende.id, r => {
+            const { volgendePogingOp: _v, laatsteFout: _l, ...rest } = r;
+            return { ...rest, status: 'conflict', fout: melding };
           });
-          return;
         }
       }
     };

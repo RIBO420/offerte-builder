@@ -59,6 +59,14 @@ export async function uploadVeldFoto(scope: string, opdracht: VeldOpdracht, muta
   });
 }
 
+/**
+ * Na een geweigerde koppeling kan het checkpoint naar een verlopen of afgewezen
+ * upload wijzen; een expliciete retry moet dan opnieuw uploaden.
+ */
+export async function wisFotoCheckpoint(scope: string, id: string) {
+  await AsyncStorage.removeItem(checkpoint(scope, id));
+}
+
 /** Alleen opruimen nadat de opdracht uit de duurzame wachtrij is verwijderd. */
 export async function ruimVeldFotoOp(scope: string, opdracht: VeldOpdracht) {
   if (typeof opdracht.payload.localUri === 'string') {

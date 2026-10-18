@@ -9,6 +9,8 @@ const env = vi.hoisted(() => ({
   listeners: new Set<(state: { isConnected: boolean; isInternetReachable: boolean }) => void>(),
   send: vi.fn<(auth: string, payload: Record<string, unknown>) => Promise<unknown>>(),
   token: vi.fn<() => Promise<string>>(),
+  /** HTTP-status van de nagebootste Convex-endpoint (200 = functie uitgevoerd). */
+  status: 200,
 }));
 vi.mock('@clerk/clerk-expo', () => ({ useAuth: () => ({ userId: env.userId, orgId: env.orgId, getToken: env.token }) }));
 vi.mock('@react-native-async-storage/async-storage', () => ({ default: {
@@ -21,11 +23,19 @@ vi.mock('@react-native-community/netinfo', () => ({ default: { addEventListener:
   return () => env.listeners.delete(listener);
 } } }));
 vi.mock('expo-crypto', () => ({ randomUUID: () => 'generated-stable-key' }));
-vi.mock('../lib/veld-foto-upload', () => ({ bewaarVeldFoto: vi.fn(), ruimVeldFotoOp: vi.fn(), uploadVeldFoto: vi.fn() }));
+vi.mock('../lib/veld-foto-upload', () => ({ bewaarVeldFoto: vi.fn(), ruimVeldFotoOp: vi.fn(), uploadVeldFoto: vi.fn(), wisFotoCheckpoint: vi.fn() }));
+// Bootst ConvexHttpClient na: de eigen fetch van de hook loopt mee, en bij een
+// niet-OK antwoord (behalve 560) volgt net als in convex/browser een kale Error(responseText).
 vi.mock('convex/browser', () => ({ ConvexHttpClient: class {
-  constructor(_url: string, private options: { auth: string }) {}
-  mutation(_name: unknown, payload: Record<string, unknown>) { return env.send(this.options.auth, payload); }
+  constructor(_url: string, private options: { auth: string; fetch: (input: string, init: object) => Promise<Response> }) {}
+  async mutation(_name: unknown, payload: Record<string, unknown>) {
+    const response = await this.options.fetch('https://test.convex.cloud/api/mutation', {});
+    if (!response.ok && response.status !== 560) throw new Error(await response.text());
+    return env.send(this.options.auth, payload);
+  }
 } }));
+vi.stubGlobal('fetch', async () => ({ status: env.status, ok: env.status === 200, text: async () => '<html>503 Service Unavailable</html>' }));
+class ConvexError extends Error { name = 'ConvexError'; constructor(message: string, public data: unknown = message) { super(message); } }
 
 function jwt(user = env.userId, org = env.orgId) { return `header.${btoa(JSON.stringify({ sub: user, org_id: org }))}.signature`; }
 async function flush() { await act(async () => { for (let i = 0; i < 40; i++) await Promise.resolve(); }); }
@@ -38,7 +48,7 @@ let testId = 0;
 beforeEach(() => {
   vi.useFakeTimers();
   env.orgId = `organisation-${++testId}`; env.userId = 'user'; env.connected = false;
-  env.storage.clear(); env.send.mockReset().mockResolvedValue({ id: 'saved' });
+  env.storage.clear(); env.status = 200; env.send.mockReset().mockResolvedValue({ id: 'saved' });
   env.token.mockReset().mockImplementation(async () => jwt());
   process.env.EXPO_PUBLIC_CONVEX_URL = 'https://test.convex.cloud';
 });
@@ -110,7 +120,7 @@ describe('native outbox hook lifecycle', () => {
     expect(JSON.parse(env.storage.get(outboxSleutel(oldOrg, 'user'))!)).toHaveLength(1);
   });
 
-  it('keeps network failures pending, blocks FIFO on rejection, and supports explicit identical retry', async () => {
+  it('keeps network failures pending, does not block the queue on a conflict, and supports explicit identical retry', async () => {
     const hook = renderHook(useVeldOpdracht); await flush();
     await act(async () => {
       await hook.result.current.verstuur('afvoer', { keuze: 'half' }, 'first-key');
@@ -119,13 +129,66 @@ describe('native outbox hook lifecycle', () => {
     env.send.mockRejectedValueOnce(new Error('Network request failed'));
     await network(true);
     expect(hook.result.current.wachtrij.map(row => row.status)).toEqual(['wacht', 'wacht']);
-    env.send.mockRejectedValueOnce(new Error('De revisie is gewijzigd'));
+    env.send.mockRejectedValueOnce(new ConvexError('De revisie is gewijzigd'));
     await act(async () => { await hook.result.current.synchroniseer(); }); await flush();
-    expect(hook.result.current.wachtrij.map(row => row.status)).toEqual(['conflict', 'wacht']);
-    expect(env.send).toHaveBeenCalledTimes(2);
+    // De tweede opdracht ging gewoon door; alleen de geweigerde wacht op de gebruiker.
+    expect(hook.result.current.wachtrij.map(row => [row.id, row.status])).toEqual([['first-key', 'conflict']]);
+    expect(hook.result.current.wachtrij[0].fout).toBe('De revisie is gewijzigd');
+    expect(env.send).toHaveBeenCalledTimes(3);
     await act(async () => { await hook.result.current.probeerOpnieuw('first-key'); }); await flush();
     expect(env.send).toHaveBeenCalledTimes(4);
-    expect(env.send.mock.calls[0]).toEqual(env.send.mock.calls[2]);
+    expect(env.send.mock.calls[0]).toEqual(env.send.mock.calls[3]);
     expect(hook.result.current.wachtrij).toHaveLength(0);
+  });
+
+  it('retries a 503 with backoff instead of marking it a conflict, keeping the order', async () => {
+    const hook = renderHook(useVeldOpdracht); await flush();
+    await act(async () => {
+      await hook.result.current.verstuur('afvoer', { keuze: 'half' }, 'first-key');
+      await hook.result.current.verstuur('afronding', { afgerond: true }, 'second-key');
+    });
+    env.status = 503;
+    await network(true);
+    const [eerste, tweede] = hook.result.current.wachtrij;
+    expect(eerste).toMatchObject({ id: 'first-key', status: 'wacht', pogingen: 1 });
+    expect(eerste.fout).toBeUndefined();
+    expect(tweede).toMatchObject({ id: 'second-key', status: 'wacht' });
+    expect(tweede.pogingen).toBeUndefined();
+    env.status = 200;
+    // Binnen de backoff (30s na de eerste poging) gaat er niets automatisch.
+    await act(async () => { await vi.advanceTimersByTimeAsync(29000); }); await flush();
+    expect(env.send).not.toHaveBeenCalled();
+    await act(async () => { await vi.advanceTimersByTimeAsync(31000); }); await flush();
+    expect(env.send).toHaveBeenCalledTimes(2);
+    expect(hook.result.current.wachtrij).toHaveLength(0);
+  });
+
+  it('turns an endlessly failing server into a conflict after the maximum attempts', async () => {
+    const hook = renderHook(useVeldOpdracht); await flush();
+    await act(async () => { await hook.result.current.verstuur('afvoer', { keuze: 'half' }, 'first-key'); });
+    env.status = 502;
+    await network(true);
+    for (let i = 0; i < 8; i++) { await act(async () => { await hook.result.current.synchroniseer(); }); await flush(); }
+    expect(hook.result.current.wachtrij[0]).toMatchObject({ status: 'conflict' });
+    expect(hook.result.current.wachtrij[0].fout).toMatch(/8 keer/);
+  });
+
+  it('drops a rejected intro marking instead of leaving a conflict behind', async () => {
+    const hook = renderHook(useVeldOpdracht); await flush();
+    await act(async () => { await hook.result.current.verstuur('intro', { overgeslagen: true }, 'intro-key'); });
+    env.status = 560;
+    env.send.mockRejectedValueOnce(new Error('De medewerkersintro is intern'));
+    await network(true);
+    expect(hook.result.current.wachtrij).toHaveLength(0);
+  });
+
+  it('shares one network listener and timer between all mounted hooks', async () => {
+    const hooks = Array.from({ length: 7 }, () => renderHook(useVeldOpdracht));
+    await flush();
+    expect(env.listeners.size).toBe(1);
+    hooks.slice(1).forEach(h => h.unmount());
+    expect(env.listeners.size).toBe(1);
+    hooks[0].unmount();
+    expect(env.listeners.size).toBe(0);
   });
 });
