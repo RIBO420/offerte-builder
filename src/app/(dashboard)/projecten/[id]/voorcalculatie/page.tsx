@@ -91,7 +91,12 @@ export default function VoorcalculatiePage({
   const urenPerDag = voorcalculatie
     ? voorcalculatie.teamGrootte * voorcalculatie.effectieveUrenPerDag
     : 0;
-  const werkdagen = heleWerkdagen(voorcalculatie?.geschatteDagen ?? 0);
+  // Uit dezelfde getallen als de getoonde formule (normuren ÷ ploeg × uren per
+  // dag), zodat formule en uitkomst altijd kloppen; zonder ploeggegevens de
+  // opgeslagen schatting.
+  const werkdagen = heleWerkdagen(
+    urenPerDag > 0 ? normUren / urenPerDag : (voorcalculatie?.geschatteDagen ?? 0)
+  );
   const factoren = [
     { label: "Bereikbaarheid", waarde: calculation?.bereikbaarheidFactor ?? 1 },
     { label: "Achterstalligheid", waarde: calculation?.achterstallijkheidFactor ?? 1 },

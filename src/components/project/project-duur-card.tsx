@@ -8,7 +8,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { addBusinessDays, isWeekend, parseISO } from "date-fns";
+import { addBusinessDays, isWeekend, parseISO, startOfDay } from "date-fns";
 import { CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -137,7 +137,7 @@ export function ProjectDuurCard({
                     onStartDatumChange(date ?? null);
                     setKalenderOpen(false);
                   }}
-                  disabled={(date) => date < new Date() || isWeekend(date)}
+                  disabled={(date) => date < startOfDay(new Date()) || isWeekend(date)}
                   initialFocus
                   locale={nl}
                 />
@@ -174,7 +174,7 @@ export function ProjectDuurCard({
                 {teamNaam ? ` · ${teamNaam}` : ""}
               </span>
               <Link
-                href="/planning/weekbord"
+                href={`/planning/weekbord?datum=${geplandeStart}`}
                 className="shrink-0 font-medium text-primary hover:underline"
               >
                 Bekijk →

@@ -6,6 +6,7 @@ import type { Doc } from "@convex/_generated/dataModel";
 import { SectiePaneel } from "@/components/ui/sectie-paneel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 
@@ -35,7 +36,7 @@ export function ContactenBeheer() {
       }}>
         <label className="block text-sm">Naam<Input value={naam} onChange={e => setNaam(e.target.value)} maxLength={120} required /></label>
         <label className="block text-sm">Telefoon<Input type="tel" value={telefoon} onChange={e => setTelefoon(e.target.value)} maxLength={40} required /></label>
-        <label className="block max-w-32 text-sm">Volgorde<Input type="number" value={volgorde} onChange={e => setVolgorde(e.target.value)} min={-10000} max={10000} step={1} required /></label>
+        <label className="block max-w-40 text-sm">Volgorde<NumberInput value={volgorde} onChange={n => setVolgorde(String(n))} min={-10000} max={10000} step={1} decimals={0} required /></label>
         <label className="flex items-center gap-2 text-sm"><Checkbox checked={spoed} onCheckedChange={v => setSpoed(v === true)} />Noodnummer</label>
         <div className="flex gap-2"><Button disabled={bezig} type="submit">Publiceren</Button><Button variant="ghost" type="button" onClick={() => setOpen(false)}>Annuleren</Button></div>
       </form>}

@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Check, X, Loader2, AlertTriangle } from "lucide-react";
 import { logger } from "@/lib/logger";
+import { getMutationErrorMessage } from "@/lib/error-handling";
 import { scopeLabel as labelVoorScope } from "@/lib/rapportage-labels";
 
 interface QCApprovalDialogProps {
@@ -90,11 +91,7 @@ export function QCApprovalDialog({
         module: "project/qc-approval",
         kwaliteitsControleId,
       });
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Er is een fout opgetreden. Probeer het opnieuw.",
-      );
+      setError(getMutationErrorMessage(err));
     } finally {
       setIsSubmitting(false);
     }

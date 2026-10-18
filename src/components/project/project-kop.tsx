@@ -335,6 +335,10 @@ function naslagGetal(
     return { tekst: `${urenTekst(data.gepland.uren)} u`, uitleg: "begrote normuren" };
   }
   if (tab === "kosten") {
+    // Uren in twee bronnen zonder keuze: geen percentage, wel een signaal.
+    if (budget && "error" in budget && budget.error === "URENBRON_CONFLICT") {
+      return { tekst: "Urenbron?", uitleg: "Kies eerst de urenbron in de nacalculatie" };
+    }
     if (!data || data.gepland.totaal <= 0) return null;
     const pct = Math.round((data.werkelijk.totaal / data.gepland.totaal) * 100);
     return { tekst: `${pct}%`, uitleg: `${pct}% van de begroting besteed` };

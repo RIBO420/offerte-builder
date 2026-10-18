@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
+import { NumberInput } from "@/components/ui/number-input";
 import { formatCurrency } from "./utils";
 
 interface Machine {
@@ -65,9 +66,9 @@ export function MachineFormDialog({
         </AlertDialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid gap-2">
-            <label className="text-sm font-medium">Machine</label>
+            <label htmlFor="machine-keuze" className="text-sm font-medium">Machine</label>
             <Select value={selectedMachine} onValueChange={onSelectedMachineChange}>
-              <SelectTrigger>
+              <SelectTrigger id="machine-keuze">
                 <SelectValue placeholder="Selecteer machine" />
               </SelectTrigger>
               <SelectContent>
@@ -81,8 +82,9 @@ export function MachineFormDialog({
             </Select>
           </div>
           <div className="grid gap-2">
-            <label className="text-sm font-medium">Datum</label>
+            <label htmlFor="machine-datum" className="text-sm font-medium">Datum</label>
             <input
+              id="machine-datum"
               type="date"
               value={machineDate}
               onChange={(e) => onMachineDateChange(e.target.value)}
@@ -90,15 +92,15 @@ export function MachineFormDialog({
             />
           </div>
           <div className="grid gap-2">
-            <label className="text-sm font-medium">Uren gebruikt</label>
-            <input
-              type="number"
-              min="0"
-              step="0.5"
+            <label htmlFor="machine-uren" className="text-sm font-medium">Uren gebruikt</label>
+            <NumberInput
+              id="machine-uren"
+              min={0}
+              step={0.5}
+              decimals={2}
               value={machineUren}
-              onChange={(e) => onMachineUrenChange(e.target.value)}
+              onChange={(uren) => onMachineUrenChange(uren > 0 ? String(uren) : "")}
               placeholder="8"
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             />
           </div>
         </div>

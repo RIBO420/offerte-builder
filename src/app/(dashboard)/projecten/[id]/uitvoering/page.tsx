@@ -23,6 +23,7 @@ import { UrenImport } from "@/components/project/uren-import";
 import {
   UrenEntryForm,
   UrenEntryData,
+  type UrenFormulierData,
   DatabaseMedewerker,
 } from "@/components/project/uren-entry-form";
 
@@ -149,10 +150,14 @@ export default function UitvoeringPage() {
   );
 
   const handleAddUren = useCallback(
-    async (data: UrenEntryData) => {
+    async (data: UrenFormulierData) => {
       setIsSaving(true);
       try {
-        await addUren(data);
+        await addUren({
+          ...data,
+          scope: data.scope ?? undefined,
+          notities: data.notities ?? undefined,
+        });
         toast.success("Uren geregistreerd");
         setShowUrenForm(false);
       } catch (error) {
@@ -168,7 +173,7 @@ export default function UitvoeringPage() {
   );
 
   const handleEditUren = useCallback(
-    async (data: UrenEntryData) => {
+    async (data: UrenFormulierData) => {
       if (!bewerkItem) return;
       setIsSaving(true);
       try {

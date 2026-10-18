@@ -12,6 +12,7 @@
  * en dit dashboard delen de toevoegflow via `useKostenToevoegen`.
  */
 
+import Link from "next/link";
 import { memo, useCallback, useMemo, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { format } from "date-fns";
@@ -132,7 +133,12 @@ export const ProjectKostenDashboard = memo(function ProjectKostenDashboard({
   const deleteKost = useMutation(api.projectKosten.remove);
   const createKost = useMutation(api.projectKosten.create);
 
+  // null = project weg/vreemd; `{ error, data: null }` = urenbronconflict.
   const budget = budgetVergelijking?.data ?? null;
+  const urenBronConflict =
+    !!budgetVergelijking &&
+    "error" in budgetVergelijking &&
+    budgetVergelijking.error === "URENBRON_CONFLICT";
 
   // Begroot (voorcalculatie/offerte) tegen besteed (registraties), per soort.
   const regels = useMemo<SoortRegel[]>(() => {
@@ -199,10 +205,28 @@ export const ProjectKostenDashboard = memo(function ProjectKostenDashboard({
 
   const hasActiveFilters = filterType !== "all" || !!filterStartDate || !!filterEndDate;
 
+  // Boven de laadcheck: het formulier blijft gemonteerd (en open) als een
+  // query na het opslaan even opnieuw laadt.
+  // Remount per opening, zodat de soort-voorinstelling als beginwaarde landt.
+  const formulier = (
+    <KostenEntryForm
+      key={toevoegen.sleutel}
+      open={toevoegen.open}
+      onOpenChange={(open) => {
+        if (!open) toevoegen.sluiten();
+      }}
+      projectId={id}
+      soort={toevoegen.soort}
+      onSubmit={handleSubmit}
+      isLoading={isSubmitting}
+    />
+  );
+
   if (overzicht === undefined || budgetVergelijking === undefined || kostenPerScope === undefined) {
     return (
       <div className="@container/kosten">
         <DashboardSkelet />
+        {formulier}
       </div>
     );
   }
@@ -227,6 +251,21 @@ export const ProjectKostenDashboard = memo(function ProjectKostenDashboard({
     <div className="@container/kosten">
       <div className="grid items-start gap-4 @4xl/kosten:grid-cols-[minmax(0,1fr)_22rem] @4xl/kosten:gap-5">
         <div className="flex min-w-0 flex-col gap-4">
+          {urenBronConflict && (
+            <p
+              role="alert"
+              className="rounded-lg border border-status-vervallen-border bg-status-vervallen/20 px-4 py-3 text-[13px]"
+            >
+              Dit project heeft uren in twee bronnen. Kies eerst de urenbron, dan klopt de
+              vergelijking met de begroting.{" "}
+              <Link
+                href={`/projecten/${id}/nacalculatie`}
+                className="font-medium text-primary underline-offset-4 hover:underline"
+              >
+                Urenbron kiezen
+              </Link>
+            </p>
+          )}
           <KostenStandPaneel
             besteed={besteed}
             begroot={begroot}
@@ -306,18 +345,7 @@ export const ProjectKostenDashboard = memo(function ProjectKostenDashboard({
         </aside>
       </div>
 
-      {/* Remount per opening, zodat de soort-voorinstelling als beginwaarde landt. */}
-      <KostenEntryForm
-        key={toevoegen.sleutel}
-        open={toevoegen.open}
-        onOpenChange={(open) => {
-          if (!open) toevoegen.sluiten();
-        }}
-        projectId={id}
-        soort={toevoegen.soort}
-        onSubmit={handleSubmit}
-        isLoading={isSubmitting}
-      />
+      {formulier}
     </div>
   );
 });

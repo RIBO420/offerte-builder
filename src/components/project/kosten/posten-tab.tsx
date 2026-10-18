@@ -7,6 +7,7 @@
  * breedte past zonder zijwaarts te scrollen.
  */
 
+import Link from "next/link";
 import { memo } from "react";
 import { CalendarIcon, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -93,9 +94,9 @@ const PostRegel = memo(function PostRegel({
           size="xs"
           className="justify-self-end text-muted-foreground"
         >
-          <a href="/uren" aria-label="Dagregistratie corrigeren">
+          <Link href="/uren" aria-label="Dagregistratie corrigeren">
             Uren
-          </a>
+          </Link>
         </Button>
       ) : (
         <AlertDialog>

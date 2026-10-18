@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
@@ -69,6 +70,16 @@ export interface UrenEntryData {
   notities?: string;
 }
 
+/**
+ * Wat het formulier oplevert. In de bewerkmodus betekent `null` "veld wissen"
+ * (zo leest `urenRegistraties.update` het; `undefined` laat het staan). Bij
+ * aanmaken zijn lege velden `undefined`.
+ */
+export interface UrenFormulierData extends Omit<UrenEntryData, "scope" | "notities"> {
+  scope?: string | null;
+  notities?: string | null;
+}
+
 // Type for medewerker from database
 export interface DatabaseMedewerker {
   _id: string;
@@ -93,7 +104,7 @@ type UrenEntryFormData = z.infer<typeof urenEntrySchema>;
 interface UrenEntryFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: UrenEntryData) => Promise<void>;
+  onSubmit: (data: UrenFormulierData) => Promise<void>;
   isLoading?: boolean;
   initialData?: Partial<UrenEntryData>;
   existingMedewerkers?: string[];
@@ -143,12 +154,15 @@ export function UrenEntryForm({
 
   const handleFormSubmit = useCallback(
     async (data: UrenEntryFormData) => {
+      // Bewerken: een leeggemaakt veld gaat als null mee, anders blijft de
+      // oude waarde staan terwijl de melding "bijgewerkt" zegt.
+      const leeg = modus === "bewerken" ? null : undefined;
       await onSubmit({
         datum: format(data.datum, "yyyy-MM-dd"),
         medewerker: data.medewerker.trim(),
         uren: parseFloat(data.uren) || 0,
-        scope: data.scope && data.scope !== "__none__" ? data.scope : undefined,
-        notities: data.notities?.trim() || undefined,
+        scope: data.scope && data.scope !== "__none__" ? data.scope : leeg,
+        notities: data.notities?.trim() || leeg,
       });
 
       // Reset form after successful submit
@@ -161,7 +175,7 @@ export function UrenEntryForm({
       });
       setShowNewMedewerker(false);
     },
-    [onSubmit, form]
+    [onSubmit, form, modus]
   );
 
   const handleClose = useCallback(() => {
@@ -201,25 +215,31 @@ export function UrenEntryForm({
                     {/* Snelkeuze knoppen */}
                     <div className="flex flex-wrap gap-2 mb-2">
                       <Badge
+                        asChild
                         variant={field.value && format(field.value, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd") ? "default" : "outline"}
                         className="cursor-pointer hover:bg-primary/80 transition-colors"
-                        onClick={() => field.onChange(new Date())}
                       >
-                        Vandaag
+                        <button type="button" aria-pressed={!!field.value && format(field.value, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd")} onClick={() => field.onChange(new Date())}>
+                          Vandaag
+                        </button>
                       </Badge>
                       <Badge
+                        asChild
                         variant={field.value && format(field.value, "yyyy-MM-dd") === format(subDays(new Date(), 1), "yyyy-MM-dd") ? "default" : "outline"}
                         className="cursor-pointer hover:bg-primary/80 transition-colors"
-                        onClick={() => field.onChange(subDays(new Date(), 1))}
                       >
-                        Gisteren
+                        <button type="button" aria-pressed={!!field.value && format(field.value, "yyyy-MM-dd") === format(subDays(new Date(), 1), "yyyy-MM-dd")} onClick={() => field.onChange(subDays(new Date(), 1))}>
+                          Gisteren
+                        </button>
                       </Badge>
                       <Badge
+                        asChild
                         variant={field.value && format(field.value, "yyyy-MM-dd") === format(subDays(new Date(), 2), "yyyy-MM-dd") ? "default" : "outline"}
                         className="cursor-pointer hover:bg-primary/80 transition-colors"
-                        onClick={() => field.onChange(subDays(new Date(), 2))}
                       >
-                        Eergisteren
+                        <button type="button" aria-pressed={!!field.value && format(field.value, "yyyy-MM-dd") === format(subDays(new Date(), 2), "yyyy-MM-dd")} onClick={() => field.onChange(subDays(new Date(), 2))}>
+                          Eergisteren
+                        </button>
                       </Badge>
                     </div>
                     <Popover>
@@ -334,22 +354,28 @@ export function UrenEntryForm({
                       {[4, 6, 7.5, 8, 9, 10].map((hours) => (
                         <Badge
                           key={hours}
+                          asChild
                           variant={field.value === hours.toString() ? "default" : "outline"}
                           className="cursor-pointer hover:bg-primary/80 transition-colors"
-                          onClick={() => field.onChange(hours.toString())}
                         >
-                          <Clock className="mr-1 h-3 w-3" />
-                          {hours} uur
+                          <button type="button" aria-pressed={field.value === hours.toString()} onClick={() => field.onChange(hours.toString())}>
+                            <Clock className="mr-1 h-3 w-3" />
+                            {hours} uur
+                          </button>
                         </Badge>
                       ))}
                     </div>
                     <FormControl>
-                      <Input
-                        {...field}
-                        type="number"
-                        min="0"
-                        max="24"
-                        step="0.5"
+                      <NumberInput
+                        ref={field.ref}
+                        name={field.name}
+                        value={field.value}
+                        onChange={(uren) => field.onChange(uren > 0 ? uren.toString() : "")}
+                        onBlur={field.onBlur}
+                        min={0}
+                        max={24}
+                        step={0.5}
+                        decimals={2}
                         placeholder="8"
                       />
                     </FormControl>

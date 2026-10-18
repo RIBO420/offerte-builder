@@ -1,13 +1,7 @@
 "use client";
 
 import React from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { SectiePaneel } from "@/components/ui/sectie-paneel";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -51,21 +45,22 @@ export function AanmaningStatusCard({ aanmaningStatus }: AanmaningStatusCardProp
   if (aanmaningStatus.totaalVerstuurd <= 0) return null;
 
   return (
-    <Card className={
-      aanmaningStatus.heeftIngebrekestelling
-        ? "border-status-vervallen-border"
-        : aanmaningStatus.heeftTweede
-          ? "border-accent-warm/60"
-          : aanmaningStatus.heeftEerste
-            ? "border-status-herinnering-border"
-            : ""
-    }>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Scale className="h-4 w-4" />
-          Aanmaningen
-        </CardTitle>
-        <CardDescription>
+    <SectiePaneel
+      titel="Aanmaningen"
+      icoon={<Scale aria-hidden="true" />}
+      kopbalk
+      className={
+        aanmaningStatus.heeftIngebrekestelling
+          ? "border-status-vervallen-border"
+          : aanmaningStatus.heeftTweede
+            ? "border-accent-warm/60"
+            : aanmaningStatus.heeftEerste
+              ? "border-status-herinnering-border"
+              : undefined
+      }
+    >
+      <div className="p-4">
+        <p className="mb-3 text-[13px] text-muted-foreground">
           {aanmaningStatus.volgendNiveau
             ? `Volgende stap: ${
                 aanmaningStatus.volgendNiveau === "eerste_aanmaning" ? "1e Aanmaning" :
@@ -74,22 +69,20 @@ export function AanmaningStatusCard({ aanmaningStatus }: AanmaningStatusCardProp
               }`
             : "Alle niveaus verstuurd"
           }
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+        </p>
         {/* Escalation level indicators */}
         <div className="flex items-center gap-2 mb-4">
           <div className={`flex-1 h-2 rounded-full ${aanmaningStatus.heeftEerste ? "bg-status-herinnering-dot" : "bg-muted"}`} />
           <div className={`flex-1 h-2 rounded-full ${aanmaningStatus.heeftTweede ? "bg-accent-warm" : "bg-muted"}`} />
           <div className={`flex-1 h-2 rounded-full ${aanmaningStatus.heeftIngebrekestelling ? "bg-destructive" : "bg-muted"}`} />
         </div>
-        <div className="flex justify-between text-xs text-muted-foreground mb-3">
+        <div className="flex justify-between text-xs text-muted-foreground">
           <span>1e Aanmaning</span>
           <span>2e Aanmaning</span>
           <span>Ingebrekestelling</span>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </SectiePaneel>
   );
 }
 
@@ -170,22 +163,21 @@ export function HerinneringenHistorie({ herinneringen }: HerinneringenHistoriePr
   if (herinneringen.length === 0) return null;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <History className="h-4 w-4" />
-          Historie
-        </CardTitle>
-        <CardDescription>
+    <SectiePaneel
+      titel="Historie"
+      icoon={<History aria-hidden="true" />}
+      telling={herinneringen.length}
+      kopbalk
+    >
+      <div className="space-y-3 p-4">
+        <p className="text-[13px] text-muted-foreground tabular-nums">
           {herinneringen.length} herinnering(en) / aanmaning(en) verstuurd
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
+        </p>
         {herinneringen.map((h) => (
           <HerinneringItem key={h._id} h={h} />
         ))}
-      </CardContent>
-    </Card>
+      </div>
+    </SectiePaneel>
   );
 }
 
@@ -204,14 +196,13 @@ interface CreditnotaInfoProps {
 
 export function CreditnotaInfo({ creditnota }: CreditnotaInfoProps) {
   return (
-    <Card className="border-status-vervallen-border">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-destructive">
-          <FileX className="h-4 w-4" />
-          Creditnota
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-2">
+    <SectiePaneel
+      titel="Creditnota"
+      icoon={<FileX aria-hidden="true" className="text-destructive" />}
+      kopbalk
+      className="border-status-vervallen-border"
+    >
+      <div className="space-y-2 p-4">
         <div className="flex justify-between text-sm">
           <span className="text-muted-foreground">Nummer</span>
           <span className="font-medium">{creditnota.factuurnummer}</span>
@@ -222,7 +213,7 @@ export function CreditnotaInfo({ creditnota }: CreditnotaInfoProps) {
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-muted-foreground">Bedrag</span>
-          <span className="font-bold text-destructive">{formatCurrency(creditnota.totaalInclBtw)}</span>
+          <span className="font-bold tabular-nums text-destructive">{formatCurrency(creditnota.totaalInclBtw)}</span>
         </div>
         {creditnota.creditnotaReden && (
           <>
@@ -232,8 +223,8 @@ export function CreditnotaInfo({ creditnota }: CreditnotaInfoProps) {
             </p>
           </>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </SectiePaneel>
   );
 }
 
@@ -299,14 +290,8 @@ export function BoekhoudSyncStatusCard({ syncStatus }: BoekhoudSyncStatusCardPro
   const entry = syncStatus.syncEntry;
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <BookOpen className="h-4 w-4" />
-          Boekhouding
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <SectiePaneel titel="Boekhouding" icoon={<BookOpen aria-hidden="true" />} kopbalk>
+      <div className="space-y-3 p-4">
         <div className="flex items-start gap-3">
           <div className={`p-2 rounded-full ${config.bgColor}`}>
             {status === "pending" ? (
@@ -381,7 +366,7 @@ export function BoekhoudSyncStatusCard({ syncStatus }: BoekhoudSyncStatusCardPro
             )}
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </SectiePaneel>
   );
 }
