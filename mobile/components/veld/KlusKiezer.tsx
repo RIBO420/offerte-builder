@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { useQuery } from 'convex/react';
 import * as Crypto from 'expo-crypto';
@@ -20,7 +20,10 @@ export function KlusKiezer({ datum, stops, waarde, wijzigen, disabled = false }:
 }) {
   const kleuren = useVeldKleuren(); const { online, voerUit } = useVeldServerActie();
   const [open, setOpen] = useState(false); const [zoek, setZoek] = useState('');
-  const klanten = useQuery(api.veldKlanten.zoek, open ? { datum, zoekterm: zoek } : 'skip');
+  // Niet per toetsaanslag een nieuwe serverquery: 250ms na de laatste letter.
+  const [zoekterm, setZoekterm] = useState(zoek);
+  useEffect(() => { const t = setTimeout(() => setZoekterm(zoek), 250); return () => clearTimeout(t); }, [zoek]);
+  const klanten = useQuery(api.veldKlanten.zoek, open ? { datum, zoekterm } : 'skip');
   const [klant, setKlant] = useState<KlantKeuze | null>(null); const [nieuweKlant, setNieuweKlant] = useState(false);
   const [naam, setNaam] = useState(''); const [adres, setAdres] = useState(''); const [postcode, setPostcode] = useState(''); const [plaats, setPlaats] = useState('');
   const [omschrijving, setOmschrijving] = useState(''); const [categorie, setCategorie] = useState<'aanleg' | 'onderhoud'>('onderhoud');

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Text, View } from 'react-native';
 import { useQuery } from 'convex/react';
-import { useRouter } from 'expo-router';
+import { useEenmaligePush } from '../../hooks/use-eenmalige-push';
 import { Check, ChevronRight, Circle, Lock, Send, Truck } from 'lucide-react-native';
 import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
@@ -36,8 +36,8 @@ function klussenVan(dag: VeldDagData, bezoekDag: WerkbezoekDagData | undefined):
 }
 
 function useOpenKlus(datum: string) {
-  const router = useRouter();
-  return (rij: KlusRij) => router.push({ pathname: '/werk/klus/[id]', params: { id: rij.id, datum, naam: rij.naam } });
+  const push = useEenmaligePush();
+  return (rij: KlusRij) => push({ pathname: '/werk/klus/[id]', params: { id: rij.id, datum, naam: rij.naam } });
 }
 
 /**
@@ -155,7 +155,7 @@ export function AfsluitenKaart({ datum, teamId, isIngediend, blokkade, bezig, on
   datum: string; teamId?: string; isIngediend: boolean; blokkade: string | null; bezig: boolean; onIndienen: () => void;
 }) {
   const kleuren = useVeldKleuren();
-  const router = useRouter();
+  const push = useEenmaligePush();
   const { wachtrij } = useVeldOpdracht();
   const live = useQuery(api.aanhangerRetouren.getDag, { datum, ...(teamId ? { teamId: teamId as Id<'teams'> } : {}) }) as RetourSamenvatting | undefined;
   const { data: retour } = useVeldCache(`retour:${datum}:${teamId ?? 'eigen'}`, live);
@@ -169,7 +169,7 @@ export function AfsluitenKaart({ datum, teamId, isIngediend, blokkade, bezig, on
       <SectieKop titel="Afsluiten" />
       <Kaart style={{ gap: 14 }}>
         <Drukvlak
-          onPress={() => router.push({ pathname: '/werk/aanhanger', params: { datum, ...(teamId ? { teamId } : {}) } })}
+          onPress={() => push({ pathname: '/werk/aanhanger', params: { datum, ...(teamId ? { teamId } : {}) } })}
           accessibilityLabel={`Aanhanger terug naar de loods, ${aanhangerSub}`}
           style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 48 }}
         >

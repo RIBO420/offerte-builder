@@ -12,7 +12,8 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Stack, useRouter } from 'expo-router';
+import { Stack } from 'expo-router';
+import { useEenmaligePush } from '../../hooks/use-eenmalige-push';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useMutation, useQuery } from 'convex/react';
 import { ArrowUp, Lock } from 'lucide-react-native';
@@ -83,7 +84,7 @@ export function ChatGesprek({ soort, id, titel }: { soort: GesprekSoort; id?: st
   const insets = useSafeAreaInsets();
   const headerHoogte = useHeaderHeight();
   const toetsenbordOpen = useToetsenbordOpen();
-  const router = useRouter();
+  const pushEenmalig = useEenmaligePush();
   const { user } = useCurrentUser();
   const lijstRef = useRef<FlatList<ChatItem>>(null);
   const [concept, setConcept] = useState('');
@@ -283,7 +284,7 @@ export function ChatGesprek({ soort, id, titel }: { soort: GesprekSoort; id?: st
             </Text>
             {projectId && (
               <Drukvlak
-                onPress={() => router.push(`/project/${projectId}`)}
+                onPress={() => pushEenmalig(`/project/${projectId}`)}
                 accessibilityLabel="Project openen"
                 style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: 10 }}
               >

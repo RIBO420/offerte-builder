@@ -98,7 +98,10 @@ function MijnDag() {
     setRouteDatum(params.datum);
     if (geldigeDag(params.datum)) setDatum(params.datum);
   }
-  const { wachtrij } = useVeldOpdracht();
+  const { wachtrij: volledigeWachtrij } = useVeldOpdracht();
+  // Alleen invoer van deze dag houdt indienen tegen; zonder datum (behalve de
+  // intro) blijven we voorzichtig en tellen we hem wel mee.
+  const wachtrij = volledigeWachtrij.filter(opdracht => typeof opdracht.payload.datum === 'string' ? opdracht.payload.datum === datum : opdracht.type !== 'intro');
   const { online, voerUit } = useVeldServerActie();
 
   const liveDag = useQuery(api.urenSegmenten.getVeldDag, { datum }) as
@@ -131,7 +134,7 @@ function MijnDag() {
       : uitCache
         ? 'Je ziet een opgeslagen dag. Indienen kan zodra de actuele dag geladen is.'
         : wachtrij.length > 0
-          ? 'Er staat nog invoer in de wachtrij. Synchroniseer die eerst.'
+          ? 'Er staat nog invoer van deze dag in de wachtrij. Synchroniseer die eerst.'
           : dag.segmenten.length === 0
             ? 'Nog geen uren gelogd voor deze dag.'
             : !bezoekLive?.gereed

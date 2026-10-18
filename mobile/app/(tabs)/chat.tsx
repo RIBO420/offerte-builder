@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ActivityIndicator, Platform, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEenmaligePush } from '../../hooks/use-eenmalige-push';
 import { useQuery } from 'convex/react';
 import { MessageCircle, SquarePen } from 'lucide-react-native';
 import { api } from '../../convex/_generated/api';
@@ -60,6 +61,7 @@ interface ProjectGesprek {
 function ChatInbox() {
   const kleuren = useVeldKleuren();
   const router = useRouter();
+  const pushEenmalig = useEenmaligePush();
   const params = useLocalSearchParams<{ dm?: string; project?: string }>();
   const { user, role } = useCurrentUser();
   const [verversen, setVerversen] = useState(false);
@@ -192,7 +194,7 @@ function ChatInbox() {
             voorbeeld={team === undefined ? 'Laden…' : kanaalVoorbeeld(team[team.length - 1], 'Nog geen berichten')}
             tijd={team?.[team.length - 1]?.createdAt}
             ongelezen={ongelezen?.team ?? 0}
-            onPress={() => router.push(gesprekHref('team', VASTE_NAMEN.team))}
+            onPress={() => pushEenmalig(gesprekHref('team', VASTE_NAMEN.team))}
           />
           <RegelLijn />
           <GesprekRegel
@@ -201,7 +203,7 @@ function ChatInbox() {
             voorbeeld={mededelingen === undefined ? 'Laden…' : kanaalVoorbeeld(mededelingen[mededelingen.length - 1], 'Nog geen mededelingen')}
             tijd={mededelingen?.[mededelingen.length - 1]?.createdAt}
             ongelezen={ongelezen?.broadcast ?? 0}
-            onPress={() => router.push(gesprekHref('mededelingen', VASTE_NAMEN.mededelingen))}
+            onPress={() => pushEenmalig(gesprekHref('mededelingen', VASTE_NAMEN.mededelingen))}
           />
         </Kaart>
 
@@ -237,7 +239,7 @@ function ChatInbox() {
                   voorbeeld={plat(g.lastMessage) || 'Nog geen berichten'}
                   tijd={g.lastMessageAt}
                   ongelezen={g.unreadCount}
-                  onPress={() => router.push(gesprekHref('dm', g.partnerName, String(g.partnerId)))}
+                  onPress={() => pushEenmalig(gesprekHref('dm', g.partnerName, String(g.partnerId)))}
                 />
               </View>
             ))}
@@ -257,7 +259,7 @@ function ChatInbox() {
                     voorbeeld={kanaalVoorbeeld(p.laatste, '')}
                     tijd={p.laatste.createdAt}
                     ongelezen={p.ongelezen}
-                    onPress={() => router.push(gesprekHref('project', p.naam, p.id))}
+                    onPress={() => pushEenmalig(gesprekHref('project', p.naam, p.id))}
                   />
                 </View>
               ))}

@@ -34,7 +34,9 @@ class VeldStore {
   private generatie = 0;
   private online = true;
   private stoppen: (() => void) | null = null;
-  tokenOphaler: TokenOphaler | null = null;
+  private tokenOphaler: TokenOphaler | null = null;
+  /** De laatst gemounte hook levert de actuele Clerk-tokenfunctie. */
+  zetTokenOphaler(ophaler: TokenOphaler) { this.tokenOphaler = ophaler; }
 
   constructor(readonly sleutel: string, private orgId: string, private userId: string) {
     this.outbox = new VeldOutbox(AsyncStorage, sleutel);
@@ -144,7 +146,7 @@ const leeg = () => LEEG;
 export function useVeldOpdracht() {
   const { userId, orgId, getToken } = useAuth();
   const store = useMemo(() => userId && orgId ? storeVoor(orgId, userId) : null, [orgId, userId]);
-  useLayoutEffect(() => { if (store) store.tokenOphaler = getToken as TokenOphaler; }, [store, getToken]);
+  useLayoutEffect(() => { store?.zetTokenOphaler(getToken as TokenOphaler); }, [store, getToken]);
   useEffect(() => store?.activeer(), [store]);
   const { wachtrij, fout, online, laatstGesynctOp } = useSyncExternalStore(store?.abonneer ?? geenAbonnement, store?.lees ?? leeg, store?.lees ?? leeg);
 

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Linking, Platform, Text, View } from 'react-native';
 import { useQuery } from 'convex/react';
-import { useRouter } from 'expo-router';
+import { useEenmaligePush } from '../../hooks/use-eenmalige-push';
 import { AlertTriangle, CalendarX2, ChevronRight, Clock, MapPin, Navigation, UserX } from 'lucide-react-native';
 import { useVeldCache } from '../../hooks/use-veld-cache';
 import { api } from '../../convex/_generated/api';
@@ -61,7 +61,7 @@ function PlanningInhoud() {
 
 function PlanningDag({ datum, vandaag, compact }: { datum: string; vandaag: string; compact: boolean }) {
   const { kleuren } = useBuitenModus();
-  const router = useRouter();
+  const push = useEenmaligePush();
   const liveDag = useQuery(api.urenSegmenten.getVeldDag, { datum }) as VeldDagData | null | undefined;
   const { data: dag, uitCache } = useVeldCache(`dag:${datum}`, liveDag);
   const isVandaag = datum === vandaag;
@@ -113,7 +113,7 @@ function PlanningDag({ datum, vandaag, compact }: { datum: string; vandaag: stri
               <View key={String(stop.werkitemId)}>
                 {i > 0 && <Scheiding />}
                 <Drukvlak
-                  onPress={() => router.push({ pathname: '/werk/klus/[id]', params: { id: String(stop.werkitemId), datum, naam } })}
+                  onPress={() => push({ pathname: '/werk/klus/[id]', params: { id: String(stop.werkitemId), datum, naam } })}
                   accessibilityLabel={`${naam}, ${sub}${gelogd ? ', gelogd' : gemist ? ', uren ontbreken' : ''}`}
                   accessibilityHint="Opent de klus"
                   style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 60, paddingVertical: 10 }}
@@ -154,9 +154,9 @@ function routeUrl(adres: string) {
 
 function KlusKaart({ stop, datum, vandaag, gelogd, gemist }: { stop: VeldStop; datum: string; vandaag: boolean; gelogd: boolean; gemist: boolean }) {
   const { kleuren } = useBuitenModus();
-  const router = useRouter();
+  const push = useEenmaligePush();
   const status: { label: string; toon: Toon } = gelogd ? { label: 'Gelogd', toon: 'succes' } : gemist ? { label: 'Uren ontbreken', toon: 'gemist' } : { label: 'Gepland', toon: 'neutraal' };
-  const openDag = () => router.push({ pathname: '/(tabs)/uren', params: { datum } });
+  const openDag = () => push({ pathname: '/(tabs)/uren', params: { datum } });
   return (
     <Kaart variant={vandaag ? 'natuur' : 'standaard'}>
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
