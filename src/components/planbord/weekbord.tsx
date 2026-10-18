@@ -55,7 +55,8 @@ import {
   naarBemanningCel,
   naarEvents,
   naarResources,
-  eventsVoorTeamDag,
+  eventsPerTeamDag,
+  teamDagSleutel,
   type BakItem,
   type PlanbordEvent,
   type PlanbordResource,
@@ -63,15 +64,21 @@ import {
 import { getISOWeek } from "date-fns";
 import {
   PERIODES,
+  blokSpanFactor,
+  bordDichtheid,
+  bordRasterKolommen,
   bereikLabel,
+  celRandPx,
   isWeekend,
   kolomDatums,
-  kolomLabel,
+  kolomKop,
   periodeBereik,
   schuifAnker,
   vandaagIso,
+  type BordDichtheid,
   type Periode,
 } from "./periode";
+import { useVorigeData } from "@/hooks/use-vorige-data";
 import { Opdrachtenbak } from "./opdrachtenbak";
 import {
   AfwezigheidDialog,
@@ -92,6 +99,7 @@ const WerkitemBlok = memo(function WerkitemBlok({
   event,
   spanKolommen,
   loopDoor = false,
+  dichtheid,
   magMuteren,
   onOntplan,
   onDupliceer,
@@ -102,6 +110,8 @@ const WerkitemBlok = memo(function WerkitemBlok({
   spanKolommen: number;
   /** Het blok loopt door na het zichtbare bereik: rechts geen afronding, wel een pijl. */
   loopDoor?: boolean;
+  /** ruim: naam + tijdregel; smal: alleen de naam; krap: kleur + korte naam. */
+  dichtheid: BordDichtheid;
   magMuteren: boolean;
   onOntplan: (event: PlanbordEvent) => void;
   onDupliceer: (event: PlanbordEvent) => void;
@@ -131,6 +141,16 @@ const WerkitemBlok = memo(function WerkitemBlok({
   });
 
   const isBeurt = event.type === "onderhoudsbeurt";
+  const krap = dichtheid === "krap";
+  const tijdTekst = `${
+    event.startTijd && event.eindTijd
+      ? `${event.startTijd}–${event.eindTijd}`
+      : event.geschatteUren != null
+        ? `${event.geschatteUren} u`
+        : isBeurt
+          ? "Beurt"
+          : "Project"
+  }${duurDagen > 0 ? ` · ${duurDagen + 1} dgn` : ""}`;
   return (
     <div
       ref={setBlokRef}
@@ -138,15 +158,17 @@ const WerkitemBlok = memo(function WerkitemBlok({
       style={{
         // Breedte in startcellen. Weekendkolommen zijn op de weekweergave
         // smaller, dus de factor kan een breuk zijn — de aanroeper rekent hem
-        // uit op de kolomgewichten. De px-term telt de padding (2×6px) en de
-        // 1px celrand mee die tussen de overgestoken cellen liggen.
-        width: `calc(${spanKolommen * 100}% + ${(spanKolommen - 1) * 13}px)`,
+        // uit op de kolomgewichten. De px-term telt de celpadding en de 1px
+        // celrand mee die tussen de overgestoken cellen liggen.
+        width: `calc(${spanKolommen * 100}% + ${(spanKolommen - 1) * celRandPx(dichtheid)}px)`,
         transform: CSS.Translate.toString(blokTransform),
         zIndex: blokSleept ? 40 : 10,
       }}
       // Statuskleur uit de tokenreceptuur (DESIGN.md): project = gepland
       // (steenblauw), onderhoudsbeurt = groen. Geen rauwe paletkleuren meer.
-      className={`group relative border px-2.5 py-1.5 text-xs transition-shadow hover:shadow-md ${
+      className={`group relative border text-xs transition-shadow hover:shadow-md ${
+        krap ? "px-1 py-0.5" : dichtheid === "smal" ? "px-1.5 py-1" : "px-2.5 py-1.5"
+      } ${
         loopDoor ? "rounded-l-md rounded-r-sm border-r-0" : "rounded-md"
       } ${
         isBeurt
@@ -155,9 +177,15 @@ const WerkitemBlok = memo(function WerkitemBlok({
       } ${magMuteren ? "cursor-grab" : ""} ${blokSleept ? "opacity-70 shadow-lg" : ""}`}
     >
       <div {...blokListeners} {...blokAttributes}>
-        <p className="truncate pr-4 text-[13px] leading-5 font-semibold" title={event.titel}>
+        <p
+          className={`truncate font-semibold ${
+            krap ? "text-[11px] leading-4" : "pr-1 text-[13px] leading-5"
+          }`}
+          title={`${event.titel} · ${tijdTekst}`}
+        >
           {event.titel}
         </p>
+        {dichtheid === "ruim" && (
         <p
           className={`flex items-center gap-1.5 truncate text-[11px] leading-4 tabular-nums ${
             isBeurt ? "text-status-geaccepteerd-text" : "text-status-gepland-text"
@@ -169,16 +197,7 @@ const WerkitemBlok = memo(function WerkitemBlok({
               isBeurt ? "bg-status-geaccepteerd-dot" : "bg-status-gepland-dot"
             }`}
           />
-          <span className="truncate">
-            {event.startTijd && event.eindTijd
-              ? `${event.startTijd}–${event.eindTijd}`
-              : event.geschatteUren != null
-                ? `${event.geschatteUren} u`
-                : isBeurt
-                  ? "Beurt"
-                  : "Project"}
-            {duurDagen > 0 ? ` · ${duurDagen + 1} dgn` : ""}
-          </span>
+          <span className="truncate">{tijdTekst}</span>
           {loopDoor && (
             <ArrowRight
               className="ml-auto h-3 w-3 shrink-0"
@@ -186,39 +205,54 @@ const WerkitemBlok = memo(function WerkitemBlok({
             />
           )}
         </p>
+        )}
       </div>
       {magMuteren && (
         <>
-          <div className="absolute right-0.5 top-0.5 hidden gap-0.5 group-hover:flex">
+          {/* Acties via opacity in plaats van display:none, zodat toetsenbord
+              (focus-within) en touch (geen hover) erbij kunnen. Op de ruime
+              weekweergave staan ze op touch altijd in beeld; op de krappere
+              periodes zouden ze de naam bedekken. */}
+          <div
+            className={`absolute right-0.5 top-0.5 flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 ${
+              dichtheid === "ruim" ? "[@media(hover:none)]:opacity-100" : ""
+            }`}
+          >
             <button
+              type="button"
               title="Terug in de bak"
-              className="rounded bg-background/80 p-0.5 hover:bg-background"
+              aria-label={`${event.titel} terug in de bak`}
+              className="rounded bg-background/80 p-0.5 transition-colors hover:bg-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
               onClick={(e) => {
                 e.stopPropagation();
                 onOntplan(event);
               }}
             >
-              <Minus className="h-3 w-3" />
+              <Minus className="h-3 w-3" aria-hidden="true" />
             </button>
             <button
+              type="button"
               title="Dupliceren naar andere dag (team en tijden blijven)"
-              className="rounded bg-background/80 p-0.5 hover:bg-background"
+              aria-label={`${event.titel} dupliceren`}
+              className="rounded bg-background/80 p-0.5 transition-colors hover:bg-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
               onClick={(e) => {
                 e.stopPropagation();
                 onDupliceer(event);
               }}
             >
-              <Copy className="h-3 w-3" />
+              <Copy className="h-3 w-3" aria-hidden="true" />
             </button>
             <button
+              type="button"
               title="Splitsen over dagen/teams"
-              className="rounded bg-background/80 p-0.5 hover:bg-background"
+              aria-label={`${event.titel} splitsen`}
+              className="rounded bg-background/80 p-0.5 transition-colors hover:bg-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
               onClick={(e) => {
                 e.stopPropagation();
                 onSplits(event);
               }}
             >
-              <Scissors className="h-3 w-3" />
+              <Scissors className="h-3 w-3" aria-hidden="true" />
             </button>
           </div>
           <div
@@ -239,13 +273,16 @@ const WerkitemBlok = memo(function WerkitemBlok({
 // Cel (één team × één dag)
 // ============================================
 
-const TeamDagCel = memo(function TeamDagCel({
+// Geen React.memo: `children` is elke render een nieuw element, dus een
+// memo zou nooit iets overslaan. De blokken zelf zijn wél gememoïseerd.
+function TeamDagCel({
   teamId,
   datum,
   children,
   weekend,
   vandaag,
   teamAfwezig,
+  krap,
 }: {
   teamId: Id<"teams"> | null;
   datum: string;
@@ -253,6 +290,7 @@ const TeamDagCel = memo(function TeamDagCel({
   weekend: boolean;
   vandaag: boolean;
   teamAfwezig: boolean;
+  krap: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: `cel-${teamId ?? "zonder"}-${datum}`,
@@ -265,7 +303,9 @@ const TeamDagCel = memo(function TeamDagCel({
       // group/cel: de bemanning- en dagkaartknoppen staan pas in beeld bij
       // hover of focus. Op elke cel "3/3" met twee iconen was ruis; wat
       // afwijkt (afwezig, aangepast) blijft wél altijd zichtbaar.
-      className={`group/cel flex min-h-[84px] min-w-0 flex-col gap-1 border-b border-l border-border/60 p-1.5 ${
+      className={`group/cel flex min-w-0 flex-col gap-1 border-b border-l border-border/60 ${
+        krap ? "min-h-16 p-0.5" : "min-h-[84px] p-1.5"
+      } ${
         weekend ? WEEKEND_ARCERING : ""
       } ${vandaag ? "bg-primary/[0.06]" : ""} ${
         teamAfwezig ? "bg-status-afgewezen/60" : ""
@@ -274,7 +314,7 @@ const TeamDagCel = memo(function TeamDagCel({
       {children}
     </div>
   );
-});
+}
 
 /**
  * Weekend: schuine arcering naast de tint, zodat "geen gewone werkdag" ook
@@ -283,9 +323,6 @@ const TeamDagCel = memo(function TeamDagCel({
  */
 const WEEKEND_ARCERING =
   "bg-[repeating-linear-gradient(135deg,color-mix(in_oklch,var(--foreground)_4%,transparent)_0_5px,transparent_5px_10px)]";
-
-/** Op de weekweergave krijgen za en zo ruim de helft van een werkdag. */
-const WEEKEND_GEWICHT = 0.6;
 
 /** "week 42" of "week 42–45" — ISO-weken, want de planning begint op maandag. */
 function weekLabel(start: string, eind: string): string {
@@ -307,7 +344,6 @@ export function Weekbord() {
   const [anker, setAnker] = useState(
     datumParam && /^\d{4}-\d{2}-\d{2}$/.test(datumParam) ? datumParam : vandaagIso()
   );
-  const [filterDatum, setFilterDatum] = useState<string | null>(null);
 
   const bereik = useMemo(() => periodeBereik(periode, anker), [periode, anker]);
   const kolommen = useMemo(
@@ -315,13 +351,34 @@ export function Weekbord() {
     [bereik]
   );
 
+  // De dag-hint van de bak hoort bij één bereik: na een week- of
+  // periodewissel valt hij vanzelf terug op "geen" (afgeleid, geen effect).
+  const bereikSleutel = `${bereik.start}|${bereik.eind}`;
+  const [dagHint, setDagHint] = useState<{ bereik: string; datum: string | null }>({
+    bereik: bereikSleutel,
+    datum: null,
+  });
+  const filterDatum = dagHint.bereik === bereikSleutel ? dagHint.datum : null;
+  const setFilterDatum = useCallback(
+    (datum: string | null) => setDagHint({ bereik: bereikSleutel, datum }),
+    [bereikSleutel]
+  );
+
   // — Data (adapter: Convex → resources/events) —
   const rolInfo = useQuery(api.roles.getCurrentUserRole);
-  const context = useQuery(api.planbord.getBordContext, bereik);
-  const werkitems = useQuery(api.werkitems.listVoorPlanbord, bereik);
-  const wachtrij = useQuery(api.planbord.getWachtrij, bereik) as
-    | BakItem[]
-    | undefined;
+  // Bij een andere week/periode houdt useVorigeData het vorige resultaat
+  // vast tot het nieuwe binnen is: het raster dimt even in plaats van in te
+  // klappen tot "laden…" (geen layout shift).
+  const { data: context, verversen: contextVerversen } = useVorigeData(
+    useQuery(api.planbord.getBordContext, bereik)
+  );
+  const { data: werkitems, verversen: werkitemsVerversen } = useVorigeData(
+    useQuery(api.werkitems.listVoorPlanbord, bereik)
+  );
+  const { data: wachtrij } = useVorigeData(
+    useQuery(api.planbord.getWachtrij, bereik) as BakItem[] | undefined
+  );
+  const verversen = contextVerversen || werkitemsVerversen;
 
   const magMuteren = magPlanbordMuteren(rolInfo?.role);
   const resources: PlanbordResource[] = useMemo(
@@ -446,30 +503,24 @@ export function Weekbord() {
   );
 
   const vandaag = vandaagIso();
-  // Weekweergave: vloeiend raster zonder minimumbreedte, met smallere
-  // weekendkolommen — nooit zijwaarts scrollen (harde regel 1). Langere
-  // periodes houden hun minimumbreedte: 28+ kolommen passen niet zonder.
-  const compact = kolommen.length <= 7;
-  const kolomGewicht = (datum: string) =>
-    compact && isWeekend(datum) ? WEEKEND_GEWICHT : 1;
-  // De teamkolom geeft mee op een smal scherm (max 28%), anders blijven er
-  // op een telefoon alleen splinters van de dagkolommen over.
-  const rasterKolommen = `${compact ? "min(220px, 28%)" : "160px"} ${kolommen
-    .map((datum) => `minmax(0, ${kolomGewicht(datum)}fr)`)
-    .join(" ")}`;
-  const kolomBreedte = kolommen.length > 14 ? 64 : 110;
-  const minBordBreedte = compact ? undefined : 160 + kolommen.length * kolomBreedte;
-  /** Breedte van een blok in startcellen, op de kolomgewichten. */
-  const spanFactor = (start: string, eind: string) => {
-    const zichtbaar = kolommen.filter((d) => d >= start && d <= eind);
-    if (zichtbaar.length === 0) return 1;
-    const som = zichtbaar.reduce((t, d) => t + kolomGewicht(d), 0);
-    return som / kolomGewicht(zichtbaar[0]);
-  };
+  // Nooit zijwaarts scrollen (harde regel 1): elke periode past. Bij meer
+  // dan 7 kolommen dikken de kolommen in (minmax(0, 1fr), geen
+  // minimumbreedte); koppen en blokken worden korter. → periode.ts
+  const dichtheid = bordDichtheid(kolommen.length);
+  const krap = dichtheid === "krap";
+  const rasterKolommen = bordRasterKolommen(kolommen);
   const werkdagen = kolommen.filter((d) => !isWeekend(d));
   const bemanningCel = (teamId: Id<"teams">, datum: string) =>
     context ? naarBemanningCel(context, teamId, datum) : null;
-  const eventsZonderTeam = events.filter((e) => e.resourceId === null);
+  // Eén keer per events/kolommen: alle events per team-dag (was per cel een
+  // filter over de hele lijst).
+  const perTeamDag = useMemo(() => eventsPerTeamDag(events, kolommen), [events, kolommen]);
+  const eventsOp = (teamId: Id<"teams"> | null, datum: string) =>
+    perTeamDag.get(teamDagSleutel(teamId, datum)) ?? [];
+  /** Alleen renderen op de eerste zichtbare dag van het blok. */
+  const startOpDezeDag = (ev: PlanbordEvent, datum: string) =>
+    ev.start === datum || (ev.start < bereik.start && datum === bereik.start);
+  const heeftZonderTeam = events.some((e) => e.resourceId === null);
 
   return (
     <div className="flex flex-wrap items-start gap-4">
@@ -514,7 +565,7 @@ export function Weekbord() {
             </div>
             <div className="ml-auto flex flex-wrap items-center gap-2">
               <div
-                role="radiogroup"
+                role="group"
                 aria-label="Periode"
                 data-testid="periodetoggle"
                 className="flex flex-wrap gap-0.5 rounded-lg bg-muted p-[3px]"
@@ -523,10 +574,9 @@ export function Weekbord() {
                   <button
                     key={p.id}
                     type="button"
-                    role="radio"
-                    aria-checked={periode === p.id}
+                    aria-pressed={periode === p.id}
                     onClick={() => setPeriode(p.id)}
-                    className={`h-[30px] whitespace-nowrap rounded-md px-2.5 text-[13px] transition-colors ${
+                    className={`h-[30px] whitespace-nowrap rounded-md px-2.5 text-[13px] transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${
                       periode === p.id
                         ? "bg-card font-semibold text-foreground shadow-sm"
                         : "text-muted-foreground hover:text-foreground"
@@ -585,47 +635,59 @@ export function Weekbord() {
           )}
 
           {/* Het bord */}
-          <div className={`rounded-xl border bg-card ${compact ? "overflow-hidden" : "overflow-x-auto"}`}>
-            <div style={{ minWidth: minBordBreedte }}>
+          <div
+            className="overflow-hidden rounded-xl border bg-card"
+            aria-busy={verversen || undefined}
+          >
+            <div>
               {/* Kolomkoppen */}
               <div className="grid border-b" style={{ gridTemplateColumns: rasterKolommen }}>
-                <div className="flex flex-col justify-center px-3.5 py-2.5">
-                  <span className="text-[13px] font-semibold">
+                <div className="flex min-w-0 flex-col justify-center px-3.5 py-2.5">
+                  <span className="truncate text-[13px] font-semibold">
                     {resources.length} {resources.length === 1 ? "ploeg" : "ploegen"}
                   </span>
-                  <span className="text-[11px] text-muted-foreground">bezetting werkdagen</span>
+                  <span className="truncate text-[11px] text-muted-foreground">bezetting werkdagen</span>
                 </div>
                 {kolommen.map((datum) => {
-                  const label = kolomLabel(datum);
+                  const kop = kolomKop(datum, dichtheid);
                   const isVandaag = datum === vandaag;
                   return (
                     <div
                       key={datum}
-                      className={`min-w-0 border-l border-border/60 px-2.5 py-2 ${
-                        isWeekend(datum) && !isVandaag ? WEEKEND_ARCERING : ""
-                      } ${isVandaag ? "bg-primary/[0.06] shadow-[inset_0_-2px_0_var(--primary)]" : ""}`}
+                      title={kop.voluit}
+                      className={`min-w-0 border-l border-border/60 py-2 ${
+                        krap ? "px-0.5 text-center" : dichtheid === "smal" ? "px-1.5" : "px-2.5"
+                      } ${isWeekend(datum) && !isVandaag ? WEEKEND_ARCERING : ""} ${
+                        isVandaag ? "bg-primary/[0.06] shadow-[inset_0_-2px_0_var(--primary)]" : ""
+                      }`}
                     >
+                      <span className="sr-only">
+                        {kop.voluit}
+                        {isVandaag && " (vandaag)"}
+                      </span>
                       <p
+                        aria-hidden="true"
                         className={`truncate text-[11px] ${
                           isVandaag ? "font-semibold text-primary" : "text-muted-foreground"
                         }`}
                       >
-                        {label.dag}
-                        {isVandaag && <span className="sr-only"> (vandaag)</span>}
+                        {kop.dag}
                       </p>
                       <p
-                        className={`truncate text-[15px] leading-5 font-semibold tabular-nums ${
-                          isVandaag ? "" : "text-muted-foreground"
-                        }`}
+                        aria-hidden="true"
+                        className={`truncate font-semibold tabular-nums ${
+                          krap ? "text-[13px] leading-4" : "text-[15px] leading-5"
+                        } ${isVandaag ? "" : "text-muted-foreground"}`}
                       >
-                        {compact ? label.datum.split(" ")[0] : label.datum}
+                        {kop.nummer}
                       </p>
                     </div>
                   );
                 })}
               </div>
 
-              {/* Teamrijen */}
+              {/* Teamrijen — tijdens verversen gedimd, niet ingeklapt */}
+              <div className={`transition-opacity ${verversen ? "opacity-60" : ""}`}>
               {context === undefined || werkitems === undefined ? (
                 <p className="p-4 text-sm text-muted-foreground">Bord laden…</p>
               ) : resources.length === 0 ? (
@@ -640,9 +702,7 @@ export function Weekbord() {
                 />
               ) : (
                 resources.map((team) => {
-                  const bezet = werkdagen.map(
-                    (datum) => eventsVoorTeamDag(events, team.id, datum).length > 0
-                  );
+                  const bezet = werkdagen.map((datum) => eventsOp(team.id, datum).length > 0);
                   const aantalBezet = bezet.filter(Boolean).length;
                   return (
                     <div
@@ -684,13 +744,23 @@ export function Weekbord() {
                       </div>
                       {kolommen.map((datum) => {
                         const cel = bemanningCel(team.id, datum);
-                        const dagEvents = eventsVoorTeamDag(events, team.id, datum).filter(
-                          // Alleen renderen op de eerste zichtbare dag van het blok
-                          (ev) => ev.start === datum || (ev.start < bereik.start && datum === bereik.start)
+                        const dagEvents = eventsOp(team.id, datum).filter((ev) =>
+                          startOpDezeDag(ev, datum)
                         );
                         const afwijkend =
                           !!cel &&
                           (cel.afwezigen.length > 0 || cel.teamAfwezig || cel.bron === "aangepast");
+                        const bemanningTekst = cel
+                          ? `${cel.medewerkerIds.length - cel.afwezigen.length}/${cel.medewerkerIds.length}${
+                              cel.teamAfwezig
+                                ? " · team afwezig"
+                                : cel.afwezigen.length > 0
+                                  ? ` · ${cel.afwezigen.length} afwezig`
+                                  : cel.bron === "aangepast"
+                                    ? " · aangepast"
+                                    : ""
+                            }`
+                          : "";
                         return (
                           <TeamDagCel
                             key={datum}
@@ -699,6 +769,7 @@ export function Weekbord() {
                             weekend={isWeekend(datum)}
                             vandaag={datum === vandaag}
                             teamAfwezig={cel?.teamAfwezig ?? false}
+                            krap={krap}
                           >
                             {dagEvents.map((ev) => {
                               const zichtbareStart = ev.start < bereik.start ? bereik.start : ev.start;
@@ -707,8 +778,9 @@ export function Weekbord() {
                                 <WerkitemBlok
                                   key={ev.id}
                                   event={ev}
-                                  spanKolommen={spanFactor(zichtbareStart, zichtbaarEind)}
+                                  spanKolommen={blokSpanFactor(kolommen, zichtbareStart, zichtbaarEind)}
                                   loopDoor={ev.eind > bereik.eind}
+                                  dichtheid={dichtheid}
                                   magMuteren={magMuteren}
                                   onOntplan={onOntplan}
                                   onDupliceer={setDupliceerEvent}
@@ -718,20 +790,26 @@ export function Weekbord() {
                             })}
                             {cel && (
                               <div
+                                // Zichtbaar bij hover/focus; op touch (geen
+                                // hover) altijd. Op de krappe periodes alleen
+                                // wat afwijkt, anders staat elke cel vol iconen.
                                 className={`mt-auto flex items-center justify-between gap-1 transition-opacity ${
                                   afwijkend
                                     ? ""
-                                    : "opacity-0 group-hover/cel:opacity-100 focus-within:opacity-100"
+                                    : `opacity-0 group-hover/cel:opacity-100 focus-within:opacity-100 ${
+                                        krap ? "" : "[@media(hover:none)]:opacity-100"
+                                      }`
                                 }`}
                               >
                                 <button
                                   type="button"
                                   data-testid="bemanning-knop"
-                                  title={
+                                  title={`${
                                     cel.bron === "aangepast"
                                       ? "Bemanning aangepast voor deze dag"
                                       : "Vaste teamleden"
-                                  }
+                                  } (${bemanningTekst})`}
+                                  aria-label={krap ? `Bemanning ${bemanningTekst}` : undefined}
                                   disabled={!magMuteren}
                                   onClick={() =>
                                     setBemanningDoel({
@@ -740,25 +818,18 @@ export function Weekbord() {
                                       datum,
                                     })
                                   }
-                                  className={`flex min-h-6 min-w-0 items-center gap-1 rounded-full px-1.5 text-[11px] tabular-nums ${
+                                  className={`flex min-h-6 min-w-0 items-center gap-1 rounded-full text-[11px] tabular-nums ${
+                                    krap ? "justify-center px-0.5" : "px-1.5"
+                                  } ${
                                     afwijkend
                                       ? "border border-status-verzonden-border bg-status-verzonden text-status-verzonden-text"
                                       : "text-muted-foreground"
                                   } ${magMuteren && !afwijkend ? "hover:bg-muted" : ""}`}
                                 >
                                   <Users className="h-3 w-3 shrink-0" aria-hidden="true" />
-                                  <span className="truncate">
-                                    {cel.medewerkerIds.length - cel.afwezigen.length}/
-                                    {cel.medewerkerIds.length}
-                                    {cel.teamAfwezig
-                                      ? " · team afwezig"
-                                      : cel.afwezigen.length > 0
-                                        ? ` · ${cel.afwezigen.length} afwezig`
-                                        : cel.bron === "aangepast"
-                                          ? " · aangepast"
-                                          : ""}
-                                  </span>
+                                  {!krap && <span className="truncate">{bemanningTekst}</span>}
                                 </button>
+                                {!krap && (
                                 <span className="flex shrink-0 items-center gap-0.5">
                                   <Link
                                     data-testid="dagkaart-link"
@@ -788,6 +859,7 @@ export function Weekbord() {
                                     </button>
                                   )}
                                 </span>
+                                )}
                               </div>
                             )}
                           </TeamDagCel>
@@ -799,11 +871,11 @@ export function Weekbord() {
               )}
 
               {/* Gepland zonder team */}
-              {eventsZonderTeam.length > 0 && (
+              {heeftZonderTeam && (
                 <div className="grid" style={{ gridTemplateColumns: rasterKolommen }}>
-                  <div className="border-b border-border/60 px-3.5 py-2.5">
-                    <p className="text-sm font-semibold text-status-verzonden-text">Zonder team</p>
-                    <Badge variant="outline" className="text-[10px]">
+                  <div className="min-w-0 border-b border-border/60 px-3.5 py-2.5">
+                    <p className="truncate text-sm font-semibold text-status-verzonden-text">Zonder team</p>
+                    <Badge variant="outline" className="max-w-full truncate text-[10px]">
                       nog toewijzen
                     </Badge>
                   </div>
@@ -815,18 +887,16 @@ export function Weekbord() {
                       weekend={isWeekend(datum)}
                       vandaag={datum === vandaag}
                       teamAfwezig={false}
+                      krap={krap}
                     >
-                      {eventsVoorTeamDag(eventsZonderTeam, null, datum)
-                        .filter(
-                          (ev) =>
-                            ev.start === datum ||
-                            (ev.start < bereik.start && datum === bereik.start)
-                        )
+                      {eventsOp(null, datum)
+                        .filter((ev) => startOpDezeDag(ev, datum))
                         .map((ev) => (
                           <WerkitemBlok
                             key={ev.id}
                             event={ev}
                             spanKolommen={1}
+                            dichtheid={dichtheid}
                             magMuteren={magMuteren}
                             onOntplan={onOntplan}
                             onDupliceer={setDupliceerEvent}
@@ -837,6 +907,7 @@ export function Weekbord() {
                   ))}
                 </div>
               )}
+              </div>
             </div>
           </div>
 

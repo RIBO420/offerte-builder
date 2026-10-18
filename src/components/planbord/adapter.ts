@@ -176,3 +176,35 @@ export function eventsVoorTeamDag(
       (a, b) => (a.volgordeBinnenDag ?? 999) - (b.volgordeBinnenDag ?? 999)
     );
 }
+
+/** Sleutel voor `eventsPerTeamDag`: team (of "zonder") + datum. */
+export function teamDagSleutel(teamId: Id<"teams"> | null, datum: string): string {
+  return `${teamId ?? "zonder"}|${datum}`;
+}
+
+/**
+ * Alle events per team-dag in één keer, voor de zichtbare kolommen — het
+ * bord vroeg anders per cel opnieuw de hele eventlijst af (teams × dagen ×
+ * events). Zelfde selectie en volgorde als `eventsVoorTeamDag`.
+ */
+export function eventsPerTeamDag(
+  events: PlanbordEvent[],
+  kolommen: string[]
+): Map<string, PlanbordEvent[]> {
+  const map = new Map<string, PlanbordEvent[]>();
+  for (const event of events) {
+    for (const datum of kolommen) {
+      if (!werkitemOpDag({ geplandeStart: event.start, geplandeEind: event.eind }, datum)) {
+        continue;
+      }
+      const sleutel = teamDagSleutel(event.resourceId, datum);
+      const lijst = map.get(sleutel);
+      if (lijst) lijst.push(event);
+      else map.set(sleutel, [event]);
+    }
+  }
+  for (const lijst of map.values()) {
+    lijst.sort((a, b) => (a.volgordeBinnenDag ?? 999) - (b.volgordeBinnenDag ?? 999));
+  }
+  return map;
+}
