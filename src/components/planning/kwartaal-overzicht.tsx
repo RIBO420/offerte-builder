@@ -22,6 +22,7 @@ import {
   werkdagenInMaand,
 } from "./periode-onderdelen";
 import { cn } from "@/lib/utils";
+import { useVorigeData } from "@/hooks/use-vorige-data";
 
 interface KwartaalOverzichtProps {
   initialYear?: number;
@@ -69,7 +70,10 @@ export function KwartaalOverzicht({ initialYear, initialQuarter }: KwartaalOverz
   const [year, setYear] = useState(initialYear ?? now.getFullYear());
   const [quarter, setQuarter] = useState(initialQuarter ?? currentQuarter);
 
-  const data = useQuery(api.weekPlanning.listByQuarter, { year, quarter });
+  // Vorig resultaat vasthouden bij navigeren: de panelen dimmen even in
+  // plaats van terug te vallen op skeletons (geen layout shift).
+  const { data, verversen } = useVorigeData(useQuery(api.weekPlanning.listByQuarter, { year, quarter }));
+  const dimKlasse = cn("transition-opacity", verversen && "opacity-60");
 
   const prevQuarter = () => {
     if (quarter === 1) {
@@ -173,6 +177,7 @@ export function KwartaalOverzicht({ initialYear, initialQuarter }: KwartaalOverz
       />
 
       <SectiePaneel
+        className={dimKlasse}
         titel="Bezetting per week"
         kopbalk
         acties={
@@ -254,6 +259,7 @@ export function KwartaalOverzicht({ initialYear, initialQuarter }: KwartaalOverz
         </SectiePaneel>
       ) : wekenMetWerk.length === 0 ? (
         <SectiePaneel
+          className={dimKlasse}
           titel="Weken met werk"
           kopbalk
           legeRegel={{ tekst: "Nog niets gepland dit kwartaal." }}
@@ -267,7 +273,7 @@ export function KwartaalOverzicht({ initialYear, initialQuarter }: KwartaalOverz
           }
         />
       ) : (
-        <SectiePaneel titel="Weken met werk" kopbalk telling={wekenMetWerk.length}>
+        <SectiePaneel className={dimKlasse} titel="Weken met werk" kopbalk telling={wekenMetWerk.length}>
           <div className="p-1">
             <div aria-hidden className={cn(RIJ, "py-1.5 text-xs text-muted-foreground")}>
               <span>Week</span>

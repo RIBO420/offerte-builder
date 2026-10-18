@@ -9,7 +9,10 @@ import { api } from "../../../../convex/_generated/api";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { FolderKanban } from "lucide-react";
-import { PlanningPageSkeleton } from "@/components/ui/skeleton-card";
+import {
+  PlanningBanenSkeleton,
+  PlanningPageSkeleton,
+} from "@/components/ui/skeleton-card";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useIsAdmin, useIsKantoor } from "@/hooks/use-users";
 import {
@@ -26,7 +29,6 @@ import { KwartaalOverzicht } from "@/components/planning/kwartaal-overzicht";
 import { JaarOverzicht } from "@/components/planning/jaar-overzicht";
 import { PlanningTabs } from "@/components/planbord/planning-tabs";
 import { kolomLabel, vandaagIso } from "@/components/planbord/periode";
-import { LaadIndicator } from "@/components/ui/laad-indicator";
 
 type PlanningView = "projecten" | "maand" | "kwartaal" | "jaar";
 
@@ -49,11 +51,18 @@ function PlanningPageLoader() {
   return (
     <>
       <PageHeader />
-      <div className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
+      <div className="mx-auto flex w-full max-w-[86rem] flex-1 flex-col p-4 md:p-6">
         <PlanningPageSkeleton />
       </div>
     </>
   );
+}
+
+/** Geheel getal binnen [min, max] uit een URL-parameter, anders undefined. */
+function geheelGetalParam(waarde: string | null, min: number, max: number): number | undefined {
+  if (waarde === null || !/^\d+$/.test(waarde)) return undefined;
+  const getal = Number(waarde);
+  return getal >= min && getal <= max ? getal : undefined;
 }
 
 /** "13 okt – 15 okt" of "13 okt" — voor de Let op-regel van verlopen planning. */
@@ -85,6 +94,12 @@ function PlanningPageContent() {
       } else {
         params.set("view", view);
       }
+      // Jaar/maand horen alleen bij de maandweergave; anders blijven ze
+      // hangen en opent een latere klik op "Maand" een oude maand.
+      if (view !== "maand") {
+        params.delete("jaar");
+        params.delete("maand");
+      }
       const query = params.toString();
       router.push(`/planning${query ? `?${query}` : ""}`, { scroll: false });
     },
@@ -103,8 +118,10 @@ function PlanningPageContent() {
     },
     [router]
   );
-  const maandJaar = Number(searchParams.get("jaar")) || undefined;
-  const maandNummer = Number(searchParams.get("maand")) || undefined;
+  // Alleen gehele getallen binnen bereik: "?maand=13" liet de maandkalender
+  // crashen. Ongeldig = huidige maand/jaar.
+  const maandJaar = geheelGetalParam(searchParams.get("jaar"), 2000, 2100);
+  const maandNummer = geheelGetalParam(searchParams.get("maand"), 1, 12);
 
   const projectVoortgangData = useQuery(
     api.projectRapportages.getProjectVoortgang,
@@ -169,30 +186,35 @@ function PlanningPageContent() {
           <PlanningTabs actief="/planning" />
         </div>
 
-        {/* Veld-rol §2.6 (kantoor): wat niet klopt, bovenaan en compact. */}
-        {isKantoor && currentView === "projecten" && (
-          <div className="flex flex-col gap-3">
-            <LetOpStrook
-              verlopen={indeling.verlopen.map((p) => ({
-                projectId: p.projectId,
-                projectNaam: p.projectNaam,
-                periode: periodeTekst(p.geplandeStart!, p.geplandeEind),
-              }))}
-            />
+        {/* Veld-rol §2.6 (kantoor): wat niet klopt, bovenaan en compact.
+            Meerwerk wacht op een besluit, dus in elke weergave; de Let
+            op-strook leunt op de projectlijst en staat alleen bij Projecten.
+            empty:hidden: zonder meerwerk en buiten Projecten geen lege gap. */}
+        {isKantoor && (
+          <div className="flex flex-col gap-3 empty:hidden">
+            {currentView === "projecten" && (
+              <LetOpStrook
+                verlopen={indeling.verlopen.map((p) => ({
+                  projectId: p.projectId,
+                  projectNaam: p.projectNaam,
+                  periode: periodeTekst(p.geplandeStart!, p.geplandeEind),
+                  geplandeStart: p.geplandeStart!,
+                }))}
+              />
+            )}
             <MeerwerkBeoordeling />
           </div>
         )}
 
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-          <div role="radiogroup" aria-label="Weergave" className="flex flex-wrap gap-0.5 rounded-lg bg-muted p-[3px]">
+          <div role="group" aria-label="Weergave" className="flex flex-wrap gap-0.5 rounded-lg bg-muted p-[3px]">
             {PERIODES.map((periode) => (
               <button
                 key={periode.id}
                 type="button"
-                role="radio"
-                aria-checked={currentView === periode.id}
+                aria-pressed={currentView === periode.id}
                 onClick={() => setView(periode.id)}
-                className={`h-[30px] whitespace-nowrap rounded-md px-3 text-[13px] transition-colors ${
+                className={`h-[30px] whitespace-nowrap rounded-md px-3 text-[13px] transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${
                   currentView === periode.id
                     ? "bg-card font-semibold text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
@@ -219,7 +241,7 @@ function PlanningPageContent() {
 
         {currentView === "projecten" &&
           (isLoading ? (
-            <LaadIndicator formaat="sectie" tekst="Projecten laden…" className="min-h-0 py-20" />
+            <PlanningBanenSkeleton />
           ) : projecten.length === 0 ? (
             <EmptyState
               icon={<FolderKanban aria-hidden />}

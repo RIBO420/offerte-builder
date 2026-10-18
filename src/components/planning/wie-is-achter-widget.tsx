@@ -39,6 +39,8 @@ export interface VerlopenPlanning {
   projectId: string;
   projectNaam: string;
   periode: string;
+  /** YYYY-MM-DD — "Herplannen" opent het weekbord op die week. */
+  geplandeStart?: string;
 }
 
 /**
@@ -133,7 +135,17 @@ export function LetOpStrook({ verlopen }: { verlopen: VerlopenPlanning[] }) {
               key={`v-${item.projectId}`}
               titel={item.projectNaam}
               toelichting={`stond ${item.periode}, nog niet gestart`}
-              actie={<RegelLink href="/planning/weekbord">Herplannen</RegelLink>}
+              actie={
+                <RegelLink
+                  href={
+                    item.geplandeStart
+                      ? `/planning/weekbord?datum=${item.geplandeStart}`
+                      : "/planning/weekbord"
+                  }
+                >
+                  Herplannen
+                </RegelLink>
+              }
             />
           ))}
         </ul>

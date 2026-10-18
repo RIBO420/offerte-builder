@@ -137,8 +137,10 @@ export function PeriodeWerkbalk({
   onVandaag: () => void;
   children?: ReactNode;
 }) {
+  // Smal 44px (touch), breed 36px — op de breedte van de omringende
+  // container (@container/planning), niet van het venster.
   const knop =
-    "grid h-11 place-items-center bg-transparent text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:h-9";
+    "grid h-11 place-items-center bg-transparent text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring @xl:h-9";
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
       <div className="flex min-w-0 items-center gap-2.5">
@@ -147,7 +149,7 @@ export function PeriodeWerkbalk({
             type="button"
             onClick={onVorige}
             aria-label={vorigeLabel}
-            className={cn(knop, "w-11 sm:w-9")}
+            className={cn(knop, "w-11 @xl:w-9")}
           >
             <ChevronLeft className="size-4" aria-hidden />
           </button>
@@ -162,7 +164,7 @@ export function PeriodeWerkbalk({
             type="button"
             onClick={onVolgende}
             aria-label={volgendeLabel}
-            className={cn(knop, "w-11 sm:w-9")}
+            className={cn(knop, "w-11 @xl:w-9")}
           >
             <ChevronRight className="size-4" aria-hidden />
           </button>

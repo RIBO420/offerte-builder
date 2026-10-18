@@ -222,7 +222,7 @@ export default function LijstweergavePagina() {
   return (
     <>
       <PageHeader />
-      <div className={`${REVEAL_KLASSE} flex flex-1 flex-col gap-4 p-4 md:p-6`}>
+      <div className={`${REVEAL_KLASSE} @container/lijst flex flex-1 flex-col gap-4 p-4 md:p-6`}>
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0 space-y-1.5">
             <h1 className="font-display text-2xl font-semibold tracking-tight md:text-[28px]">
@@ -293,7 +293,7 @@ export default function LijstweergavePagina() {
             })}
           </div>
 
-          <div className="relative w-full max-w-60 min-w-0 sm:w-60">
+          <div className="relative w-full max-w-60 min-w-0 @xl/lijst:w-60">
             <Search
               aria-hidden="true"
               className="pointer-events-none absolute top-1/2 left-3 size-[15px] -translate-y-1/2 text-muted-foreground"

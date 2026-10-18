@@ -140,3 +140,13 @@ export function duurTekst(minuten: number): string {
 export function urenTekst(uren: number): string {
   return uren.toLocaleString("nl-NL", { maximumFractionDigits: 2 });
 }
+
+/**
+ * Is dit een echte ISO-datum (YYYY-MM-DD)? Voor URL-parameters als
+ * `?datum=`: "2026-13-45" of "morgen" mag nooit een query in.
+ */
+export function isIsoDatum(waarde: string | null | undefined): waarde is string {
+  if (!waarde || !/^\d{4}-\d{2}-\d{2}$/.test(waarde)) return false;
+  const d = new Date(`${waarde}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === waarde;
+}

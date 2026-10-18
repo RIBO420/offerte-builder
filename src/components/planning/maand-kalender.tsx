@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
@@ -27,6 +27,7 @@ import {
   werkdagenInMaand,
 } from "./periode-onderdelen";
 import { cn } from "@/lib/utils";
+import { useVorigeData } from "@/hooks/use-vorige-data";
 
 const DAG_NAMEN = ["ma", "di", "wo", "do", "vr", "za", "zo"];
 
@@ -249,7 +250,11 @@ export function MaandKalender({ initialYear, initialMonth }: MaandKalenderProps)
   const [month, setMonth] = useState(initialMonth ?? now.getMonth() + 1);
   const [selectedDag, setSelectedDag] = useState<string | null>(null);
 
-  const data = useQuery(api.weekPlanning.listByMonth, { year, month });
+  // Vorig resultaat vasthouden bij een andere maand: de kalender dimt even
+  // in plaats van terug te vallen op skeletoncellen (geen layout shift).
+  const { data, verversen } = useVorigeData(
+    useQuery(api.weekPlanning.listByMonth, { year, month })
+  );
 
   const prevMonth = () => {
     if (month === 1) {
@@ -315,8 +320,11 @@ export function MaandKalender({ initialYear, initialMonth }: MaandKalenderProps)
 
   const selectedDagData = selectedDag ? (data?.perDag[selectedDag] ?? null) : null;
 
-  const selecteer = (datum: string) =>
-    setSelectedDag((huidig) => (huidig === datum ? null : datum));
+  // Stabiel houden: KalenderCel is gememoïseerd en krijgt dit als prop.
+  const selecteer = useCallback(
+    (datum: string) => setSelectedDag((huidig) => (huidig === datum ? null : datum)),
+    [setSelectedDag]
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -355,7 +363,11 @@ export function MaandKalender({ initialYear, initialMonth }: MaandKalenderProps)
 
       <section
         aria-label={`Maandkalender ${maandNaam.toLowerCase()} ${year}`}
-        className="@container/maand overflow-hidden rounded-lg border bg-card"
+        aria-busy={verversen || undefined}
+        className={cn(
+          "@container/maand overflow-hidden rounded-lg border bg-card transition-opacity",
+          verversen && "opacity-60"
+        )}
       >
         <div className={RASTER}>
           <span className="py-2.5 text-center text-[11px] text-muted-foreground">wk</span>

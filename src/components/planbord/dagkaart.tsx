@@ -55,6 +55,7 @@ import { addDagen, magPlanbordMuteren } from "../../../convex/planbordLogica";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SectiePaneel } from "@/components/ui/sectie-paneel";
 import { cn } from "@/lib/utils";
@@ -70,7 +71,8 @@ import {
   Users,
 } from "lucide-react";
 import { naarBemanningCel } from "./adapter";
-import { dagVoluit, duurTekst } from "./datum-nl";
+import { dagVoluit, duurTekst, isIsoDatum } from "./datum-nl";
+import { useVorigeData } from "@/hooks/use-vorige-data";
 import { PlanStatusPil, planStatusConfig } from "./plan-status";
 import { vandaagIso } from "./periode";
 
@@ -92,6 +94,59 @@ const naarMinuten = (tijd: string) => {
 const blurBijEnter = (e: KeyboardEvent<HTMLInputElement>) => {
   if (e.key === "Enter") e.currentTarget.blur();
 };
+
+/**
+ * Minutenveld: `NumberInput` (tekstveld met inputmode, min/max, hele
+ * minuten) dat pas opslaat bij wegklikken of Enter. NumberInput meldt
+ * tijdens het typen al tussenwaarden; die houden we hier vast in plaats van
+ * er bij elke toets een mutatie van te maken. Bij blur roept NumberInput
+ * eerst `onChange` met de afgeronde, begrensde eindwaarde aan.
+ */
+function MinutenVeld({
+  id,
+  waarde,
+  min,
+  max,
+  ariaLabel,
+  className,
+  onOpslaan,
+}: {
+  id?: string;
+  waarde: number;
+  min: number;
+  max: number;
+  ariaLabel: string;
+  className?: string;
+  onOpslaan: (minuten: number) => void;
+}) {
+  const concept = useRef(waarde);
+  return (
+    <span
+      className="contents"
+      onKeyDown={(e) => {
+        if (e.key === "Enter" && e.target instanceof HTMLInputElement) e.target.blur();
+      }}
+    >
+      <NumberInput
+        id={id}
+        value={waarde}
+        min={min}
+        max={max}
+        step={1}
+        decimals={0}
+        showStepper={false}
+        aria-label={ariaLabel}
+        className={className}
+        onChange={(minuten) => {
+          concept.current = minuten;
+        }}
+        onBlur={() => {
+          if (concept.current !== waarde) onOpslaan(concept.current);
+        }}
+      />
+    </span>
+  );
+}
 
 /** Pauze-patroon: arcering naast kleur, zodat de pauze ook zonder kleur leesbaar is. */
 const PAUZE_ARCERING =
@@ -351,27 +406,13 @@ const KlantBlok = memo(function KlantBlok({
               <span className={kleur.text}>duur</span>
               {magMuteren ? (
                 <>
-                  <Input
-                    type="text"
-                    inputMode="numeric"
-                    className="h-6 w-12 border-0 bg-transparent px-1 text-right text-xs font-semibold tabular-nums shadow-none md:text-xs dark:bg-transparent"
-                    aria-label={`Duur in minuten ${stop.naam}`}
-                    key={`duur-${stop.duurMinuten}`}
-                    defaultValue={stop.duurMinuten}
-                    onKeyDown={blurBijEnter}
-                    onBlur={(e) => {
-                      const minuten = Number(e.target.value.replace(",", "."));
-                      if (
-                        Number.isInteger(minuten) &&
-                        minuten > 0 &&
-                        minuten <= 1440 &&
-                        minuten !== stop.duurMinuten
-                      ) {
-                        onDuur(stop.werkitemId, minuten);
-                      } else if (minuten !== stop.duurMinuten) {
-                        e.target.value = String(stop.duurMinuten);
-                      }
-                    }}
+                  <MinutenVeld
+                    waarde={stop.duurMinuten}
+                    min={1}
+                    max={1440}
+                    ariaLabel={`Duur in minuten ${stop.naam}`}
+                    className="w-12 [&_input]:h-6 [&_input]:border-0 [&_input]:bg-transparent [&_input]:px-1 [&_input]:text-right [&_input]:text-xs [&_input]:font-semibold [&_input]:tabular-nums [&_input]:shadow-none dark:[&_input]:bg-transparent"
+                    onOpslaan={(minuten) => onDuur(stop.werkitemId, minuten)}
                   />
                   <span className={kleur.text}>min</span>
                   {stop.duurMinuten >= 60 && (
@@ -556,28 +597,14 @@ function DagindelingPaneel({
               >
                 Afronding (min)
               </label>
-              <Input
+              <MinutenVeld
                 id="dagindeling-afronding"
-                type="text"
-                inputMode="numeric"
-                className="h-9 tabular-nums"
-                aria-label="Loods-afronding in minuten (deze dag)"
-                key={`afronding-${s.loodsAfrondingMinuten}`}
-                defaultValue={s.loodsAfrondingMinuten}
-                onKeyDown={blurBijEnter}
-                onBlur={(e) => {
-                  const minuten = Number(e.target.value.replace(",", "."));
-                  if (
-                    Number.isInteger(minuten) &&
-                    minuten >= 0 &&
-                    minuten <= 1440 &&
-                    minuten !== s.loodsAfrondingMinuten
-                  ) {
-                    onAfwijking({ loodsAfrondingMinuten: minuten });
-                  } else if (minuten !== s.loodsAfrondingMinuten) {
-                    e.target.value = String(s.loodsAfrondingMinuten);
-                  }
-                }}
+                waarde={s.loodsAfrondingMinuten}
+                min={0}
+                max={1440}
+                ariaLabel="Loods-afronding in minuten (deze dag)"
+                className="[&_input]:h-9 [&_input]:tabular-nums"
+                onOpslaan={(minuten) => onAfwijking({ loodsAfrondingMinuten: minuten })}
               />
             </div>
             <TijdVeld
@@ -632,7 +659,10 @@ function DagindelingPaneel({
 export function Dagkaart() {
   const router = useRouter();
   const zoekparams = useSearchParams();
-  const datumParam = zoekparams.get("datum");
+  // Alleen een echte ISO-datum telt; "?datum=morgen" of "2026-13-45" valt
+  // terug op vandaag in plaats van een query te laten struikelen.
+  const ruweDatum = zoekparams.get("datum");
+  const datumParam = isIsoDatum(ruweDatum) ? ruweDatum : null;
   const teamParam = zoekparams.get("team") as Id<"teams"> | null;
 
   // Deep-link (?team=..&datum=..) opent het planvenster op die dag
@@ -681,16 +711,24 @@ export function Dagkaart() {
   const rolInfo = useQuery(api.roles.getCurrentUserRole);
   const magMuteren = magPlanbordMuteren(rolInfo?.role);
 
-  const context = useQuery(api.planbord.getBordContext, {
-    start: datum,
-    eind: datum,
-  });
-  // Default = eerste actieve team; expliciete keuze wint
-  const teamId = gekozenTeamId ?? context?.teams[0]?._id ?? null;
+  // Vorig resultaat vasthouden bij een andere dag/team: de kaart dimt even
+  // in plaats van in te klappen tot "laden…".
+  const { data: context } = useVorigeData(
+    useQuery(api.planbord.getBordContext, {
+      start: datum,
+      eind: datum,
+    })
+  );
+  // Default = eerste actieve team; expliciete keuze wint — maar alleen als
+  // het een bestaand actief team is. Een ongeldige `?team=` gaat zo nooit
+  // een v.id("teams")-query in (die zou de pagina laten crashen).
+  const gekozenIsGeldig =
+    gekozenTeamId !== null && !!context?.teams.some((t) => t._id === gekozenTeamId);
+  const teamId = (gekozenIsGeldig ? gekozenTeamId : null) ?? context?.teams[0]?._id ?? null;
+  const teamOnbekend = gekozenTeamId !== null && context !== undefined && !gekozenIsGeldig;
 
-  const kaart = useQuery(
-    api.dagkaart.getDagkaart,
-    teamId ? { teamId, datum } : "skip"
+  const { data: kaart, verversen: kaartVerversen } = useVorigeData(
+    useQuery(api.dagkaart.getDagkaart, teamId ? { teamId, datum } : "skip")
   );
 
   const herorden = useMutation(api.dagkaart.herordenDag);
@@ -991,6 +1029,12 @@ export function Dagkaart() {
         )}
       </div>
 
+      {teamOnbekend && (
+        <p role="status" className="text-[13px] text-muted-foreground">
+          De ploeg uit de link bestaat niet (meer) of is niet actief; je ziet de eerste ploeg.
+        </p>
+      )}
+
       {/* Zonder team wordt de kaart-query geskipt en blijft `kaart` undefined;
           check daarom eerst op context + teamId, anders blijft "laden…" eeuwig
           staan op omgevingen zonder actieve teams. */}
@@ -1007,7 +1051,15 @@ export function Dagkaart() {
           }}
         />
       ) : (
-        <div className="grid items-start gap-4 @4xl:grid-cols-[minmax(0,1fr)_20rem]">
+        <div
+          // Tijdens verversen (andere dag of ploeg) staat de vorige kaart er
+          // gedimd; niet bedienbaar, want de stops horen nog bij de oude dag.
+          aria-busy={kaartVerversen || undefined}
+          className={cn(
+            "grid items-start gap-4 transition-opacity @4xl:grid-cols-[minmax(0,1fr)_20rem]",
+            kaartVerversen && "pointer-events-none opacity-60"
+          )}
+        >
           <div className="min-w-0 space-y-4">
             {/* Volgordevoorstel (preview) — de planner beslist: overnemen of
                 verwerpen. Handmatig vastgezette starttijden blijven staan. */}

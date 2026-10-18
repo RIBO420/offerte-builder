@@ -18,6 +18,7 @@ import {
   telwoord,
 } from "./periode-onderdelen";
 import { cn } from "@/lib/utils";
+import { useVorigeData } from "@/hooks/use-vorige-data";
 
 interface JaarOverzichtProps {
   initialYear?: number;
@@ -42,7 +43,10 @@ export function JaarOverzicht({ initialYear, onNavigateToMonth }: JaarOverzichtP
   const now = new Date();
   const [year, setYear] = useState(initialYear ?? now.getFullYear());
 
-  const data = useQuery(api.weekPlanning.getCapacityOverview, { year });
+  // Vorig resultaat vasthouden bij navigeren: de panelen dimmen even in
+  // plaats van terug te vallen op skeletons (geen layout shift).
+  const { data, verversen } = useVorigeData(useQuery(api.weekPlanning.getCapacityOverview, { year }));
+  const dimKlasse = cn("transition-opacity", verversen && "opacity-60");
 
   const huidigeMaand = now.getMonth() + 1;
   const isHuidigJaar = year === now.getFullYear();
@@ -97,6 +101,7 @@ export function JaarOverzicht({ initialYear, onNavigateToMonth }: JaarOverzichtP
       />
 
       <SectiePaneel
+        className={dimKlasse}
         titel="Bezetting per maand"
         kopbalk
         acties={
@@ -187,12 +192,14 @@ export function JaarOverzicht({ initialYear, onNavigateToMonth }: JaarOverzichtP
         </SectiePaneel>
       ) : medewerkers.length === 0 ? (
         <SectiePaneel
+          className={dimKlasse}
           titel="Uren per medewerker"
           kopbalk
           legeRegel={{ tekst: `Nog geen geplande uren in ${year}.` }}
         />
       ) : (
         <SectiePaneel
+          className={dimKlasse}
           titel="Uren per medewerker"
           kopbalk
           acties={

@@ -3,10 +3,8 @@ import { PlanningPageSkeleton } from "@/components/ui/skeleton-card";
 
 export default function PlanningLoading() {
   return (
-    <div className="space-y-6" role="status" aria-live="polite" aria-busy="true">
-      <span className="sr-only">Planning laden...</span>
-
-      {/* Page header skeleton */}
+    <>
+      {/* Breadcrumbbalk */}
       <div className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
         <Skeleton className="h-7 w-7 rounded-md" />
         <Skeleton className="h-4 w-px mx-2" />
@@ -15,9 +13,10 @@ export default function PlanningLoading() {
         <Skeleton className="h-4 w-20" />
       </div>
 
-      <div className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
+      {/* Zelfde container als de planningpagina (PaginaReveal) */}
+      <div className="mx-auto flex w-full max-w-[86rem] flex-1 flex-col p-4 md:p-6">
         <PlanningPageSkeleton />
       </div>
-    </div>
+    </>
   );
 }

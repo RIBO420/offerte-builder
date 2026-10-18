@@ -111,3 +111,14 @@ describe("eventsPerTeamDag", () => {
     }
   });
 });
+
+describe("isIsoDatum (URL-parameter ?datum=)", () => {
+  it("accepteert alleen echte YYYY-MM-DD-datums", async () => {
+    const { isIsoDatum } = await import("@/components/planbord/datum-nl");
+    expect(isIsoDatum("2026-10-14")).toBe(true);
+    expect(isIsoDatum("2028-02-29")).toBe(true);
+    for (const fout of [null, "", "morgen", "2026-13-01", "2026-02-30", "2026-1-5", "2026-10-14x"]) {
+      expect(isIsoDatum(fout)).toBe(false);
+    }
+  });
+});
