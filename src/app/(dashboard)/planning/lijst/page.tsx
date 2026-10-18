@@ -56,6 +56,7 @@ import {
   type Periode,
 } from "@/components/planbord/periode";
 import { addDagen } from "@convex/planbordLogica";
+import { REVEAL_KLASSE } from "@/components/pagina-reveal";
 
 /**
  * Kolommen in schermvolgorde. Nooit zijwaarts scrollen: de tabel is een grid
@@ -221,7 +222,7 @@ export default function LijstweergavePagina() {
   return (
     <>
       <PageHeader />
-      <div className="flex flex-1 flex-col gap-4 p-4 md:p-6">
+      <div className={`${REVEAL_KLASSE} flex flex-1 flex-col gap-4 p-4 md:p-6`}>
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="min-w-0 space-y-1.5">
             <h1 className="font-display text-2xl font-semibold tracking-tight md:text-[28px]">

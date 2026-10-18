@@ -41,8 +41,6 @@ import {
 import {
   DagstaatKolom,
   DagstaatKolommen,
-  DagstaatReveal,
-  DagstaatRevealStijl,
 } from "@/components/dashboard/dagstaat-bento";
 import { DagstaatKop } from "@/components/dashboard/dagstaat-kop";
 import { DagstaatSkelet } from "@/components/dashboard/dagstaat-skelet";
@@ -332,149 +330,130 @@ export default function DashboardPage() {
           {adminData.isLoading ? (
             <DagstaatSkelet />
           ) : (
-            <>
-              <DagstaatRevealStijl />
-              <DagstaatReveal stap={0}>
-                <DagstaatKop
-                  groet={getGreeting(clerkUser?.firstName ?? undefined)}
-                  cijfers={{
-                    aandacht:
-                      (adminData.acceptedWithoutProject ?? []).length +
-                      warnings.length,
-                    takenOpen: mijnTaken?.length ?? 0,
-                    projectenLopend: adminData.projectStats?.in_uitvoering ?? 0,
-                    offertesPipeline: adminData.offerteStats?.totaal ?? 0,
-                  }}
-                  actie={
-                    /* Ingang "nieuwe offerte" — eigendom van offerte-entree-bouw
-                       (commit 4c2e64e), bewust zonder className: de knop bepaalt
-                       zijn eigen vorm, de dagstaat alleen zijn plek. */
-                    <NieuweOfferteSplitButton />
-                  }
-                />
-              </DagstaatReveal>
+            <div className={`${REVEAL_KLASSE} flex flex-col gap-6`}>
+              <DagstaatKop
+                groet={getGreeting(clerkUser?.firstName ?? undefined)}
+                cijfers={{
+                  aandacht:
+                    (adminData.acceptedWithoutProject ?? []).length +
+                    warnings.length,
+                  takenOpen: mijnTaken?.length ?? 0,
+                  projectenLopend: adminData.projectStats?.in_uitvoering ?? 0,
+                  offertesPipeline: adminData.offerteStats?.totaal ?? 0,
+                }}
+                actie={
+                  /* Ingang "nieuwe offerte" — eigendom van offerte-entree-bouw
+                     (commit 4c2e64e), bewust zonder className: de knop bepaalt
+                     zijn eigen vorm, de dagstaat alleen zijn plek. */
+                  <NieuweOfferteSplitButton />
+                }
+              />
 
               {/* Onboarding staat buiten de bento: hij is tijdelijk en zou het
                   raster anders elke keer opnieuw indelen. */}
               {shouldShowChecklist && (
-                <DagstaatReveal stap={1}>
-                  <OnboardingChecklist
-                    steps={onboardingSteps}
-                    completedSteps={onboardingCompletedSteps}
-                    totalSteps={onboardingTotalSteps}
-                    progressPercentage={onboardingProgress}
-                    isComplete={onboardingComplete}
-                    onDismiss={dismissOnboarding}
-                  />
-                </DagstaatReveal>
+                <OnboardingChecklist
+                  steps={onboardingSteps}
+                  completedSteps={onboardingCompletedSteps}
+                  totalSteps={onboardingTotalSteps}
+                  progressPercentage={onboardingProgress}
+                  isComplete={onboardingComplete}
+                  onDismiss={dismissOnboarding}
+                />
               )}
 
               <DagstaatKolommen>
                 {/* Werk: wat je moet dóén staat boven wat je moet wéten. */}
                 <DagstaatKolom label="Werk" icoon={<FolderKanban aria-hidden="true" />}>
-                  <DagstaatReveal stap={1}>
-                    <AandachtNodig
-                      acceptedWithoutProject={adminData.acceptedWithoutProject ?? []}
-                      warnings={warnings.map(
-                        (w: {
-                          id: string;
-                          type: string;
-                          prioriteit: "hoog" | "middel" | "laag";
-                          titel: string;
-                          beschrijving: string;
-                          actie?: string;
-                        }) => ({
-                          id: w.id,
-                          type: w.type,
-                          prioriteit: w.prioriteit,
-                          titel: w.titel,
-                          beschrijving: w.beschrijving,
-                          actie: w.actie,
-                        })
-                      )}
-                    />
-                  </DagstaatReveal>
+                  <AandachtNodig
+                    acceptedWithoutProject={adminData.acceptedWithoutProject ?? []}
+                    warnings={warnings.map(
+                      (w: {
+                        id: string;
+                        type: string;
+                        prioriteit: "hoog" | "middel" | "laag";
+                        titel: string;
+                        beschrijving: string;
+                        actie?: string;
+                      }) => ({
+                        id: w.id,
+                        type: w.type,
+                        prioriteit: w.prioriteit,
+                        titel: w.titel,
+                        beschrijving: w.beschrijving,
+                        actie: w.actie,
+                      })
+                    )}
+                  />
 
-                  <DagstaatReveal stap={2}>
-                    <MijnTaken verbergAlsLeeg={false} />
-                  </DagstaatReveal>
+                  <MijnTaken verbergAlsLeeg={false} />
 
-                  <DagstaatReveal stap={3}>
-                    <LopendWerkPaneel
-                      projecten={adminData.activeProjects ?? []}
-                      samenvatting={{
-                        afgerond: adminData.projectStats?.afgerond ?? 0,
-                        totaal: adminData.projectStats?.totaal ?? 0,
-                      }}
-                    />
-                  </DagstaatReveal>
+                  <LopendWerkPaneel
+                    projecten={adminData.activeProjects ?? []}
+                    samenvatting={{
+                      afgerond: adminData.projectStats?.afgerond ?? 0,
+                      totaal: adminData.projectStats?.totaal ?? 0,
+                    }}
+                  />
 
-                  <DagstaatReveal stap={4}>
-                    <VlootBadge
-                      hasIssues={adminData.vlootSummary?.hasIssues ?? false}
-                      issueCount={adminData.vlootSummary?.issueCount ?? 0}
-                      summary={adminData.vlootSummary?.summary ?? "Alles operationeel"}
-                    />
-                  </DagstaatReveal>
+                  <VlootBadge
+                    hasIssues={adminData.vlootSummary?.hasIssues ?? false}
+                    issueCount={adminData.vlootSummary?.issueCount ?? 0}
+                    summary={adminData.vlootSummary?.summary ?? "Alles operationeel"}
+                  />
                 </DagstaatKolom>
 
                 {/* Geld en offertes — gevoed door de gedeelde omzetdefinities,
                     dus dashboard en /rapportages tonen nooit een andere omzet. */}
                 <DagstaatKolom label="Geld en offertes" icoon={<FileText aria-hidden="true" />}>
-                  <DagstaatReveal stap={2}>
-                    <CijferKolom
-                      getekendeOmzet={adminData.revenueStats?.totalAcceptedValue ?? 0}
-                      omzetTrendPct={berekenVerschilPct(
-                        adminData.kwartaalVergelijking?.revenueThisQ,
-                        adminData.kwartaalVergelijking?.revenuePrevQ
-                      )}
-                      openstaandBedrag={adminData.financieel?.openstaandBedrag ?? 0}
-                      vervaldeAantal={adminData.financieel?.vervaldeAantal ?? 0}
-                      vervaldenBedrag={adminData.financieel?.vervaldenBedrag ?? 0}
-                      gefactureerdDitKwartaal={
-                        adminData.kwartaalVergelijking?.gefactureerdThisQ ?? 0
-                      }
-                      gefactureerdTrendPct={berekenVerschilPct(
-                        adminData.kwartaalVergelijking?.gefactureerdThisQ,
-                        adminData.kwartaalVergelijking?.gefactureerdPrevQ
-                      )}
-                    />
-                  </DagstaatReveal>
+                  <CijferKolom
+                    getekendeOmzet={adminData.revenueStats?.totalAcceptedValue ?? 0}
+                    omzetTrendPct={berekenVerschilPct(
+                      adminData.kwartaalVergelijking?.revenueThisQ,
+                      adminData.kwartaalVergelijking?.revenuePrevQ
+                    )}
+                    openstaandBedrag={adminData.financieel?.openstaandBedrag ?? 0}
+                    vervaldeAantal={adminData.financieel?.vervaldeAantal ?? 0}
+                    vervaldenBedrag={adminData.financieel?.vervaldenBedrag ?? 0}
+                    gefactureerdDitKwartaal={
+                      adminData.kwartaalVergelijking?.gefactureerdThisQ ?? 0
+                    }
+                    gefactureerdTrendPct={berekenVerschilPct(
+                      adminData.kwartaalVergelijking?.gefactureerdThisQ,
+                      adminData.kwartaalVergelijking?.gefactureerdPrevQ
+                    )}
+                  />
 
-                  <DagstaatReveal stap={3}>
-                    <OffertePijplijnPaneel
-                      stats={
-                        adminData.offerteStats ?? {
-                          concept: 0,
-                          voorcalculatie: 0,
-                          verzonden: 0,
-                          geaccepteerd: 0,
-                          afgewezen: 0,
-                          totaal: 0,
-                        }
+                  <OffertePijplijnPaneel
+                    stats={
+                      adminData.offerteStats ?? {
+                        concept: 0,
+                        voorcalculatie: 0,
+                        verzonden: 0,
+                        geaccepteerd: 0,
+                        afgewezen: 0,
+                        totaal: 0,
                       }
-                      conversie={{
-                        rate: adminData.revenueStats?.conversionRate ?? 0,
-                        aantalGetekend: adminData.revenueStats?.totalAcceptedCount ?? 0,
-                        aantalVerstuurd:
-                          (adminData.offerteStats?.verzonden ?? 0) +
-                          (adminData.offerteStats?.geaccepteerd ?? 0) +
-                          (adminData.offerteStats?.afgewezen ?? 0),
-                        gemiddeldeWaarde:
-                          adminData.revenueStats?.averageOfferteValue ?? 0,
-                      }}
-                    />
-                  </DagstaatReveal>
+                    }
+                    conversie={{
+                      rate: adminData.revenueStats?.conversionRate ?? 0,
+                      aantalGetekend: adminData.revenueStats?.totalAcceptedCount ?? 0,
+                      aantalVerstuurd:
+                        (adminData.offerteStats?.verzonden ?? 0) +
+                        (adminData.offerteStats?.geaccepteerd ?? 0) +
+                        (adminData.offerteStats?.afgewezen ?? 0),
+                      gemiddeldeWaarde:
+                        adminData.revenueStats?.averageOfferteValue ?? 0,
+                    }}
+                  />
 
-                  <DagstaatReveal stap={4}>
-                    <LaatsteOffertesPaneel
-                      offertes={adminData.recentOffertes ?? []}
-                      kopbalk
-                    />
-                  </DagstaatReveal>
+                  <LaatsteOffertesPaneel
+                    offertes={adminData.recentOffertes ?? []}
+                    kopbalk
+                  />
                 </DagstaatKolom>
               </DagstaatKolommen>
-            </>
+            </div>
           )}
         </div>
       )}

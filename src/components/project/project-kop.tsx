@@ -287,7 +287,7 @@ export function ProjectKop({
                 href={`/projecten/${projectId}/${neven.pad}`}
                 aria-current={isActief ? "page" : undefined}
                 className={cn(
-                  "inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 text-[13px] transition-[background-color,border-color,color] duration-150 active:scale-[0.96]",
+                  "inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 text-[13px] transition-[background-color,border-color,color,scale] duration-150 active:scale-[0.96]",
                   isActief
                     ? "border-primary/50 bg-primary/10 font-semibold text-foreground"
                     : "bg-card font-medium text-muted-foreground hover:bg-accent hover:text-foreground"

@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { logger } from "@/lib/logger";
 import { showErrorToast } from "@/lib/toast-utils";
 import { getMutationErrorMessage } from "@/lib/error-handling";
+import { REVEAL_KLASSE } from "@/components/pagina-reveal";
 
 type Controle = Doc<"kwaliteitsControles">;
 
@@ -166,7 +167,7 @@ export default function KwaliteitscontrolePage({
     <>
       <PageHeader customLabels={{ [`/projecten/${id}`]: project.naam }} />
 
-      <div className="flex flex-1 flex-col gap-5 p-4 md:p-8">
+      <div className={`${REVEAL_KLASSE} flex flex-1 flex-col gap-5 p-4 md:p-8`}>
         {/* Geen "Nieuwe QC-check" in de kop: elke scope heeft hieronder zijn
             eigen startknop, dat is één handeling minder en altijd duidelijk
             welke scope je start. */}

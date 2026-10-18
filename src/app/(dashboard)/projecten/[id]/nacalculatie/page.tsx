@@ -22,6 +22,7 @@ import { nacalculatieSignaal } from "./signaal";
 import { Uitkomst } from "./components/uitkomst";
 import { PerScope } from "./components/per-scope";
 import { UrenbronPaneel } from "./components/urenbron-paneel";
+import { REVEAL_KLASSE } from "@/components/pagina-reveal";
 
 export default function NacalculatiePage({
   params,
@@ -199,7 +200,7 @@ export default function NacalculatiePage({
             <LaadIndicator formaat="pagina" />
           </div>
         ) : (
-          <div className="@container/werk">
+          <div className={`${REVEAL_KLASSE} @container/werk`}>
             <div className="grid items-start gap-5 @4xl/werk:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)]">
               <div className="flex min-w-0 flex-col gap-4">
                 {clientCalculation ? (

@@ -66,17 +66,6 @@ const gevallen: Array<[string, () => HTMLElement]> = [
     },
   ],
   [
-    "PageTransition",
-    () => {
-      render(
-        <PageTransition>
-          <p>Inhoud</p>
-        </PageTransition>
-      );
-      return screen.getByText("Inhoud").parentElement as HTMLElement;
-    },
-  ],
-  [
     "ContentTransition",
     () => {
       render(
@@ -147,6 +136,18 @@ describe("PageTransition", () => {
       expect.arrayContaining(["flex", "flex-1", "flex-col"])
     );
   });
+
+  it("animeert zelf niet: de entree zit in de pagina (geen dubbele fade)", () => {
+    render(
+      <PageTransition>
+        <p>Inhoud</p>
+      </PageTransition>
+    );
+    const wrapper = screen.getByText("Inhoud").parentElement as HTMLElement;
+
+    expect(wrapper.style.opacity).toBe("");
+    expect(bewegingsklassen(wrapper)).toEqual([]);
+  });
 });
 
 describe("REVEAL_KLASSE", () => {
@@ -154,5 +155,10 @@ describe("REVEAL_KLASSE", () => {
     expect(REVEAL_KLASSE).toContain("motion-safe:animate-in");
     expect(REVEAL_KLASSE).not.toContain("fill-mode");
     expect(REVEAL_KLASSE).not.toContain("delay-");
+  });
+
+  it("volgt de bewegingsstandaard: 300ms met ease-standaard", () => {
+    expect(REVEAL_KLASSE).toContain("motion-safe:duration-300");
+    expect(REVEAL_KLASSE).toContain("motion-safe:ease-standaard");
   });
 });

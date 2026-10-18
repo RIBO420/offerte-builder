@@ -43,6 +43,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getScopeDisplayName } from "@/lib/planning-templates";
 import { formatCurrency } from "@/lib/format/currency";
 import { cn } from "@/lib/utils";
+import { REVEAL_KLASSE } from "@/components/pagina-reveal";
 
 /** De logische volgende stap per projectstatus — de ene gevulde knop in de kop. */
 const HOOFDSTAP: Record<string, { label: string; pad: string; icoon: LucideIcon; omlijnd?: boolean }> = {
@@ -123,7 +124,7 @@ function FaseKaart({
     <Link
       href={href}
       className={cn(
-        "card-interactive flex min-w-0 flex-col gap-2.5 rounded-lg border bg-card p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "flex min-w-0 flex-col gap-2.5 rounded-lg border bg-card p-4 transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         fase.nu && "border-status-in-uitvoering-border"
       )}
     >
@@ -217,7 +218,7 @@ export default function ProjectDetailPage({
     <>
       <PageHeader customLabels={{ [basis]: project.naam }} />
 
-      <div className="flex flex-1 flex-col gap-5 p-4 md:p-8">
+      <div className={`${REVEAL_KLASSE} flex flex-1 flex-col gap-5 p-4 md:p-8`}>
         <ProjectKop
           projectId={id}
           actief="overzicht"

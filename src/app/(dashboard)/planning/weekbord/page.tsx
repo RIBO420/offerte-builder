@@ -11,12 +11,13 @@ import { Suspense } from "react";
 import { PageHeader } from "@/components/page-header";
 import { PlanningTabs } from "@/components/planbord/planning-tabs";
 import { Weekbord } from "@/components/planbord/weekbord";
+import { REVEAL_KLASSE } from "@/components/pagina-reveal";
 
 export default function WeekbordPagina() {
   return (
     <>
       <PageHeader />
-      <div className="flex flex-1 flex-col gap-4 p-4 md:p-6">
+      <div className={`${REVEAL_KLASSE} flex flex-1 flex-col gap-4 p-4 md:p-6`}>
         <div className="flex flex-wrap items-end justify-between gap-3">
           {/* De uitleg ("rijen zijn teams…") staat niet meer als alinea boven
               het bord: het bord legt zichzelf uit, en de sleephint staat in de

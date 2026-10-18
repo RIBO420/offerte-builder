@@ -151,7 +151,7 @@ export function LogboekFab() {
         onClick={() => setOpen((vorig) => !vorig)}
         aria-expanded={open}
         className={cn(
-          "inline-flex items-center gap-2 rounded-full bg-primary py-2 pl-4 pr-2 text-sm font-semibold text-primary-foreground shadow-lg transition-[background-color,transform] hover:bg-primary/90 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          "inline-flex items-center gap-2 rounded-full bg-primary py-2 pl-4 pr-2 text-sm font-semibold text-primary-foreground shadow-lg transition-[background-color,scale] hover:bg-primary/90 active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         )}
       >
         <NotebookPen className="size-4" aria-hidden />

@@ -57,6 +57,7 @@ import { getal } from "@/components/project/project-cijfers";
 import { SectiePaneel } from "@/components/ui/sectie-paneel";
 import { getScopeDisplayName, takenTemplates } from "@/lib/planning-templates";
 import { LaadIndicator } from "@/components/ui/laad-indicator";
+import { REVEAL_KLASSE } from "@/components/pagina-reveal";
 
 const LEGE_TAAK = { scope: "", taakNaam: "", normUren: 0 };
 
@@ -294,7 +295,7 @@ export default function PlanningPage({
     <>
       {breadcrumb}
 
-      <div className="flex flex-1 flex-col gap-5 p-4 md:p-8">
+      <div className={`${REVEAL_KLASSE} flex flex-1 flex-col gap-5 p-4 md:p-8`}>
         <ProjectKop
           projectId={id}
           actief="planning"

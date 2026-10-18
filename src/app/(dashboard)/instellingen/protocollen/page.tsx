@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { ContactenBeheer } from "./contacten-beheer";
+import { REVEAL_KLASSE } from "@/components/pagina-reveal";
 
 type Protocol = Doc<"protocollen">;
 const ROLLEN = ["voorman", "medewerker", "onderaannemer_zzp", "materiaalman"] as const;
@@ -45,7 +46,7 @@ export default function ProtocollenPage() {
     setDoelgroepen((rij?.doelgroepen ?? []).filter((r): r is Rol => ROLLEN.includes(r as Rol))); setOpen(true);
   }
   if (!kantoor) return <div className="p-6">Protocolbeheer is beschikbaar voor kantoor.</div>;
-  return <div className="mx-auto flex w-full max-w-4xl flex-col gap-5 p-4 md:p-8">
+  return <div className={`${REVEAL_KLASSE} mx-auto flex w-full max-w-4xl flex-col gap-5 p-4 md:p-8`}>
     <Link href="/instellingen" className="text-sm text-muted-foreground hover:underline">← Instellingen</Link>
     <div className="flex flex-wrap items-center justify-between gap-3"><h1 className="font-display text-2xl">Werk- en noodprotocollen</h1><Button onClick={() => bewerk(null)}>Protocol toevoegen</Button></div>
     <p className="text-sm text-muted-foreground">Gepubliceerde instructies verschijnen in de medewerkersapp. Kantoor beheert de inhoud en ziet ook gearchiveerde versies.</p>

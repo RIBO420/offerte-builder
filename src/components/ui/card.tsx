@@ -14,7 +14,7 @@ const cardVariants = cva(
         elevated: "bg-card border-primary/20 shadow-lg",
       },
       interactive: {
-        true: "hover:shadow-lg hover:-translate-y-0.5 transition-all cursor-pointer",
+        true: "cursor-pointer transition-shadow hover:shadow-md",
         false: "",
       },
     },

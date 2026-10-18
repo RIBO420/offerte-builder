@@ -29,6 +29,7 @@ import {
   BoekhoudSyncStatusCard,
   AanmaningDialog,
 } from "./components";
+import { REVEAL_KLASSE } from "@/components/pagina-reveal";
 
 /** Klantgerichte naam op het papier — nooit "Top Tuinen OS". */
 const KLANT_MERKNAAM = "Top Tuinen";
@@ -199,7 +200,7 @@ export default function FactuurPage({
     <>
       {kruimel}
 
-      <div className="flex flex-1 flex-col gap-5 p-4 md:p-8">
+      <div className={`${REVEAL_KLASSE} flex flex-1 flex-col gap-5 p-4 md:p-8`}>
         <ProjectKop projectId={id} actief="factuur" acties={acties} />
 
         {viering && factuur ? (

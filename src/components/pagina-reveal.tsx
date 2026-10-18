@@ -33,9 +33,15 @@ import { cn } from "@/lib/utils";
  * - `motion-safe:` doet het respect voor `prefers-reduced-motion` in CSS. Er
  *   is geen `useReducedMotion()`-hook meer nodig, en dus ook geen render die
  *   pas na de eerste client-effect klopt.
+ *
+ * **Eén entree voor de hele app (okt 2026).** Dit is de enige pagina-entree:
+ * 300ms, `ease-standaard` uit `globals.css`. `PageTransition` in de layout
+ * animeert niet meer (dat gaf een dubbele fade bij elke route) en het
+ * dashboard heeft geen eigen keyframes meer. Zet hem om de geladen inhoud,
+ * niet om skeletons.
  */
 export const REVEAL_KLASSE =
-  "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500 motion-safe:ease-out";
+  "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-300 motion-safe:ease-standaard";
 
 export function PaginaReveal({
   className,

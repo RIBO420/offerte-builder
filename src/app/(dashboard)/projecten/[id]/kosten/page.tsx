@@ -14,6 +14,7 @@ import {
   useKostenToevoegen,
 } from "@/components/project/project-kosten-dashboard";
 import { ProjectKostenSkeleton } from "@/components/skeletons";
+import { REVEAL_KLASSE } from "@/components/pagina-reveal";
 
 export default function ProjectKostenPage({
   params,
@@ -62,7 +63,7 @@ export default function ProjectKostenPage({
     <>
       <PageHeader customLabels={{ [`/projecten/${id}`]: projectDetails.project?.naam || "Project" }} />
 
-      <div className="flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6">
+      <div className={`${REVEAL_KLASSE} flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6`}>
         <ProjectKop
           projectId={id}
           actief="kosten"

@@ -1,37 +1,30 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { REVEAL_KLASSE } from "@/components/pagina-reveal";
 
 /**
- * De entree van élke dashboardpagina.
+ * De tussenlaag om élke dashboardpagina.
  *
- * **Waarom dit geen framer-motion meer is.** `(dashboard)/layout.tsx` hangt
- * deze wrapper om alles wat `main` rendert. Zolang hij een `m.div` met
- * `initial="hidden"` (`opacity: 0`) was, hing de hele app aan één rAF-lus: valt
- * `requestAnimationFrame` stil — achtergrondtab, zware tab, trage machine — dan
- * komt de animatie nooit bij zijn eindwaarde en blijft het scherm blanco,
- * ongeacht hoe braaf de pagina eronder zich gedraagt. Gemeten op `/projecten`
- * (15 aug 2026, `visibilityState === "hidden"`): wrapper op `opacity 0.12`,
- * inhoud volledig geladen.
+ * **Waarom hier geen animatie meer in zit (okt 2026).** Deze wrapper fadede
+ * bij elke routewissel (via een `key` op de pathname), en de herontworpen
+ * pagina's doen dat zelf ook met `PaginaReveal`/`REVEAL_KLASSE`. Dat gaf een
+ * dubbele fade op elke navigatie. De pagina-entree heeft nu één bron:
+ * `REVEAL_KLASSE` in `pagina-reveal.tsx`, om de geladen inhoud.
  *
- * Nu is de eindstaat de basisstijl en is de animatie versiering: CSS-klassen
- * uit tw-animate-css, die met `animation-fill-mode: none` draaien. Buiten de
- * looptijd geldt dus altijd gewoon "zichtbaar". De `key` op de wrapper laat de
- * animatie opnieuw starten bij elke routewissel — dat is precies wat
- * `AnimatePresence` hier deed, alleen zonder JS.
+ * Daarvóór (aug 2026) was dit een framer-motion `m.div` met
+ * `initial="hidden"`; valt `requestAnimationFrame` stil, dan bleef de hele app
+ * blanco. Zie `pagina-reveal.tsx` voor die les.
  *
  * `flex flex-1 flex-col` is geen opmaak maar een doorgeefluik: de `<main>` in
  * `(dashboard)/layout.tsx` is een flexkolom, en zonder deze klassen breekt deze
  * tussenlaag de keten. Pagina's die `flex flex-1 items-center justify-center`
  * schrijven voor een laadstaat krijgen dan geen hoogte om in te centreren en
- * plakken tegen de bovenrand. De wrapper staat er nu altijd, ook bij
- * `prefers-reduced-motion` — vroeger viel hij daar weg, en dus ook de keten.
+ * plakken tegen de bovenrand.
  */
 
 type TransitionVariant = "fade" | "slide-up" | "slide-right" | "scale";
-type TransitionSpeed = "fast" | "normal" | "slow" | "spring";
 
 /** Waar de beweging vandaan komt. Alles onder `motion-safe:`. */
 const VARIANT_KLASSE: Record<TransitionVariant, string> = {
@@ -43,49 +36,12 @@ const VARIANT_KLASSE: Record<TransitionVariant, string> = {
   scale: "motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95",
 };
 
-/** `spring` bestaat niet in CSS; het is hier de rustigste van de drie. */
-const SNELHEID_KLASSE: Record<TransitionSpeed, string> = {
-  fast: "motion-safe:duration-150",
-  normal: "motion-safe:duration-200",
-  slow: "motion-safe:duration-300",
-  spring: "motion-safe:duration-300",
-};
-
-interface PageTransitionProps {
-  children: ReactNode;
-  /** Animation variant */
-  variant?: TransitionVariant;
-  /** Transition speed */
-  speed?: TransitionSpeed;
-  /** Custom key for transition (defaults to pathname) */
-  transitionKey?: string;
-}
-
 /**
- * PageTransition — wrapper voor de pagina-entree in `(dashboard)/layout.tsx`.
+ * PageTransition — layout-tussenlaag in `(dashboard)/layout.tsx`. Geen
+ * animatie: de entree zit in de pagina zelf.
  */
-export function PageTransition({
-  children,
-  variant = "fade",
-  speed = "normal",
-  transitionKey,
-}: PageTransitionProps) {
-  const pathname = usePathname();
-  const key = transitionKey ?? pathname;
-
-  return (
-    <div
-      key={key}
-      className={cn(
-        "flex flex-1 flex-col",
-        VARIANT_KLASSE[variant],
-        SNELHEID_KLASSE[speed],
-        "motion-safe:ease-out"
-      )}
-    >
-      {children}
-    </div>
-  );
+export function PageTransition({ children }: { children: ReactNode }) {
+  return <div className="flex flex-1 flex-col">{children}</div>;
 }
 
 /**
@@ -107,7 +63,7 @@ export function ContentTransition({
       key={transitionKey}
       className={cn(
         VARIANT_KLASSE[variant],
-        "motion-safe:duration-150 motion-safe:ease-out"
+        "motion-safe:duration-150 motion-safe:ease-standaard"
       )}
     >
       {children}
@@ -136,10 +92,7 @@ export function FadeIn({
 }) {
   return (
     <div
-      className={cn(
-        "motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-300 motion-safe:ease-out",
-        className
-      )}
+      className={cn(REVEAL_KLASSE, className)}
     >
       {children}
     </div>
