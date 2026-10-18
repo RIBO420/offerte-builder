@@ -1,36 +1,17 @@
 "use client";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Wrench,
-  MoreHorizontal,
-  Trash2,
-  Plus,
-} from "lucide-react";
-import { formatCurrency, formatDate } from "./utils";
+import { SectieLegeStaat } from "@/components/ui/sectie-paneel";
 import { LaadIndicator } from "@/components/ui/laad-indicator";
+import { MoreHorizontal, Plus, Trash2 } from "lucide-react";
+import { formatHours } from "@/lib/format/number";
+import { formatCurrency, formatDate } from "./utils";
 
 interface MachineUsageItem {
   _id: string;
@@ -44,124 +25,121 @@ interface MachineUsageItem {
 }
 
 interface MachinesTabProps {
-  isLoading: boolean | null | undefined;
+  isLoading: boolean;
   machineUsage: MachineUsageItem[];
+  totaalKosten: number;
   onShowMachineForm: () => void;
   onDeleteItem: (item: { type: "uren" | "machine"; id: string }) => void;
 }
 
+const RIJ_BREED =
+  "@xl/sectie:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_4rem_6.5rem_2rem] @xl/sectie:gap-x-3.5";
+
 export function MachinesTab({
   isLoading,
   machineUsage,
+  totaalKosten,
   onShowMachineForm,
   onDeleteItem,
 }: MachinesTabProps) {
+  const toevoegen = (
+    <Button variant="outline" size="sm" onClick={onShowMachineForm}>
+      <Plus className="mr-1.5 size-4" />
+      Machinegebruik toevoegen
+    </Button>
+  );
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-10">
+        <LaadIndicator formaat="sectie" />
+      </div>
+    );
+  }
+
+  if (machineUsage.length === 0) {
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-2 pr-3">
+        <SectieLegeStaat
+          tekst="Nog geen machinegebruik geregistreerd."
+          hint="De kosten tellen mee in de nacalculatie."
+        />
+        {toevoegen}
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-4">
-      <div className="flex justify-end">
-        <Button onClick={onShowMachineForm}>
-          <Plus className="mr-2 h-4 w-4" />
-          Machine gebruik toevoegen
-        </Button>
+    <div className="flex flex-col pb-1.5">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-3 pb-1 pt-3">
+        <p className="text-xs text-muted-foreground tabular-nums">
+          Totaal <span className="font-semibold text-foreground">{formatCurrency(totaalKosten)}</span>
+        </p>
+        {toevoegen}
       </div>
 
-      {isLoading ? (
-        <Card>
-          <CardContent className="flex items-center justify-center py-12">
-            <LaadIndicator formaat="sectie" />
-          </CardContent>
-        </Card>
-      ) : machineUsage.length > 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Machine gebruik</CardTitle>
-            <CardDescription>
-              Overzicht van ingezette machines
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Machine</TableHead>
-                  <TableHead>Datum</TableHead>
-                  <TableHead className="text-right">Uren</TableHead>
-                  <TableHead className="text-right">Kosten</TableHead>
-                  <TableHead className="w-[50px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {machineUsage.map((item) => (
-                  <TableRow key={item._id}>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Wrench className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">
-                          {item.machine?.naam || "Onbekende machine"}
-                        </span>
-                        {item.machine?.type && (
-                          <Badge variant="outline" className="text-xs">
-                            {item.machine.type}
-                          </Badge>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell>{formatDate(item.datum)}</TableCell>
-                    <TableCell className="text-right">
-                      {item.uren.toFixed(1)}
-                    </TableCell>
-                    <TableCell className="text-right font-medium">
-                      {formatCurrency(item.kosten)}
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" aria-label="Meer opties">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => {
-                              onDeleteItem({
-                                type: "machine",
-                                id: item._id,
-                              });
-                            }}
-                            className="text-destructive"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Verwijderen
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <Wrench className="h-12 w-12 text-muted-foreground/50" />
-            <h3 className="mt-4 text-lg font-semibold">
-              Geen machine gebruik
-            </h3>
-            <p className="mt-2 text-sm text-muted-foreground text-center max-w-md">
-              Registreer het gebruik van machines voor dit project.
-            </p>
-            <Button
-              className="mt-6"
-              onClick={onShowMachineForm}
+      <div
+        aria-hidden="true"
+        className={`hidden items-center px-3 py-1 text-xs text-muted-foreground @xl/sectie:grid ${RIJ_BREED}`}
+      >
+        <span>Machine</span>
+        <span>Datum</span>
+        <span className="text-right">Uren</span>
+        <span className="text-right">Kosten</span>
+        <span />
+      </div>
+
+      <ul>
+        {machineUsage.map((item) => {
+          const naam = item.machine?.naam || "Onbekende machine";
+          return (
+            <li
+              key={item._id}
+              className={`grid grid-cols-[minmax(0,1fr)_auto_2rem] items-center gap-x-3 gap-y-0.5 rounded-md px-3 py-2 transition-colors hover:bg-muted/50 ${RIJ_BREED}`}
             >
-              <Plus className="mr-2 h-4 w-4" />
-              Machine gebruik toevoegen
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+              <span className="min-w-0 truncate font-medium">
+                {naam}
+                {item.machine?.type && (
+                  <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                    {item.machine.type}
+                  </span>
+                )}
+              </span>
+              <span className="order-last col-span-full text-xs text-muted-foreground tabular-nums @xl/sectie:order-none @xl/sectie:col-span-1 @xl/sectie:text-[13px] @xl/sectie:text-foreground">
+                {formatDate(item.datum)}
+                <span className="@xl/sectie:hidden"> · {formatHours(item.uren)} uur</span>
+              </span>
+              <span className="hidden text-right tabular-nums @xl/sectie:inline">
+                {formatHours(item.uren)}
+              </span>
+              <span className="text-right font-semibold tabular-nums">
+                {formatCurrency(item.kosten)}
+              </span>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-8 text-muted-foreground"
+                    aria-label={`Acties voor machinegebruik ${naam}`}
+                  >
+                    <MoreHorizontal className="size-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={() => onDeleteItem({ type: "machine", id: item._id })}
+                    className="text-destructive"
+                  >
+                    <Trash2 className="mr-2 size-4" />
+                    Verwijderen
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }

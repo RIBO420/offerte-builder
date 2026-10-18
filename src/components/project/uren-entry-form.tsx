@@ -100,6 +100,8 @@ interface UrenEntryFormProps {
   /** Medewerkers from database to show in dropdown */
   databaseMedewerkers?: DatabaseMedewerker[];
   projectScopes?: string[];
+  /** "bewerken": titel en knop voor een bestaande registratie (met `initialData`). */
+  modus?: "nieuw" | "bewerken";
 }
 
 export function UrenEntryForm({
@@ -111,6 +113,7 @@ export function UrenEntryForm({
   existingMedewerkers = [],
   databaseMedewerkers = [],
   projectScopes,
+  modus = "nieuw",
 }: UrenEntryFormProps) {
   const [showNewMedewerker, setShowNewMedewerker] = useState(false);
 
@@ -177,9 +180,11 @@ export function UrenEntryForm({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Uren registreren</DialogTitle>
+          <DialogTitle>{modus === "bewerken" ? "Registratie bewerken" : "Uren registreren"}</DialogTitle>
           <DialogDescription>
-            Voeg handmatig gewerkte uren toe aan het project
+            {modus === "bewerken"
+              ? "Pas de gewerkte uren van deze registratie aan"
+              : "Voeg handmatig gewerkte uren toe aan het project"}
           </DialogDescription>
         </DialogHeader>
 
@@ -409,7 +414,7 @@ export function UrenEntryForm({
               </Button>
               <Button type="submit" disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Toevoegen
+                {modus === "bewerken" ? "Opslaan" : "Toevoegen"}
               </Button>
             </DialogFooter>
           </form>

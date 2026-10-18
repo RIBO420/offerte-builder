@@ -1,22 +1,23 @@
 "use client";
 
+/**
+ * Projectplanning (redesign okt 2026): per scope een sectie met de taken,
+ * rechts de doorlooptijd, een waarschuwing als taken en voorcalculatie
+ * uiteenlopen, en de voertuigen. De kop (naam, status, fasen) is de gedeelde
+ * `ProjectKop`; de oude stepper-kaart en de blokken "Planning overzicht" en
+ * "Details per scope" zijn vervallen — hun cijfers staan in de scope-koppen.
+ */
+
 import { use, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../../../convex/_generated/api";
 import { Id } from "../../../../../../convex/_generated/dataModel";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  CardFooter,
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NumberInput } from "@/components/ui/number-input";
 import {
   Select,
   SelectContent,
@@ -32,7 +33,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -45,34 +45,20 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  ArrowLeft,
-  Loader2,
-  RefreshCw,
-  Plus,
-  ListTodo,
-  Play,
-  CheckCircle2,
-  Circle,
-  ArrowRight,
-  ClipboardCheck,
-  Sparkles,
-} from "lucide-react";
+import { AlertTriangle, ArrowRight, Loader2, Play, Plus, RefreshCw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { usePlanning, type TaakStatus } from "@/hooks/use-planning";
 import { TakenLijst } from "@/components/project/taken-lijst";
-import { PlanningOverzicht } from "@/components/project/planning-overzicht";
 import { ProjectDuurCard } from "@/components/project/project-duur-card";
-import { ProjectProgressStepper } from "@/components/project/project-progress-stepper";
+import { ProjectKop } from "@/components/project/project-kop";
 import { VoertuigSelector } from "@/components/project/voertuig-selector";
-import {
-  getScopeDisplayName,
-  takenTemplates,
-} from "@/lib/planning-templates";
-import { cn } from "@/lib/utils";
+import { getal } from "@/components/project/project-cijfers";
+import { SectiePaneel } from "@/components/ui/sectie-paneel";
+import { getScopeDisplayName, takenTemplates } from "@/lib/planning-templates";
 import { LaadIndicator } from "@/components/ui/laad-indicator";
+
+const LEGE_TAAK = { scope: "", taakNaam: "", normUren: 0 };
 
 export default function PlanningPage({
   params,
@@ -83,15 +69,13 @@ export default function PlanningPage({
   const router = useRouter();
   const projectId = id as Id<"projecten">;
 
-  // Get project data
-  const project = useQuery(
-    api.projecten.get,
-    projectId ? { id: projectId } : "skip"
-  );
+  // Zelfde query als ProjectKop: Convex dedupliceert op query + args.
+  const details = useQuery(api.projecten.getWithDetails, { id: projectId });
+  const project = details?.project;
+  const offerte = details?.offerte;
 
-  // Get voorcalculatie for team settings
-  // With the new workflow, voorcalculatie is linked to the offerte, not the project
-  // First try to get by offerte, then fallback to by project for legacy data
+  // Voorcalculatie: eerst die van de offerte, dan (legacy) die van het
+  // project — dezelfde volgorde als het genereren en de uitvoering.
   const voorcalculatieByOfferte = useQuery(
     api.voorcalculaties.getByOfferte,
     project?.offerteId ? { offerteId: project.offerteId } : "skip"
@@ -102,7 +86,8 @@ export default function PlanningPage({
   );
   const voorcalculatie = voorcalculatieByOfferte || voorcalculatieByProject;
 
-  // Planning hook
+  const team = useQuery(api.teams.get, project?.teamId ? { id: project.teamId } : "skip");
+
   const {
     taken,
     summary,
@@ -114,43 +99,31 @@ export default function PlanningPage({
     addTask,
   } = usePlanning(projectId);
 
-  // Mutation for updating project status
   const updateProjectStatus = useMutation(api.projecten.updateStatus);
 
   // KLIC-melding: wettelijk verplicht bij aanleg met graafwerk. De server
   // weigert starten zonder; die eis hoort daarom vóóraf zichtbaar in het
   // startdialoog te staan, niet achteraf in een wegflitsende fout-toast.
-  const offerteVoorKlic = useQuery(
-    api.offertes.get,
-    project?.offerteId ? { id: project.offerteId } : "skip"
-  );
   const klicVereist =
-    offerteVoorKlic?.type === "aanleg" &&
-    (offerteVoorKlic?.scopes ?? []).includes("grondwerk") &&
+    offerte?.type === "aanleg" &&
+    (offerte?.scopes ?? []).includes("grondwerk") &&
     !project?.klicMeldingGedaan;
 
-  // Local state
   const [isGenerating, setIsGenerating] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isStartingExecution, setIsStartingExecution] = useState(false);
   const [showStartExecutionDialog, setShowStartExecutionDialog] = useState(false);
   const [klicBevestigd, setKlicBevestigd] = useState(false);
   const [startDatum, setStartDatum] = useState<Date | null>(null);
-  const [newTask, setNewTask] = useState({
-    scope: "",
-    taakNaam: "",
-    normUren: 0,
-  });
+  const [newTask, setNewTask] = useState(LEGE_TAAK);
 
-  // Optimistic updates state for task status changes
+  // Optimistische updates voor status en verwijderen
   const [optimisticStatusUpdates, setOptimisticStatusUpdates] = useState<Map<string, TaakStatus>>(new Map());
   const [optimisticDeletedIds, setOptimisticDeletedIds] = useState<Set<string>>(new Set());
 
-  // Team settings from voorcalculatie
   const teamGrootte = voorcalculatie?.teamGrootte ?? 2;
   const effectieveUrenPerDag = voorcalculatie?.effectieveUrenPerDag ?? 6;
 
-  // Calculate days from hours
   const calculateDays = useCallback(
     (hours: number): number => {
       const effectiveTeamHours = teamGrootte * effectieveUrenPerDag;
@@ -160,7 +133,6 @@ export default function PlanningPage({
     [teamGrootte, effectieveUrenPerDag]
   );
 
-  // Handle generate tasks
   const handleGenerate = useCallback(async () => {
     setIsGenerating(true);
     try {
@@ -175,64 +147,41 @@ export default function PlanningPage({
     }
   }, [generateFromVoorcalculatie]);
 
-  // Handle status update with optimistic update
   const handleUpdateStatus = async (taskId: Id<"planningTaken">, status: TaakStatus) => {
-    // 1. Apply optimistic update immediately
-    setOptimisticStatusUpdates((prev) => {
-      const newMap = new Map(prev);
-      newMap.set(taskId, status);
-      return newMap;
-    });
-
+    setOptimisticStatusUpdates((prev) => new Map(prev).set(taskId, status));
+    const wisOptimistisch = () =>
+      setOptimisticStatusUpdates((prev) => {
+        const next = new Map(prev);
+        next.delete(taskId);
+        return next;
+      });
     try {
-      // 2. Make actual server call
       await updateStatus(taskId, status);
-
-      // 3. Clear optimistic update (server data will take over)
-      setOptimisticStatusUpdates((prev) => {
-        const newMap = new Map(prev);
-        newMap.delete(taskId);
-        return newMap;
-      });
+      wisOptimistisch();
     } catch {
-      // 4. Rollback on error
-      setOptimisticStatusUpdates((prev) => {
-        const newMap = new Map(prev);
-        newMap.delete(taskId);
-        return newMap;
-      });
+      wisOptimistisch();
       toast.error("Fout bij bijwerken status");
     }
   };
 
-  // Handle delete with optimistic update
   const handleDelete = async (taskId: Id<"planningTaken">) => {
-    // 1. Apply optimistic delete immediately
     setOptimisticDeletedIds((prev) => new Set(prev).add(taskId));
     toast.success("Taak verwijderd");
-
+    const wisOptimistisch = () =>
+      setOptimisticDeletedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(taskId);
+        return next;
+      });
     try {
-      // 2. Make actual server call
       await removeTask(taskId);
-
-      // 3. Clear optimistic delete (server data will take over)
-      setOptimisticDeletedIds((prev) => {
-        const newSet = new Set(prev);
-        newSet.delete(taskId);
-        return newSet;
-      });
+      wisOptimistisch();
     } catch {
-      // 4. Rollback on error
-      setOptimisticDeletedIds((prev) => {
-        const newSet = new Set(prev);
-        newSet.delete(taskId);
-        return newSet;
-      });
+      wisOptimistisch();
       toast.error("Fout bij verwijderen taak");
     }
   };
 
-  // Handle reorder (drag and drop)
   const handleReorder = async (
     taskOrders: Array<{ taskId: Id<"planningTaken">; volgorde: number }>
   ) => {
@@ -243,13 +192,16 @@ export default function PlanningPage({
     }
   };
 
-  // Handle add custom task
+  const openToevoegen = (scope = "") => {
+    setNewTask({ ...LEGE_TAAK, scope });
+    setIsAddDialogOpen(true);
+  };
+
   const handleAddTask = async () => {
     if (!newTask.scope || !newTask.taakNaam || newTask.normUren <= 0) {
       toast.error("Vul alle velden in");
       return;
     }
-
     try {
       await addTask({
         scope: newTask.scope,
@@ -259,16 +211,12 @@ export default function PlanningPage({
       });
       toast.success("Taak toegevoegd");
       setIsAddDialogOpen(false);
-      setNewTask({ scope: "", taakNaam: "", normUren: 0 });
+      setNewTask(LEGE_TAAK);
     } catch {
       toast.error("Fout bij toevoegen taak");
     }
   };
 
-  // Get available scopes for new task
-  const availableScopes = Object.keys(takenTemplates);
-
-  // Handle start execution (transition to in_uitvoering)
   const handleStartExecution = async (skipKlicCheck = false) => {
     setIsStartingExecution(true);
     try {
@@ -277,7 +225,6 @@ export default function PlanningPage({
       router.push(`/projecten/${id}/uitvoering`);
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : "Onbekende fout";
-      // If KLIC error, offer to skip the check
       if (errorMsg.includes("KLIC-melding")) {
         toast.error("KLIC-melding niet bevestigd", {
           description: "Wil je de KLIC-melding overslaan en toch starten?",
@@ -287,87 +234,50 @@ export default function PlanningPage({
           },
         });
       } else {
-        toast.error("Fout bij starten uitvoering", {
-          description: errorMsg,
-        });
+        toast.error("Fout bij starten uitvoering", { description: errorMsg });
       }
       setIsStartingExecution(false);
       setShowStartExecutionDialog(false);
     }
   };
 
-  // Check if project can transition to execution
   const canStartExecution = project?.status === "gepland";
 
-  // Apply optimistic updates to taken data
-  const takenWithOptimisticUpdates = useMemo(() => {
-    return taken
-      // Filter out optimistically deleted tasks
-      .filter((taak) => !optimisticDeletedIds.has(taak._id))
-      // Apply optimistic status updates
-      .map((taak) => {
-        const optimisticStatus = optimisticStatusUpdates.get(taak._id);
-        if (optimisticStatus) {
-          return { ...taak, status: optimisticStatus };
-        }
-        return taak;
-      });
-  }, [taken, optimisticStatusUpdates, optimisticDeletedIds]);
+  const takenMetOptimistisch = useMemo(
+    () =>
+      taken
+        .filter((taak) => !optimisticDeletedIds.has(taak._id))
+        .map((taak) => {
+          const status = optimisticStatusUpdates.get(taak._id);
+          return status ? { ...taak, status } : taak;
+        }),
+    [taken, optimisticStatusUpdates, optimisticDeletedIds]
+  );
 
-  // Build takenPerScope with optimistic updates applied
-  const takenPerScopeWithOptimisticUpdates = useMemo(() => {
-    const scopeMap: Record<string, typeof takenWithOptimisticUpdates> = {};
-    for (const taak of takenWithOptimisticUpdates) {
-      if (!scopeMap[taak.scope]) {
-        scopeMap[taak.scope] = [];
-      }
-      scopeMap[taak.scope].push(taak);
+  const takenPerScope = useMemo(() => {
+    const perScope: Record<string, typeof takenMetOptimistisch> = {};
+    for (const taak of takenMetOptimistisch) {
+      (perScope[taak.scope] ??= []).push(taak);
     }
-    return scopeMap;
-  }, [takenWithOptimisticUpdates]);
+    return perScope;
+  }, [takenMetOptimistisch]);
 
-  // Planning checklist items
-  const checklistItems = useMemo(() => {
-    const hasVoertuigen = (project?.toegewezenVoertuigen as Id<"voertuigen">[])?.length > 0;
+  // Scopes in het toevoegdialoog: de sjablonen plus wat er al in de planning staat.
+  const availableScopes = useMemo(
+    () => Array.from(new Set([...Object.keys(takenTemplates), ...Object.keys(takenPerScope)])),
+    [takenPerScope]
+  );
 
-    return [
-      {
-        id: "taken",
-        label: "Taken zijn gegenereerd",
-        description: "Genereer taken vanuit de voorcalculatie of voeg handmatig taken toe",
-        completed: taken.length > 0,
-        action: !voorcalculatie ? null : {
-          label: "Genereer Taken",
-          onClick: handleGenerate,
-          loading: isGenerating,
-        },
-      },
-      {
-        id: "voertuigen",
-        label: "Voertuigen zijn toegewezen",
-        description: "Selecteer welke voertuigen worden ingezet voor dit project",
-        completed: hasVoertuigen,
-        action: null, // User can use the selector in the sidebar
-      },
-      {
-        id: "startdatum",
-        label: "Startdatum is ingesteld",
-        description: "Kies wanneer het project begint voor een realistische planning",
-        completed: startDatum !== null,
-        action: null, // User can use the date picker
-      },
-    ];
-  }, [taken.length, project?.toegewezenVoertuigen, startDatum, voorcalculatie, isGenerating, handleGenerate]);
+  const breadcrumb = (
+    <PageHeader
+      customLabels={{ [`/projecten/${id}`]: project?.naam ?? "Project" }}
+    />
+  );
 
-  const completedChecklistItems = checklistItems.filter(item => item.completed).length;
-  const checklistProgress = checklistItems.length > 0 ? Math.round((completedChecklistItems / checklistItems.length) * 100) : 0;
-  const isReadyForExecution = taken.length > 0; // Minimum requirement: have tasks
-
-  // Loading state
-  if (isLoading) {
+  if (isLoading || details === undefined) {
     return (
       <>
-        <PageHeader customLabels={{ [`/projecten/${id}/planning`]: "Laden..." }} />
+        {breadcrumb}
         <div className="flex flex-1 items-center justify-center">
           <LaadIndicator formaat="pagina" />
         </div>
@@ -375,436 +285,284 @@ export default function PlanningPage({
     );
   }
 
+  const taakUren = summary?.totaalUren ?? 0;
+  const begroteUren = voorcalculatie?.normUrenTotaal ?? 0;
+  // Alleen waarschuwen als beide er zijn en ze op één decimaal verschillen.
+  const urenWijkenAf = taakUren > 0 && begroteUren > 0 && getal(taakUren) !== getal(begroteUren);
+
   return (
     <>
-      <PageHeader />
+      {breadcrumb}
 
-      <div className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
-        {/* Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" asChild aria-label="Terug naar project">
-              <Link href={`/projecten/${id}`}>
-                <ArrowLeft className="h-4 w-4" />
-              </Link>
-            </Button>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
-                Planning
-              </h1>
-              <p className="text-muted-foreground">
-                Bereid het project voor op uitvoering
-              </p>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            {/* Show regenerate button only when tasks exist */}
-            {taken.length > 0 && voorcalculatie && (
-              <Button
-                variant="outline"
-                onClick={handleGenerate}
-                disabled={isGenerating}
-              >
-                {isGenerating ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                )}
-                Opnieuw Genereren
-              </Button>
-            )}
-            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-              <DialogTrigger asChild>
-                <Button variant={taken.length > 0 ? "default" : "outline"}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Taak Toevoegen
+      <div className="flex flex-1 flex-col gap-5 p-4 md:p-8">
+        <ProjectKop
+          projectId={id}
+          actief="planning"
+          acties={
+            <>
+              {/* Automatisch taken invullen uit de voorcalculatie: altijd in de
+                  kop zodra er een voorcalculatie is. Zonder taken is dit dé
+                  hoofdactie; met taken een omlijnde "opnieuw". */}
+              {voorcalculatie && (
+                <Button
+                  variant={taken.length > 0 ? "outline" : "default"}
+                  onClick={handleGenerate}
+                  disabled={isGenerating}
+                >
+                  {isGenerating ? (
+                    <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" />
+                  ) : taken.length > 0 ? (
+                    <RefreshCw className="mr-2 size-4" aria-hidden="true" />
+                  ) : (
+                    <Sparkles className="mr-2 size-4" aria-hidden="true" />
+                  )}
+                  {taken.length > 0 ? "Taken opnieuw genereren" : "Taken automatisch genereren"}
                 </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Nieuwe Taak Toevoegen</DialogTitle>
-                  <DialogDescription>
-                    Voeg een aangepaste taak toe aan de planning.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="scope">Scope</Label>
-                    <Select
-                      value={newTask.scope}
-                      onValueChange={(value) =>
-                        setNewTask({ ...newTask, scope: value })
-                      }
-                    >
-                      <SelectTrigger id="scope">
-                        <SelectValue placeholder="Selecteer scope" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableScopes.map((scope) => (
-                          <SelectItem key={scope} value={scope}>
-                            {getScopeDisplayName(scope)}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="taakNaam">Taaknaam</Label>
-                    <Input
-                      id="taakNaam"
-                      value={newTask.taakNaam}
-                      onChange={(e) =>
-                        setNewTask({ ...newTask, taakNaam: e.target.value })
-                      }
-                      placeholder="Bijv. Extra afwerking"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="normUren">Geschatte uren</Label>
-                    <Input
-                      id="normUren"
-                      type="number"
-                      min="0"
-                      step="0.5"
-                      value={newTask.normUren || ""}
-                      onChange={(e) =>
-                        setNewTask({
-                          ...newTask,
-                          normUren: parseFloat(e.target.value) || 0,
-                        })
-                      }
-                      placeholder="0"
-                    />
-                    {newTask.normUren > 0 && (
-                      <p className="text-sm text-muted-foreground">
-                        = {calculateDays(newTask.normUren).toFixed(2)} dagen
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsAddDialogOpen(false)}
-                  >
-                    Annuleren
-                  </Button>
-                  <Button onClick={handleAddTask}>Toevoegen</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
-        </div>
-
-        {/* Progress Stepper - Shows actual project status from database */}
-        <Card className="p-4 md:p-6">
-          <ProjectProgressStepper
-            projectId={id}
-            projectStatus={(project?.status || "gepland") as "gepland" | "in_uitvoering" | "afgerond" | "nacalculatie_compleet" | "gefactureerd"}
-            hasPlanning={taken.length > 0}
-            hasUrenRegistraties={false}
-            hasNacalculatie={false}
-          />
-        </Card>
-
-        {/* Planning Guidance Card - Shows what needs to be done before starting execution */}
-        {canStartExecution && (
-          <Card className={cn(
-            "border-2 transition-colors",
-            isReadyForExecution
-              ? "border-green-500/50 bg-green-50/50 dark:bg-green-950/20"
-              : "border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20"
-          )}>
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className={cn(
-                    "p-2 rounded-lg shrink-0",
-                    isReadyForExecution
-                      ? "bg-green-100 dark:bg-green-900/50"
-                      : "bg-amber-100 dark:bg-amber-900/50"
-                  )}>
-                    {isReadyForExecution ? (
-                      <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
-                    ) : (
-                      <ClipboardCheck className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                    )}
-                  </div>
-                  <div>
-                    <CardTitle className="text-lg">
-                      {isReadyForExecution
-                        ? "Klaar om te starten!"
-                        : "Bereid de uitvoering voor"}
-                    </CardTitle>
-                    <CardDescription>
-                      {isReadyForExecution
-                        ? "De planning is compleet. Je kunt nu de uitvoering starten."
-                        : "Doorloop onderstaande stappen voordat je de uitvoering start."}
-                    </CardDescription>
-                  </div>
-                </div>
-                <div className="text-right shrink-0">
-                  <span className={cn(
-                    "text-2xl font-bold tabular-nums",
-                    isReadyForExecution ? "text-green-600" : "text-amber-600"
-                  )}>
-                    {completedChecklistItems}/{checklistItems.length}
-                  </span>
-                  <p className="text-xs text-muted-foreground">voltooid</p>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Progress bar */}
-              <Progress
-                value={checklistProgress}
-                className={cn(
-                  "h-2",
-                  isReadyForExecution && "[&>div]:bg-green-500"
-                )}
-              />
-
-              {/* Checklist items */}
-              <div className="space-y-3">
-                {checklistItems.map((item) => (
-                  <div
-                    key={item.id}
-                    className={cn(
-                      "flex items-start gap-3 p-3 rounded-lg transition-colors",
-                      item.completed
-                        ? "bg-background/80"
-                        : "bg-background"
-                    )}
-                  >
-                    <div className="mt-0.5 shrink-0">
-                      {item.completed ? (
-                        <CheckCircle2 className="h-5 w-5 text-green-500" />
-                      ) : (
-                        <Circle className="h-5 w-5 text-muted-foreground/50" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className={cn(
-                        "font-medium",
-                        item.completed && "text-muted-foreground line-through"
-                      )}>
-                        {item.label}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {item.description}
-                      </p>
-                    </div>
-                    {!item.completed && item.action && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={item.action.onClick}
-                        disabled={item.action.loading}
-                        className="shrink-0"
-                      >
-                        {item.action.loading ? (
-                          <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                        ) : (
-                          <Sparkles className="mr-2 h-3 w-3" />
-                        )}
-                        {item.action.label}
-                      </Button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-            <CardFooter className="border-t pt-4">
-              <AlertDialog
-                open={showStartExecutionDialog}
-                onOpenChange={(open) => {
-                  setShowStartExecutionDialog(open);
-                  if (!open) setKlicBevestigd(false);
-                }}
+              )}
+              <Button
+                variant={taken.length > 0 || !voorcalculatie ? "default" : "outline"}
+                onClick={() => openToevoegen()}
               >
-                <AlertDialogTrigger asChild>
-                  <Button
-                    className={cn(
-                      "w-full",
-                      isReadyForExecution
-                        ? "bg-green-600 hover:bg-green-700"
-                        : ""
-                    )}
-                    disabled={!isReadyForExecution}
-                  >
-                    <Play className="mr-2 h-4 w-4" />
-                    Start Uitvoering
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Project uitvoering starten?</AlertDialogTitle>
-                    <AlertDialogDescription className="space-y-3">
-                      <p>
-                        Je staat op het punt om de uitvoering van dit project te starten.
-                        De status wordt gewijzigd naar &quot;In Uitvoering&quot;.
+                <Plus className="mr-2 size-4" aria-hidden="true" />
+                Taak toevoegen
+              </Button>
+            </>
+          }
+        />
+
+        <div className="@container/planning">
+          <div className="grid items-start gap-5 @4xl/planning:grid-cols-[minmax(0,1fr)_minmax(18rem,24rem)]">
+            {/* Taken per scope */}
+            <div className="flex min-w-0 flex-col gap-4">
+              {taken.length === 0 ? (
+                <SectiePaneel titel="Taken" kopbalk>
+                  <div className="flex flex-col items-start gap-3 p-4">
+                    <div className="flex flex-col gap-1">
+                      <p className="text-sm font-medium">Nog geen taken gepland</p>
+                      <p className="max-w-prose text-[13px] text-muted-foreground">
+                        {voorcalculatie
+                          ? "Genereer de taken uit de voorcalculatie, of voeg ze zelf toe."
+                          : "Er is nog geen voorcalculatie. Maak die eerst bij de offerte, dan kun je de taken genereren."}
                       </p>
-                      <div className="bg-muted p-3 rounded-lg space-y-2">
-                        <p className="font-medium text-foreground">Wat gebeurt er?</p>
-                        <ul className="text-sm space-y-1">
-                          <li className="flex items-center gap-2">
-                            <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
-                            Je kunt uren gaan registreren op taken
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
-                            De voortgang wordt bijgehouden
-                          </li>
-                          <li className="flex items-center gap-2">
-                            <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
-                            Na afronding kun je een nacalculatie maken
-                          </li>
-                        </ul>
-                      </div>
-                    </AlertDialogDescription>
-                    {klicVereist && (
-                      <div className="rounded-lg border border-status-vervallen-border bg-status-vervallen/20 p-3 space-y-2">
-                        <p className="text-sm font-medium text-foreground">
-                          KLIC-melding verplicht
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Dit is een aanlegproject met graafwerk; een
-                          KLIC-melding bij het Kadaster is wettelijk verplicht
-                          vóór er gegraven wordt.
-                        </p>
-                        <label className="flex items-start gap-2 text-sm text-foreground cursor-pointer">
-                          <Checkbox
-                            checked={klicBevestigd}
-                            onCheckedChange={(v) => setKlicBevestigd(v === true)}
-                            className="mt-0.5"
-                          />
-                          <span>
-                            Ik bevestig dat de KLIC-melding voor dit project is
-                            gedaan
-                          </span>
-                        </label>
-                      </div>
-                    )}
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel disabled={isStartingExecution}>Annuleren</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={() => handleStartExecution(klicVereist && klicBevestigd)}
-                      disabled={isStartingExecution || (klicVereist && !klicBevestigd)}
-                      className="bg-green-600 hover:bg-green-700"
-                    >
-                      {isStartingExecution ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Starten...
-                        </>
-                      ) : (
-                        <>
-                          <Play className="mr-2 h-4 w-4" />
-                          Start Uitvoering
-                        </>
-                      )}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </CardFooter>
-          </Card>
-        )}
-
-        {/* Main Content */}
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* Left Column - Tasks List */}
-          <div className="lg:col-span-2 space-y-6">
-            {taken.length === 0 ? (
-              <Card>
-                <CardContent className="py-12">
-                  <div className="flex flex-col items-center justify-center text-center">
-                    <div className="p-4 rounded-full bg-muted mb-4">
-                      <ListTodo className="h-8 w-8 text-muted-foreground" />
                     </div>
-                    <h3 className="text-lg font-semibold">
-                      Nog geen taken gepland
-                    </h3>
-                    {!voorcalculatie ? (
-                      <>
-                        <p className="text-sm text-muted-foreground mt-2 max-w-md">
-                          Er is geen voorcalculatie gevonden voor dit project.
-                          Maak eerst een voorcalculatie aan bij de offerte om taken te kunnen genereren.
-                        </p>
-                        {project?.offerteId && (
-                          <div className="flex gap-2 mt-6">
-                            <Button asChild>
-                              <Link href={`/offertes/${project.offerteId}/voorcalculatie`}>
-                                <ArrowRight className="mr-2 h-4 w-4" />
-                                Naar Offerte Voorcalculatie
-                              </Link>
-                            </Button>
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        <p className="text-sm text-muted-foreground mt-2 max-w-md">
-                          Start met het plannen van je project door taken te genereren
-                          vanuit de voorcalculatie, of voeg handmatig taken toe.
-                        </p>
-                        <div className="flex flex-col sm:flex-row gap-3 mt-6">
-                          <Button onClick={handleGenerate} disabled={isGenerating}>
-                            {isGenerating ? (
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            ) : (
-                              <Sparkles className="mr-2 h-4 w-4" />
-                            )}
-                            Genereer Taken Automatisch
+                    <div className="flex flex-wrap gap-2">
+                      {voorcalculatie ? (
+                        <Button variant="outline" onClick={handleGenerate} disabled={isGenerating}>
+                          {isGenerating ? (
+                            <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" />
+                          ) : (
+                            <Sparkles className="mr-2 size-4" aria-hidden="true" />
+                          )}
+                          Taken automatisch genereren
+                        </Button>
+                      ) : (
+                        project?.offerteId && (
+                          <Button asChild>
+                            <Link href={`/offertes/${project.offerteId}/voorcalculatie`}>
+                              Naar de voorcalculatie
+                              <ArrowRight className="ml-2 size-4" aria-hidden="true" />
+                            </Link>
                           </Button>
-                          <Button variant="outline" onClick={() => setIsAddDialogOpen(true)}>
-                            <Plus className="mr-2 h-4 w-4" />
-                            Handmatig Toevoegen
-                          </Button>
-                        </div>
-                      </>
-                    )}
+                        )
+                      )}
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <TakenLijst
-                taken={takenWithOptimisticUpdates}
-                takenPerScope={takenPerScopeWithOptimisticUpdates}
-                onUpdateStatus={handleUpdateStatus}
-                onReorder={handleReorder}
-                onDelete={handleDelete}
-                isLoading={isLoading}
+                </SectiePaneel>
+              ) : (
+                <TakenLijst
+                  takenPerScope={takenPerScope}
+                  onUpdateStatus={handleUpdateStatus}
+                  onReorder={handleReorder}
+                  onDelete={handleDelete}
+                  onTaakToevoegen={openToevoegen}
+                  isLoading={isLoading}
+                />
+              )}
+            </div>
+
+            {/* Zijkolom: wanneer, met wie, waarmee */}
+            <aside aria-label="Doorlooptijd en middelen" className="flex min-w-0 flex-col gap-4">
+              {canStartExecution && (
+                <SectiePaneel titel="Uitvoering starten" kopbalk>
+                  <div className="flex flex-col gap-3 p-4">
+                    <p className="text-[13px] text-muted-foreground">
+                      {taken.length > 0
+                        ? "Na de start registreer je uren op dit project en loopt de voortgang mee."
+                        : "Voeg eerst taken toe; daarna kun je de uitvoering starten."}
+                    </p>
+                    <AlertDialog
+                      open={showStartExecutionDialog}
+                      onOpenChange={(open) => {
+                        setShowStartExecutionDialog(open);
+                        if (!open) setKlicBevestigd(false);
+                      }}
+                    >
+                      <AlertDialogTrigger asChild>
+                        <Button variant="outline" disabled={taken.length === 0} className="self-start">
+                          <Play className="mr-2 size-4" aria-hidden="true" />
+                          Uitvoering starten
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Uitvoering starten?</AlertDialogTitle>
+                          <AlertDialogDescription asChild>
+                            <div className="space-y-2">
+                              <p>
+                                De status van het project wordt &quot;In uitvoering&quot;. Daarna
+                                kun je uren registreren op de taken, loopt de voortgang mee, en
+                                maak je na afronding de nacalculatie.
+                              </p>
+                            </div>
+                          </AlertDialogDescription>
+                          {klicVereist && (
+                            <div className="space-y-2 rounded-lg border border-status-vervallen-border bg-status-vervallen/20 p-3">
+                              <p className="text-sm font-medium text-foreground">
+                                KLIC-melding verplicht
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                Dit is een aanlegproject met graafwerk; een KLIC-melding bij het
+                                Kadaster is wettelijk verplicht vóór er gegraven wordt.
+                              </p>
+                              <label className="flex cursor-pointer items-start gap-2 text-sm text-foreground">
+                                <Checkbox
+                                  checked={klicBevestigd}
+                                  onCheckedChange={(v) => setKlicBevestigd(v === true)}
+                                  className="mt-0.5"
+                                />
+                                <span>
+                                  Ik bevestig dat de KLIC-melding voor dit project is gedaan
+                                </span>
+                              </label>
+                            </div>
+                          )}
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel disabled={isStartingExecution}>Annuleren</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleStartExecution(klicVereist && klicBevestigd)}
+                            disabled={isStartingExecution || (klicVereist && !klicBevestigd)}
+                          >
+                            {isStartingExecution ? (
+                              <>
+                                <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" />
+                                Starten…
+                              </>
+                            ) : (
+                              <>
+                                <Play className="mr-2 size-4" aria-hidden="true" />
+                                Uitvoering starten
+                              </>
+                            )}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </SectiePaneel>
+              )}
+
+              <ProjectDuurCard
+                totaalDagen={summary?.totaalDagen ?? 0}
+                totaalUren={taakUren}
+                teamGrootte={teamGrootte}
+                effectieveUrenPerDag={effectieveUrenPerDag}
+                startDatum={startDatum}
+                onStartDatumChange={setStartDatum}
+                geplandeStart={project?.geplandeStart}
+                geplandeEind={project?.geplandeEind}
+                teamNaam={team?.naam ?? null}
               />
-            )}
-          </div>
 
-          {/* Right Column - Overview & Duration */}
-          <div className="space-y-6">
-            <ProjectDuurCard
-              totaalDagen={summary?.totaalDagen || 0}
-              totaalUren={summary?.totaalUren || 0}
-              teamGrootte={teamGrootte}
-              effectieveUrenPerDag={effectieveUrenPerDag}
-              startDatum={startDatum}
-              onStartDatumChange={setStartDatum}
-            />
+              {urenWijkenAf && (
+                <section
+                  aria-label="Begroting wijkt af"
+                  className="flex gap-2.5 rounded-lg border border-[color-mix(in_oklch,var(--accent-warm)_35%,var(--border))] bg-surface-aandacht px-4 py-3.5"
+                >
+                  <AlertTriangle className="mt-0.5 size-4 shrink-0 text-accent-warm" aria-hidden="true" />
+                  <p className="text-[13px] tabular-nums">
+                    <span className="font-semibold">
+                      Taken tellen {getal(taakUren)} uur, de voorcalculatie {getal(begroteUren)} uur.
+                    </span>{" "}
+                    <span className="text-muted-foreground">
+                      Uitvoering en nacalculatie rekenen met {getal(begroteUren)}. Pas taken of
+                      voorcalculatie aan.
+                    </span>
+                  </p>
+                </section>
+              )}
 
-            {/* Voertuigen Selector */}
-            <VoertuigSelector
-              projectId={projectId}
-              selectedVoertuigen={(project?.toegewezenVoertuigen as Id<"voertuigen">[]) || []}
-              autoSave={true}
-            />
-
-            {summary && taken.length > 0 && (
-              <PlanningOverzicht summary={summary} isLoading={isLoading} />
-            )}
+              <VoertuigSelector
+                projectId={projectId}
+                selectedVoertuigen={(project?.toegewezenVoertuigen as Id<"voertuigen">[]) || []}
+                autoSave={true}
+              />
+            </aside>
           </div>
         </div>
       </div>
+
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Taak toevoegen</DialogTitle>
+            <DialogDescription>Voeg een eigen taak toe aan de planning.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="scope">Scope</Label>
+              <Select
+                value={newTask.scope}
+                onValueChange={(value) => setNewTask({ ...newTask, scope: value })}
+              >
+                <SelectTrigger id="scope">
+                  <SelectValue placeholder="Kies een scope" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableScopes.map((scope) => (
+                    <SelectItem key={scope} value={scope}>
+                      {getScopeDisplayName(scope)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="taakNaam">Taaknaam</Label>
+              <Input
+                id="taakNaam"
+                value={newTask.taakNaam}
+                onChange={(e) => setNewTask({ ...newTask, taakNaam: e.target.value })}
+                placeholder="Bijv. extra afwerking"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="normUren">Geschatte uren</Label>
+              <NumberInput
+                id="normUren"
+                value={newTask.normUren}
+                onChange={(normUren) => setNewTask((prev) => ({ ...prev, normUren }))}
+                min={0}
+                step={0.5}
+                decimals={2}
+                showStepper={false}
+                suffix="uur"
+              />
+              {newTask.normUren > 0 && (
+                <p className="text-sm tabular-nums text-muted-foreground">
+                  = {getal(calculateDays(newTask.normUren))} dagen
+                </p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+              Annuleren
+            </Button>
+            <Button onClick={handleAddTask}>Toevoegen</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

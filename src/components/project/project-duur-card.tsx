@@ -1,210 +1,198 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+/**
+ * Zijkolom "Doorlooptijd" van de projectplanning (redesign okt 2026): het
+ * aantal werkdagen groot, hoe dat getal ontstaat, een startdatum om de
+ * oplevering uit te rekenen, en of het project al op het weekbord staat.
+ */
+
+import { useMemo, useState } from "react";
+import Link from "next/link";
+import { addBusinessDays, isWeekend, parseISO } from "date-fns";
+import { CalendarDays } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarDays, Clock, ArrowRight, CalendarCheck2 } from "lucide-react";
-import { format, addBusinessDays, isWeekend } from "date-fns";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { SectiePaneel } from "@/components/ui/sectie-paneel";
 import { nl } from "@/lib/date-locale";
 import { cn } from "@/lib/utils";
+import { getal, heleWerkdagen } from "./project-cijfers";
 
 interface ProjectDuurCardProps {
+  /** Som van de geschatte dagen van alle taken. */
   totaalDagen: number;
+  /** Som van de normuren van alle taken. */
   totaalUren: number;
-  teamGrootte?: number;
-  effectieveUrenPerDag?: number;
-  startDatum?: Date | null;
-  onStartDatumChange?: (date: Date | null) => void;
+  teamGrootte: number;
+  effectieveUrenPerDag: number;
+  startDatum: Date | null;
+  onStartDatumChange: (date: Date | null) => void;
+  /** Weekbord-planning van het werkitem (YYYY-MM-DD). */
+  geplandeStart?: string;
+  geplandeEind?: string;
+  teamNaam?: string | null;
 }
 
-/**
- * Add working days (skipping weekends)
- */
-function addWorkingDays(startDate: Date, days: number): Date {
-  // Round up to full days for end date calculation
-  const fullDays = Math.ceil(days);
-  return addBusinessDays(startDate, fullDays);
+function wekenEnDagen(werkdagen: number): string | null {
+  if (werkdagen < 5) return null;
+  const weken = Math.floor(werkdagen / 5);
+  const rest = werkdagen % 5;
+  const w = `${weken} ${weken === 1 ? "week" : "weken"}`;
+  return rest === 0 ? w : `${w} en ${rest} ${rest === 1 ? "dag" : "dagen"}`;
 }
 
-/**
- * Format date in Dutch
- */
-function formatDateNL(date: Date): string {
-  return format(date, "EEEE d MMMM yyyy", { locale: nl });
-}
+const kort = (d: Date) =>
+  d.toLocaleDateString("nl-NL", { weekday: "short", day: "numeric", month: "short" });
+const dagKort = (d: Date) =>
+  d.toLocaleDateString("nl-NL", { weekday: "short", day: "numeric" });
+const lang = (d: Date) =>
+  d.toLocaleDateString("nl-NL", { weekday: "long", day: "numeric", month: "long" });
 
-/**
- * Format date short
- */
-function formatDateShort(date: Date): string {
-  return format(date, "d MMM yyyy", { locale: nl });
+/** "di 13 – do 15 okt", "di 30 sep – do 2 okt" of "di 13 okt". */
+export function weekbordPeriode(start: string, eind?: string): string {
+  const s = parseISO(start);
+  if (!eind || eind === start) return kort(s);
+  const e = parseISO(eind);
+  const zelfdeMaand =
+    s.getMonth() === e.getMonth() && s.getFullYear() === e.getFullYear();
+  return zelfdeMaand ? `${dagKort(s)} – ${kort(e)}` : `${kort(s)} – ${kort(e)}`;
 }
 
 export function ProjectDuurCard({
   totaalDagen,
   totaalUren,
-  teamGrootte = 2,
-  effectieveUrenPerDag = 6,
+  teamGrootte,
+  effectieveUrenPerDag,
   startDatum,
   onStartDatumChange,
+  geplandeStart,
+  geplandeEind,
+  teamNaam,
 }: ProjectDuurCardProps) {
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [kalenderOpen, setKalenderOpen] = useState(false);
+  const werkdagen = heleWerkdagen(totaalDagen);
+  const urenPerDag = teamGrootte * effectieveUrenPerDag;
 
-  // Calculate end date based on start date and duration
-  const eindDatum = useMemo(() => {
-    if (!startDatum || totaalDagen <= 0) return null;
-    return addWorkingDays(startDatum, totaalDagen);
-  }, [startDatum, totaalDagen]);
-
-  // Format total duration
-  const duurWeergave = useMemo(() => {
-    if (totaalDagen < 1) {
-      return `${Math.round(totaalUren)} uur`;
-    }
-    if (totaalDagen === 1) {
-      return "1 werkdag";
-    }
-    if (totaalDagen < 5) {
-      return `${totaalDagen.toFixed(1)} werkdagen`;
-    }
-    const weken = Math.floor(totaalDagen / 5);
-    const extraDagen = Math.round(totaalDagen % 5);
-    if (extraDagen === 0) {
-      return `${weken} ${weken === 1 ? "werkweek" : "werkweken"}`;
-    }
-    return `${weken} ${weken === 1 ? "werkweek" : "werkweken"} en ${extraDagen} ${extraDagen === 1 ? "dag" : "dagen"}`;
-  }, [totaalDagen, totaalUren]);
-
-  // Team capacity info
-  const teamCapaciteit = useMemo(() => {
-    const urenPerDag = teamGrootte * effectieveUrenPerDag;
-    return `${teamGrootte} personen x ${effectieveUrenPerDag} uur = ${urenPerDag} uur/dag`;
-  }, [teamGrootte, effectieveUrenPerDag]);
+  // Laatste werkdag: start telt als dag 1, weekenden tellen niet mee.
+  const oplevering = useMemo(() => {
+    if (!startDatum || werkdagen <= 0) return null;
+    return addBusinessDays(startDatum, werkdagen - 1);
+  }, [startDatum, werkdagen]);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <CalendarDays className="h-5 w-5" />
-          Projectduur
-        </CardTitle>
-        <CardDescription>
-          Geschatte doorlooptijd op basis van voorcalculatie
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Duration Display */}
-        <div className="flex items-center justify-center p-6 bg-muted/50 rounded-lg">
-          <div className="text-center">
-            <p className="text-4xl font-bold tabular-nums">
-              {totaalDagen.toFixed(1)}
-            </p>
-            <p className="text-lg text-muted-foreground">{duurWeergave}</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              {totaalUren.toFixed(1)} uur totaal
-            </p>
-          </div>
-        </div>
-
-        {/* Team Capacity */}
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Clock className="h-4 w-4" />
-          <span>{teamCapaciteit}</span>
-        </div>
-
-        {/* Start Date Picker */}
-        <div className="space-y-2">
-          <Label htmlFor="startdatum">Startdatum (optioneel)</Label>
-          <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                id="startdatum"
-                variant="outline"
-                className={cn(
-                  "w-full justify-start text-left font-normal",
-                  !startDatum && "text-muted-foreground"
-                )}
-              >
-                <CalendarDays className="mr-2 h-4 w-4" />
-                {startDatum ? formatDateShort(startDatum) : "Kies een startdatum"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={startDatum || undefined}
-                onSelect={(date) => {
-                  onStartDatumChange?.(date || null);
-                  setIsCalendarOpen(false);
-                }}
-                disabled={(date) => date < new Date() || isWeekend(date)}
-                initialFocus
-                locale={nl}
-              />
-            </PopoverContent>
-          </Popover>
-          {startDatum && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onStartDatumChange?.(null)}
-              className="text-xs text-muted-foreground"
-            >
-              Datum wissen
-            </Button>
-          )}
-        </div>
-
-        {/* Date Range Display */}
-        {startDatum && eindDatum && (
-          <div className="p-4 bg-muted/30 rounded-lg space-y-3">
-            <div className="flex items-center justify-between gap-4">
-              <div className="text-center flex-1">
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">
-                  Start
-                </p>
-                <p className="font-medium">{formatDateShort(startDatum)}</p>
-              </div>
-              <ArrowRight className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-              <div className="text-center flex-1">
-                <p className="text-xs text-muted-foreground uppercase tracking-wider">
-                  Geschat einde
-                </p>
-                <p className="font-medium">{formatDateShort(eindDatum)}</p>
-              </div>
-            </div>
-            <div className="pt-2 border-t">
-              <div className="flex items-center gap-2 text-sm">
-                <CalendarCheck2 className="h-4 w-4 text-green-600 dark:text-green-400" />
-                <span>
-                  Verwachte oplevering:{" "}
-                  <span className="font-medium">{formatDateNL(eindDatum)}</span>
+    <SectiePaneel titel="Doorlooptijd" kopbalk>
+      <div className="flex flex-col gap-3.5 p-4">
+        {totaalUren > 0 ? (
+          <div className="flex flex-col gap-1.5">
+            <p className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
+              <span className="font-display text-4xl leading-none font-semibold tabular-nums">
+                {werkdagen}
+              </span>
+              <span className="text-[15px]">{werkdagen === 1 ? "werkdag" : "werkdagen"}</span>
+              {wekenEnDagen(werkdagen) && (
+                <span className="text-[13px] text-muted-foreground">
+                  {wekenEnDagen(werkdagen)}
                 </span>
-              </div>
-            </div>
+              )}
+            </p>
+            {urenPerDag > 0 && (
+              <p className="text-[13px] tabular-nums text-muted-foreground">
+                {getal(totaalUren)} taakuren ÷ {getal(urenPerDag)} uur per dag ({teamGrootte}{" "}
+                personen × {getal(effectieveUrenPerDag)} uur)
+              </p>
+            )}
           </div>
-        )}
-
-        {/* No date selected hint */}
-        {!startDatum && (
-          <p className="text-sm text-muted-foreground italic">
-            Selecteer een startdatum om de verwachte opleverdatum te berekenen.
+        ) : (
+          <p className="text-[13px] text-muted-foreground">
+            Voeg taken toe om de doorlooptijd uit te rekenen.
           </p>
         )}
-      </CardContent>
-    </Card>
+
+        <div className="flex flex-col gap-1.5 border-t pt-3">
+          <label htmlFor="startdatum" className="text-xs text-muted-foreground">
+            Startdatum
+          </label>
+          <div className="flex items-center gap-2">
+            <Popover open={kalenderOpen} onOpenChange={setKalenderOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  id="startdatum"
+                  variant="outline"
+                  className={cn(
+                    "min-w-0 flex-1 justify-start font-normal",
+                    !startDatum && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarDays className="mr-2 size-4 shrink-0" aria-hidden="true" />
+                  <span className="truncate">
+                    {startDatum ? kort(startDatum) : "Kies een datum"}
+                  </span>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={startDatum ?? undefined}
+                  onSelect={(date) => {
+                    onStartDatumChange(date ?? null);
+                    setKalenderOpen(false);
+                  }}
+                  disabled={(date) => date < new Date() || isWeekend(date)}
+                  initialFocus
+                  locale={nl}
+                />
+              </PopoverContent>
+            </Popover>
+            {startDatum && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onStartDatumChange(null)}
+                className="shrink-0 text-muted-foreground"
+              >
+                Wissen
+              </Button>
+            )}
+          </div>
+          <span className="text-xs text-muted-foreground">
+            {oplevering ? (
+              <>
+                Oplevering rond <span className="font-medium text-foreground">{lang(oplevering)}</span>
+              </>
+            ) : (
+              "Met een startdatum rekenen we de oplevering uit."
+            )}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2.5 rounded-md bg-muted px-3 py-2.5 text-[13px]">
+          <CalendarDays className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          {geplandeStart ? (
+            <>
+              <span className="min-w-0 flex-1">
+                Op het weekbord: {weekbordPeriode(geplandeStart, geplandeEind)}
+                {teamNaam ? ` · ${teamNaam}` : ""}
+              </span>
+              <Link
+                href="/planning/weekbord"
+                className="shrink-0 font-medium text-primary hover:underline"
+              >
+                Bekijk →
+              </Link>
+            </>
+          ) : (
+            <>
+              <span className="min-w-0 flex-1">Nog niet op het weekbord</span>
+              <Link
+                href="/planning/weekbord"
+                className="shrink-0 font-medium text-primary hover:underline"
+              >
+                Inplannen →
+              </Link>
+            </>
+          )}
+        </div>
+      </div>
+    </SectiePaneel>
   );
 }

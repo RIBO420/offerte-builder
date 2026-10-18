@@ -232,8 +232,12 @@ test.describe('Projecten Lifecycle', () => {
     await expect(page).toHaveURL(/\/projecten\//, { timeout: 10_000 });
     await waitForDataLoad(page);
 
-    // Click back button
-    await page.locator('[aria-label="Terug naar projecten"]').click();
+    // Terug via de kruimel (de projectkop heeft geen eigen terugknop meer)
+    await page
+      .getByRole('navigation', { name: 'breadcrumb' })
+      .locator('a[href="/projecten"]')
+      .first()
+      .click();
 
     await expect(page).toHaveURL(/\/projecten$/);
   });

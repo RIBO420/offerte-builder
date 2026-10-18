@@ -91,16 +91,20 @@ function PlanningPageContent() {
     [router, searchParams]
   );
 
-  // Van de jaarweergave naar de maandweergave
+  // Van de jaarweergave naar de maandweergave van de aangeklikte maand
+  // (maand 1–12). Jaar en maand gaan via de URL, zodat terug-navigeren klopt.
   const handleNavigateToMonth = useCallback(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     (year: number, month: number) => {
       const params = new URLSearchParams();
       params.set("view", "maand");
+      params.set("jaar", String(year));
+      params.set("maand", String(month));
       router.push(`/planning?${params.toString()}`, { scroll: false });
     },
     [router]
   );
+  const maandJaar = Number(searchParams.get("jaar")) || undefined;
+  const maandNummer = Number(searchParams.get("maand")) || undefined;
 
   const projectVoortgangData = useQuery(
     api.projectRapportages.getProjectVoortgang,
@@ -235,7 +239,13 @@ function PlanningPageContent() {
             <PlanningBanen indeling={indeling} />
           ))}
 
-        {currentView === "maand" && <MaandKalender />}
+        {currentView === "maand" && (
+          <MaandKalender
+            key={`${maandJaar ?? ""}-${maandNummer ?? ""}`}
+            initialYear={maandJaar}
+            initialMonth={maandNummer}
+          />
+        )}
         {currentView === "kwartaal" && <KwartaalOverzicht />}
         {currentView === "jaar" && <JaarOverzicht onNavigateToMonth={handleNavigateToMonth} />}
       </PaginaReveal>

@@ -2,29 +2,32 @@
 
 /**
  * Route-dagkaart-pagina (module Planning, PRD §2.2 weergave 2 — fase 1 stap
- * 5b). Eén team, één dag, chronologisch — met tijdcascade en handmatig
+ * 5b). Eén ploeg, één dag, chronologisch — met tijdcascade en handmatig
  * ordenen. Kantoor stuurt bij; voorman en overige stafrollen lezen mee.
- * Modus Vandaag = live regie (Convex realtime); Planvenster = datumkeuze.
+ * De datumnavigatie in de kaart is het planvenster; "Vandaag" is live regie.
  */
 
 import { Suspense } from "react";
 import { PageHeader } from "@/components/page-header";
 import { Dagkaart } from "@/components/planbord/dagkaart";
+import { PlanningTabs } from "@/components/planbord/planning-tabs";
 
 export default function DagkaartPagina() {
   return (
     <>
       <PageHeader />
       <div className="flex flex-1 flex-col gap-4 p-4 md:p-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
-            Dagkaart
-          </h1>
-          <p className="text-muted-foreground">
-            De dag van één team, van vertrek bij de loods tot de
-            einde-dag-check. Sleep klantblokken om te herordenen; pas je een
-            tijd of duur aan, dan schuift alles erna automatisch door.
-          </p>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="min-w-0 space-y-1.5">
+            <h1 className="font-display text-2xl font-semibold tracking-tight md:text-[28px]">
+              Dagkaart
+            </h1>
+            <p className="text-[15px] text-muted-foreground">
+              De dag van één ploeg, van vertrek bij de loods tot de
+              einde-dag-check.
+            </p>
+          </div>
+          <PlanningTabs actief="/planning/dagkaart" />
         </div>
         <Suspense
           fallback={

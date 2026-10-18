@@ -1,4 +1,3 @@
-import { FileText, Eye, Send, CheckCircle } from "lucide-react";
 import { FACTUUR_STATUS_CONFIG, statusClasses } from "@/lib/constants/statuses";
 
 // Statuskleuren/-labels uit de centrale bron (WS4): zelfde status = zelfde kleur.
@@ -12,14 +11,6 @@ export const statusColors: Record<string, string> = Object.fromEntries(
 export const statusLabels: Record<string, string> = Object.fromEntries(
   Object.entries(FACTUUR_STATUS_CONFIG).map(([key, config]) => [key, config.label])
 );
-
-// Workflow steps for the invoice process
-export const workflowSteps = [
-  { id: "genereer", label: "Genereer", icon: FileText },
-  { id: "controleer", label: "Controleer", icon: Eye },
-  { id: "verstuur", label: "Verstuur", icon: Send },
-  { id: "betaald", label: "Betaald", icon: CheckCircle },
-];
 
 export function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("nl-NL", {

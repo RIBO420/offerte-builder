@@ -13,11 +13,22 @@
 import { describe, it, expect } from "vitest";
 import type { PlanbordEvent } from "../../../components/planbord/adapter";
 import {
+  aantalDagen,
   eigenTeamIds,
   filterAfspraken,
+  groepeerPerWeek,
   sorteerAfspraken,
+  zoekAfspraken,
   type LijstFilters,
 } from "../../../components/planbord/lijst";
+import {
+  dagVoluit,
+  dagenBereik,
+  datumBereikKort,
+  duurTekst,
+  isoWeek,
+  periodeVoluit,
+} from "../../../components/planbord/datum-nl";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -205,5 +216,85 @@ describe("sorteerAfspraken", () => {
     const kopie = [...events];
     sorteerAfspraken(events, "naam", "desc", TEAM_NAMEN);
     expect(events).toEqual(kopie);
+  });
+});
+
+// ─── Zoeken en weekgroepen (redesign okt 2026) ───────────────────────────────
+
+describe("zoekAfspraken", () => {
+  const events = [
+    event({ id: "a", titel: "Haag snoeien" }),
+    event({ id: "b", titel: "Borders inplanten" }),
+  ];
+  const klant = (e: PlanbordEvent) => (e.id === "b" ? "Fam. Dohmen" : null);
+
+  it("zoekt hoofdletterongevoelig op afspraaknaam", () => {
+    expect(zoekAfspraken(events, "HAAG", klant).map((e) => e.id)).toEqual(["a"]);
+  });
+
+  it("zoekt op klantnaam", () => {
+    expect(zoekAfspraken(events, "dohmen", klant).map((e) => e.id)).toEqual(["b"]);
+  });
+
+  it("laat alles door bij een lege zoekterm", () => {
+    expect(zoekAfspraken(events, "  ", klant)).toHaveLength(2);
+  });
+});
+
+describe("groepeerPerWeek", () => {
+  const events = [
+    event({ id: "a", start: "2026-10-12", eind: "2026-10-12" }),
+    event({ id: "b", start: "2026-10-13", eind: "2026-10-15" }),
+    event({ id: "c", start: "2026-10-17", eind: "2026-10-20" }),
+    event({ id: "d", start: "2026-10-19", eind: "2026-10-19" }),
+  ];
+
+  it("groepeert per ISO-week en geeft doorlopende afspraken een eigen groep", () => {
+    const groepen = groepeerPerWeek(events);
+    expect(groepen.map((g) => g.afspraken.map((e) => e.id))).toEqual([
+      ["a", "b"],
+      ["c"],
+      ["d"],
+    ]);
+    expect(groepen[0].vanWeek.week).toBe(42);
+    expect(groepen[0].maandag).toBe("2026-10-12");
+    expect(groepen[0].zondag).toBe("2026-10-18");
+    expect(groepen[1].totWeek.week).toBe(43);
+  });
+
+  it("zet de groepen omgekeerd bij aflopend", () => {
+    expect(groepeerPerWeek(events, true).map((g) => g.vanWeek.week)).toEqual([
+      43, 42, 42,
+    ]);
+  });
+
+  it("telt meerdaagse afspraken inclusief", () => {
+    expect(aantalDagen({ start: "2026-10-13", eind: "2026-10-15" })).toBe(3);
+    expect(aantalDagen({ start: "2026-10-13", eind: "2026-10-13" })).toBe(1);
+  });
+});
+
+describe("datum-nl", () => {
+  it("schrijft datums en bereiken in het Nederlands", () => {
+    expect(datumBereikKort("2026-10-12", "2026-10-12")).toBe("ma 12 okt");
+    expect(datumBereikKort("2026-10-13", "2026-10-15")).toBe("di 13 – do 15 okt");
+    expect(datumBereikKort("2026-09-30", "2026-10-02")).toBe("wo 30 sep – vr 2 okt");
+    expect(dagenBereik("2026-10-12", "2026-10-18")).toBe("12–18 okt");
+    expect(dagenBereik("2026-09-28", "2026-10-04")).toBe("28 sep – 4 okt");
+    expect(periodeVoluit("2026-10-12", "2026-10-25")).toBe("12 tot en met 25 oktober");
+    expect(dagVoluit("2026-10-18")).toBe("Zondag 18 oktober");
+    expect(dagVoluit("2027-01-04", "2026-12-30")).toBe("Maandag 4 januari 2027");
+  });
+
+  it("rekent ISO-weken over de jaargrens", () => {
+    expect(isoWeek("2026-10-12")).toEqual({ jaar: 2026, week: 42 });
+    expect(isoWeek("2027-01-01")).toEqual({ jaar: 2026, week: 53 });
+    expect(isoWeek("2024-12-30")).toEqual({ jaar: 2025, week: 1 });
+  });
+
+  it("schrijft duur als uren en minuten", () => {
+    expect(duurTekst(45)).toBe("45 min");
+    expect(duurTekst(120)).toBe("2 u");
+    expect(duurTekst(510)).toBe("8 u 30 min");
   });
 });

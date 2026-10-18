@@ -1,62 +1,28 @@
-"use client";
-
-import {
-  Card,
-  CardContent,
-  CardHeader,
-} from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
+/** Laadstaat in de vorm van de pagina: kop, stappenbalk, papier en zijkolom. */
 export function FactuurPageSkeleton() {
   return (
-    <div className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Skeleton className="h-10 w-10" />
-        <div className="space-y-2">
-          <Skeleton className="h-8 w-48" />
-          <Skeleton className="h-4 w-32" />
-        </div>
+    <div className="flex flex-1 flex-col gap-5 p-4 md:p-8" aria-busy="true">
+      <div className="flex flex-col gap-3">
+        <Skeleton className="h-8 w-80 max-w-full" />
+        <Skeleton className="h-4 w-64 max-w-full" />
+        <Skeleton className="h-11 w-full" />
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Card key={i}>
-            <CardHeader className="pb-2">
-              <Skeleton className="h-4 w-24" />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className="h-8 w-20" />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <Skeleton className="h-[54px] w-full rounded-lg" />
 
-      {/* Main Content */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <Skeleton className="h-6 w-32" />
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-12 w-full" />
-              ))}
-            </CardContent>
-          </Card>
+      <div className="@container/werk">
+        <div className="grid items-start gap-5 @4xl/werk:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)]">
+          <div className="flex min-w-0 flex-col gap-2.5">
+            <Skeleton className="h-4 w-56" />
+            <Skeleton className="h-80 w-full rounded-lg" />
+          </div>
+          <div className="flex min-w-0 flex-col gap-4">
+            <Skeleton className="h-40 w-full rounded-lg" />
+            <Skeleton className="h-28 w-full rounded-lg" />
+          </div>
         </div>
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-6 w-24" />
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-6 w-full" />
-            ))}
-          </CardContent>
-        </Card>
       </div>
     </div>
   );

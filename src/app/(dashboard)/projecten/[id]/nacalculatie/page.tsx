@@ -2,55 +2,26 @@
 
 import { use, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { AlertTriangle, ArrowRight, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { Id } from "../../../../../../convex/_generated/dataModel";
 import { useNacalculatie } from "@/hooks/use-nacalculatie";
 import { useLeerfeedback } from "@/hooks/use-leerfeedback";
-import { NacalculatieSummary } from "@/components/project/nacalculatie-summary";
-import { ProjectUrenBronSelector } from "@/components/uren/hub-export-dialog";
-import { AfwijkingenTabel } from "@/components/project/afwijkingen-tabel";
-import { VergelijkingChart, AfwijkingChart } from "@/components/project/vergelijking-chart";
+import { PageHeader } from "@/components/page-header";
+import { ProjectKop } from "@/components/project/project-kop";
 import { NormuurSuggestieCard } from "@/components/project/normuur-suggestie-card";
 import { LeerfeedbackHistorie } from "@/components/project/leerfeedback-historie";
-import { ProjectProgressStepper } from "@/components/project/project-progress-stepper";
-import { NacalculatieSuccessDialog } from "@/components/project/nacalculatie-success-dialog";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { PageHeader } from "@/components/page-header";
-import { toast } from "sonner";
-import { logger } from "@/lib/logger";
-import {
-  ArrowLeft,
-  Loader2,
-  ClipboardCheck,
-  Save,
-  FileSpreadsheet,
-  AlertTriangle,
-  Info,
-  TrendingUp,
-  TrendingDown,
-  Lightbulb,
-  CheckCircle,
-  Calculator,
-  Clock,
-  ArrowRight,
-  Receipt,
-  Target,
-  BarChart3,
-  HelpCircle,
-} from "lucide-react";
-import { exportNacalculatieToExcel } from "./export";
-import { getDeviationColor, formatDeviation } from "@/lib/nacalculatie-calculator";
+import { SectiePaneel } from "@/components/ui/sectie-paneel";
 import { LaadIndicator } from "@/components/ui/laad-indicator";
+import { logger } from "@/lib/logger";
+import { exportNacalculatieToExcel } from "./export";
+import { nacalculatieSignaal } from "./signaal";
+import { Uitkomst } from "./components/uitkomst";
+import { PerScope } from "./components/per-scope";
+import { UrenbronPaneel } from "./components/urenbron-paneel";
 
 export default function NacalculatiePage({
   params,
@@ -59,8 +30,8 @@ export default function NacalculatiePage({
 }) {
   const { id } = use(params);
   const projectId = id as Id<"projecten">;
+  const router = useRouter();
 
-  // Get nacalculatie data
   const {
     nacalculatie,
     clientCalculation,
@@ -72,7 +43,7 @@ export default function NacalculatiePage({
     hasUrenRegistraties,
   } = useNacalculatie(projectId);
 
-  // Get leerfeedback data
+  // Leerfeedback: suggesties voor normuren op basis van alle nacalculaties
   const {
     suggesties,
     historie,
@@ -83,54 +54,53 @@ export default function NacalculatiePage({
     revertAanpassing,
   } = useLeerfeedback();
 
-  // Local state
-  const [conclusies, setConclusies] = useState(nacalculatie?.conclusies || "");
-  const [isSaving, setIsSaving] = useState(false);
+  // `null` = nog niet aangeraakt: dan geldt wat er al is opgeslagen.
+  const [conclusiesConcept, setConclusies] = useState<string | null>(null);
+  const conclusies = conclusiesConcept ?? nacalculatie?.conclusies ?? "";
+  const [opslaanBezig, setOpslaanBezig] = useState<"alleen" | "factuur" | null>(null);
   const [isExporting, setIsExporting] = useState(false);
-  const [activeTab, setActiveTab] = useState("overzicht");
-  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
 
-  // Update conclusies when nacalculatie loads
-  useMemo(() => {
-    if (nacalculatie?.conclusies) {
-      setConclusies(nacalculatie.conclusies);
-    }
-  }, [nacalculatie?.conclusies]);
+  const handleSave = useCallback(
+    async (naarFactuur: boolean) => {
+      if (!clientCalculation) return;
 
-  // Save nacalculatie
-  const handleSave = useCallback(async () => {
-    if (!clientCalculation) return;
+      setOpslaanBezig(naarFactuur ? "factuur" : "alleen");
+      try {
+        await save({
+          werkelijkeUren: clientCalculation.werkelijkeUren,
+          werkelijkeDagen: clientCalculation.werkelijkeDagen,
+          werkelijkeMachineKosten: clientCalculation.werkelijkeMachineKosten,
+          afwijkingUren: clientCalculation.afwijkingUren,
+          afwijkingPercentage: clientCalculation.afwijkingPercentage,
+          afwijkingenPerScope: clientCalculation.afwijkingenPerScopeMap,
+          conclusies,
+          // Een afgerond project gaat met het opslaan naar nacalculatie_compleet
+          updateProjectStatus: details?.project?.status === "afgerond",
+        });
 
-    setIsSaving(true);
-    try {
-      // Check if we should update project status
-      const shouldUpdateStatus = details?.project?.status === "afgerond";
+        if (naarFactuur) {
+          toast.success("Nacalculatie opgeslagen");
+          router.push(`/projecten/${id}/factuur`);
+        } else {
+          toast.success("Nacalculatie opgeslagen", {
+            action: {
+              label: "Naar factuur",
+              onClick: () => router.push(`/projecten/${id}/factuur`),
+            },
+          });
+        }
+      } catch (error) {
+        toast.error("Fout bij opslaan nacalculatie");
+        logger.error("Opslaan nacalculatie mislukt", error, {
+          module: "projecten/nacalculatie",
+        });
+      } finally {
+        setOpslaanBezig(null);
+      }
+    },
+    [clientCalculation, conclusies, save, details?.project?.status, router, id]
+  );
 
-      await save({
-        werkelijkeUren: clientCalculation.werkelijkeUren,
-        werkelijkeDagen: clientCalculation.werkelijkeDagen,
-        werkelijkeMachineKosten: clientCalculation.werkelijkeMachineKosten,
-        afwijkingUren: clientCalculation.afwijkingUren,
-        afwijkingPercentage: clientCalculation.afwijkingPercentage,
-        afwijkingenPerScope: clientCalculation.afwijkingenPerScopeMap,
-        conclusies,
-        updateProjectStatus: shouldUpdateStatus,
-      });
-
-      // Show success dialog instead of just a toast
-      setShowSuccessDialog(true);
-    } catch (error) {
-      toast.error("Fout bij opslaan nacalculatie");
-      logger.error("Opslaan nacalculatie mislukt", error, {
-        module: "projecten/nacalculatie",
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  }, [clientCalculation, conclusies, save, details?.project?.status]);
-
-
-  // Export to Excel
   const handleExport = useCallback(async () => {
     if (!clientCalculation || !details) return;
 
@@ -142,7 +112,7 @@ export default function NacalculatiePage({
         voorcalculatie: details.voorcalculatie,
         conclusies,
       });
-      toast.success("Excel export gedownload");
+      toast.success("Excel-export gedownload");
     } catch (error) {
       toast.error("Fout bij exporteren");
       logger.error("Excel-export nacalculatie mislukt", error, {
@@ -153,14 +123,8 @@ export default function NacalculatiePage({
     }
   }, [clientCalculation, details, conclusies]);
 
-  // Apply leerfeedback suggestion
   const handleApplySuggestie = useCallback(
-    async (
-      normuurId: string,
-      nieuweWaarde: number,
-      reden: string,
-      bronProjecten: string[]
-    ) => {
+    async (normuurId: string, nieuweWaarde: number, reden: string, bronProjecten: string[]) => {
       try {
         await applyAanpassing({
           normuurId: normuurId as Id<"normuren">,
@@ -179,7 +143,6 @@ export default function NacalculatiePage({
     [applyAanpassing]
   );
 
-  // Revert leerfeedback adjustment
   const handleRevert = useCallback(
     async (historieId: Id<"leerfeedback_historie">) => {
       try {
@@ -195,613 +158,234 @@ export default function NacalculatiePage({
     [revertAanpassing]
   );
 
-  // Calculate budget status for visual indicators - must be before early returns to maintain hook order
-  const budgetStatus = useMemo(() => {
-    if (!clientCalculation) return null;
-    const percentage = clientCalculation.afwijkingPercentage;
-    const isOverBudget = percentage > 0;
-    const isUnderBudget = percentage < 0;
-    const absPercentage = Math.abs(percentage);
+  const signaal = useMemo(
+    () => (clientCalculation ? nacalculatieSignaal(clientCalculation) : null),
+    [clientCalculation]
+  );
 
-    // Calculate progress bar value (100% = exact on budget)
-    const progressValue = Math.min(Math.max(100 + percentage, 0), 200);
-
-    return {
-      isOverBudget,
-      isUnderBudget,
-      absPercentage,
-      progressValue,
-      status: clientCalculation.status,
-    };
-  }, [clientCalculation]);
-
-  // Loading state
-  if (isLoading || isLoadingDetails) {
-    return (
-      <>
-        <PageHeader />
-        <div className="flex flex-1 items-center justify-center">
-          <LaadIndicator formaat="pagina" />
-        </div>
-      </>
-    );
-  }
-
-  // Check if we have the necessary data
-  const canCalculate = hasVoorcalculatie && hasUrenRegistraties;
+  const laden = Boolean(isLoading || isLoadingDetails);
+  const urenBronConflict = details?.urenBronConflict === true;
+  const bezig = opslaanBezig !== null;
 
   return (
     <>
       <PageHeader customLabels={{ [`/projecten/${id}`]: details?.project?.naam || "Project" }} />
 
-      <div className="flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6 pb-28 md:pb-6">
-        <ProjectUrenBronSelector projectId={id as Id<"projecten">} />
-        {/* Page Header */}
-        <div className="flex flex-col gap-4">
-          <div className="flex items-start gap-3">
-            <Button variant="ghost" size="icon" asChild className="h-9 w-9 sm:h-8 sm:w-8 shrink-0 mt-1" aria-label="Terug naar project">
-              <Link href={`/projecten/${id}`}>
-                <ArrowLeft className="h-4 w-4" />
-              </Link>
-            </Button>
-            <div className="flex-1 min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <ClipboardCheck className="h-5 w-5 md:h-6 md:w-6 text-primary shrink-0" />
-                <h1 className="text-xl md:text-2xl font-bold tracking-tight">
-                  Nacalculatie
-                </h1>
-              </div>
-              <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                {details?.project?.naam}
-              </p>
-            </div>
-            {/* Desktop action buttons */}
-            <div className="hidden md:flex gap-2 shrink-0">
+      <div className="flex flex-1 flex-col gap-5 p-4 md:p-8">
+        <ProjectKop
+          projectId={id}
+          actief="nacalculatie"
+          acties={
+            <>
               <Button
                 variant="outline"
-                size="sm"
                 onClick={handleExport}
                 disabled={!clientCalculation || isExporting}
               >
-                {isExporting ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <FileSpreadsheet className="h-4 w-4 mr-2" />
-                )}
+                {isExporting && <Loader2 className="mr-2 size-4 animate-spin" />}
                 Exporteren
               </Button>
-            </div>
+              <Button onClick={() => handleSave(true)} disabled={!clientCalculation || bezig}>
+                {opslaanBezig === "factuur" && <Loader2 className="mr-2 size-4 animate-spin" />}
+                Opslaan en naar factuur
+                <ArrowRight className="ml-2 size-4" />
+              </Button>
+            </>
+          }
+        />
+
+        {laden ? (
+          <div className="flex flex-1 items-center justify-center py-16">
+            <LaadIndicator formaat="pagina" />
           </div>
-
-          {/* What is nacalculatie - explanation card */}
-          <Card className="bg-muted/30 border-dashed">
-            <CardContent className="py-3 px-4">
-              <div className="flex items-start gap-3">
-                <HelpCircle className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                <div className="text-sm text-muted-foreground">
-                  <p className="font-medium text-foreground">Wat is een nacalculatie?</p>
-                  <p className="mt-1">
-                    Vergelijk de geplande uren uit je offerte met de werkelijk geregistreerde uren.
-                    Zo zie je direct of het project binnen budget is gebleven en welke werkzaamheden
-                    meer of minder tijd kostten dan verwacht.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Quick Status Summary - Visual budget indicator */}
-        {clientCalculation && budgetStatus && (
-          <div>
-            <Card className={`border-2 ${
-              budgetStatus.status === "good"
-                ? "border-status-geaccepteerd-border bg-status-geaccepteerd/40"
-                : budgetStatus.status === "warning"
-                ? "border-status-in-uitvoering-border bg-status-in-uitvoering/40"
-                : "border-status-afgewezen-border bg-status-afgewezen/40"
-            }`}>
-              <CardContent className="py-4 px-4 md:px-6">
-                <div className="flex flex-col md:flex-row md:items-center gap-4">
-                  {/* Status Icon & Text */}
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className={`h-12 w-12 md:h-14 md:w-14 rounded-full flex items-center justify-center shrink-0 ${
-                      budgetStatus.status === "good"
-                        ? "bg-status-geaccepteerd"
-                        : budgetStatus.status === "warning"
-                        ? "bg-status-in-uitvoering"
-                        : "bg-status-afgewezen"
-                    }`}>
-                      {budgetStatus.isOverBudget ? (
-                        <TrendingUp className={`h-6 w-6 md:h-7 md:w-7 ${
-                          budgetStatus.status === "good"
-                            ? "text-status-geaccepteerd-text"
-                            : budgetStatus.status === "warning"
-                            ? "text-status-in-uitvoering-text"
-                            : "text-status-afgewezen-text"
-                        }`} />
-                      ) : budgetStatus.isUnderBudget ? (
-                        <TrendingDown className={`h-6 w-6 md:h-7 md:w-7 ${
-                          budgetStatus.status === "good"
-                            ? "text-status-geaccepteerd-text"
-                            : "text-status-gepland-text"
-                        }`} />
-                      ) : (
-                        <Target className="h-6 w-6 md:h-7 md:w-7 text-status-geaccepteerd-text" />
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm text-muted-foreground">Totale afwijking</p>
-                      <p className={`text-2xl md:text-3xl font-bold ${
-                        getDeviationColor(budgetStatus.status).text
-                      }`}>
-                        {formatDeviation(clientCalculation.afwijkingPercentage)}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {budgetStatus.isOverBudget
-                          ? `${Math.abs(clientCalculation.afwijkingUren)} uur meer dan gepland`
-                          : budgetStatus.isUnderBudget
-                          ? `${Math.abs(clientCalculation.afwijkingUren)} uur minder dan gepland`
-                          : "Precies op planning"}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Quick Stats */}
-                  <div className="grid grid-cols-2 gap-3 md:gap-4 md:w-auto">
-                    <div className="bg-background/60 rounded-lg p-3 text-center">
-                      <p className="text-xs text-muted-foreground">Gepland</p>
-                      <p className="text-lg md:text-xl font-semibold">{clientCalculation.geplandeUren}u</p>
-                    </div>
-                    <div className="bg-background/60 rounded-lg p-3 text-center">
-                      <p className="text-xs text-muted-foreground">Werkelijk</p>
-                      <p className={`text-lg md:text-xl font-semibold ${getDeviationColor(budgetStatus.status).text}`}>
-                        {clientCalculation.werkelijkeUren}u
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Visual Progress Bar */}
-                <div className="mt-4">
-                  <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-                    <span>0%</span>
-                    <span className="font-medium">Budget (100%)</span>
-                    <span>200%</span>
-                  </div>
-                  <div className="relative h-3 bg-muted rounded-full overflow-hidden">
-                    {/* Budget marker at 50% */}
-                    <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-foreground/30 z-10" />
-                    {/* Progress fill — translateX i.p.v. width (optimize O7):
-                        GPU-composited, geen reflow per frame. De balk is op
-                        volle breedte en schuift van links in; de ouder heeft
-                        overflow-hidden, dus de eindkap blijft mooi rond
-                        (scaleX zou de radius in rust vervormen).
-                        De eindstand staat in `style`, niet in een animatie:
-                        zonder animatieframe (achtergrondtab) stond de balk
-                        anders op -100% en las de gebruiker 0% afwijking. De
-                        CSS-transitie doet alleen nog het schuiven bij een
-                        nieuwe waarde. → src/components/pagina-reveal.tsx */}
-                    <div
-                      className={`h-full w-full rounded-full transition-transform duration-500 ease-out ${
-                        budgetStatus.status === "good"
-                          ? "bg-status-geaccepteerd-dot"
-                          : budgetStatus.status === "warning"
-                          ? "bg-status-in-uitvoering-dot"
-                          : "bg-status-afgewezen-dot"
-                      }`}
-                      style={{
-                        transform: `translateX(${Math.min(budgetStatus.progressValue / 2, 100) - 100}%)`,
-                      }}
+        ) : (
+          <div className="@container/werk">
+            <div className="grid items-start gap-5 @4xl/werk:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)]">
+              <div className="flex min-w-0 flex-col gap-4">
+                {clientCalculation ? (
+                  <>
+                    {!hasUrenRegistraties && (
+                      <OntbrekendeGegevens
+                        projectId={id}
+                        urenBronConflict={urenBronConflict}
+                        hasVoorcalculatie={hasVoorcalculatie}
+                        hasUrenRegistraties={hasUrenRegistraties}
+                      />
+                    )}
+                    <Uitkomst
+                      data={clientCalculation}
+                      teamGrootte={details?.voorcalculatie?.teamGrootte}
                     />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
 
-        {/* Progress Stepper - Collapsed on mobile */}
-        <Card className="p-3 md:p-6">
-          <div className="hidden md:block">
-            <ProjectProgressStepper
-              projectId={id}
-              projectStatus={(details?.project?.status || "afgerond") as "gepland" | "in_uitvoering" | "afgerond" | "nacalculatie_compleet" | "gefactureerd"}
-              hasPlanning={true}
-              hasUrenRegistraties={hasUrenRegistraties}
-              hasNacalculatie={!!nacalculatie}
-            />
-          </div>
-          <div className="md:hidden">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center">
-                  <ClipboardCheck className="h-4 w-4 text-primary-foreground" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium">Stap 4 van 5</p>
-                  <p className="text-xs text-muted-foreground">Nacalculatie</p>
-                </div>
-              </div>
-              <Badge variant="secondary">
-                {nacalculatie ? "Opgeslagen" : "In bewerking"}
-              </Badge>
-            </div>
-          </div>
-        </Card>
-
-        {/* Missing data - Empty States */}
-        {!canCalculate && (
-          <div className="grid gap-4 md:grid-cols-2">
-            {/* No Voorcalculatie */}
-            {!hasVoorcalculatie && (
-              <Card className="border-status-herinnering-border bg-status-herinnering/40">
-                <CardContent className="flex flex-col items-center justify-center py-8">
-                  <div className="h-12 w-12 rounded-full bg-status-herinnering flex items-center justify-center mb-4">
-                    <Calculator className="h-6 w-6 text-status-herinnering-text" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-center">
-                    Geen voorcalculatie
-                  </h3>
-                  <p className="text-sm text-muted-foreground text-center mt-2 max-w-xs">
-                    Om een nacalculatie te maken heb je eerst een voorcalculatie nodig met de geplande uren.
-                  </p>
-                  <Button asChild className="mt-4">
-                    <Link href={`/projecten/${id}/voorcalculatie`}>
-                      <Calculator className="mr-2 h-4 w-4" />
-                      Maak voorcalculatie
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* No Uren Registraties */}
-            {!hasUrenRegistraties && (
-              <Card className="border-status-gepland-border bg-status-gepland/40">
-                <CardContent className="flex flex-col items-center justify-center py-8">
-                  <div className="h-12 w-12 rounded-full bg-status-gepland flex items-center justify-center mb-4">
-                    <Clock className="h-6 w-6 text-status-gepland-text" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-center">
-                    Geen urenregistraties
-                  </h3>
-                  <p className="text-sm text-muted-foreground text-center mt-2 max-w-xs">
-                    Om werkelijke uren te vergelijken met de planning moeten er eerst uren geregistreerd zijn.
-                  </p>
-                  <Button asChild className="mt-4">
-                    <Link href={`/projecten/${id}/uitvoering`}>
-                      <Clock className="mr-2 h-4 w-4" />
-                      Ga naar uitvoering
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        )}
-
-        {/* Main Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4 md:space-y-6">
-          <TabsList className="w-full md:w-auto grid grid-cols-3 md:flex">
-            <TabsTrigger value="overzicht" className="gap-1 md:gap-2 text-xs md:text-sm">
-              <ClipboardCheck className="h-3.5 w-3.5 md:h-4 md:w-4" />
-              <span className="hidden xs:inline">Overzicht</span>
-              <span className="xs:hidden">Over.</span>
-            </TabsTrigger>
-            <TabsTrigger value="details" className="gap-1 md:gap-2 text-xs md:text-sm">
-              <BarChart3 className="h-3.5 w-3.5 md:h-4 md:w-4" />
-              Details
-            </TabsTrigger>
-            <TabsTrigger value="leerfeedback" className="gap-1 md:gap-2 text-xs md:text-sm">
-              <Lightbulb className="h-3.5 w-3.5 md:h-4 md:w-4" />
-              <span className="hidden xs:inline">Feedback</span>
-              <span className="xs:hidden">Leer</span>
-              {suggesties.length > 0 && (
-                <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
-                  {suggesties.length}
-                </Badge>
-              )}
-            </TabsTrigger>
-          </TabsList>
-
-          {/* Overview Tab */}
-          <TabsContent value="overzicht" className="space-y-4 md:space-y-6">
-            {clientCalculation && (
-              <>
-                {/* Simplified Insights - Only show top 3 most important */}
-                {clientCalculation.insights.length > 0 && (
-                  <Card>
-                    <CardHeader className="pb-3">
-                      <CardTitle className="flex items-center gap-2 text-base md:text-lg">
-                        <Lightbulb className="h-4 w-4 md:h-5 md:w-5 text-accent-warm" />
-                        Belangrijkste Inzichten
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid gap-2 md:gap-3">
-                        {clientCalculation.insights.slice(0, 3).map((insight, index) => {
-                          const iconMap = {
-                            success: <CheckCircle className="h-4 w-4 text-status-geaccepteerd-text shrink-0" />,
-                            warning: <AlertTriangle className="h-4 w-4 text-status-in-uitvoering-text shrink-0" />,
-                            critical: <AlertTriangle className="h-4 w-4 text-status-afgewezen-text shrink-0" />,
-                            info: <Info className="h-4 w-4 text-status-gepland-text shrink-0" />,
-                          };
-                          return (
-                            <div
-                              key={index}
-                              className={`flex items-start gap-3 p-3 rounded-lg ${
-                                insight.type === "success"
-                                  ? "bg-status-geaccepteerd/40"
-                                  : insight.type === "warning"
-                                  ? "bg-status-in-uitvoering/40"
-                                  : insight.type === "critical"
-                                  ? "bg-status-afgewezen/40"
-                                  : "bg-status-gepland/40"
-                              }`}
-                            >
-                              {iconMap[insight.type]}
-                              <div className="min-w-0 flex-1">
-                                <p className="font-medium text-sm">{insight.title}</p>
-                                <p className="text-xs md:text-sm text-muted-foreground mt-0.5 line-clamp-2">
-                                  {insight.description}
-                                </p>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                      {clientCalculation.insights.length > 3 && (
-                        <p className="text-xs text-muted-foreground mt-3 text-center">
-                          + {clientCalculation.insights.length - 3} meer inzichten in Details tab
+                    {signaal && (
+                      <section
+                        aria-label="Let op bij deze nacalculatie"
+                        className="flex gap-3 rounded-lg border border-status-herinnering-border bg-surface-aandacht px-4 py-3.5"
+                      >
+                        <AlertTriangle
+                          className="mt-0.5 size-4 shrink-0 text-status-herinnering-text"
+                          aria-hidden="true"
+                        />
+                        <p className="text-pretty text-[13px]">
+                          <span className="font-semibold">{signaal.kop}</span>{" "}
+                          <span className="text-muted-foreground">{signaal.uitleg}</span>
                         </p>
+                      </section>
+                    )}
+
+                    <PerScope afwijkingen={clientCalculation.afwijkingenPerScope} />
+
+                    <SectiePaneel
+                      titel="Normuren bijstellen"
+                      kopbalk
+                      telling={suggesties.length}
+                      uitleg="Normuren worden alleen aangepast als jij een suggestie overneemt. Elke aanpassing wordt gelogd en kan worden teruggedraaid."
+                      legeRegel={
+                        !isLoadingLeerfeedback && suggesties.length === 0
+                          ? {
+                              tekst: "Geen suggesties.",
+                              hint:
+                                totaalAnalyseerdeProjecten < minimumVoorSuggestie
+                                  ? `Nog ${minimumVoorSuggestie - totaalAnalyseerdeProjecten} projecten met nacalculatie nodig.`
+                                  : "De normuren kloppen met de projectdata.",
+                            }
+                          : undefined
+                      }
+                    >
+                      {isLoadingLeerfeedback ? (
+                        <div className="flex items-center justify-center py-8">
+                          <LaadIndicator formaat="sectie" />
+                        </div>
+                      ) : (
+                        suggesties.length > 0 && (
+                          <div className="flex flex-col gap-3 p-4">
+                            <p className="text-xs text-muted-foreground">
+                              Gebaseerd op {totaalAnalyseerdeProjecten} projecten (minimaal{" "}
+                              {minimumVoorSuggestie} voor een suggestie).
+                            </p>
+                            <div className="grid gap-4 @3xl/sectie:grid-cols-2">
+                              {suggesties.map((suggestie) => (
+                                <NormuurSuggestieCard
+                                  key={suggestie.id}
+                                  suggestie={suggestie}
+                                  onApply={handleApplySuggestie}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        )
                       )}
-                    </CardContent>
-                  </Card>
+                    </SectiePaneel>
+
+                    {historie.length > 0 && (
+                      <LeerfeedbackHistorie
+                        historie={historie}
+                        onRevert={handleRevert}
+                        isLoading={isLoadingLeerfeedback ?? false}
+                      />
+                    )}
+                  </>
+                ) : (
+                  <OntbrekendeGegevens
+                    projectId={id}
+                    urenBronConflict={urenBronConflict}
+                    hasVoorcalculatie={hasVoorcalculatie}
+                    hasUrenRegistraties={hasUrenRegistraties}
+                  />
                 )}
+              </div>
 
-                {/* Simplified Summary */}
-                <NacalculatieSummary
-                  data={clientCalculation}
-                  teamGrootte={details?.voorcalculatie?.teamGrootte}
-                  effectieveUrenPerDag={details?.voorcalculatie?.effectieveUrenPerDag}
-                />
+              <aside aria-label="Afronden" className="flex min-w-0 flex-col gap-4">
+                <UrenbronPaneel projectId={projectId} />
 
-                {/* Conclusions */}
-                <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base md:text-lg">Conclusies & Leerpunten</CardTitle>
-                    <CardDescription className="text-xs md:text-sm">
-                      Noteer je bevindingen voor toekomstige projecten (optioneel)
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
+                <SectiePaneel titel="Leerpunten" kopbalk>
+                  <div className="flex flex-col gap-2.5 p-4">
+                    <label htmlFor="leerpunten" className="text-xs text-muted-foreground">
+                      Wat neem je mee naar het volgende project? (optioneel)
+                    </label>
                     <Textarea
-                      placeholder="Bijv. grondwerk duurde langer door onverwachte stenen..."
+                      id="leerpunten"
+                      rows={5}
+                      placeholder="Bijv. graszoden sneller gelegd dan begroot bij vlakke tuin…"
                       value={conclusies}
                       onChange={(e) => setConclusies(e.target.value)}
-                      rows={3}
-                      className="resize-none text-sm"
+                      className="resize-y text-[13px]"
                     />
-                  </CardContent>
-                </Card>
-
-                {/* Desktop: Save and Continue CTA */}
-                <Card className="hidden md:block border-primary/20 bg-primary/5">
-                  <CardContent className="flex items-center justify-between gap-4 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                        <Receipt className="h-5 w-5 text-primary" />
-                      </div>
-                      <div>
-                        <p className="font-medium">Klaar met de nacalculatie?</p>
-                        <p className="text-sm text-muted-foreground">
-                          Sla op en ga door naar de factuur
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        onClick={handleSave}
-                        disabled={!clientCalculation || isSaving}
-                      >
-                        {isSaving ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                          <Save className="h-4 w-4 mr-2" />
-                        )}
-                        Alleen Opslaan
-                      </Button>
-                      <Button
-                        onClick={handleSave}
-                        disabled={!clientCalculation || isSaving}
-                        className="bg-primary"
-                      >
-                        {isSaving ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                          <Receipt className="h-4 w-4 mr-2" />
-                        )}
-                        Opslaan & Naar Factuur
-                        <ArrowRight className="h-4 w-4 ml-2" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Factuur CTA Card - Only show if already saved */}
-                {details?.project?.status === "nacalculatie_compleet" && (
-                  <Card className="border-status-geaccepteerd-border bg-status-geaccepteerd/40">
-                    <CardContent className="flex flex-col sm:flex-row items-center justify-between gap-4 py-4 md:py-6">
-                      <div className="flex items-center gap-3 md:gap-4">
-                        <div className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-status-geaccepteerd flex items-center justify-center">
-                          <CheckCircle className="h-5 w-5 md:h-6 md:w-6 text-status-geaccepteerd-text" />
-                        </div>
-                        <div>
-                          <h3 className="text-base md:text-lg font-semibold">
-                            Nacalculatie Voltooid
-                          </h3>
-                          <p className="text-xs md:text-sm text-muted-foreground">
-                            Je kunt nu de factuur genereren
-                          </p>
-                        </div>
-                      </div>
-                      <Button asChild className="w-full sm:w-auto">
-                        <Link href={`/projecten/${id}/factuur`}>
-                          <Receipt className="mr-2 h-4 w-4" />
-                          Ga naar Factuur
-                          <ArrowRight className="ml-2 h-4 w-4" />
-                        </Link>
-                      </Button>
-                    </CardContent>
-                  </Card>
-                )}
-              </>
-            )}
-          </TabsContent>
-
-          {/* Details Tab */}
-          <TabsContent value="details" className="space-y-6">
-            {clientCalculation && (
-              <>
-                <div className="grid gap-6 lg:grid-cols-2">
-                  <VergelijkingChart
-                    afwijkingen={clientCalculation.afwijkingenPerScope}
-                    height={400}
-                  />
-                  <AfwijkingChart
-                    afwijkingen={clientCalculation.afwijkingenPerScope}
-                    height={400}
-                  />
-                </div>
-
-                <AfwijkingenTabel
-                  afwijkingen={clientCalculation.afwijkingenPerScope}
-                />
-              </>
-            )}
-          </TabsContent>
-
-          {/* Leerfeedback Tab */}
-          <TabsContent value="leerfeedback" className="space-y-6">
-            {/* Warning banner */}
-            <Alert className="border-status-herinnering-border bg-status-herinnering/40">
-              <AlertTriangle className="h-4 w-4 text-status-herinnering-text" />
-              <AlertTitle className="text-status-herinnering-text">
-                Handmatige aanpassingen
-              </AlertTitle>
-              <AlertDescription className="text-status-herinnering-text/90">
-                Normuur aanpassingen gebeuren alleen op basis van jouw
-                expliciete goedkeuring. Er worden geen automatische wijzigingen
-                doorgevoerd. Elke aanpassing wordt gelogd en kan worden
-                teruggedraaid.
-              </AlertDescription>
-            </Alert>
-
-            {/* Suggestions */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-semibold">Suggesties voor Normuren</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Gebaseerd op {totaalAnalyseerdeProjecten} projecten (minimum{" "}
-                    {minimumVoorSuggestie} voor suggestie)
-                  </p>
-                </div>
-              </div>
-
-              {isLoadingLeerfeedback ? (
-                <div className="flex items-center justify-center py-8">
-                  <LaadIndicator formaat="sectie" />
-                </div>
-              ) : suggesties.length > 0 ? (
-                <div className="grid gap-4 lg:grid-cols-2">
-                  {suggesties.map((suggestie) => (
-                    <NormuurSuggestieCard
-                      key={suggestie.id}
-                      suggestie={suggestie}
-                      onApply={handleApplySuggestie}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <Card>
-                  <CardContent className="py-8 text-center text-muted-foreground">
-                    <CheckCircle className="h-8 w-8 mx-auto mb-2 text-status-geaccepteerd-dot" />
-                    <p className="font-medium">Geen suggesties beschikbaar</p>
-                    <p className="text-sm mt-1">
-                      {totaalAnalyseerdeProjecten < minimumVoorSuggestie
-                        ? `Je hebt ${minimumVoorSuggestie - totaalAnalyseerdeProjecten} meer projecten nodig met nacalculatie data.`
-                        : "De huidige normuren lijken accuraat op basis van de projectdata."}
-                    </p>
-                  </CardContent>
-                </Card>
-              )}
+                    <Button
+                      variant="outline"
+                      onClick={() => handleSave(false)}
+                      disabled={!clientCalculation || bezig}
+                    >
+                      {opslaanBezig === "alleen" && <Loader2 className="mr-2 size-4 animate-spin" />}
+                      Alleen opslaan
+                    </Button>
+                  </div>
+                </SectiePaneel>
+              </aside>
             </div>
-
-            {/* History */}
-            <LeerfeedbackHistorie
-              historie={historie}
-              onRevert={handleRevert}
-              isLoading={isLoadingLeerfeedback ?? false}
-            />
-          </TabsContent>
-        </Tabs>
+          </div>
+        )}
       </div>
+    </>
+  );
+}
 
-      {/* Mobile Sticky Bottom Action Bar */}
-      {clientCalculation && (
-        <div className="fixed bottom-0 left-0 right-0 md:hidden bg-background border-t shadow-lg z-50 safe-area-bottom">
-          <div className="p-4 flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExport}
-              disabled={isExporting}
-              className="shrink-0"
-            >
-              {isExporting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <FileSpreadsheet className="h-4 w-4" />
-              )}
-            </Button>
-            {details?.project?.status === "nacalculatie_compleet" ? (
-              <Button asChild className="flex-1">
-                <Link href={`/projecten/${id}/factuur`}>
-                  <Receipt className="mr-2 h-4 w-4" />
-                  Ga naar Factuur
-                  <ArrowRight className="ml-2 h-4 w-4" />
+/** Uitkomst kan nog niet: wat ontbreekt er en waar los je dat op. */
+function OntbrekendeGegevens({
+  projectId,
+  urenBronConflict,
+  hasVoorcalculatie,
+  hasUrenRegistraties,
+}: {
+  projectId: string;
+  urenBronConflict: boolean;
+  hasVoorcalculatie: boolean;
+  hasUrenRegistraties: boolean;
+}) {
+  const regels: { tekst: string; uitleg: string; href?: string; actie?: string }[] = [];
+  if (urenBronConflict) {
+    regels.push({
+      tekst: "Kies eerst de urenbron.",
+      uitleg: "Dit project heeft uren in twee bronnen. Kies rechts welke meetellen.",
+    });
+  }
+  if (!hasVoorcalculatie) {
+    regels.push({
+      tekst: "Geen voorcalculatie.",
+      uitleg: "Zonder geplande uren is er niets om tegen af te zetten.",
+      href: `/projecten/${projectId}/voorcalculatie`,
+      actie: "Naar voorcalculatie",
+    });
+  }
+  if (!hasUrenRegistraties && !urenBronConflict) {
+    regels.push({
+      tekst: "Geen urenregistraties.",
+      uitleg: "Registreer eerst de gewerkte uren in de uitvoering.",
+      href: `/projecten/${projectId}/uitvoering`,
+      actie: "Naar uitvoering",
+    });
+  }
+
+  return (
+    <SectiePaneel titel="Nog niet compleet">
+      <ul className="flex flex-col divide-y">
+        {regels.map((regel) => (
+          <li key={regel.tekst} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+            <p className="min-w-0 text-[13px]">
+              <span className="font-semibold">{regel.tekst}</span>{" "}
+              <span className="text-muted-foreground">{regel.uitleg}</span>
+            </p>
+            {regel.href && (
+              <Button variant="outline" size="sm" asChild>
+                <Link href={regel.href}>
+                  {regel.actie}
+                  <ArrowRight className="ml-1.5 size-4" />
                 </Link>
               </Button>
-            ) : (
-              <Button
-                onClick={handleSave}
-                disabled={isSaving}
-                className="flex-1"
-              >
-                {isSaving ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="h-4 w-4 mr-2" />
-                )}
-                Opslaan & Doorgaan
-                <ArrowRight className="h-4 w-4 ml-2" />
-              </Button>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* Success Dialog */}
-      <NacalculatieSuccessDialog
-        open={showSuccessDialog}
-        onOpenChange={setShowSuccessDialog}
-        projectId={id}
-      />
-    </>
+          </li>
+        ))}
+      </ul>
+    </SectiePaneel>
   );
 }

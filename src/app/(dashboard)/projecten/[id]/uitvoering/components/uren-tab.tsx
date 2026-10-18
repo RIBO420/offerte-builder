@@ -1,41 +1,20 @@
 "use client";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Clock,
-  MoreHorizontal,
-  Trash2,
-  Plus,
-  Lightbulb,
-} from "lucide-react";
-import { UrenImport } from "@/components/project/uren-import";
-import { UrenEntryData } from "@/components/project/uren-entry-form";
-import { scopeLabels, formatDate } from "./utils";
+import { SectieLegeStaat } from "@/components/ui/sectie-paneel";
 import { LaadIndicator } from "@/components/ui/laad-indicator";
+import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { formatHours } from "@/lib/format/number";
+import { formatUrenKort } from "@/lib/format/uren-kort";
+import { aantalMedewerkersTekst, dagKop, scopeLabel } from "./utils";
 
-interface UrenRegistratie {
+export interface UrenRegistratie {
   _id: string;
   medewerker: string;
   uren: number;
@@ -46,167 +25,135 @@ interface UrenRegistratie {
 }
 
 interface UrenTabProps {
-  isLoading: boolean | null | undefined;
+  isLoading: boolean;
   groupedByDate: [string, UrenRegistratie[]][];
-  onShowUrenForm: () => void;
+  onEditItem: (item: UrenRegistratie) => void;
   onDeleteItem: (item: { type: "uren" | "machine"; id: string }) => void;
-  onImport: (entries: UrenEntryData[]) => Promise<void>;
-  isImporting: boolean;
 }
 
-export function UrenTab({
-  isLoading,
-  groupedByDate,
-  onShowUrenForm,
-  onDeleteItem,
-  onImport,
-  isImporting,
-}: UrenTabProps) {
+/**
+ * Kolommen van een registratieregel. Breed (container ≥ 36rem): zes kolommen
+ * zoals een tabel. Smal: naam + uren + menu op de eerste regel, scope ·
+ * notitie · bron eronder — nooit zijwaarts scrollen.
+ */
+const RIJ_BREED =
+  "@xl/sectie:grid-cols-[minmax(0,1.2fr)_4rem_7.5rem_minmax(0,1.6fr)_6rem_2rem] @xl/sectie:gap-x-3.5";
+
+export function UrenTab({ isLoading, groupedByDate, onEditItem, onDeleteItem }: UrenTabProps) {
   if (isLoading) {
     return (
-      <Card>
-        <CardContent className="flex items-center justify-center py-12">
-          <LaadIndicator formaat="sectie" />
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (groupedByDate.length > 0) {
-    return (
-      <div className="space-y-4">
-        {groupedByDate.map(([date, items]) => (
-          <Card key={date}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">
-                {formatDate(date)}
-              </CardTitle>
-              <CardDescription>
-                {items.reduce((sum, i) => sum + i.uren, 0).toFixed(1)}{" "}
-                uur door {[...new Set(items.map((i) => i.medewerker))].length}{" "}
-                medewerker(s)
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Medewerker</TableHead>
-                    <TableHead className="text-right">Uren</TableHead>
-                    <TableHead>Scope</TableHead>
-                    <TableHead>Notities</TableHead>
-                    <TableHead>Bron</TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {items.map((item) => (
-                    <TableRow key={item._id}>
-                      <TableCell className="font-medium">
-                        {item.medewerker}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {item.uren.toFixed(1)}
-                      </TableCell>
-                      <TableCell>
-                        {item.scope ? (
-                          <Badge variant="outline">
-                            {scopeLabels[item.scope] || item.scope}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="max-w-[200px] truncate" title={item.notities || undefined}>
-                        {item.notities || (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            item.bron === "import"
-                              ? "secondary"
-                              : "outline"
-                          }
-                        >
-                          {item.bron === "import"
-                            ? "Import"
-                            : "Handmatig"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" aria-label="Meer opties">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() => {
-                                onDeleteItem({
-                                  type: "uren",
-                                  id: item._id,
-                                });
-                              }}
-                              className="text-destructive"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Verwijderen
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        ))}
+      <div className="flex items-center justify-center py-10">
+        <LaadIndicator formaat="sectie" />
       </div>
     );
   }
 
+  if (groupedByDate.length === 0) {
+    return (
+      <SectieLegeStaat
+        tekst="Nog geen uren geregistreerd."
+        hint="Registreer uren of importeer een CSV- of Excelbestand; de uren zijn nodig voor de nacalculatie."
+      />
+    );
+  }
+
   return (
-    <Card className="border-dashed">
-      <CardContent className="flex flex-col items-center justify-center py-12">
-        <div className="rounded-full bg-primary/10 p-4 mb-4">
-          <Clock className="h-10 w-10 text-primary" />
-        </div>
-        <h3 className="text-xl font-semibold">
-          Begin met registreren
-        </h3>
-        <p className="mt-2 text-sm text-muted-foreground text-center max-w-md">
-          Registreer de gewerkte uren voor dit project. Dit is nodig voor de nacalculatie.
-        </p>
-
-        {/* Quick tips */}
-        <div className="mt-6 w-full max-w-md space-y-3">
-          <div className="flex items-start gap-3 rounded-lg bg-muted/50 p-3">
-            <Lightbulb className="h-5 w-5 text-amber-500 dark:text-amber-400 shrink-0 mt-0.5" />
-            <div className="text-sm">
-              <p className="font-medium">Tip: Snelle invoer</p>
-              <p className="text-muted-foreground">
-                Gebruik de snelkeuze knoppen voor veelvoorkomende uren (4, 6, 8 uur) en datums (vandaag, gisteren).
-              </p>
+    <div className="flex flex-col pb-1.5">
+      {groupedByDate.map(([datum, items]) => {
+        const dagTotaal = items.reduce((som, i) => som + i.uren, 0);
+        const medewerkers = new Set(items.map((i) => i.medewerker)).size;
+        const kopId = `dag-${datum}`;
+        return (
+          <section key={datum} aria-labelledby={kopId}>
+            <div className="flex flex-wrap items-baseline gap-x-2.5 px-3 pb-1 pt-3">
+              <h3 id={kopId} className="text-sm font-semibold">
+                {dagKop(datum)}
+              </h3>
+              <span className="text-xs text-muted-foreground tabular-nums">
+                {formatUrenKort(dagTotaal)} uur · {aantalMedewerkersTekst(medewerkers)}
+              </span>
             </div>
-          </div>
-        </div>
 
-        <div className="mt-6 flex flex-col sm:flex-row gap-3 w-full max-w-md">
-          <Button
-            onClick={onShowUrenForm}
-            className="flex-1"
-            size="lg"
-          >
-            <Plus className="mr-2 h-5 w-5" />
-            Uren registreren
-          </Button>
-          <UrenImport onImport={onImport} isImporting={isImporting} />
-        </div>
-      </CardContent>
-    </Card>
+            <div
+              aria-hidden="true"
+              className={`hidden items-center px-3 py-1 text-xs text-muted-foreground @xl/sectie:grid ${RIJ_BREED}`}
+            >
+              <span>Medewerker</span>
+              <span className="text-right">Uren</span>
+              <span>Scope</span>
+              <span>Notitie</span>
+              <span>Bron</span>
+              <span />
+            </div>
+
+            <ul>
+              {items.map((item) => (
+                <li
+                  key={item._id}
+                  className={`grid grid-cols-[minmax(0,1fr)_auto_2rem] items-center gap-x-3 gap-y-0.5 rounded-md px-3 py-2 transition-colors hover:bg-muted/50 ${RIJ_BREED}`}
+                >
+                  <span className="truncate font-medium">{item.medewerker}</span>
+                  <span className="text-right font-semibold tabular-nums">
+                    {formatHours(item.uren)}
+                    <span className="sr-only"> uur</span>
+                  </span>
+
+                  {/* Smal één regel onder de naam; breed lossen de spans op
+                      in hun eigen kolommen (`contents`). */}
+                  <span className="order-last col-span-full flex min-w-0 items-baseline gap-1.5 text-xs text-muted-foreground @xl/sectie:order-none @xl/sectie:contents">
+                    <span className="shrink-0 @xl/sectie:text-[13px] @xl/sectie:text-foreground">
+                      {item.scope ? scopeLabel(item.scope) : "Geen scope"}
+                    </span>
+                    {item.notities && (
+                      <span aria-hidden="true" className="@xl/sectie:hidden">
+                        ·
+                      </span>
+                    )}
+                    <span
+                      className="min-w-0 truncate @xl/sectie:text-[13px]"
+                      title={item.notities || undefined}
+                    >
+                      {item.notities || <span className="hidden @xl/sectie:inline">—</span>}
+                    </span>
+                    <span aria-hidden="true" className="@xl/sectie:hidden">
+                      ·
+                    </span>
+                    <span className="shrink-0">
+                      {item.bron === "import" ? "Import" : "Handmatig"}
+                    </span>
+                  </span>
+
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 text-muted-foreground"
+                        aria-label={`Acties voor registratie ${item.medewerker}`}
+                      >
+                        <MoreHorizontal className="size-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => onEditItem(item)}>
+                        <Pencil className="mr-2 size-4" />
+                        Bewerken
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => onDeleteItem({ type: "uren", id: item._id })}
+                        className="text-destructive"
+                      >
+                        <Trash2 className="mr-2 size-4" />
+                        Verwijderen
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </li>
+              ))}
+            </ul>
+          </section>
+        );
+      })}
+    </div>
   );
 }

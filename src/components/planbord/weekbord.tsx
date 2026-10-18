@@ -14,7 +14,7 @@
 
 import { memo, useCallback, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery } from "convex/react";
 import {
   DndContext,
@@ -300,7 +300,13 @@ function weekLabel(start: string, eind: string): string {
 export function Weekbord() {
   const router = useRouter();
   const [periode, setPeriode] = useState<Periode>("week");
-  const [anker, setAnker] = useState(vandaagIso());
+  // `?datum=YYYY-MM-DD` opent het bord op de week van die datum (links vanuit
+  // de maand-, lijst- en dagkaartweergave); zonder parameter: vandaag.
+  const searchParams = useSearchParams();
+  const datumParam = searchParams.get("datum");
+  const [anker, setAnker] = useState(
+    datumParam && /^\d{4}-\d{2}-\d{2}$/.test(datumParam) ? datumParam : vandaagIso()
+  );
   const [filterDatum, setFilterDatum] = useState<string | null>(null);
 
   const bereik = useMemo(() => periodeBereik(periode, anker), [periode, anker]);

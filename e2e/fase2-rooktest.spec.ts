@@ -199,14 +199,15 @@ test("fase 2 rooktest: debiteuren, machinepark, planning-lijst, nacalculatie", a
   await test.step("/planning/lijst: filters + sortering", async () => {
     await gaNaar(page, "/planning/lijst", "planning-lijst");
     await expect(
-      page.getByRole("heading", { name: "Afsprakenlijst", exact: true })
+      page.getByRole("heading", { name: "Afspraken", exact: true })
     ).toBeVisible({ timeout: 30_000 });
 
-    // Weergave-tabs + filters aanwezig.
-    await expect(page.getByRole("tab", { name: "Alle" })).toBeVisible({
+    // Mijn/Alle-segmentknop + filters aanwezig (één regel, labels als aria-label).
+    await expect(page.getByRole("button", { name: "Alle", exact: true })).toBeVisible({
       timeout: 20_000,
     });
-    await expect(page.getByLabel("Team")).toBeVisible();
+    await expect(page.getByLabel("Zoek afspraak of klant")).toBeVisible();
+    await expect(page.getByLabel("Ploeg")).toBeVisible();
     await expect(page.getByLabel("Status")).toBeVisible();
     await expect(page.getByLabel("Van")).toBeVisible();
     await expect(page.getByLabel("Tot en met")).toBeVisible();
@@ -228,15 +229,15 @@ test("fase 2 rooktest: debiteuren, machinepark, planning-lijst, nacalculatie", a
       await sorteerDatum.click();
       await sorteerDatum.click(); // asc → desc → weer asc: geen crash
       await expect(
-        page.getByRole("button", { name: "Sorteer op Team" })
+        page.getByRole("button", { name: "Sorteer op Ploeg" })
       ).toBeVisible();
-      await page.getByRole("button", { name: "Sorteer op Team" }).click();
+      await page.getByRole("button", { name: "Sorteer op Ploeg" }).click();
       await expect(
-        page.getByRole("heading", { name: "Afsprakenlijst", exact: true })
+        page.getByRole("heading", { name: "Afspraken", exact: true })
       ).toBeVisible();
       test.info().annotations.push({
         type: "tak",
-        description: "lijst: sortering op Datum en Team doorlopen",
+        description: "lijst: sortering op Datum en Ploeg doorlopen",
       });
     } else {
       await expect(geenAfspraken).toBeVisible();

@@ -130,9 +130,9 @@ export function UrenImport({ onImport, isImporting = false }: UrenImportProps) {
           ) : (
             <Upload className="mr-2 h-4 w-4" />
           )}
-          Import CSV/Excel
+          Importeren (CSV of Excel)
         </Button>
-        <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" onClick={handleDownloadSample} aria-label="Download voorbeeld bestand">
+        <Button variant="ghost" size="icon" className="h-9 w-9 sm:h-8 sm:w-8" onClick={handleDownloadSample} aria-label="Voorbeeldbestand downloaden" title="Voorbeeldbestand downloaden">
           <Download className="h-4 w-4" />
         </Button>
       </div>

@@ -1,35 +1,28 @@
 import { format, parseISO } from "date-fns";
 import { nl } from "@/lib/date-locale";
+import { scopeLabel } from "@/lib/rapportage-labels";
 
-// Scope labels
-export const scopeLabels: Record<string, string> = {
-  grondwerk: "Grondwerk",
-  bestrating: "Bestrating",
-  parkeerplaats: "Parkeerplaats",
-  beregening: "Beregening",
-  borders: "Borders",
-  gras: "Gazon",
-  houtwerk: "Houtwerk",
-  water_elektra: "Water/Elektra",
-  specials: "Specials",
-  gras_onderhoud: "Gras Onderhoud",
-  borders_onderhoud: "Borders Onderhoud",
-  heggen: "Heggen",
-  bomen: "Bomen",
-  overig: "Overig",
-};
+export { formatCurrency } from "@/lib/format/currency";
 
-export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("nl-NL", {
-    style: "currency",
-    currency: "EUR",
-  }).format(amount);
-}
+/** Scopenaam voor op het scherm ("water_elektra" → "Water & elektra"). */
+export { scopeLabel };
 
+/** "dinsdag 6 oktober" — weekdag en datum, zonder jaar. */
 export function formatDate(dateString: string): string {
   try {
     return format(parseISO(dateString), "EEEE d MMMM", { locale: nl });
   } catch {
     return dateString;
   }
+}
+
+/** Kop boven een dag: "Dinsdag 6 oktober". */
+export function dagKop(dateString: string): string {
+  const tekst = formatDate(dateString);
+  return tekst.charAt(0).toUpperCase() + tekst.slice(1);
+}
+
+/** "1 medewerker" / "2 medewerkers". */
+export function aantalMedewerkersTekst(aantal: number): string {
+  return `${aantal} ${aantal === 1 ? "medewerker" : "medewerkers"}`;
 }

@@ -4,10 +4,9 @@ import { useState, useCallback } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Truck, Loader2 } from "lucide-react";
+import { SectiePaneel, SectieLegeStaat } from "@/components/ui/sectie-paneel";
+import { Loader2 } from "lucide-react";
 import { KentekenBadge } from "@/components/ui/kenteken-plaat";
 import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
 
@@ -86,92 +85,42 @@ export function VoertuigSelector({
     [selectedVoertuigen, onSelectionChange, autoSave, updateVoertuigen, projectId]
   );
 
-  // Get selected voertuig details for displaying badges
-  const selectedVoertuigDetails = voertuigen?.filter((v) =>
-    selectedVoertuigen.includes(v._id)
-  ) || [];
+  const aantalGekozen = voertuigen
+    ? voertuigen.filter((v) => selectedVoertuigen.includes(v._id)).length
+    : 0;
 
-  const content = (
-    <div className="space-y-4">
-      {/* Available vehicles checkboxes */}
-      {isLoadingVoertuigen ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Voertuigen laden...
-        </div>
-      ) : voertuigen && voertuigen.length > 0 ? (
-        <div className="space-y-3">
-          <Label className="text-sm font-medium text-muted-foreground">
-            Selecteer voertuigen voor dit project
-          </Label>
-          <div className="space-y-2 rounded-lg border p-3">
-            {voertuigen.map((voertuig) => (
-              <div
-                key={voertuig._id}
-                className="flex items-center gap-3 py-1"
-              >
-                <Checkbox
-                  id={`voertuig-${voertuig._id}`}
-                  checked={selectedVoertuigen.includes(voertuig._id)}
-                  onCheckedChange={() => handleToggleVoertuig(voertuig._id)}
-                  disabled={disabled || isSaving}
-                />
-                <label
-                  htmlFor={`voertuig-${voertuig._id}`}
-                  className="flex-1 cursor-pointer flex items-center gap-3"
-                >
-                  <KentekenBadge kenteken={voertuig.kenteken} />
-                  <span className="text-sm">
-                    {voertuig.merk} {voertuig.model}
-                    <span className="text-muted-foreground ml-1">
-                      ({voertuig.type})
-                    </span>
-                  </span>
-                </label>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="text-sm text-muted-foreground rounded-lg border border-dashed p-4 text-center">
-          <Truck className="h-8 w-8 mx-auto mb-2 opacity-50" />
-          <p>Geen voertuigen beschikbaar</p>
-          <p className="text-xs mt-1">
-            Voeg voertuigen toe in het wagenpark beheer
-          </p>
-        </div>
-      )}
-
-      {/* Selected vehicles summary */}
-      {selectedVoertuigDetails.length > 0 && (
-        <div className="space-y-2">
-          <Label className="text-sm font-medium">
-            Toegewezen voertuigen ({selectedVoertuigDetails.length})
-          </Label>
-          <div className="flex flex-wrap gap-2">
-            {selectedVoertuigDetails.map((voertuig) => (
-              <div
-                key={voertuig._id}
-                className="flex items-center gap-2 rounded-lg bg-muted/50 px-3 py-2"
-              >
-                <KentekenBadge kenteken={voertuig.kenteken} />
-                <span className="text-xs text-muted-foreground">
-                  {voertuig.merk} {voertuig.model}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Saving indicator */}
-      {isSaving && (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Opslaan...
-        </div>
-      )}
+  const content = isLoadingVoertuigen ? (
+    <p className="flex items-center gap-2 px-3 py-3 text-[13px] text-muted-foreground">
+      <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+      Voertuigen laden…
+    </p>
+  ) : voertuigen && voertuigen.length > 0 ? (
+    <div className="flex flex-col p-1" aria-busy={isSaving}>
+      {voertuigen.map((voertuig) => (
+        <label
+          key={voertuig._id}
+          htmlFor={`voertuig-${voertuig._id}`}
+          className="flex cursor-pointer items-center gap-3 rounded-md px-2.5 py-2 transition-colors hover:bg-muted/50"
+        >
+          <Checkbox
+            id={`voertuig-${voertuig._id}`}
+            checked={selectedVoertuigen.includes(voertuig._id)}
+            onCheckedChange={() => handleToggleVoertuig(voertuig._id)}
+            disabled={disabled || isSaving}
+          />
+          <KentekenBadge kenteken={voertuig.kenteken} showEUStripe={false} className="shrink-0" />
+          <span className="min-w-0 flex-1 truncate text-[13px]">
+            {voertuig.merk} {voertuig.model}
+            <span className="text-muted-foreground"> · {voertuig.type}</span>
+          </span>
+        </label>
+      ))}
     </div>
+  ) : (
+    <SectieLegeStaat
+      tekst="Geen voertuigen beschikbaar"
+      hint="Voeg voertuigen toe in het wagenparkbeheer."
+    />
   );
 
   if (!showCard) {
@@ -179,15 +128,20 @@ export function VoertuigSelector({
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Truck className="h-5 w-5" />
-          Voertuigen
-        </CardTitle>
-      </CardHeader>
-      <CardContent>{content}</CardContent>
-    </Card>
+    <SectiePaneel
+      titel="Voertuigen"
+      kopbalk
+      acties={
+        voertuigen && voertuigen.length > 0 ? (
+          <span className="flex items-center gap-1.5 text-xs tabular-nums text-muted-foreground">
+            {isSaving && <Loader2 className="size-3 animate-spin" aria-hidden="true" />}
+            {aantalGekozen} van {voertuigen.length} gekozen
+          </span>
+        ) : undefined
+      }
+    >
+      {content}
+    </SectiePaneel>
   );
 }
 

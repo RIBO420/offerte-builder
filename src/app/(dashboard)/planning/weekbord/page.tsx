@@ -7,6 +7,7 @@
  * per team-dag — bereikbaar via de knop hieronder of per cel op het bord.
  */
 
+import { Suspense } from "react";
 import { PageHeader } from "@/components/page-header";
 import { PlanningTabs } from "@/components/planbord/planning-tabs";
 import { Weekbord } from "@/components/planbord/weekbord";
@@ -25,7 +26,10 @@ export default function WeekbordPagina() {
           </h1>
           <PlanningTabs actief="/planning/weekbord" />
         </div>
-        <Weekbord />
+        {/* Suspense: het bord leest ?datum uit de URL (useSearchParams). */}
+        <Suspense fallback={<p className="p-4 text-sm text-muted-foreground">Bord laden…</p>}>
+          <Weekbord />
+        </Suspense>
       </div>
     </>
   );

@@ -161,7 +161,7 @@ function CreditnotaButton({
             className="bg-destructive hover:bg-destructive/90 text-white"
           >
             {isCreatingCreditnota ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Creditnota Aanmaken
+            Creditnota aanmaken
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -179,6 +179,31 @@ function CreditnotaBadge({ factuurnummer }: CreditnotaBadgeProps) {
       <FileX className="h-3 w-3 mr-1" />
       Gecrediteerd: {factuurnummer}
     </Badge>
+  );
+}
+
+/** PDF bekijken en downloaden achter één knop: houdt de kop bij drie knoppen. */
+function PdfMenu({ handlers }: { handlers: FactuurHandlersState }) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" className="gap-2" disabled={handlers.isDownloadingPdf}>
+          {handlers.isDownloadingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
+          PDF
+          <ChevronDown className="h-3 w-3" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={handlers.handlePreviewPdf}>
+          <Eye className="mr-2 h-4 w-4" />
+          Bekijken
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={handlers.handleDownloadPdf}>
+          <Download className="mr-2 h-4 w-4" />
+          Downloaden
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -219,13 +244,13 @@ export function FactuurActionButtons({
           </Button>
           <Button variant="outline" className="gap-2" onClick={handlers.handlePreviewPdf}>
             <Eye className="h-4 w-4" />
-            Preview PDF
+            PDF bekijken
           </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button className="gap-2 bg-primary">
                 <Check className="h-4 w-4" />
-                Definitief Maken
+                Definitief maken
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
@@ -240,7 +265,7 @@ export function FactuurActionButtons({
                 <AlertDialogCancel>Annuleren</AlertDialogCancel>
                 <AlertDialogAction onClick={handlers.handleMakeDefinitief} disabled={handlers.isSaving}>
                   {handlers.isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Definitief Maken
+                  Definitief maken
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -251,14 +276,7 @@ export function FactuurActionButtons({
     case "definitief":
       return (
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" className="gap-2" onClick={handlers.handlePreviewPdf} disabled={handlers.isDownloadingPdf}>
-            {handlers.isDownloadingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
-            Bekijk PDF
-          </Button>
-          <Button variant="outline" className="gap-2" onClick={handlers.handleDownloadPdf} disabled={handlers.isDownloadingPdf}>
-            {handlers.isDownloadingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-            Download PDF
-          </Button>
+          <PdfMenu handlers={handlers} />
           {isKantoor && (
             <Button className="gap-2" onClick={handlers.handleSendFactuur} disabled={handlers.isSending}>
               {handlers.isSending ? (
@@ -266,7 +284,7 @@ export function FactuurActionButtons({
               ) : (
                 <Send className="h-4 w-4" />
               )}
-              Verstuur Factuur
+              Factuur versturen
             </Button>
           )}
         </div>
@@ -275,14 +293,7 @@ export function FactuurActionButtons({
     case "verzonden":
       return (
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" className="gap-2" onClick={handlers.handlePreviewPdf} disabled={handlers.isDownloadingPdf}>
-            {handlers.isDownloadingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
-            Bekijk PDF
-          </Button>
-          <Button variant="outline" className="gap-2" onClick={handlers.handleDownloadPdf} disabled={handlers.isDownloadingPdf}>
-            {handlers.isDownloadingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-            Download PDF
-          </Button>
+          <PdfMenu handlers={handlers} />
           {isKantoor && (
             <Button variant="outline" className="gap-2" onClick={handlers.handleSendReminder} disabled={handlers.isSending}>
               {handlers.isSending ? (
@@ -290,7 +301,7 @@ export function FactuurActionButtons({
               ) : (
                 <Bell className="h-4 w-4" />
               )}
-              Herinnering Sturen
+              Herinnering sturen
             </Button>
           )}
           {isKantoor && (
@@ -303,7 +314,7 @@ export function FactuurActionButtons({
             <AlertDialogTrigger asChild>
               <Button className="gap-2">
                 <CheckCircle className="h-4 w-4" />
-                Markeer als Betaald
+                Markeren als betaald
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
@@ -336,14 +347,7 @@ export function FactuurActionButtons({
     case "betaald":
       return (
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" className="gap-2" onClick={handlers.handlePreviewPdf} disabled={handlers.isDownloadingPdf}>
-            {handlers.isDownloadingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
-            Bekijk PDF
-          </Button>
-          <Button variant="outline" className="gap-2" onClick={handlers.handleDownloadPdf} disabled={handlers.isDownloadingPdf}>
-            {handlers.isDownloadingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-            Download PDF
-          </Button>
+          <PdfMenu handlers={handlers} />
           {!creditnota && (
             <CreditnotaButton
               factuurnummer={factuurnummer}
@@ -357,7 +361,7 @@ export function FactuurActionButtons({
           <Button variant="outline" className="gap-2" asChild>
             <Link href={`/projecten/${projectId}`}>
               <ArrowLeft className="h-4 w-4" />
-              Terug naar Project
+              Terug naar project
             </Link>
           </Button>
         </div>
@@ -366,14 +370,7 @@ export function FactuurActionButtons({
     case "vervallen":
       return (
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" className="gap-2" onClick={handlers.handlePreviewPdf} disabled={handlers.isDownloadingPdf}>
-            {handlers.isDownloadingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
-            Bekijk PDF
-          </Button>
-          <Button variant="outline" className="gap-2" onClick={handlers.handleDownloadPdf} disabled={handlers.isDownloadingPdf}>
-            {handlers.isDownloadingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-            Download PDF
-          </Button>
+          <PdfMenu handlers={handlers} />
           {isKantoor && (
             <Button variant="outline" className="gap-2" onClick={handlers.handleSendReminder} disabled={handlers.isSending}>
               {handlers.isSending ? (
@@ -381,7 +378,7 @@ export function FactuurActionButtons({
               ) : (
                 <Bell className="h-4 w-4" />
               )}
-              Herinnering Sturen
+              Herinnering sturen
             </Button>
           )}
           {isKantoor && (

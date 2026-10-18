@@ -12,35 +12,34 @@ interface CapaciteitIndicatorProps {
 }
 
 /**
- * Capacity indicator with color coding:
- * - Green: < 70% (low utilization)
- * - Yellow: 70-90% (medium)
- * - Red: > 90% (high/overloaded)
+ * Bezettingskleur in drie stappen (tot 70% / 70–90% / boven 90%), uit de
+ * statusreceptuur: succes (152), wachten (85) en negatief (30). Geen losse
+ * paletkleuren — zie DESIGN.md, De Eén-Bron-regel.
  */
 export function getCapaciteitKleur(bezetting: number) {
   if (bezetting < 70) {
     return {
-      bg: "bg-green-500/10",
-      text: "text-green-700 dark:text-green-400",
-      border: "border-green-200 dark:border-green-800",
-      fill: "bg-green-500",
+      bg: "bg-status-geaccepteerd",
+      text: "text-status-geaccepteerd-text",
+      border: "border-status-geaccepteerd-border",
+      fill: "bg-status-geaccepteerd-dot",
       label: "Beschikbaar",
     };
   }
   if (bezetting <= 90) {
     return {
-      bg: "bg-yellow-500/10",
-      text: "text-yellow-700 dark:text-yellow-400",
-      border: "border-yellow-200 dark:border-yellow-800",
-      fill: "bg-yellow-500",
+      bg: "bg-status-verzonden",
+      text: "text-status-verzonden-text",
+      border: "border-status-verzonden-border",
+      fill: "bg-status-verzonden-dot",
       label: "Druk",
     };
   }
   return {
-    bg: "bg-red-500/10",
-    text: "text-red-700 dark:text-red-400",
-    border: "border-red-200 dark:border-red-800",
-    fill: "bg-red-500",
+    bg: "bg-status-afgewezen",
+    text: "text-status-afgewezen-text",
+    border: "border-status-afgewezen-border",
+    fill: "bg-status-afgewezen-dot",
     label: "Vol",
   };
 }

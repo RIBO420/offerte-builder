@@ -6,11 +6,16 @@
  *
  * - Mijn / Alle: "Mijn" toont de afspraken van de eigen teams (voorman:
  *   teams waar zijn gekoppelde medewerker in de bemanning/leden zit).
- * - Filters: team, status, periode (overlap met [van..tot]).
- * - Sortering: per kolom, oplopend/aflopend.
+ * - Filters: team, status, periode (overlap met [van..tot]) en een zoekterm
+ *   op afspraak- of klantnaam.
+ * - Sortering: per kolom, oplopend/aflopend; de tabel groepeert daarna per
+ *   ISO-week (de sortering geldt binnen elke week).
  */
 
+import { addDagen } from "../../../convex/planbordLogica";
 import type { PlanbordEvent } from "./adapter";
+import { isoWeek } from "./datum-nl";
+import { maandagVan } from "./periode";
 
 export type LijstWeergave = "mijn" | "alle";
 
@@ -119,4 +124,82 @@ export function sorteerAfspraken(
       a.titel.localeCompare(b.titel, "nl")
     );
   });
+}
+
+/**
+ * Zoeken (client-side) op afspraaknaam en klantnaam. Hoofdletterongevoelig;
+ * een lege zoekterm laat alles door. `klantNaamVoor` levert de klantnaam van
+ * een afspraak als die bekend is.
+ */
+export function zoekAfspraken(
+  events: PlanbordEvent[],
+  zoekterm: string,
+  klantNaamVoor: (event: PlanbordEvent) => string | null | undefined
+): PlanbordEvent[] {
+  const term = zoekterm.trim().toLocaleLowerCase("nl");
+  if (!term) return events;
+  return events.filter(
+    (event) =>
+      event.titel.toLocaleLowerCase("nl").includes(term) ||
+      (klantNaamVoor(event) ?? "").toLocaleLowerCase("nl").includes(term)
+  );
+}
+
+/** Aantal kalenderdagen van een (meerdaagse) afspraak, inclusief. */
+export function aantalDagen(event: Pick<PlanbordEvent, "start" | "eind">): number {
+  const ms =
+    Date.parse(`${event.eind}T00:00:00Z`) - Date.parse(`${event.start}T00:00:00Z`);
+  return Math.max(1, Math.round(ms / 86_400_000) + 1);
+}
+
+export interface WeekGroep {
+  /** Sorteersleutel, bv. "2026-W42" of "2026-W42|2026-W43". */
+  sleutel: string;
+  /** ISO-week van de start en van het eind (gelijk bij een gewone week). */
+  vanWeek: { jaar: number; week: number };
+  totWeek: { jaar: number; week: number };
+  /** Maandag van de startweek en zondag van de eindweek (YYYY-MM-DD). */
+  maandag: string;
+  zondag: string;
+  afspraken: PlanbordEvent[];
+}
+
+/**
+ * Groepeert afspraken per ISO-week van de startdatum. Een afspraak die over
+ * het weekend doorloopt naar een volgende week krijgt een eigen groep
+ * ("Week 42–43"), direct na de week waarin hij begint. De volgorde binnen een
+ * groep is de volgorde van de invoer (dus de gekozen sortering); de groepen
+ * zelf staan chronologisch, of omgekeerd met `aflopend`.
+ */
+export function groepeerPerWeek(
+  events: PlanbordEvent[],
+  aflopend = false
+): WeekGroep[] {
+  const weekSleutel = (w: { jaar: number; week: number }) =>
+    `${w.jaar}-W${String(w.week).padStart(2, "0")}`;
+  const groepen = new Map<string, WeekGroep>();
+  for (const event of events) {
+    const vanWeek = isoWeek(event.start);
+    const totWeek = isoWeek(event.eind);
+    const van = weekSleutel(vanWeek);
+    const tot = weekSleutel(totWeek);
+    const sleutel = van === tot ? van : `${van}|${tot}`;
+    let groep = groepen.get(sleutel);
+    if (!groep) {
+      groep = {
+        sleutel,
+        vanWeek,
+        totWeek,
+        maandag: maandagVan(event.start),
+        zondag: addDagen(maandagVan(event.eind), 6),
+        afspraken: [],
+      };
+      groepen.set(sleutel, groep);
+    }
+    groep.afspraken.push(event);
+  }
+  const factor = aflopend ? -1 : 1;
+  return [...groepen.values()].sort(
+    (a, b) => (a.sleutel < b.sleutel ? -1 : a.sleutel > b.sleutel ? 1 : 0) * factor
+  );
 }

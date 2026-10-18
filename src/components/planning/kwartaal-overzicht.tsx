@@ -1,93 +1,69 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
+import Link from "next/link";
 import { useQuery } from "convex/react";
+import { addWeeks, getISOWeek, startOfISOWeek } from "date-fns";
 import { api } from "../../../convex/_generated/api";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ChevronLeft, ChevronRight, Users, Clock, TrendingUp } from "lucide-react";
-import { CapaciteitIndicator, getCapaciteitKleur } from "./capaciteit-indicator";
+import { SectiePaneel } from "@/components/ui/sectie-paneel";
+import { getCapaciteitKleur } from "./capaciteit-indicator";
+import {
+  BezettingBalk,
+  MAAND_KORT,
+  NU_MARKERING,
+  PeriodeWerkbalk,
+  SamenvattingRegel,
+  UREN_PER_DAG,
+  bezettingPct,
+  formatGetal,
+  isoDatum,
+  telwoord,
+  werkdagenInMaand,
+} from "./periode-onderdelen";
 import { cn } from "@/lib/utils";
-
-const KWARTAAL_LABELS = ["Q1 (Jan - Mrt)", "Q2 (Apr - Jun)", "Q3 (Jul - Sep)", "Q4 (Okt - Dec)"];
 
 interface KwartaalOverzichtProps {
   initialYear?: number;
   initialQuarter?: number;
 }
 
-// Week row in the quarter table
-const WeekRij = React.memo(function WeekRij({
-  weekNummer,
-  startDatum,
-  aantalTaken,
-  geplandeUren,
-  bezetting,
-  aantalMedewerkers,
-}: {
-  weekNummer: number;
-  startDatum: string;
-  aantalTaken: number;
-  geplandeUren: number;
-  bezetting: number;
-  aantalMedewerkers: number;
-}) {
-  const kleuren = getCapaciteitKleur(bezetting);
+interface KwartaalWeek {
+  nummer: number;
+  maandag: string;
+  /** "28 sep" */
+  datumLabel: string;
+  data: {
+    aantalTaken: number;
+    geplandeUren: number;
+    bezetting: number;
+    aantalMedewerkers: number;
+  } | null;
+}
 
-  // Format startDatum for display
-  const datum = new Date(startDatum + "T00:00:00");
-  const datumLabel = datum.toLocaleDateString("nl-NL", {
-    day: "numeric",
-    month: "short",
-  });
+/** Lijst van de weken met werk: week · bezetting · uren · mensen · taken. */
+const RIJ =
+  "grid grid-cols-[minmax(0,5.5rem)_minmax(0,1fr)_3.5rem] items-center gap-3 px-3.5 @xl/sectie:grid-cols-[7.5rem_minmax(0,1fr)_4.5rem_4.5rem_5rem] @xl/sectie:gap-4";
 
-  return (
-    <div className="flex items-center gap-2 py-2.5 px-3 rounded-lg hover:bg-muted/50 transition-colors">
-      {/* Week number & date */}
-      <div className="w-28 shrink-0">
-        <span className="text-sm font-medium">Week {weekNummer}</span>
-        <p className="text-xs text-muted-foreground">{datumLabel}</p>
-      </div>
-
-      {/* Capacity bar */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
-          <div className="flex-1 h-3 rounded-full bg-muted overflow-hidden">
-            <div
-              className={cn("h-full rounded-full transition-all", kleuren.fill)}
-              style={{ width: `${Math.min(bezetting, 100)}%` }}
-            />
-          </div>
-          <span className={cn("text-xs font-medium w-10 text-right", kleuren.text)}>
-            {bezetting}%
-          </span>
-        </div>
-      </div>
-
-      {/* Stats */}
-      <div className="flex items-center gap-3 shrink-0 text-xs text-muted-foreground">
-        <span className="flex items-center gap-1" title="Geplande uren">
-          <Clock className="h-3 w-3" />
-          {geplandeUren}u
-        </span>
-        <span className="flex items-center gap-1" title="Medewerkers ingepland">
-          <Users className="h-3 w-3" />
-          {aantalMedewerkers}
-        </span>
-        <Badge variant="secondary" className="text-xs">
-          {aantalTaken} taken
-        </Badge>
-      </div>
-    </div>
+/** "44", "44 tot en met 53", gegroepeerd in aaneengesloten reeksen. */
+function wekenTekst(nummers: number[], weken: KwartaalWeek[]): string {
+  // Reeksen op volgorde in het kwartaal (niet op nummer: wk 1 kan na wk 52 komen).
+  const volgorde = weken.map((w) => w.nummer);
+  const reeksen: number[][] = [];
+  for (const nr of nummers) {
+    const laatste = reeksen[reeksen.length - 1];
+    const vorige = laatste?.[laatste.length - 1];
+    if (laatste && volgorde.indexOf(nr) === volgorde.indexOf(vorige!) + 1) laatste.push(nr);
+    else reeksen.push([nr]);
+  }
+  const delen = reeksen.map((r) =>
+    r.length === 1 ? `${r[0]}` : r.length === 2 ? `${r[0]} en ${r[1]}` : `${r[0]} tot en met ${r[r.length - 1]}`
   );
-});
+  if (delen.length === 1) return delen[0];
+  return `${delen.slice(0, -1).join(", ")} en ${delen[delen.length - 1]}`;
+}
 
-export function KwartaalOverzicht({
-  initialYear,
-  initialQuarter,
-}: KwartaalOverzichtProps) {
+export function KwartaalOverzicht({ initialYear, initialQuarter }: KwartaalOverzichtProps) {
   const now = new Date();
   const currentQuarter = Math.ceil((now.getMonth() + 1) / 3);
   const [year, setYear] = useState(initialYear ?? now.getFullYear());
@@ -118,150 +94,244 @@ export function KwartaalOverzicht({
     setQuarter(currentQuarter);
   };
 
-  // Summary stats
-  const totaalUren = data?.weken?.reduce((s, w) => s + w.geplandeUren, 0) ?? 0;
-  const totaalBeschikbaar = data?.weken?.reduce((s, w) => s + w.beschikbareUren, 0) ?? 0;
-  const gemiddeldeBezetting =
-    totaalBeschikbaar > 0
-      ? Math.round((totaalUren / totaalBeschikbaar) * 100)
-      : 0;
-  const totaalTaken = data?.weken?.reduce((s, w) => s + w.aantalTaken, 0) ?? 0;
+  const startMaand = (quarter - 1) * 3 + 1; // 1-12
+  const huidigeMaandag = isoDatum(startOfISOWeek(now));
 
-  if (data === undefined) {
-    return <KwartaalOverzichtSkeleton />;
-  }
+  // Elke ISO-week die een dag van het kwartaal raakt, ook de lege.
+  const weken: KwartaalWeek[] = useMemo(() => {
+    const perNummer = new Map((data?.weken ?? []).map((w) => [w.weekNummer, w]));
+    const laatste = new Date(year, startMaand + 2, 0);
+    const lijst: KwartaalWeek[] = [];
+    let maandag = startOfISOWeek(new Date(year, startMaand - 1, 1));
+    while (maandag <= laatste) {
+      const nummer = getISOWeek(maandag);
+      const w = perNummer.get(nummer);
+      lijst.push({
+        nummer,
+        maandag: isoDatum(maandag),
+        datumLabel: `${maandag.getDate()} ${MAAND_KORT[maandag.getMonth()]}`,
+        data: w
+          ? {
+              aantalTaken: w.aantalTaken,
+              geplandeUren: w.geplandeUren,
+              bezetting: w.bezetting,
+              aantalMedewerkers: w.aantalMedewerkers,
+            }
+          : null,
+      });
+      maandag = addWeeks(maandag, 1);
+    }
+    return lijst;
+  }, [data, year, startMaand]);
+
+  // Kwartaaltotaal: capaciteit over alle werkdagen van het kwartaal, niet alleen
+  // over de weken waarin al iets staat.
+  const totaal = useMemo(() => {
+    if (!data) return null;
+    const gepland = data.weken.reduce((s, w) => s + w.geplandeUren, 0);
+    const taken = data.weken.reduce((s, w) => s + w.aantalTaken, 0);
+    const werkdagen = [0, 1, 2].reduce((s, i) => s + werkdagenInMaand(year, startMaand + i), 0);
+    const beschikbaar = data.totaalMedewerkers * UREN_PER_DAG * werkdagen;
+    return { gepland, taken, beschikbaar, pct: bezettingPct(gepland, beschikbaar) };
+  }, [data, year, startMaand]);
+
+  const wekenMetWerk = weken.filter((w) => w.data);
+  const legeWeken = weken.filter((w) => !w.data).map((w) => w.nummer);
+  const kwartaalLabel = `${MAAND_KORT[startMaand - 1]} – ${MAAND_KORT[startMaand + 1]}`;
 
   return (
-    <div className="space-y-4">
-      {/* Navigation */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={prevQuarter} aria-label="Vorig kwartaal">
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <h2 className="text-lg font-semibold min-w-[200px] text-center">
-            {KWARTAAL_LABELS[quarter - 1]} {year}
-          </h2>
-          <Button variant="outline" size="icon" onClick={nextQuarter} aria-label="Volgend kwartaal">
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
-        <Button variant="ghost" size="sm" onClick={goToHuidigKwartaal}>
-          Huidig kwartaal
-        </Button>
-      </div>
-
-      {/* Summary cards */}
-      <div className="grid gap-4 sm:grid-cols-4">
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <p className="text-xs text-muted-foreground">Totaal Uren</p>
-            <p className="text-xl font-bold">{totaalUren}u</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <p className="text-xs text-muted-foreground">Beschikbaar</p>
-            <p className="text-xl font-bold">{totaalBeschikbaar}u</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <p className="text-xs text-muted-foreground">Gem. Bezetting</p>
-            <div className="flex items-center gap-2">
-              <p className="text-xl font-bold">{gemiddeldeBezetting}%</p>
-              <CapaciteitIndicator bezetting={gemiddeldeBezetting} variant="dot" showLabel={false} />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <p className="text-xs text-muted-foreground">Totaal Taken</p>
-            <p className="text-xl font-bold">{totaalTaken}</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Week list */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base flex items-center gap-2">
-            <TrendingUp className="h-4 w-4" />
-            Wekelijks overzicht
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {data.weken.length === 0 ? (
-            <div className="py-8 text-center text-muted-foreground">
-              <p className="text-sm">Geen planningsdata voor dit kwartaal</p>
-            </div>
-          ) : (
-            <div className="space-y-1">
-              {/* Header */}
-              <div className="flex items-center gap-2 py-2 px-3 text-xs font-medium text-muted-foreground border-b">
-                <div className="w-28 shrink-0">Week</div>
-                <div className="flex-1">Capaciteit</div>
-                <div className="flex items-center gap-3 shrink-0">
-                  <span className="w-12 text-center">Uren</span>
-                  <span className="w-8 text-center">Team</span>
-                  <span className="w-16 text-center">Taken</span>
-                </div>
-              </div>
-
-              {data.weken.map((week) => (
-                <WeekRij
-                  key={week.weekNummer}
-                  weekNummer={week.weekNummer}
-                  startDatum={week.startDatum}
-                  aantalTaken={week.aantalTaken}
-                  geplandeUren={week.geplandeUren}
-                  bezetting={week.bezetting}
-                  aantalMedewerkers={week.aantalMedewerkers}
-                />
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Team info */}
-      {data.totaalMedewerkers > 0 && (
-        <p className="text-xs text-muted-foreground">
-          Berekend op basis van {data.totaalMedewerkers} actieve medewerkers, 8 uur per dag, 5 werkdagen per week.
-        </p>
+    <div className="flex flex-col gap-4">
+      {totaal ? (
+        <SamenvattingRegel
+          label={`Q${quarter}`}
+          delen={[
+            totaal.beschikbaar > 0
+              ? {
+                  sterk: formatGetal(totaal.gepland),
+                  staart: ` van ${formatGetal(totaal.beschikbaar)} uur gepland`,
+                }
+              : { sterk: formatGetal(totaal.gepland), staart: " uur gepland" },
+            ...(totaal.pct !== null
+              ? [{ sterk: `${totaal.pct}%`, staart: " gemiddeld bezet" }]
+              : []),
+            { sterk: formatGetal(totaal.taken), staart: totaal.taken === 1 ? " taak" : " taken" },
+          ]}
+        />
+      ) : (
+        <Skeleton className="h-[22px] w-72" />
       )}
-    </div>
-  );
-}
 
-function KwartaalOverzichtSkeleton() {
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Skeleton className="h-9 w-9" />
-          <Skeleton className="h-6 w-48" />
-          <Skeleton className="h-9 w-9" />
+      <PeriodeWerkbalk
+        titel={`Q${quarter} ${year}`}
+        subtitel={kwartaalLabel}
+        vorigeLabel="Vorig kwartaal"
+        volgendeLabel="Volgend kwartaal"
+        vandaagLabel="Dit kwartaal"
+        onVorige={prevQuarter}
+        onVolgende={nextQuarter}
+        onVandaag={goToHuidigKwartaal}
+      />
+
+      <SectiePaneel
+        titel="Bezetting per week"
+        kopbalk
+        acties={
+          data && data.totaalMedewerkers > 0 ? (
+            <span className="truncate text-[13px] text-muted-foreground tabular-nums">
+              {telwoord(data.totaalMedewerkers, "medewerker", "medewerkers")} · {UREN_PER_DAG} uur per
+              dag · 5 werkdagen
+            </span>
+          ) : undefined
+        }
+      >
+        <div
+          className="grid grid-cols-7 gap-1 p-2.5 @xl/sectie:grid-cols-[repeat(var(--weken),minmax(0,1fr))]"
+          style={{ "--weken": weken.length } as React.CSSProperties}
+        >
+          {weken.map((week) => {
+            const isNu = week.maandag === huidigeMaandag;
+            const pct = week.data?.bezetting ?? 0;
+            const label = week.data
+              ? `Week ${week.nummer}${isNu ? " (deze week)" : ""}: ${pct}% bezet, ${formatGetal(week.data.geplandeUren)} uur gepland`
+              : `Week ${week.nummer}${isNu ? " (deze week)" : ""}: nog niets gepland`;
+            return (
+              <Link
+                key={week.maandag}
+                href={`/planning/weekbord?datum=${week.maandag}`}
+                aria-label={`${label}. Naar het weekbord`}
+                className={cn(
+                  "flex min-w-0 flex-col items-center gap-1.5 rounded-md px-0.5 py-2 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  isNu && NU_MARKERING
+                )}
+              >
+                {data === undefined ? (
+                  <Skeleton className="h-4 w-7" />
+                ) : (
+                  <span
+                    className={cn(
+                      "text-xs font-semibold tabular-nums",
+                      !week.data && "font-normal text-muted-foreground"
+                    )}
+                  >
+                    {week.data ? `${pct}%` : "—"}
+                  </span>
+                )}
+                <span
+                  aria-hidden
+                  className="flex h-24 w-full max-w-11 items-end overflow-hidden rounded-md bg-muted @xl/sectie:h-44"
+                >
+                  {week.data && pct > 0 && (
+                    <span
+                      className={cn("block w-full rounded-t-md", getCapaciteitKleur(pct).fill)}
+                      style={{ height: `${Math.min(Math.max(pct, 2), 100)}%` }}
+                    />
+                  )}
+                </span>
+                <span
+                  className={cn(
+                    "max-w-full truncate text-[11px] tabular-nums text-muted-foreground",
+                    isNu && "font-semibold text-primary"
+                  )}
+                >
+                  {isNu ? `nu · ${week.nummer}` : `wk ${week.nummer}`}
+                </span>
+              </Link>
+            );
+          })}
         </div>
-        <Skeleton className="h-8 w-28" />
-      </div>
-      <div className="grid gap-4 sm:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Card key={i}>
-            <CardContent className="pt-4 pb-3">
-              <Skeleton className="h-3 w-20 mb-2" />
-              <Skeleton className="h-6 w-16" />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-      <Card>
-        <CardContent className="p-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="h-10 mb-2" />
-          ))}
-        </CardContent>
-      </Card>
+        <p className="px-3.5 pb-3 text-xs text-muted-foreground">
+          Een lege week is vrije capaciteit — klik een week om op het weekbord te plannen.
+        </p>
+      </SectiePaneel>
+
+      {data === undefined ? (
+        <SectiePaneel titel="Weken met werk" kopbalk>
+          <div className="space-y-2 p-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-8" />
+            ))}
+          </div>
+        </SectiePaneel>
+      ) : wekenMetWerk.length === 0 ? (
+        <SectiePaneel
+          titel="Weken met werk"
+          kopbalk
+          legeRegel={{ tekst: "Nog niets gepland dit kwartaal." }}
+          acties={
+            <Link
+              href="/planning/weekbord"
+              className="shrink-0 text-[13px] font-medium text-primary transition-colors hover:text-primary/80"
+            >
+              Plannen op het weekbord &rarr;
+            </Link>
+          }
+        />
+      ) : (
+        <SectiePaneel titel="Weken met werk" kopbalk telling={wekenMetWerk.length}>
+          <div className="p-1">
+            <div aria-hidden className={cn(RIJ, "py-1.5 text-xs text-muted-foreground")}>
+              <span>Week</span>
+              <span>Bezetting</span>
+              <span className="text-end">Uren</span>
+              <span className="hidden text-end @xl/sectie:block">Mensen</span>
+              <span className="hidden text-end @xl/sectie:block">Taken</span>
+            </div>
+            {wekenMetWerk.map((week) => {
+              const w = week.data!;
+              const isNu = week.maandag === huidigeMaandag;
+              return (
+                <Link
+                  key={week.maandag}
+                  href={`/planning/weekbord?datum=${week.maandag}`}
+                  aria-label={`Week ${week.nummer}${isNu ? " (deze week)" : `, vanaf ${week.datumLabel}`}: ${w.bezetting}% bezet, ${formatGetal(w.geplandeUren)} uur, ${telwoord(w.aantalMedewerkers, "persoon", "mensen")}, ${telwoord(w.aantalTaken, "taak", "taken")}. Naar het weekbord`}
+                  className={cn(
+                    RIJ,
+                    "rounded-md py-2.5 text-sm transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    isNu && "bg-primary/5"
+                  )}
+                >
+                  <span className="flex min-w-0 flex-wrap items-baseline gap-x-1.5">
+                    <span className="font-semibold">Week {week.nummer}</span>
+                    <span
+                      className={cn(
+                        "text-xs tabular-nums text-muted-foreground",
+                        isNu && "text-primary"
+                      )}
+                    >
+                      {isNu ? "deze week" : week.datumLabel}
+                    </span>
+                  </span>
+                  <span className="flex min-w-0 items-center gap-2.5">
+                    <BezettingBalk pct={w.bezetting} className="h-1.5 flex-1" />
+                    <span className="w-9 text-end text-[13px] font-semibold tabular-nums">
+                      {w.bezetting}%
+                    </span>
+                  </span>
+                  <span className="text-end tabular-nums">{formatGetal(w.geplandeUren)} u</span>
+                  <span className="hidden text-end tabular-nums @xl/sectie:block">
+                    {formatGetal(w.aantalMedewerkers)}
+                  </span>
+                  <span className="hidden text-end tabular-nums @xl/sectie:block">
+                    {formatGetal(w.aantalTaken)}
+                  </span>
+                </Link>
+              );
+            })}
+            {legeWeken.length > 0 && (
+              <p className="px-3.5 pt-2.5 pb-3 text-[13px] text-muted-foreground">
+                Week {wekenTekst(legeWeken, weken)}{" "}
+                {legeWeken.length === 1 ? "heeft" : "hebben"} nog niets staan.{" "}
+                <Link
+                  href="/planning/weekbord"
+                  className="font-medium text-primary transition-colors hover:text-primary/80"
+                >
+                  Plannen op het weekbord &rarr;
+                </Link>
+              </p>
+            )}
+          </div>
+        </SectiePaneel>
+      )}
     </div>
   );
 }

@@ -8,6 +8,7 @@ import { Id } from "../../../../../../convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Euro } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
+import { ProjectKop } from "@/components/project/project-kop";
 import { ProjectKostenDashboard } from "@/components/project/project-kosten-dashboard";
 import { ProjectKostenSkeleton } from "@/components/skeletons";
 
@@ -58,25 +59,7 @@ export default function ProjectKostenPage({
       <PageHeader customLabels={{ [`/projecten/${id}`]: projectDetails.project?.naam || "Project" }} />
 
       <div className="flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6">
-        {/* Page Header */}
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" asChild className="h-9 w-9 sm:h-8 sm:w-8" aria-label="Terug naar project">
-            <Link href={`/projecten/${id}`}>
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-          </Button>
-          <div>
-            <div className="flex items-center gap-2">
-              <Euro className="h-5 w-5 md:h-6 md:w-6 text-primary" />
-              <h1 className="text-xl md:text-2xl font-bold tracking-tight">
-                Kosten Tracking
-              </h1>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {projectDetails.project?.naam}
-            </p>
-          </div>
-        </div>
+        <ProjectKop projectId={id} actief="kosten" />
 
         {/* Kosten Dashboard */}
         <ProjectKostenDashboard projectId={id} />

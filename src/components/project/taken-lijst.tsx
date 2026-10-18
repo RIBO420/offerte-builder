@@ -1,26 +1,24 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+/**
+ * Takenlijst van de projectplanning (redesign okt 2026): per scope één
+ * sectie met een kop die de stand al vertelt ("2 van 4 taken · 35 uur ·
+ * 4 dagen" + balkje), een takentabel en onderaan een knop om een taak aan
+ * die scope toe te voegen. De vroegere blokken "Planning overzicht" en
+ * "Details per scope" vervallen: hun cijfers staan hier in de koppen.
+ *
+ * Geen <table>: de rijen zijn een grid dat op containerbreedte kolommen
+ * laat vallen (# en dagen eerst), zodat er nooit zijwaarts gescrold wordt.
+ */
+
+import { useState, useCallback } from "react";
+import { MoreHorizontal, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -33,356 +31,282 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  MoreHorizontal,
-  Trash2,
-  Edit,
-  CheckCircle2,
-  PlayCircle,
-  Circle,
-  Clock,
-  Calendar,
-} from "lucide-react";
-import {
-  getScopeDisplayName,
-  getScopeColor,
-  statusConfig,
-  type TaakStatus,
-} from "@/lib/planning-templates";
-import type { PlanningTaak } from "@/hooks/use-planning";
-import { Id } from "../../../convex/_generated/dataModel";
-import { cn } from "@/lib/utils";
-import {
-  SortableList,
-  type SortableItemProps,
-} from "@/components/ui/sortable-list";
+import { SectiePaneel } from "@/components/ui/sectie-paneel";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { SortableList, type SortableItemProps } from "@/components/ui/sortable-list";
 import { DragHandle } from "@/components/ui/drag-handle";
+import { getScopeDisplayName } from "@/lib/planning-templates";
+import { TAAK_STATUS_CONFIG } from "@/lib/constants/statuses";
+import type { PlanningTaak, TaakStatus } from "@/hooks/use-planning";
+import type { Id } from "../../../convex/_generated/dataModel";
+import { cn } from "@/lib/utils";
+import { getal, procent, scopeStip, VoortgangsBalk } from "./project-cijfers";
 
 interface TakenLijstProps {
-  taken: PlanningTaak[];
   takenPerScope: Record<string, PlanningTaak[]>;
   onUpdateStatus: (taskId: Id<"planningTaken">, status: TaakStatus) => Promise<void>;
   onReorder: (
     taskOrders: Array<{ taskId: Id<"planningTaken">; volgorde: number }>
   ) => Promise<void>;
   onDelete: (taskId: Id<"planningTaken">) => Promise<void>;
-  onEdit?: (task: PlanningTaak) => void;
+  /** Opent het toevoegdialoog met deze scope al gekozen. */
+  onTaakToevoegen: (scope: string) => void;
   isLoading?: boolean;
 }
 
-function StatusIcon({ status }: { status: TaakStatus }) {
-  switch (status) {
-    case "afgerond":
-      return <CheckCircle2 className="h-4 w-4 text-green-500 dark:text-green-400" />;
-    case "gestart":
-      return <PlayCircle className="h-4 w-4 text-blue-500 dark:text-blue-400" />;
-    default:
-      return <Circle className="h-4 w-4 text-muted-foreground" />;
-  }
-}
+const VOLGENDE_STATUS: Record<TaakStatus, TaakStatus> = {
+  gepland: "gestart",
+  gestart: "afgerond",
+  afgerond: "gepland",
+};
 
-function formatHours(hours: number): string {
-  if (hours < 1) {
-    return `${Math.round(hours * 60)} min`;
-  }
-  return `${hours.toFixed(1)} uur`;
-}
+const STATUSSEN: TaakStatus[] = ["gepland", "gestart", "afgerond"];
 
-function formatDays(days: number): string {
-  if (days < 0.5) {
-    return `${Math.round(days * 8)} uur`;
-  }
-  if (days === 1) {
-    return "1 dag";
-  }
-  return `${days.toFixed(1)} dagen`;
-}
+/**
+ * Kolommen: greep · # · taak · uren · dagen · status · acties. In een smalle
+ * sectie vallen # en dagen weg; de taaknaam krimpt (truncate), nooit de pagina.
+ */
+const RIJ_GRID =
+  "grid items-center gap-x-3 grid-cols-[2.25rem_minmax(0,1fr)_3.5rem_6.75rem_2.25rem] @lg/sectie:grid-cols-[2.25rem_1.5rem_minmax(0,1fr)_4rem_3.5rem_6.75rem_2.25rem]";
 
-interface SortableTaakRowProps {
-  taak: PlanningTaak;
-  sortableProps: SortableItemProps;
-  index: number;
-  onUpdateStatus: (taskId: Id<"planningTaken">, status: TaakStatus) => Promise<void>;
-  onEdit?: (task: PlanningTaak) => void;
-  onDelete: (taskId: Id<"planningTaken">) => void;
-  isLoading?: boolean;
-}
-
-function SortableTaakRow({
+function TaakRij({
   taak,
-  sortableProps,
   index,
+  sortableProps,
   onUpdateStatus,
-  onEdit,
-  onDelete,
+  onVerwijder,
   isLoading,
-}: SortableTaakRowProps) {
-  const rowClassName = useMemo(
-    () =>
-      cn(
-        "transition-colors",
-        sortableProps.isDragging && "bg-accent/50",
-        sortableProps.isOver && "bg-accent/30"
-      ),
-    [sortableProps.isDragging, sortableProps.isOver]
-  );
-
-  const handleStatusCycle = async () => {
-    const nextStatus: Record<TaakStatus, TaakStatus> = {
-      gepland: "gestart",
-      gestart: "afgerond",
-      afgerond: "gepland",
-    };
-    await onUpdateStatus(taak._id, nextStatus[taak.status]);
-  };
+}: {
+  taak: PlanningTaak;
+  index: number;
+  sortableProps: SortableItemProps;
+  onUpdateStatus: TakenLijstProps["onUpdateStatus"];
+  onVerwijder: (taskId: Id<"planningTaken">) => void;
+  isLoading?: boolean;
+}) {
+  const klaar = taak.status === "afgerond";
+  const volgende = VOLGENDE_STATUS[taak.status];
 
   return (
-    <TableRow
+    <div
       ref={sortableProps.setNodeRef}
       style={sortableProps.style}
-      className={rowClassName}
+      className={cn(
+        RIJ_GRID,
+        "rounded-md px-2 py-1 transition-colors hover:bg-muted/50",
+        sortableProps.isDragging && "bg-accent/60",
+        sortableProps.isOver && "bg-accent/30"
+      )}
     >
-      <TableCell className="w-12">
-        <DragHandle
-          listeners={sortableProps.listeners}
-          attributes={sortableProps.attributes}
-          isDragging={sortableProps.isDragging}
-          aria-label={`Versleep ${taak.taakNaam} om te herschikken`}
-        />
-      </TableCell>
-      <TableCell className="text-muted-foreground font-mono text-xs w-10">
+      <DragHandle
+        listeners={sortableProps.listeners}
+        attributes={sortableProps.attributes}
+        isDragging={sortableProps.isDragging}
+        aria-label={`Versleep ${taak.taakNaam} om te herschikken`}
+      />
+      <span className="hidden text-[13px] tabular-nums text-muted-foreground @lg/sectie:block">
         {index + 1}
-      </TableCell>
-      <TableCell className="font-medium">{taak.taakNaam}</TableCell>
-      <TableCell className="text-right tabular-nums">
-        {formatHours(taak.normUren)}
-      </TableCell>
-      <TableCell className="text-right tabular-nums">
-        {formatDays(taak.geschatteDagen)}
-      </TableCell>
-      <TableCell>
-        <button
-          onClick={handleStatusCycle}
-          className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-md"
-          aria-label={`Status wijzigen van ${statusConfig[taak.status].label}`}
-        >
-          <Badge
-            className={cn(
-              statusConfig[taak.status].bgColor,
-              statusConfig[taak.status].color,
-              "cursor-pointer transition-colors hover:opacity-80"
-            )}
+      </span>
+      <span
+        title={taak.taakNaam}
+        className={cn(
+          "min-w-0 truncate text-sm",
+          klaar && "text-muted-foreground line-through decoration-muted-foreground/50"
+        )}
+      >
+        {taak.taakNaam}
+        {klaar && <span className="sr-only"> (afgerond)</span>}
+      </span>
+      <span
+        className={cn(
+          "text-right text-sm tabular-nums",
+          klaar && "text-muted-foreground"
+        )}
+      >
+        {getal(taak.normUren)} u
+      </span>
+      <span
+        className={cn(
+          "hidden text-right text-sm tabular-nums @lg/sectie:block",
+          klaar ? "text-muted-foreground" : "text-foreground"
+        )}
+      >
+        {getal(taak.geschatteDagen)}
+      </span>
+      <button
+        type="button"
+        onClick={() => onUpdateStatus(taak._id, volgende)}
+        disabled={isLoading}
+        aria-label={`Status van ${taak.taakNaam}: ${TAAK_STATUS_CONFIG[taak.status].label}. Wijzig naar ${TAAK_STATUS_CONFIG[volgende].label.toLowerCase()}`}
+        className="justify-self-start rounded-full transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      >
+        <StatusBadge status={taak.status} domain="taak" size="sm" showTooltip={false} />
+      </button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-9 text-muted-foreground sm:size-8"
+            disabled={isLoading}
+            aria-label={`Acties voor ${taak.taakNaam}`}
           >
-            <StatusIcon status={taak.status} />
-            <span className="ml-1">{statusConfig[taak.status].label}</span>
-          </Badge>
-        </button>
-      </TableCell>
-      <TableCell>
-        <div className="flex items-center justify-end">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9 sm:h-7 sm:w-7"
-                disabled={isLoading}
-                aria-label="Meer opties"
-              >
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {onEdit && (
-                <DropdownMenuItem onClick={() => onEdit(taak)}>
-                  <Edit className="mr-2 h-4 w-4" />
-                  Bewerken
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuItem
-                onClick={() => onDelete(taak._id)}
-                className="text-destructive"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Verwijderen
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </TableCell>
-    </TableRow>
+            <MoreHorizontal className="size-4" aria-hidden="true" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {STATUSSEN.filter((s) => s !== taak.status).map((s) => (
+            <DropdownMenuItem key={s} onClick={() => onUpdateStatus(taak._id, s)}>
+              Markeer als {TAAK_STATUS_CONFIG[s].label.toLowerCase()}
+            </DropdownMenuItem>
+          ))}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={() => onVerwijder(taak._id)}
+            className="text-destructive focus:text-destructive"
+          >
+            <Trash2 className="mr-2 size-4" aria-hidden="true" />
+            Verwijderen
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 }
 
 export function TakenLijst({
-  taken,
   takenPerScope,
   onUpdateStatus,
   onReorder,
   onDelete,
-  onEdit,
+  onTaakToevoegen,
   isLoading,
 }: TakenLijstProps) {
-  const [deleteTaskId, setDeleteTaskId] = useState<Id<"planningTaken"> | null>(
-    null
-  );
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [verwijderId, setVerwijderId] = useState<Id<"planningTaken"> | null>(null);
+  const [isVerwijderen, setIsVerwijderen] = useState(false);
 
-  const handleDelete = async () => {
-    if (!deleteTaskId) return;
-    setIsDeleting(true);
+  const handleVerwijder = async () => {
+    if (!verwijderId) return;
+    setIsVerwijderen(true);
     try {
-      await onDelete(deleteTaskId);
+      await onDelete(verwijderId);
     } finally {
-      setIsDeleting(false);
-      setDeleteTaskId(null);
+      setIsVerwijderen(false);
+      setVerwijderId(null);
     }
   };
 
   const handleReorder = useCallback(
-    async (scopeTaken: PlanningTaak[], newItems: Array<{ id: string | number }>) => {
-      // Map the new order to task IDs with their new volgorde
-      const taskOrders = newItems.map((item, index) => ({
-        taskId: item.id as Id<"planningTaken">,
-        volgorde: index,
-      }));
-
-      await onReorder(taskOrders);
+    async (nieuweVolgorde: Array<{ id: string | number }>) => {
+      await onReorder(
+        nieuweVolgorde.map((item, index) => ({
+          taskId: item.id as Id<"planningTaken">,
+          volgorde: index,
+        }))
+      );
     },
     [onReorder]
   );
 
-  if (taken.length === 0) {
-    return (
-      <Card>
-        <CardContent className="py-12">
-          <div className="flex flex-col items-center justify-center text-center">
-            <Calendar className="h-12 w-12 text-muted-foreground/50 mb-4" />
-            <h3 className="text-lg font-medium">Geen taken gevonden</h3>
-            <p className="text-sm text-muted-foreground mt-1">
-              Genereer taken vanuit de voorcalculatie om te beginnen.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  const scopes = Object.keys(takenPerScope);
-
   return (
-    <div className="space-y-6">
-      {scopes.map((scope) => {
-        const scopeTaken = takenPerScope[scope];
-        const totaalUren = scopeTaken.reduce((sum, t) => sum + t.normUren, 0);
-        const totaalDagen = scopeTaken.reduce(
-          (sum, t) => sum + t.geschatteDagen,
-          0
-        );
-        const afgerond = scopeTaken.filter(
-          (t) => t.status === "afgerond"
-        ).length;
-
-        // Convert tasks to sortable items format
-        const sortableItems = scopeTaken.map((taak) => ({
-          ...taak,
-          id: taak._id,
-        }));
+    <div className="flex flex-col gap-4">
+      {Object.entries(takenPerScope).map(([scope, scopeTaken]) => {
+        const naam = getScopeDisplayName(scope);
+        const uren = scopeTaken.reduce((som, t) => som + t.normUren, 0);
+        const dagen = scopeTaken.reduce((som, t) => som + t.geschatteDagen, 0);
+        const afgerond = scopeTaken.filter((t) => t.status === "afgerond").length;
+        const pct = procent(afgerond, scopeTaken.length);
+        const meta = `${afgerond} van ${scopeTaken.length} taken · ${getal(uren)} uur · ${getal(dagen)} ${dagen === 1 ? "dag" : "dagen"}`;
 
         return (
-          <Card key={scope}>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div
-                    className={cn(
-                      "w-3 h-3 rounded-full",
-                      getScopeColor(scope)
-                    )}
-                  />
-                  <CardTitle className="text-lg">
-                    {getScopeDisplayName(scope)}
-                  </CardTitle>
-                  <Badge variant="outline" className="font-normal">
-                    {afgerond}/{scopeTaken.length} taken
-                  </Badge>
-                </div>
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <Clock className="h-4 w-4" />
-                    {formatHours(totaalUren)}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Calendar className="h-4 w-4" />
-                    {formatDays(totaalDagen)}
-                  </span>
-                </div>
+          <SectiePaneel
+            key={scope}
+            titel={naam}
+            kopbalk
+            icoon={
+              <span
+                aria-hidden="true"
+                className={cn("block size-2 rounded-full", scopeStip(scope))}
+              />
+            }
+            acties={
+              <div className="flex min-w-0 items-center gap-3">
+                <span
+                  title={meta}
+                  className="min-w-0 truncate text-[13px] tabular-nums text-muted-foreground"
+                >
+                  {meta}
+                </span>
+                <VoortgangsBalk
+                  waarde={pct}
+                  className="hidden w-24 shrink-0 @md/sectie:block"
+                />
+                <span className="shrink-0 text-[13px] font-semibold tabular-nums">
+                  {pct}%
+                </span>
               </div>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12" aria-label="Drag handle"></TableHead>
-                    <TableHead className="w-10">#</TableHead>
-                    <TableHead>Taak</TableHead>
-                    <TableHead className="w-24 text-right">Uren</TableHead>
-                    <TableHead className="w-24 text-right">Dagen</TableHead>
-                    <TableHead className="w-28">Status</TableHead>
-                    <TableHead className="w-16 text-right">Acties</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <SortableList
-                    items={sortableItems}
-                    onReorder={(newItems) => handleReorder(scopeTaken, newItems)}
-                    disabled={isLoading}
-                    aria-label={`Taken voor ${getScopeDisplayName(scope)}`}
-                    itemIdPrefix={`task-${scope}`}
-                    inline={true}
-                    renderItem={(item, sortableProps, index) => (
-                      <SortableTaakRow
-                        key={item._id}
-                        taak={item as PlanningTaak}
-                        sortableProps={sortableProps}
-                        index={index}
-                        onUpdateStatus={onUpdateStatus}
-                        onEdit={onEdit}
-                        onDelete={setDeleteTaskId}
-                        isLoading={isLoading}
-                      />
-                    )}
+            }
+          >
+            <div className="flex flex-col p-1">
+              <div
+                aria-hidden="true"
+                className={cn(RIJ_GRID, "px-2 pt-1.5 pb-1 text-xs text-muted-foreground")}
+              >
+                <span />
+                <span className="hidden @lg/sectie:block">#</span>
+                <span>Taak</span>
+                <span className="text-right">Uren</span>
+                <span className="hidden text-right @lg/sectie:block">Dagen</span>
+                <span>Status</span>
+                <span />
+              </div>
+              <SortableList
+                items={scopeTaken.map((taak) => ({ ...taak, id: taak._id }))}
+                onReorder={handleReorder}
+                disabled={isLoading}
+                aria-label={`Taken voor ${naam}`}
+                itemIdPrefix={`taak-${scope}`}
+                renderItem={(item, sortableProps, index) => (
+                  <TaakRij
+                    taak={item as unknown as PlanningTaak}
+                    index={index}
+                    sortableProps={sortableProps}
+                    onUpdateStatus={onUpdateStatus}
+                    onVerwijder={setVerwijderId}
+                    isLoading={isLoading}
                   />
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+                )}
+              />
+              <button
+                type="button"
+                onClick={() => onTaakToevoegen(scope)}
+                className="mx-1 mt-1 mb-1 flex h-10 items-center justify-center gap-2 rounded-md border border-dashed text-sm text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <Plus className="size-4" aria-hidden="true" />
+                <span className="truncate">Taak toevoegen aan {naam}</span>
+              </button>
+            </div>
+          </SectiePaneel>
         );
       })}
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog
-        open={!!deleteTaskId}
-        onOpenChange={() => setDeleteTaskId(null)}
-      >
+      <AlertDialog open={!!verwijderId} onOpenChange={() => setVerwijderId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Taak verwijderen</AlertDialogTitle>
             <AlertDialogDescription>
-              Weet je zeker dat je deze taak wilt verwijderen? Dit kan niet
-              ongedaan worden gemaakt.
+              Weet je zeker dat je deze taak wilt verwijderen? Dit kan niet ongedaan
+              worden gemaakt.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>
-              Annuleren
-            </AlertDialogCancel>
+            <AlertDialogCancel disabled={isVerwijderen}>Annuleren</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleDelete}
-              disabled={isDeleting}
+              onClick={handleVerwijder}
+              disabled={isVerwijderen}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {isDeleting ? "Verwijderen..." : "Verwijderen"}
+              {isVerwijderen ? "Verwijderen…" : "Verwijderen"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -2,7 +2,6 @@
 
 import { use, useState } from "react";
 import { QC_STATUS_CONFIG } from "@/lib/constants/statuses";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../../../convex/_generated/api";
@@ -18,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { PageHeader } from "@/components/page-header";
+import { ProjectKop } from "@/components/project/project-kop";
 import {
   Dialog,
   DialogContent,
@@ -220,38 +220,19 @@ export default function KwaliteitscontrolePage({
       <PageHeader customLabels={{ [`/projecten/${id}`]: project.naam }} />
 
       <div className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
-        {/* Header */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
+        <ProjectKop
+          projectId={id}
+          actief="kwaliteit"
+          acties={
             <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 sm:h-8 sm:w-8"
-              asChild
-              aria-label="Terug naar project"
+              onClick={() => setShowNewQCDialog(true)}
+              disabled={scopesWithoutQC.length === 0}
             >
-              <Link href={`/projecten/${id}`}>
-                <ArrowLeft className="h-4 w-4" />
-              </Link>
+              <Plus className="mr-2 h-4 w-4" />
+              Nieuwe QC-check
             </Button>
-            <div>
-              <div className="flex items-center gap-3">
-                <ClipboardCheck className="h-6 w-6 text-muted-foreground" />
-                <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
-                  Kwaliteitscontrole
-                </h1>
-              </div>
-              <p className="text-muted-foreground">{project.naam}</p>
-            </div>
-          </div>
-          <Button
-            onClick={() => setShowNewQCDialog(true)}
-            disabled={scopesWithoutQC.length === 0}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Nieuwe QC Check
-          </Button>
-        </div>
+          }
+        />
 
         {/* Summary Cards */}
         {qcSummary && (
