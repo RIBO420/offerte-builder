@@ -38,11 +38,19 @@ export interface PlanningSummary {
 export function usePlanning(projectId: Id<"projecten"> | null) {
   const { user } = useCurrentUser();
 
-  // Queries
-  const taken = useQuery(
-    api.planningTaken.list,
-    projectId ? { projectId } : "skip"
-  ) as PlanningTaak[] | undefined;
+  // Taken uit `getWithDetails` (al op volgorde): dezelfde query als de
+  // ProjectKop en de pagina, dus Convex haalt hem één keer op.
+  const details = useQuery(
+    api.projecten.getWithDetails,
+    projectId ? { id: projectId } : "skip"
+  );
+  const taken = useMemo(
+    () =>
+      (details === undefined ? undefined : (details?.planningTaken ?? [])) as
+        | PlanningTaak[]
+        | undefined,
+    [details]
+  );
 
   const summary = useQuery(
     api.planningTaken.getSummary,

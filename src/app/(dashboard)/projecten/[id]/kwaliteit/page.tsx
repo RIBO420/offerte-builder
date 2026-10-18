@@ -96,7 +96,15 @@ export default function KwaliteitscontrolePage({
 
   // Scopes uit de offerte, in offertevolgorde; een controle voor een scope die
   // (niet meer) in de offerte staat, blijft zichtbaar achteraan.
-  const controlePerScope = new Map<string, Controle>(qcControles.map((qc) => [qc.scope, qc]));
+  // Alle controles per scope, nieuwste eerst: een herkeuring verbergt de
+  // eerdere (bv. afgekeurde) controle niet.
+  const controlesPerScope = new Map<string, Controle[]>();
+  for (const qc of [...qcControles].sort((a, b) => b._creationTime - a._creationTime)) {
+    const lijst = controlesPerScope.get(qc.scope);
+    if (lijst) lijst.push(qc);
+    else controlesPerScope.set(qc.scope, [qc]);
+  }
+  const nieuwsteVoor = (scope: string) => controlesPerScope.get(scope)?.[0];
   const offerteScopes = offerte?.scopes ?? [];
   const scopes = [
     ...offerteScopes,
@@ -121,13 +129,20 @@ export default function KwaliteitscontrolePage({
     goedgekeurd: 0,
     afgekeurd: 0,
   };
-  for (const qc of qcControles) {
-    if (qc.status in telling) telling[qc.status as QCStatus] += 1;
+  // Per scope telt de stand van de nieuwste controle, zodat de tellers
+  // samen nooit boven het aantal scopes uitkomen.
+  for (const scope of scopes) {
+    const status = nieuwsteVoor(scope)?.status;
+    if (status && status in telling) telling[status as QCStatus] += 1;
   }
+  // Unieke scopes met minstens één goedgekeurde controle.
+  const gecontroleerd = scopes.filter((s) =>
+    (controlesPerScope.get(s) ?? []).some((qc) => qc.status === "goedgekeurd")
+  ).length;
 
-  const eersteZonder = scopes.find((s) => !controlePerScope.has(s));
+  const eersteZonder = scopes.find((s) => !controlesPerScope.has(s));
   const eersteKlaar = scopes
-    .map((s) => controlePerScope.get(s))
+    .map((s) => nieuwsteVoor(s))
     .find(
       (qc): qc is Controle =>
         !!qc &&
@@ -183,7 +198,7 @@ export default function KwaliteitscontrolePage({
               >
                 <p className="text-[15px] tabular-nums">
                   <span className="font-semibold">
-                    {telling.goedgekeurd} van {scopes.length}
+                    {gecontroleerd} van {scopes.length}
                   </span>{" "}
                   <span className="text-muted-foreground">
                     {scopes.length === 1 ? "scope" : "scopes"} gecontroleerd
@@ -217,11 +232,11 @@ export default function KwaliteitscontrolePage({
                 />
               ) : (
                 scopes.map((scope) => {
-                  const qc = controlePerScope.get(scope);
-                  if (qc) {
-                    return (
+                  const controles = controlesPerScope.get(scope);
+                  if (controles) {
+                    return controles.map((qc) => (
                       <QCChecklistCard
-                        key={scope}
+                        key={qc._id}
                         controle={qc}
                         onApprove={() => openBeoordeling(qc, "approve")}
                         onReject={() => openBeoordeling(qc, "reject")}
@@ -229,7 +244,7 @@ export default function KwaliteitscontrolePage({
                           hoofdActie?.soort === "goedkeuren" && hoofdActie.id === qc._id
                         }
                       />
-                    );
+                    ));
                   }
                   const gevuld = hoofdActie?.soort === "starten" && hoofdActie.scope === scope;
                   return (

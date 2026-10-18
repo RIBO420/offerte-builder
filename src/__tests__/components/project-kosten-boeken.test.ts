@@ -45,15 +45,14 @@ describe("naarCreateArgs — materiaal", () => {
     });
   });
 
-  it("neemt een eigen omschrijving en notities over, getrimd", () => {
+  it("neemt notities getrimd over; de omschrijving blijft de productnaam", () => {
     const r = naarCreateArgs(projectId, {
       ...basis,
       soort: "materiaal",
       product: zand,
-      omschrijving: "  Zand achtertuin ",
       notities: " bon 1234 ",
     });
-    expect(r.ok && r.args.omschrijving).toBe("Zand achtertuin");
+    expect(r.ok && r.args.omschrijving).toBe("Ophoogzand");
     expect(r.ok && r.args.notities).toBe("bon 1234");
   });
 
@@ -93,9 +92,13 @@ describe("naarCreateArgs — machine", () => {
         omschrijving: "Minigraver",
         prijsPerEenheid: 50,
         machineId: minigraver._id,
-        notities: undefined,
       },
     });
+  });
+
+  it("stuurt geen notities mee (de backend bewaart ze bij machines niet)", () => {
+    const r = naarCreateArgs(projectId, { ...basis, soort: "machine", machine: minigraver, tarief: 45 });
+    expect(r.ok && "notities" in r.args).toBe(false);
   });
 
   it("weigert zonder machine of met tarief 0", () => {

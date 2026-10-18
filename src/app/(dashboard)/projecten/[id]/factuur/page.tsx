@@ -106,7 +106,8 @@ export default function FactuurPage({
 
   const projectDetails = useQuery(api.projecten.getWithDetails, projectId ? { id: projectId } : "skip");
   const factuur = useQuery(api.facturen.getByProject, projectId ? { projectId } : "skip");
-  const nacalculatie = useQuery(api.nacalculaties.get, projectId ? { projectId } : "skip");
+  // Nacalculatie zit al in `getWithDetails`; geen aparte query.
+  const nacalculatie = projectDetails?.nacalculatie;
 
   // Herinneringen (FAC-006), aanmaningen (FAC-007), creditnota (FAC-008), boekhoudsync (MOD-014)
   const herinneringen = useQuery(

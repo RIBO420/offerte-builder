@@ -47,6 +47,28 @@ describe("Hub Excel parity", () => {
     const annual = bouwHubExport("jaarrapportage", data, { ...opties, medewerkerIds: ["m1"], klantIds: ["a", "c"] });
     expect(annual["xl/worksheets/sheet4.xml"]).toEqual({ A7: { text: "A" }, A8: { text: "C" } });
   });
+  it("F42 laat werkpauzes van niet-gekozen klanten en klantloze pauzes zonder gekozen werk buiten de export", () => {
+    const data: HubExportRegel[] = [
+      basis,
+      { ...basis, klantId: "b", klantNaam: "B", beginTijd: "10:00", eindTijd: "12:00" },
+      // Pauze geboekt op klant B (niet gekozen): mag niet mee.
+      { ...basis, categorie: "pauze", klantId: "b", klantNaam: "B", beginTijd: "12:00", eindTijd: "12:15" },
+      // Klantloze pauze op een dag met werk voor A (gekozen): mag mee.
+      { ...basis, categorie: "pauze", klantId: null, klantNaam: null, beginTijd: "12:15", eindTijd: "12:30" },
+      // Andere medewerker werkt alleen voor B; zijn klantloze pauze mag niet mee.
+      { ...basis, medewerkerId: "m2", medewerkerNaam: "Bram", klantId: "b", klantNaam: "B", beginTijd: "08:00", eindTijd: "10:00" },
+      { ...basis, medewerkerId: "m2", medewerkerNaam: "Bram", categorie: "pauze", klantId: null, klantNaam: null, beginTijd: "10:00", eindTijd: "10:30" },
+    ];
+    const cells = bouwHubExport("facturatie", data, { ...opties, klantIds: ["a"], facturatieInhoud: "werkpauze" });
+    const reg = cells["xl/worksheets/sheet2.xml"];
+    const rijen = Object.keys(reg).filter(k => k.startsWith("E")).map(k => [reg[`C${k.slice(1)}`], reg[k], reg[`D${k.slice(1)}`]]);
+    expect(rijen).toEqual([
+      [{ text: "Sven" }, { text: "Werken" }, { text: "A" }],
+      [{ text: "Sven" }, { text: "Pauze" }, undefined],
+    ]);
+    expect(Object.values(reg)).not.toContainEqual({ text: "Bram" });
+    expect(Object.values(reg)).not.toContainEqual({ text: "B" });
+  });
   it("never interprets empty or unknown explicit selections as everyone", () => {
     expect(() => bouwHubExport("facturatie", regels, { ...opties, medewerkerIds: [] })).toThrow("ten minste");
     expect(() => bouwHubExport("facturatie", regels, { ...opties, klantIds: [] })).toThrow("ten minste");

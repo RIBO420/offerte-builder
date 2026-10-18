@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useConvex, useQuery } from "convex/react";
 import type { FunctionReturnType } from "convex/server";
@@ -52,8 +52,9 @@ function Registraties({ begin, einde, userId, orgId }: { begin: string; einde: s
     return () => { actief = false; };
   }, [convex, periode, userId, orgId]);
   const filter = (key: keyof RegistratieFilters, value: string) => { setFilters(v => ({ ...v, [key]: value })); setPagina(0); };
-  const selectie = filterRegistraties(regels ?? [], filters);
-  const categorien = [...new Set((regels ?? []).map(r => r.categorie))].sort((a, b) => (CATEGORIE[a] ?? a).localeCompare(CATEGORIE[b] ?? b));
+  const selectie = useMemo(() => filterRegistraties(regels ?? [], filters), [regels, filters]);
+  const categorien = useMemo(() => [...new Set((regels ?? []).map(r => r.categorie))].sort((a, b) => (CATEGORIE[a] ?? a).localeCompare(CATEGORIE[b] ?? b)), [regels]);
+  const geregistreerdMinuten = useMemo(() => selectie.reduce((n, r) => n + r.minuten, 0), [selectie]);
   const paginaAantal = Math.max(1, Math.ceil(selectie.length / 50));
   const huidigePagina = Math.min(pagina, paginaAantal - 1);
   const zichtbaar = selectie.slice(huidigePagina * 50, huidigePagina * 50 + 50);
@@ -80,13 +81,13 @@ function Registraties({ begin, einde, userId, orgId }: { begin: string; einde: s
       </div>
       <Button size="sm" variant="ghost" onClick={() => { setFilters(legeRegistratieFilters); setPagina(0); }}>Filters wissen</Button>
       {laden ? <p role="status" className="text-sm">Registraties laden… {geladenDelen > 0 ? `${geladenDelen} maanddelen gelezen` : ""}</p> : fout ? <div><p role="alert" className="text-sm text-destructive">{fout}</p><p className="text-xs text-muted-foreground">Er worden geen gedeeltelijke resultaten getoond. Probeer opnieuw of kies een kleinere periode.</p></div> : <>
-        <p className="text-sm">{periode.van} t/m {periode.tot} · {selectie.length} registraties · {duur(selectie.reduce((n, r) => n + r.minuten, 0))} uur geregistreerde tijd in deze selectie</p>
+        <p className="text-sm tabular-nums">{periode.van} t/m {periode.tot} · {selectie.length} registraties · {duur(geregistreerdMinuten)} uur geregistreerde tijd in deze selectie</p>
         {!selectie.length ? <p className="text-sm text-muted-foreground">Geen registraties voor deze filters.</p> : <ol aria-label="Gevonden urenregistraties" className="divide-y">{zichtbaar.map(r => <li key={r.id} className="space-y-2 py-3">
-          <div className="flex flex-wrap justify-between gap-2 text-sm"><span className="font-medium">{r.medewerkerNaam} · {r.datum}</span><span>{r.beginTijd}–{r.eindTijd} · {duur(r.minuten)} uur · {STATUS[r.status] ?? r.status}</span></div>
+          <div className="flex flex-wrap justify-between gap-2 text-sm"><span className="font-medium">{r.medewerkerNaam} · {r.datum}</span><span className="tabular-nums">{r.beginTijd}–{r.eindTijd} · {duur(r.minuten)} uur · {STATUS[r.status] ?? r.status}</span></div>
           <div className="grid gap-1 text-sm text-muted-foreground sm:grid-cols-2"><p className="break-words">Klant: {r.klantNaam ?? "Zonder klant"}{r.werkitemNaam ? ` · ${r.werkitemNaam}` : ""}</p><p>Categorie: {CATEGORIE[r.categorie] ?? r.categorie} · Werksoort: {r.werksoort ?? "Niet vastgelegd"}</p><p>Ingevoerd door: {r.ingevoerdDoorNaam ?? "Niet vastgelegd"}</p></div>
           {r.notitie && <p className="whitespace-pre-wrap break-words text-sm">{r.notitie}</p>}
         </li>)}</ol>}
-        {paginaAantal > 1 && <div className="flex flex-wrap items-center justify-between gap-3"><Button variant="outline" size="sm" disabled={huidigePagina === 0} onClick={() => setPagina(v => v - 1)}>Vorige 50</Button><span className="text-sm">Pagina {huidigePagina + 1} van {paginaAantal}</span><Button variant="outline" size="sm" disabled={huidigePagina + 1 >= paginaAantal} onClick={() => setPagina(v => v + 1)}>Volgende 50</Button></div>}
+        {paginaAantal > 1 && <div className="flex flex-wrap items-center justify-between gap-3"><Button variant="outline" size="sm" disabled={huidigePagina === 0} onClick={() => setPagina(v => v - 1)}>Vorige 50</Button><span className="text-sm tabular-nums">Pagina {huidigePagina + 1} van {paginaAantal}</span><Button variant="outline" size="sm" disabled={huidigePagina + 1 >= paginaAantal} onClick={() => setPagina(v => v + 1)}>Volgende 50</Button></div>}
       </>}
     </div>
   </SectiePaneel>;

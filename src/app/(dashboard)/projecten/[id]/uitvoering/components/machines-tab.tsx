@@ -30,6 +30,8 @@ interface MachinesTabProps {
   totaalKosten: number;
   onShowMachineForm: () => void;
   onDeleteItem: (item: { type: "uren" | "machine"; id: string }) => void;
+  /** Na afronden: geen toevoegen/verwijderen meer. */
+  alleenLezen?: boolean;
 }
 
 const RIJ_BREED =
@@ -41,8 +43,9 @@ export function MachinesTab({
   totaalKosten,
   onShowMachineForm,
   onDeleteItem,
+  alleenLezen = false,
 }: MachinesTabProps) {
-  const toevoegen = (
+  const toevoegen = alleenLezen ? null : (
     <Button variant="outline" size="sm" onClick={onShowMachineForm}>
       <Plus className="mr-1.5 size-4" />
       Machinegebruik toevoegen
@@ -115,27 +118,31 @@ export function MachinesTab({
               <span className="text-right font-semibold tabular-nums">
                 {formatCurrency(item.kosten)}
               </span>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="size-8 text-muted-foreground"
-                    aria-label={`Acties voor machinegebruik ${naam}`}
-                  >
-                    <MoreHorizontal className="size-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    onClick={() => onDeleteItem({ type: "machine", id: item._id })}
-                    className="text-destructive"
-                  >
-                    <Trash2 className="mr-2 size-4" />
-                    Verwijderen
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              {alleenLezen ? (
+                <span aria-hidden="true" className="hidden @xl/sectie:block" />
+              ) : (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-8 text-muted-foreground"
+                      aria-label={`Acties voor machinegebruik ${naam}`}
+                    >
+                      <MoreHorizontal className="size-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onClick={() => onDeleteItem({ type: "machine", id: item._id })}
+                      className="text-destructive"
+                    >
+                      <Trash2 className="mr-2 size-4" />
+                      Verwijderen
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </li>
           );
         })}

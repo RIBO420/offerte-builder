@@ -144,7 +144,7 @@ export function MijnWeekGezicht() {
         <GeenKoppeling />
       ) : (
         <div className="flex flex-col gap-4">
-          <EigenUrenExport weekStart={weekStart} />
+          <EigenUrenExport key={weekStart} weekStart={weekStart} />
           <SectiePaneel
             kopbalk
             titel="Jouw week"

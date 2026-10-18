@@ -216,7 +216,7 @@ export function KantoorControlekamer({
         </div>
       )}
 
-      {isKantoor && <VeldRapportagePaneel weekStart={weekStart} />}
+      {isKantoor && <VeldRapportagePaneel key={weekStart} weekStart={weekStart} />}
       <Daginspector dag={inspector} onSluit={() => setInspector(null)} />
     </div>
   );

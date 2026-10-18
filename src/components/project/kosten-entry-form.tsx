@@ -10,7 +10,7 @@
  * opslag in de backend en wordt daarom niet aangeboden.
  */
 
-import { useState } from "react";
+import { useDeferredValue, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "convex/react";
 import { format, subDays } from "date-fns";
@@ -86,7 +86,6 @@ export function KostenEntryForm({
   const [tab, setTab] = useState<Tab>(() => beginTab(soort));
   const [datum, setDatum] = useState<Date>(() => new Date());
   const [hoeveelheid, setHoeveelheid] = useState(0);
-  const [omschrijving, setOmschrijving] = useState("");
   const [notities, setNotities] = useState("");
   const [product, setProduct] = useState<BoekProduct | null>(null);
   const [zoekterm, setZoekterm] = useState("");
@@ -94,7 +93,7 @@ export function KostenEntryForm({
   const [tarief, setTarief] = useState(0);
   const [fout, setFout] = useState<string | null>(null);
 
-  const term = zoekterm.trim();
+  const term = useDeferredValue(zoekterm).trim();
   const zoekResultaten = useQuery(
     api.producten.search,
     tab === "materiaal" && !product && term.length >= 2 ? { zoekterm: term } : "skip"
@@ -106,20 +105,17 @@ export function KostenEntryForm({
   const gedeeld = {
     datum: format(datum, "yyyy-MM-dd"),
     hoeveelheid,
-    omschrijving,
-    notities,
   };
   const invoer: BoekInvoer =
     tab === "machine"
       ? { soort: "machine", machine, tarief, ...gedeeld }
-      : { soort: "materiaal", product, ...gedeeld };
+      : { soort: "materiaal", product, notities, ...gedeeld };
 
   const bedrag = tab === "arbeid" ? null : boekBedrag(invoer);
 
   function kiesTab(nieuw: Tab) {
     setTab(nieuw);
     setHoeveelheid(0);
-    setOmschrijving("");
     setFout(null);
   }
 
@@ -343,29 +339,19 @@ export function KostenEntryForm({
                 )}
               </div>
 
-              {/* Omschrijving en notities */}
-              <div className="grid gap-2">
-                <Label htmlFor="kosten-omschrijving">Omschrijving (optioneel)</Label>
-                <Input
-                  id="kosten-omschrijving"
-                  value={omschrijving}
-                  onChange={(e) => setOmschrijving(e.target.value)}
-                  placeholder={
-                    (tab === "materiaal" ? product?.productnaam : machine?.naam) ??
-                    "Standaard de naam van het artikel of de machine"
-                  }
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="kosten-notities">Notities (optioneel)</Label>
-                <Textarea
-                  id="kosten-notities"
-                  value={notities}
-                  onChange={(e) => setNotities(e.target.value)}
-                  placeholder="Bonnummer, leverancier, bijzonderheden…"
-                  rows={2}
-                />
-              </div>
+              {/* Notities: de backend bewaart ze alleen bij materiaal */}
+              {tab === "materiaal" && (
+                <div className="grid gap-2">
+                  <Label htmlFor="kosten-notities">Notities (optioneel)</Label>
+                  <Textarea
+                    id="kosten-notities"
+                    value={notities}
+                    onChange={(e) => setNotities(e.target.value)}
+                    placeholder="Bonnummer, leverancier, bijzonderheden…"
+                    rows={2}
+                  />
+                </div>
+              )}
 
               {/* Uitkomst */}
               <div className="flex items-baseline justify-between gap-3 border-t pt-4">

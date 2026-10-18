@@ -36,7 +36,7 @@ export function UitDeOfferte({
           <dd className="font-semibold tabular-nums">{formatCurrency(totaal)}</dd>
         </dl>
         <p className="text-xs text-muted-foreground">
-          De factuur volgt de getekende offerte. Na genereren kun je regels nog aanpassen.
+          De factuur volgt de getekende offerte. Na genereren bekijk je de PDF en maak je hem definitief; regels aanpassen kan dan niet meer.
         </p>
       </div>
     </SectiePaneel>

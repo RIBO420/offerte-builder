@@ -56,7 +56,8 @@ import { VoertuigSelector } from "@/components/project/voertuig-selector";
 import { getal } from "@/components/project/project-cijfers";
 import { SectiePaneel } from "@/components/ui/sectie-paneel";
 import { getScopeDisplayName, takenTemplates } from "@/lib/planning-templates";
-import { LaadIndicator } from "@/components/ui/laad-indicator";
+import { ProjectNietGevonden } from "@/components/project/project-niet-gevonden";
+import ProjectPlanningLoading from "./loading";
 import { REVEAL_KLASSE } from "@/components/pagina-reveal";
 
 const LEGE_TAAK = { scope: "", taakNaam: "", normUren: 0 };
@@ -75,17 +76,9 @@ export default function PlanningPage({
   const project = details?.project;
   const offerte = details?.offerte;
 
-  // Voorcalculatie: eerst die van de offerte, dan (legacy) die van het
-  // project — dezelfde volgorde als het genereren en de uitvoering.
-  const voorcalculatieByOfferte = useQuery(
-    api.voorcalculaties.getByOfferte,
-    project?.offerteId ? { offerteId: project.offerteId } : "skip"
-  );
-  const voorcalculatieByProject = useQuery(
-    api.voorcalculaties.getByProject,
-    projectId && !voorcalculatieByOfferte ? { projectId } : "skip"
-  );
-  const voorcalculatie = voorcalculatieByOfferte || voorcalculatieByProject;
+  // Voorcalculatie uit `getWithDetails`: dezelfde zoekvolgorde als de rest
+  // van het project (convex/lib/voorcalculatieLookup.ts).
+  const voorcalculatie = details?.voorcalculatie;
 
   const team = useQuery(api.teams.get, project?.teamId ? { id: project.teamId } : "skip");
 
@@ -111,6 +104,7 @@ export default function PlanningPage({
     !project?.klicMeldingGedaan;
 
   const [isGenerating, setIsGenerating] = useState(false);
+  const [bevestigOpnieuw, setBevestigOpnieuw] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isStartingExecution, setIsStartingExecution] = useState(false);
   const [showStartExecutionDialog, setShowStartExecutionDialog] = useState(false);
@@ -275,15 +269,14 @@ export default function PlanningPage({
     />
   );
 
+  // Zelfde skeleton als loading.tsx, zodat er na de routewissel geen tweede
+  // (andere) laadstaat verschijnt.
   if (isLoading || details === undefined) {
-    return (
-      <>
-        {breadcrumb}
-        <div className="flex flex-1 items-center justify-center">
-          <LaadIndicator formaat="pagina" />
-        </div>
-      </>
-    );
+    return <ProjectPlanningLoading />;
+  }
+
+  if (details === null || !project) {
+    return <ProjectNietGevonden projectId={id} pad="planning" />;
   }
 
   const taakUren = summary?.totaalUren ?? 0;
@@ -307,7 +300,7 @@ export default function PlanningPage({
               {voorcalculatie && (
                 <Button
                   variant={taken.length > 0 ? "outline" : "default"}
-                  onClick={handleGenerate}
+                  onClick={() => (taken.length > 0 ? setBevestigOpnieuw(true) : handleGenerate())}
                   disabled={isGenerating}
                 >
                   {isGenerating ? (
@@ -327,6 +320,31 @@ export default function PlanningPage({
                 <Plus className="mr-2 size-4" aria-hidden="true" />
                 Taak toevoegen
               </Button>
+              <AlertDialog open={bevestigOpnieuw} onOpenChange={setBevestigOpnieuw}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Taken opnieuw genereren?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {taken.length === 1
+                        ? "De huidige taak verdwijnt, met zijn status."
+                        : `Alle ${taken.length} huidige taken verdwijnen, met hun status.`}{" "}
+                      Daarna komen de taken opnieuw uit de voorcalculatie; zelf toegevoegde
+                      taken komen niet terug.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Annuleren</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => {
+                        setBevestigOpnieuw(false);
+                        void handleGenerate();
+                      }}
+                    >
+                      Opnieuw genereren
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </>
           }
         />

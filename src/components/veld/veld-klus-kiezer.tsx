@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useDebounce } from "@/hooks/use-debounce";
+import { getMutationErrorMessage } from "@/lib/error-handling";
 
 /** Extra klant/klus invoeren binnen het bestaande segmentformulier. */
 export function VeldKlusKiezer({ datum, onSelect }: { datum: string; onSelect: (id: Id<"projecten">) => void }) {
@@ -23,8 +25,11 @@ export function VeldKlusKiezer({ datum, onSelect }: { datum: string; onSelect: (
   const [categorie, setCategorie] = useState<"aanleg" | "onderhoud">("onderhoud");
   const [bezig, setBezig] = useState(false);
   const [gekozenNaam, setGekozenNaam] = useState("");
+  const [open, setOpen] = useState(false);
   const opdracht = useRef<{ inhoud: string; sleutel: string } | null>(null);
-  const resultaat = useQuery(api.veldKlanten.zoek, { datum, zoekterm });
+  // Pas zoeken als het blok open is, en niet bij elke toetsaanslag.
+  const zoektermVertraagd = useDebounce(zoekterm, 250);
+  const resultaat = useQuery(api.veldKlanten.zoek, open ? { datum, zoekterm: zoektermVertraagd } : "skip");
   const maak = useMutation(api.veldKlanten.maakUitvoeringsklus);
   const klant = resultaat?.klanten.find(k => k.klantId === klantId);
   async function maakKlus() {
@@ -38,16 +43,16 @@ export function VeldKlusKiezer({ datum, onSelect }: { datum: string; onSelect: (
       onSelect(result.werkitemId);
       setGekozenNaam(`${result.klantNaam} · ${result.werkitemNaam}`);
       toast.success("Klus gekozen; vul de gewerkte tijd in");
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Klus maken is mislukt"); }
+    } catch (e) { toast.error(getMutationErrorMessage(e)); }
     finally { setBezig(false); }
   }
-  return <details className="grid gap-2 rounded-md border p-3">
+  return <details className="grid gap-2 rounded-md border p-3" onToggle={e => setOpen(e.currentTarget.open)}>
     <summary className="cursor-pointer text-sm font-medium">Andere klant of nieuwe klus</summary>
     <fieldset disabled={bezig} className="mt-3 grid min-w-0 gap-3">
       {gekozenNaam && <p role="status" className="break-words text-sm">Gekozen: {gekozenNaam}</p>}
       <Label>Klant zoeken<Input value={zoekterm} maxLength={160} placeholder="Naam, adres of plaats" onChange={e => { setZoekterm(e.target.value); setKlantId(""); }} /></Label>
       <Select value={klantId} onValueChange={id => { setKlantId(id); setNieuw(false); }}>
-        <SelectTrigger><SelectValue placeholder="Geplande klanten staan bovenaan" /></SelectTrigger>
+        <SelectTrigger aria-label="Klant kiezen"><SelectValue placeholder="Geplande klanten staan bovenaan" /></SelectTrigger>
         <SelectContent>{resultaat?.klanten.map(k => <SelectItem key={k.klantId} value={k.klantId}>{k.gepland ? "Vandaag · " : ""}{k.naam}{k.plaats ? ` · ${k.plaats}` : ""}</SelectItem>)}</SelectContent>
       </Select>
       {resultaat?.meerResultaten && <p className="text-xs text-muted-foreground">Er zijn meer klanten. Verfijn je zoekopdracht.</p>}

@@ -15,16 +15,30 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatUrenKort } from "@/lib/format/uren-kort";
+import { useIsKantoor } from "@/hooks/use-users";
+import { getMutationErrorMessage } from "@/lib/error-handling";
 
 type Bron = "auto" | "legacy" | "segmenten";
 
 /**
- * De urenbronkeuze als zijpaneel. Zelfde query en mutatie als
- * `ProjectUrenBronSelector` (hub-export-dialog), die elders als losse kaart
- * blijft staan; hier in de vorm van de nacalculatie.
+ * De urenbronkeuze als zijpaneel van de nacalculatie. De conflictlijst bij
+ * de urenrapportage (hub-export-dialog) gebruikt dezelfde mutatie.
+ *
+ * Alleen kantoor mag de urenbron zien (de query gooit voor andere rollen);
+ * voor voorman/medewerker rendert het paneel niets.
  */
 export function UrenbronPaneel({ projectId }: { projectId: Id<"projecten"> }) {
-  const info = useQuery(api.urenRapportage.getProjectUrenBron, { projectId });
+  const isKantoor = useIsKantoor();
+  if (!isKantoor) return null;
+  return <UrenbronPaneelInhoud projectId={projectId} />;
+}
+
+function UrenbronPaneelInhoud({ projectId }: { projectId: Id<"projecten"> }) {
+  const isKantoor = useIsKantoor();
+  const info = useQuery(
+    api.urenRapportage.getProjectUrenBron,
+    isKantoor ? { projectId } : "skip"
+  );
   const bewaren = useMutation(api.urenRapportage.setProjectUrenBron);
   const [bezig, setBezig] = useState(false);
 
@@ -34,7 +48,7 @@ export function UrenbronPaneel({ projectId }: { projectId: Id<"projecten"> }) {
       await bewaren({ projectId, bron });
       toast.success("Urenbron bijgewerkt");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Wijzigen mislukt");
+      toast.error(getMutationErrorMessage(e));
     } finally {
       setBezig(false);
     }

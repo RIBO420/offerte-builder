@@ -31,10 +31,10 @@ export function WerkbezoekOverzicht({ datum }: { datum: string }) {
         <KlusInstructie werkitemId={b.werkitemId} datum={datum} naam={b.naam} categorie={b.uitvoeringCategorie} instructie={b.instructie} updatedAt={b.werkitemUpdatedAt} klantId={b.klantId} klantNaam={b.klantNaam} eigenAdres={b.eigenAdres} bescherming={b.relatieBescherming} />
         <BezoekBemanning key={`${b.werkitemId}:${JSON.stringify(b.toegewezenMedewerkerIds)}`} werkitemId={b.werkitemId} datum={datum} override={b.toegewezenMedewerkerIds} effectieveIds={b.bemanningIds} medewerkers={data.medewerkers} />
         <p className="text-sm">{b.afronding ? `${b.afronding.afgerond ? "Afgerond" : "Niet afgerond"} · ${b.afronding.doorNaam}` : "Afronding nog niet gemeld"}</p>
-        {b.afronding?.reden && <p className="text-sm">{b.afronding.reden}{b.afronding.resterendMinuten !== undefined ? ` · nog ongeveer ${b.afronding.resterendMinuten} minuten` : ""}</p>}
+        {b.afronding?.reden && <p className="text-sm tabular-nums">{b.afronding.reden}{b.afronding.resterendMinuten !== undefined ? ` · nog ongeveer ${b.afronding.resterendMinuten} minuten` : ""}</p>}
         {!!b.ontbreekt.length && <p className="text-sm text-amber-700 dark:text-amber-400">Nog open: {b.ontbreekt.join(", ")}</p>}
         {!!b.delegaties.length && <ul className="space-y-1 text-sm text-muted-foreground">{b.delegaties.map(d => <li key={d._id}>{d.doorNaam} laat {d.onderdeel} door een collega invullen. Het gedeelde antwoord blijft nodig.</li>)}</ul>}
-        <p className="text-sm">Afvoer bij deze klus: {b.afvoer ? `${keuzes[b.afvoer.keuze]} · ${b.afvoer.bedragCent === undefined ? "Bedrag nog controleren" : euro(b.afvoer.bedragCent)}` : "Nog niet gemeld"}</p>
+        <p className="text-sm tabular-nums">Afvoer bij deze klus: {b.afvoer ? `${keuzes[b.afvoer.keuze]} · ${b.afvoer.bedragCent === undefined ? "Bedrag nog controleren" : euro(b.afvoer.bedragCent)}` : "Nog niet gemeld"}</p>
         {b.afvoer && <form className="flex flex-wrap items-end gap-2" onSubmit={async e => {
           e.preventDefault(); if (!b.afvoer || bezig) return;
           const bedragCent = Math.round(Number((bedragen[b.bezoekSleutel] ?? "").replace(",", ".")) * 100);
@@ -42,7 +42,7 @@ export function WerkbezoekOverzicht({ datum }: { datum: string }) {
           setBezig(true);
           try { await meldAfvoer({ werkitemId: b.werkitemId, datum, keuze: b.afvoer.keuze, expectedRevision: b.afvoer.revision, bedragCent, sleutel: crypto.randomUUID() }); setBedragen(v => ({ ...v, [b.bezoekSleutel]: "" })); toast.success("Afvoerbedrag vastgelegd"); }
           catch (fout) { toast.error(fout instanceof Error ? fout.message : "Opslaan mislukt"); } finally { setBezig(false); }
-        }}><label className="max-w-40 text-xs">Afvoerbedrag (€)<Input aria-label={`Afvoerbedrag ${b.naam}`} inputMode="decimal" value={bedragen[b.bezoekSleutel] ?? ""} onChange={e => setBedragen(v => ({ ...v, [b.bezoekSleutel]: e.target.value }))} /></label><Button disabled={bezig} size="sm" variant="outline" type="submit">Bedrag bevestigen</Button></form>}
+        }}><label className="max-w-40 text-xs">Afvoerbedrag (€)<Input aria-label={`Afvoerbedrag ${b.naam}`} inputMode="decimal" className="tabular-nums" value={bedragen[b.bezoekSleutel] ?? ""} onChange={e => setBedragen(v => ({ ...v, [b.bezoekSleutel]: e.target.value }))} /></label><Button disabled={bezig} size="sm" variant="outline" type="submit">Bedrag bevestigen</Button></form>}
         <div className="grid grid-cols-2 gap-2 @lg:grid-cols-4">{b.fotos.map(f => f.url && <a key={f.id} href={f.url} target="_blank" rel="noopener noreferrer" className="min-w-0 space-y-1 rounded-lg border p-2">
           {/* Signed storage URLs carry image access; native image keeps that URL intact. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}

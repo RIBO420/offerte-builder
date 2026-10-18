@@ -29,7 +29,7 @@ export function VeldRapportagePaneel({ weekStart }: { weekStart: string }) {
         <p className="text-sm text-muted-foreground">Deze export gebruikt de dagregistraties uit de medewerkersapp. Dagspan en geregistreerde tijd blijven afzonderlijk zichtbaar.</p>
         <HubExportDialog />
         {rapport ? <>
-          <p className="text-sm">Geregistreerd {uren(rapport.totalen.geregistreerd)} · Klantwerk {uren(rapport.totalen.klantwerk)} · Pauze {uren(rapport.totalen.pauze)}</p>
+          <p className="text-sm tabular-nums">Geregistreerd {uren(rapport.totalen.geregistreerd)} · Klantwerk {uren(rapport.totalen.klantwerk)} · Pauze {uren(rapport.totalen.pauze)}</p>
           <ExportDropdown
             getData={() => rapport.dagen.map(d => ({
               datum: d.datum, medewerker: d.medewerkerNaam, status: d.status,

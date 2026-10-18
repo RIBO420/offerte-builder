@@ -15,6 +15,10 @@
  * Een werkgebied (scope) bewaart de backend alleen bij uren; materiaal en
  * machine-inzet tellen altijd onder "materialen" / "machines". Daarom vraagt
  * dit formulier er niet naar.
+ *
+ * Een eigen omschrijving bewaart de backend bij materiaal en machine nergens;
+ * `create` eist er wel een, dus die staat vast op de product- of machinenaam.
+ * Notities bewaart de backend alleen bij materiaal (op de voorraadmutatie).
  */
 
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -38,12 +42,10 @@ export interface BoekMachine {
 interface Gemeenschappelijk {
   datum: string; // YYYY-MM-DD
   hoeveelheid: number;
-  omschrijving?: string;
-  notities?: string;
 }
 
 export type BoekInvoer =
-  | (Gemeenschappelijk & { soort: "materiaal"; product: BoekProduct | null })
+  | (Gemeenschappelijk & { soort: "materiaal"; product: BoekProduct | null; notities?: string })
   | (Gemeenschappelijk & { soort: "machine"; machine: BoekMachine | null; tarief: number });
 
 export interface CreateArgs {
@@ -87,7 +89,6 @@ export function naarCreateArgs(projectId: Id<"projecten">, invoer: BoekInvoer): 
     projectId,
     datum: invoer.datum,
     hoeveelheid: invoer.hoeveelheid,
-    notities: schoon(invoer.notities),
   };
 
   if (invoer.soort === "materiaal") {
@@ -105,9 +106,10 @@ export function naarCreateArgs(projectId: Id<"projecten">, invoer: BoekInvoer): 
       args: {
         ...gedeeld,
         type: "materiaal",
-        omschrijving: schoon(invoer.omschrijving) ?? product.productnaam,
+        omschrijving: product.productnaam,
         prijsPerEenheid: product.inkoopprijs,
         productId: product._id,
+        notities: schoon(invoer.notities),
       },
     };
   }
@@ -121,7 +123,7 @@ export function naarCreateArgs(projectId: Id<"projecten">, invoer: BoekInvoer): 
     args: {
       ...gedeeld,
       type: "machine",
-      omschrijving: schoon(invoer.omschrijving) ?? machine.naam,
+      omschrijving: machine.naam,
       prijsPerEenheid: invoer.tarief,
       machineId: machine._id,
     },

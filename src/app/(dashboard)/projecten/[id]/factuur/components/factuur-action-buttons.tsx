@@ -28,7 +28,6 @@ import {
   Send,
   Download,
   Check,
-  Edit,
   Eye,
   CheckCircle,
   Bell,
@@ -236,12 +235,6 @@ export function FactuurActionButtons({
     case "concept":
       return (
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" className="gap-2" asChild>
-            <Link href={`/projecten/${projectId}/factuur/bewerken`}>
-              <Edit className="h-4 w-4" />
-              Bewerken
-            </Link>
-          </Button>
           <Button variant="outline" className="gap-2" onClick={handlers.handlePreviewPdf}>
             <Eye className="h-4 w-4" />
             PDF bekijken

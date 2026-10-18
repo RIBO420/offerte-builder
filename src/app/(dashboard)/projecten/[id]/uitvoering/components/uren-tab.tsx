@@ -29,6 +29,8 @@ interface UrenTabProps {
   groupedByDate: [string, UrenRegistratie[]][];
   onEditItem: (item: UrenRegistratie) => void;
   onDeleteItem: (item: { type: "uren" | "machine"; id: string }) => void;
+  /** Na afronden: geen bewerken/verwijderen meer. */
+  alleenLezen?: boolean;
 }
 
 /**
@@ -39,7 +41,13 @@ interface UrenTabProps {
 const RIJ_BREED =
   "@xl/sectie:grid-cols-[minmax(0,1.2fr)_4rem_7.5rem_minmax(0,1.6fr)_6rem_2rem] @xl/sectie:gap-x-3.5";
 
-export function UrenTab({ isLoading, groupedByDate, onEditItem, onDeleteItem }: UrenTabProps) {
+export function UrenTab({
+  isLoading,
+  groupedByDate,
+  onEditItem,
+  onDeleteItem,
+  alleenLezen = false,
+}: UrenTabProps) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-10">
@@ -52,7 +60,11 @@ export function UrenTab({ isLoading, groupedByDate, onEditItem, onDeleteItem }: 
     return (
       <SectieLegeStaat
         tekst="Nog geen uren geregistreerd."
-        hint="Registreer uren of importeer een CSV- of Excelbestand; de uren zijn nodig voor de nacalculatie."
+        hint={
+          alleenLezen
+            ? "Het project is afgerond; er komen geen uren meer bij."
+            : "Registreer uren of importeer een CSV- of Excelbestand; de uren zijn nodig voor de nacalculatie."
+        }
       />
     );
   }
@@ -123,31 +135,35 @@ export function UrenTab({ isLoading, groupedByDate, onEditItem, onDeleteItem }: 
                     </span>
                   </span>
 
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-8 text-muted-foreground"
-                        aria-label={`Acties voor registratie ${item.medewerker}`}
-                      >
-                        <MoreHorizontal className="size-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => onEditItem(item)}>
-                        <Pencil className="mr-2 size-4" />
-                        Bewerken
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => onDeleteItem({ type: "uren", id: item._id })}
-                        className="text-destructive"
-                      >
-                        <Trash2 className="mr-2 size-4" />
-                        Verwijderen
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  {alleenLezen ? (
+                    <span aria-hidden="true" className="hidden @xl/sectie:block" />
+                  ) : (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-8 text-muted-foreground"
+                          aria-label={`Acties voor registratie ${item.medewerker}`}
+                        >
+                          <MoreHorizontal className="size-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => onEditItem(item)}>
+                          <Pencil className="mr-2 size-4" />
+                          Bewerken
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => onDeleteItem({ type: "uren", id: item._id })}
+                          className="text-destructive"
+                        >
+                          <Trash2 className="mr-2 size-4" />
+                          Verwijderen
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </li>
               ))}
             </ul>

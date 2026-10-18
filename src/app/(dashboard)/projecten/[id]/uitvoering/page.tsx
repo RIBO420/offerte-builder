@@ -11,6 +11,7 @@ import { Id } from "../../../../../../convex/_generated/dataModel";
 import { PaginaReveal } from "@/components/pagina-reveal";
 import { PageHeader } from "@/components/page-header";
 import { ProjectKop } from "@/components/project/project-kop";
+import { ProjectNietGevonden } from "@/components/project/project-niet-gevonden";
 import { Button } from "@/components/ui/button";
 import { SectiePaneel } from "@/components/ui/sectie-paneel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -51,16 +52,9 @@ export default function UitvoeringPage() {
   const project = details?.project;
   const offerte = details?.offerte;
 
-  // Voorcalculatie: eerst via de offerte (nieuwe workflow), dan via het project (legacy)
-  const voorcalculatieByOfferte = useQuery(
-    api.voorcalculaties.getByOfferte,
-    project?.offerteId ? { offerteId: project.offerteId } : "skip"
-  );
-  const voorcalculatieByProject = useQuery(
-    api.voorcalculaties.getByProject,
-    projectId && !voorcalculatieByOfferte ? { projectId } : "skip"
-  );
-  const voorcalculatie = voorcalculatieByOfferte || voorcalculatieByProject;
+  // Voorcalculatie uit `getWithDetails`: dezelfde zoekvolgorde als de rest
+  // van het project (convex/lib/voorcalculatieLookup.ts).
+  const voorcalculatie = details?.voorcalculatie;
 
   // Actieve medewerkers voor de keuzelijst in het formulier
   const medewerkers = useQuery(api.medewerkers.getActive);
@@ -107,7 +101,9 @@ export default function UitvoeringPage() {
   const [optimisticDeletedItemIds, setOptimisticDeletedItemIds] = useState<Set<string>>(new Set());
   const [optimisticKlicMelding, setOptimisticKlicMelding] = useState<boolean | null>(null);
 
-  const isLoading = Boolean(isUserLoading || isUrenLoading || isMachineLoading);
+  const isLoading = Boolean(
+    isUserLoading || isUrenLoading || isMachineLoading || details === undefined
+  );
 
   const zichtbareRegistraties = useMemo(
     () => registraties.filter((reg) => !optimisticDeletedItemIds.has(reg._id)),
@@ -329,6 +325,10 @@ export default function UitvoeringPage() {
     project?.status === "nacalculatie_compleet" ||
     project?.status === "gefactureerd";
 
+  if (details === null) {
+    return <ProjectNietGevonden projectId={projectId} pad="uitvoering" />;
+  }
+
   return (
     <>
       <PageHeader customLabels={{ [`/projecten/${projectId}`]: project?.naam ?? "Project" }} />
@@ -341,13 +341,16 @@ export default function UitvoeringPage() {
           projectId={projectId}
           actief="uitvoering"
           acties={
-            <>
-              <UrenImport onImport={handleImport} isImporting={isImporting} />
-              <Button onClick={() => setShowUrenForm(true)}>
-                <Plus className="mr-2 size-4" />
-                Uren registreren
-              </Button>
-            </>
+            // Na afronden staan de uren vast: geen registreren of importeren meer.
+            isAfgerond ? undefined : (
+              <>
+                <UrenImport onImport={handleImport} isImporting={isImporting} />
+                <Button onClick={() => setShowUrenForm(true)}>
+                  <Plus className="mr-2 size-4" />
+                  Uren registreren
+                </Button>
+              </>
+            )
           }
         />
 
@@ -390,6 +393,7 @@ export default function UitvoeringPage() {
                       groupedByDate={groupedByDate}
                       onEditItem={setBewerkItem}
                       onDeleteItem={handleDeleteItem}
+                      alleenLezen={isAfgerond}
                     />
                   </TabsContent>
                   <TabsContent value="machines">
@@ -399,6 +403,7 @@ export default function UitvoeringPage() {
                       totaalKosten={machineTotals.totaalKosten}
                       onShowMachineForm={() => setShowMachineForm(true)}
                       onDeleteItem={handleDeleteItem}
+                      alleenLezen={isAfgerond}
                     />
                   </TabsContent>
                   <TabsContent value="medewerkers">

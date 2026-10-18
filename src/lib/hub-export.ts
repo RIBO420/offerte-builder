@@ -36,9 +36,13 @@ export function bouwHubExport(type: HubExportType, alle: HubExportRegel[], optie
   const pauzes = verdeelPauzeOverKlanten(periode);
   const inhoud = type === "facturatie" ? opties.facturatieInhoud ?? "alles" : "alles";
   const pauzeDoorbelasten = type === "facturatie" && (opties.facturatieInhoud ? inhoud === "werkpauze" : opties.pauzeDoorbelasten === true);
+  // A break follows the customer selection: a break booked on a non-selected customer stays out;
+  // a break without customer only goes along when that worker did work for a selected customer that day.
+  const gekozenWerkdagen = new Set(periode.filter(r => r.categorie === "werken" && r.klantId != null && klantIds?.has(r.klantId)).map(r => `${r.medewerkerId}|${r.datum}`));
+  const pauzeHoortBijSelectie = (r: HubExportRegel) => r.klantId != null ? klantIds!.has(r.klantId) : gekozenWerkdagen.has(`${r.medewerkerId}|${r.datum}`);
   const regels = periode
     .filter(r => inhoud === "alles" || r.categorie === "werken" || (inhoud === "werkpauze" && r.categorie === "pauze"))
-    .filter(r => !klantIds || (r.klantId != null && klantIds.has(r.klantId)) || (inhoud === "werkpauze" && r.categorie === "pauze"))
+    .filter(r => !klantIds || (r.klantId != null && klantIds.has(r.klantId)) || (inhoud === "werkpauze" && r.categorie === "pauze" && pauzeHoortBijSelectie(r)))
     .sort((a, b) => a.datum.localeCompare(b.datum) || a.beginTijd.localeCompare(b.beginTijd) || a.medewerkerNaam.localeCompare(b.medewerkerNaam));
   if (!regels.length) throw new Error("Geen uren gevonden voor deze selectie.");
   if (type === "salaris") {

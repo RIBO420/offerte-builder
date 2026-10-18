@@ -198,170 +198,109 @@ export function OfferteHistorySkeleton() {
   );
 }
 
-// Project Detail Skeleton
-export function ProjectDetailSkeleton() {
+// Projectpagina's (redesign okt 2026): breadcrumb, gedeelde projectkop met
+// fase-tabs, links kaarten/secties en rechts een zijkolom — dezelfde opbouw
+// als planning/loading.tsx.
+function PaneelSkeleton({ regels = 3 }: { regels?: number }) {
   return (
-    <m.div
-      role="status"
-      aria-busy="true"
-      aria-label="Project laden"
-      className="flex flex-1 flex-col gap-4 p-4 md:gap-6 md:p-6"
-      variants={staggerContainer}
-      initial="initial"
-      animate="animate"
-    >
-      <span className="sr-only">Project wordt geladen...</span>
-
-      {/* Header with back button and title */}
-      <m.div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between" variants={fadeInUp}>
-        <div className="flex items-start gap-4">
-          <m.div {...shimmer}>
-            <Skeleton className="h-9 w-9 rounded-lg" />
-          </m.div>
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <m.div {...shimmer}>
-                <Skeleton className="h-8 w-48" />
-              </m.div>
-              <m.div {...shimmer}>
-                <Skeleton className="h-6 w-24 rounded-full" />
-              </m.div>
-            </div>
-            <m.div {...shimmer}>
-              <Skeleton className="h-4 w-40" />
-            </m.div>
+    <div className="overflow-hidden rounded-lg border bg-card">
+      <div className="flex items-center gap-3 border-b bg-muted/40 px-3 py-2.5">
+        <Skeleton className="h-4 w-28" />
+        <Skeleton className="ml-auto h-3 w-24" />
+      </div>
+      <div className="space-y-3 p-3">
+        {Array.from({ length: regels }).map((_, i) => (
+          <div key={i} className="flex items-center gap-3">
+            <Skeleton className="h-4 min-w-0 flex-1" />
+            <Skeleton className="h-4 w-12" />
           </div>
-        </div>
-        <div className="flex gap-2">
-          <m.div {...shimmer}>
-            <Skeleton className="h-9 w-28" />
-          </m.div>
-          <m.div {...shimmer}>
-            <Skeleton className="h-9 w-32" />
-          </m.div>
-        </div>
-      </m.div>
-
-      {/* Progress Stepper */}
-      <m.div variants={fadeInUp}>
-        <Card className="p-4">
-          <div className="flex justify-between gap-2">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <m.div key={i} className="flex-1" {...shimmer}>
-                <Skeleton className="h-12 w-full rounded-lg" />
-              </m.div>
-            ))}
-          </div>
-        </Card>
-      </m.div>
-
-      {/* Main Content Grid */}
-      <m.div className="grid gap-4 lg:grid-cols-3" variants={staggerContainer}>
-        {/* Left Column - Project Info */}
-        <m.div className="lg:col-span-2 space-y-4" variants={staggerContainer}>
-          {/* Quick Stats */}
-          <m.div
-            className="grid gap-4 grid-cols-2 md:grid-cols-4"
-            variants={staggerContainer}
-          >
-            {Array.from({ length: 4 }).map((_, i) => (
-              <m.div key={i} variants={fadeInUp}>
-                <Card className="p-4">
-                  <div className="flex items-center gap-3">
-                    <m.div {...shimmer}>
-                      <Skeleton className="h-10 w-10 rounded-lg" />
-                    </m.div>
-                    <div className="space-y-1">
-                      <m.div {...shimmer}>
-                        <Skeleton className="h-3 w-16" />
-                      </m.div>
-                      <m.div {...shimmer}>
-                        <Skeleton className="h-5 w-20" />
-                      </m.div>
-                    </div>
-                  </div>
-                </Card>
-              </m.div>
-            ))}
-          </m.div>
-
-          {/* Werklocatie Card */}
-          <m.div variants={fadeInUp}>
-            <Card>
-              <CardHeader>
-                <m.div {...shimmer}>
-                  <Skeleton className="h-6 w-32" />
-                </m.div>
-                <m.div {...shimmer}>
-                  <Skeleton className="h-4 w-48" />
-                </m.div>
-              </CardHeader>
-              <CardContent>
-                <m.div {...shimmer}>
-                  <Skeleton className="h-[200px] w-full rounded-lg" />
-                </m.div>
-              </CardContent>
-            </Card>
-          </m.div>
-        </m.div>
-
-        {/* Right Column - Quick Actions */}
-        <m.div className="space-y-4" variants={staggerContainer}>
-          <m.div variants={fadeInUp}>
-            <Card>
-              <CardHeader>
-                <m.div {...shimmer}>
-                  <Skeleton className="h-6 w-28" />
-                </m.div>
-                <m.div {...shimmer}>
-                  <Skeleton className="h-4 w-40" />
-                </m.div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <m.div key={i} {...shimmer}>
-                      <Skeleton className="h-12 w-full rounded-lg" />
-                    </m.div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </m.div>
-
-          {/* Recent Activity */}
-          <m.div variants={fadeInUp}>
-            <Card>
-              <CardHeader>
-                <m.div {...shimmer}>
-                  <Skeleton className="h-6 w-36" />
-                </m.div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <div key={i} className="flex items-start gap-3">
-                      <m.div {...shimmer}>
-                        <Skeleton className="h-8 w-8 rounded-full" />
-                      </m.div>
-                      <div className="flex-1 space-y-1">
-                        <m.div {...shimmer}>
-                          <Skeleton className="h-4 w-full" />
-                        </m.div>
-                        <m.div {...shimmer}>
-                          <Skeleton className="h-3 w-24" />
-                        </m.div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </m.div>
-        </m.div>
-      </m.div>
-    </m.div>
+        ))}
+      </div>
+    </div>
   );
+}
+
+export function ProjectPaginaSkeleton({
+  label = "Project laden...",
+  metBreadcrumb = false,
+  kpiTegels = 0,
+  hoofdPanelen = 2,
+  zijPanelen = 2,
+}: {
+  label?: string;
+  /** Alleen in loading.tsx: de pagina zelf rendert de echte PageHeader. */
+  metBreadcrumb?: boolean;
+  kpiTegels?: number;
+  hoofdPanelen?: number;
+  zijPanelen?: number;
+}) {
+  return (
+    <>
+      {metBreadcrumb && (
+        <div className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+          <Skeleton className="h-7 w-7 rounded-md" />
+          <Skeleton className="mx-2 h-4 w-px" />
+          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-4 w-4" />
+          <Skeleton className="h-4 w-28" />
+        </div>
+      )}
+
+      <div
+        className="flex flex-1 flex-col gap-5 p-4 md:p-8"
+        role="status"
+        aria-live="polite"
+        aria-busy="true"
+      >
+        <span className="sr-only">{label}</span>
+
+        {/* Projectkop: naam + status, regel eronder, fase-tabs */}
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div className="flex min-w-0 flex-col gap-2">
+              <Skeleton className="h-8 w-80 max-w-full" />
+              <Skeleton className="h-4 w-64 max-w-full" />
+            </div>
+            <div className="flex gap-2">
+              <Skeleton className="h-10 w-36" />
+            </div>
+          </div>
+          <Skeleton className="h-11 w-full" />
+        </div>
+
+        <div className="@container/skelet">
+          <div className="grid items-start gap-5 @4xl/skelet:grid-cols-[minmax(0,1fr)_minmax(18rem,24rem)]">
+            <div className="flex min-w-0 flex-col gap-4">
+              {kpiTegels > 0 && (
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,12.5rem),1fr))] gap-3">
+                  {Array.from({ length: kpiTegels }).map((_, i) => (
+                    <div key={i} className="space-y-2 rounded-lg border bg-card p-4">
+                      <Skeleton className="h-3 w-20" />
+                      <Skeleton className="h-7 w-24" />
+                      <Skeleton className="h-3 w-full" />
+                    </div>
+                  ))}
+                </div>
+              )}
+              {Array.from({ length: hoofdPanelen }).map((_, i) => (
+                <PaneelSkeleton key={i} regels={3} />
+              ))}
+            </div>
+            <div className="flex min-w-0 flex-col gap-4">
+              {Array.from({ length: zijPanelen }).map((_, i) => (
+                <PaneelSkeleton key={i} regels={2} />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// Project Detail Skeleton (overzicht): kop, vier fasetegels, secties, zijkolom.
+export function ProjectDetailSkeleton() {
+  return <ProjectPaginaSkeleton kpiTegels={4} hoofdPanelen={1} zijPanelen={2} />;
 }
 
 // Project Kosten Skeleton
