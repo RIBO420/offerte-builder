@@ -17,8 +17,8 @@ const FUNCTIES: Record<VeldOpdrachtType, string> = {
   intro: 'appVoorkeuren:markeerIntro', afvoer: 'werkbezoek:meldAfvoer', segmentToevoegen: 'urenSegmenten:bevestigSegment', segmentWijzigen: 'urenSegmenten:updateSegment',
 };
 type TokenOphaler = (opties: { template: string }) => Promise<string | null>;
-interface Snapshot { wachtrij: VeldOpdracht[]; fout: string | null }
-const LEEG: Snapshot = { wachtrij: [], fout: null };
+interface Snapshot { wachtrij: VeldOpdracht[]; fout: string | null; online: boolean; laatstGesynctOp: number | null }
+const LEEG: Snapshot = { wachtrij: [], fout: null, online: true, laatstGesynctOp: null };
 
 /**
  * Eén store per account+organisatie. Alle gemounte hooks (Mijn dag heeft er ±7)
@@ -55,6 +55,7 @@ class VeldStore {
       const timer = setInterval(() => { if (this.online) void this.synchroniseer(); }, 30000);
       const stop = NetInfo.addEventListener(state => {
         this.online = state.isConnected !== false && state.isInternetReachable !== false;
+        if (this.snapshot.online !== this.online) this.zet({ online: this.online });
         if (this.online) void this.synchroniseer();
       });
       this.stoppen = () => { clearInterval(timer); stop(); };
@@ -120,8 +121,10 @@ class VeldStore {
         // nooit als conflict in de wachtrij blijven staan.
         vervaltBijConflict: opdracht => opdracht.type === 'intro',
       });
-      if (this.snapshot.fout && juisteSessie()) this.zet({ fout: null });
-      const na = new Set((await this.outbox.lees()).map(r => r.id));
+      const rest = await this.outbox.lees();
+      // Alles wat kon is verstuurd (alleen conflicten kunnen nog op de gebruiker wachten).
+      if (juisteSessie() && !rest.some(r => r.status === 'wacht')) this.zet({ fout: null, laatstGesynctOp: Date.now() });
+      const na = new Set(rest.map(r => r.id));
       for (const r of voor) if (r.type === 'foto' && !na.has(r.id)) await ruimVeldFotoOp(sleutel, r).catch(() => undefined);
     } catch (e) { if (juisteSessie()) this.zet({ fout: e instanceof Error ? e.message : 'Synchroniseren mislukt' }); }
     await this.vernieuw();
@@ -143,7 +146,7 @@ export function useVeldOpdracht() {
   const store = useMemo(() => userId && orgId ? storeVoor(orgId, userId) : null, [orgId, userId]);
   useLayoutEffect(() => { if (store) store.tokenOphaler = getToken as TokenOphaler; }, [store, getToken]);
   useEffect(() => store?.activeer(), [store]);
-  const { wachtrij, fout } = useSyncExternalStore(store?.abonneer ?? geenAbonnement, store?.lees ?? leeg, store?.lees ?? leeg);
+  const { wachtrij, fout, online, laatstGesynctOp } = useSyncExternalStore(store?.abonneer ?? geenAbonnement, store?.lees ?? leeg, store?.lees ?? leeg);
 
   const synchroniseer = useCallback(async () => { await store?.synchroniseer({ handmatig: true }); }, [store]);
 
@@ -175,5 +178,5 @@ export function useVeldOpdracht() {
     if (opdracht?.type === 'foto' && opdracht.status === 'conflict') await wisFotoCheckpoint(store.sleutel, opdracht.id).catch(() => undefined);
     await store.outbox.probeerOpnieuw(id); await store.vernieuw(); await store.synchroniseer({ handmatig: true });
   }, [store]);
-  return { verstuur, wachtrij, fout, synchroniseer, verwijder, probeerOpnieuw };
+  return { verstuur, wachtrij, fout, online, laatstGesynctOp, synchroniseer, verwijder, probeerOpnieuw };
 }

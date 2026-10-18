@@ -7,15 +7,6 @@
 // Auth hooks
 export { useAppAuth, type UseAuthReturn, type AuthState, type AuthActions } from './use-auth';
 
-// Offline sync hooks
-export {
-  useSyncStatus,
-  usePendingCount,
-  useFailedSyncItems,
-  useSyncQueue,
-  useNetworkStatus,
-} from './use-offline-sync';
-
 // Push notifications hook
 export {
   usePushNotifications,

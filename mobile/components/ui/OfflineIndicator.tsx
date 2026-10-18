@@ -1,12 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, Pressable, ActivityIndicator, type StyleProp, type ViewStyle } from 'react-native';
 import Animated, { useReducedMotion } from 'react-native-reanimated';
-import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
+import NetInfo from '@react-native-community/netinfo';
 import { Clock, CloudUpload, RefreshCw, Wifi, WifiOff } from 'lucide-react-native';
 import { tekst } from '../../theme/typography';
 import { hapticPatterns } from '../../theme/haptics';
 import { useVeldKleuren } from '../veld/BuitenModus';
-import { useSyncStatus } from '../../hooks/use-offline-sync';
+import { useVeldOpdracht } from '../../hooks/use-veld-opdracht';
 
 interface OfflineIndicatorProps {
   showWhenOnline?: boolean;
@@ -27,46 +27,38 @@ function formatTime(timestamp: number | null): string | null {
 
 /**
  * Rustige strook bovenaan een veldscherm: alleen zichtbaar zonder verbinding
- * (of met `showWhenOnline`). Toont wat er nog wacht en wanneer er laatst
- * gesynct is; online en zonder `showWhenOnline` rendert hij niets.
+ * (of met `showWhenOnline`). Toont wat er in de VeldOutbox nog wacht en wanneer
+ * die laatst leeg was; online en zonder `showWhenOnline` rendert hij niets.
  */
 export function OfflineIndicator({ showWhenOnline = false, style }: OfflineIndicatorProps) {
   const kleuren = useVeldKleuren();
   const rustig = useReducedMotion();
-  const [isConnected, setIsConnected] = useState<boolean | null>(true);
-
-  // Use the sync engine for pending count, last sync time, and force sync
-  const {
-    pendingCount,
-    lastSyncAt,
-    isSyncing,
-    forceSync,
-    isReady: syncReady,
-  } = useSyncStatus();
-
-  useEffect(() => {
-    const unsubscribe = NetInfo.addEventListener((state: NetInfoState) => {
-      setIsConnected(state.isConnected);
-    });
-
-    return () => unsubscribe();
-  }, []);
+  // Verbindingsstatus, wachtrij en "laatst gesynct" komen uit dezelfde gedeelde
+  // store als de invoerschermen: geen eigen NetInfo-listener of tweede wachtrij.
+  const { wachtrij, online: isConnected, laatstGesynctOp: lastSyncAt, synchroniseer } = useVeldOpdracht();
+  const pendingCount = wachtrij.filter(opdracht => opdracht.status === 'wacht').length;
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const handleRetry = useCallback(async () => {
     void hapticPatterns.tap();
+    setIsSyncing(true);
     try {
-      await forceSync();
+      // Verse verbindingsstatus: een herstelde verbinding start de sync via de store.
+      await NetInfo.refresh().catch(() => undefined);
+      await synchroniseer();
     } catch (error) {
-      console.warn('[OfflineIndicator] Force sync failed:', error);
+      console.warn('[OfflineIndicator] Synchroniseren mislukt:', error);
+    } finally {
+      setIsSyncing(false);
     }
-  }, [forceSync]);
+  }, [synchroniseer]);
 
   if (isConnected && !showWhenOnline) return null;
 
   const lastSyncFormatted = formatTime(lastSyncAt);
   const isOffline = !isConnected;
   const voor = isOffline ? kleuren.warning : kleuren.mutedForeground;
-  const toonDetails = (isOffline || pendingCount > 0) && syncReady;
+  const toonDetails = isOffline || pendingCount > 0;
   const StatusIcoon = isOffline ? WifiOff : Wifi;
 
   return (
@@ -123,7 +115,7 @@ export function OfflineIndicator({ showWhenOnline = false, style }: OfflineIndic
             </View>
           )}
 
-          {isOffline && pendingCount > 0 && (
+          {pendingCount > 0 && (
             <Pressable
               onPress={handleRetry}
               disabled={isSyncing}
