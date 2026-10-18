@@ -23,6 +23,10 @@ interface Regel {
 }
 const minuten = (tijd: string) => Number(tijd.slice(0, 2)) * 60 + Number(tijd.slice(3));
 const tijd = (waarde: number) => `${Math.floor(waarde / 60).toString().padStart(2, '0')}:${(waarde % 60).toString().padStart(2, '0')}`;
+/** Zelfde regel als de server (convex/veldLogica duurAfwijking): duurverschil > 15 min. */
+const isAfwijkend = (r: Regel) => !!(r.geplandeBeginTijd && r.geplandeEindTijd) && Math.abs((minuten(r.eindTijd) - minuten(r.beginTijd)) - (minuten(r.geplandeEindTijd!) - minuten(r.geplandeBeginTijd!))) > 15;
+/** Zonder reden of expliciet overslaan weigert de server het hele voorstel. */
+const redenOntbreekt = (r: Regel) => isAfwijkend(r) && !r.afwijkingReden.trim() && !r.afwijkingOvergeslagen;
 
 /** Bewerk uitsluitend nog niet bevestigde voorstellen; één atomaire opslag. */
 export function DagvoorstelEditor({ dag, datum, onOpgeslagen, onBewerken }: { dag: VeldDagData; datum: string; onOpgeslagen?: (melding: string) => void; onBewerken?: (open: boolean) => void }) {
@@ -95,6 +99,8 @@ export function DagvoorstelEditor({ dag, datum, onOpgeslagen, onBewerken }: { da
   const opslaan = async () => {
     if (!regels?.length || actief.current) return;
     if (regels.some(r => !isGeldigTijdvak(r.beginTijd, r.eindTijd))) { setFout('Controleer de begin- en eindtijden (HH:MM).'); return; }
+    const zonderReden = regels.findIndex(redenOntbreekt);
+    if (zonderReden >= 0) { setOpenIndex(zonderReden); return; }
     const payload = { datum, verwachteRevisie: revisie, segmenten: regels.map(r => ({ ...r, werkitemId: r.werkitemId || undefined, werksoort: r.categorie === 'anders' ? r.werksoort : undefined, notitie: r.notitie.trim() || undefined, afwijkingReden: r.afwijkingReden.trim() || undefined })) };
     const serialized = JSON.stringify(payload);
     if (poging.current?.payload !== serialized) poging.current = { payload: serialized, sleutel: Crypto.randomUUID() };
@@ -116,6 +122,7 @@ export function DagvoorstelEditor({ dag, datum, onOpgeslagen, onBewerken }: { da
   if (!regels) return <View style={{ gap: 8 }}>{melding && <View accessibilityLiveRegion="polite"><Melding toon="succes" icoon={Check} tekst={melding} /></View>}<Button title="Aanpassen" variant="ghost" disabled={bezig} onPress={openen} icon={<SlidersHorizontal size={16} color={kleuren.foreground} strokeWidth={2} />} />{foutRegel}</View>;
   const klusNaam = (id?: string) => { const stop = dag.stops.find(s => String(s.werkitemId) === id); return stop ? stop.klantNaam ?? stop.naam : null; };
   const kiesRegel = kiezer ? regels[kiezer.index] : null;
+  const redenNodig = regels.flatMap((r, i) => redenOntbreekt(r) ? [i] : []);
   return <View style={{ gap: 12 }}>
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
       <Text accessibilityRole="header" style={[tekst.kop, { color: kleuren.foreground, flex: 1 }]}>Dagvoorstel aanpassen</Text>
@@ -125,7 +132,7 @@ export function DagvoorstelEditor({ dag, datum, onOpgeslagen, onBewerken }: { da
     {(dag.revisie ?? 0) !== revisie && <Melding toon="wachten" tekst="De dag is intussen gewijzigd. Sluit en open het voorstel opnieuw voordat je opslaat." />}
     <View>
       {regels.map((r, index) => {
-        const afwijkend = r.geplandeBeginTijd && r.geplandeEindTijd && Math.abs((minuten(r.eindTijd) - minuten(r.beginTijd)) - (minuten(r.geplandeEindTijd) - minuten(r.geplandeBeginTijd))) > 15;
+        const afwijkend = isAfwijkend(r);
         const open = openIndex === index;
         const naam = klusNaam(r.werkitemId) ?? CATEGORIE_LABELS[r.categorie];
         const Pijl = open ? ChevronUp : ChevronDown;
@@ -135,7 +142,7 @@ export function DagvoorstelEditor({ dag, datum, onOpgeslagen, onBewerken }: { da
             <View style={{ width: 4, height: 28, borderRadius: 2, backgroundColor: categorieKleur(kleuren, r.categorie) }} />
             <Text style={[tekst.callout, tekst.cijfers, { color: kleuren.foreground, width: 104 }]}>{r.beginTijd}–{r.eindTijd}</Text>
             <Text style={[tekst.callout, { color: kleuren.mutedForeground, flex: 1 }]} numberOfLines={1}>{naam}</Text>
-            {afwijkend && !r.afwijkingReden.trim() && !r.afwijkingOvergeslagen && <View accessibilityLabel="Reden nodig" style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: kleuren.warning }} />}
+            {redenOntbreekt(r) && <View accessibilityLabel="Reden nodig" style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: kleuren.warning }} />}
             <Pijl size={18} color={kleuren.mutedForeground} strokeWidth={2} />
           </Drukvlak>
           {open && <View style={{ gap: 12 }}>
@@ -179,8 +186,11 @@ export function DagvoorstelEditor({ dag, datum, onOpgeslagen, onBewerken }: { da
       })}
     </View>
     {foutRegel}
+    {redenNodig.length > 0 && <Drukvlak onPress={() => setOpenIndex(redenNodig[0])} accessibilityRole="button" accessibilityHint="Opent het blok" style={{ borderRadius: 12 }}>
+      <Melding toon="wachten" tekst={`${redenNodig.length === 1 ? `Blok ${redenNodig[0] + 1} wijkt` : `Blokken ${redenNodig.map(i => i + 1).join(', ')} wijken`} meer dan 15 minuten af van de planning. Geef een reden of kies 'Reden nu overslaan' om op te slaan.`} />
+    </Drukvlak>}
     <View style={{ flexDirection: 'row', gap: 8 }}>
-      <View style={{ flex: 1 }}><Button title="Opslaan" loading={bezig} disabled={!regels.length || (dag.revisie ?? 0) !== revisie} onPress={opslaan} fullWidth /></View>
+      <View style={{ flex: 1 }}><Button title="Opslaan" loading={bezig} disabled={!regels.length || (dag.revisie ?? 0) !== revisie || redenNodig.length > 0} onPress={opslaan} fullWidth /></View>
       <View style={{ flex: 1 }}><Button title="Sluiten" variant="ghost" disabled={bezig} onPress={() => { setRegels(null); setOpenIndex(null); }} accessibilityHint="Je concept blijft op dit toestel bewaard" fullWidth /></View>
     </View>
     <View style={{ alignSelf: 'center' }}>
