@@ -20,9 +20,11 @@ import type { Id } from "../../../convex/_generated/dataModel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SectiePaneel } from "@/components/ui/sectie-paneel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { showErrorToast, showInfoToast, showSuccessToast } from "@/lib/toast-utils";
+import { showErrorToast, showSuccessToast } from "@/lib/toast-utils";
+import { getMutationErrorMessage } from "@/lib/error-handling";
 import { logger } from "@/lib/logger";
-import { KostenEntryForm, type KostenEntryData } from "./kosten-entry-form";
+import { KostenEntryForm } from "./kosten-entry-form";
+import type { CreateArgs } from "./kosten/boeken";
 import { KostenAfwijkingChart, KostenVergelijkingChart } from "./kosten-vergelijking-chart";
 import { KostenStandPaneel, NietGeboektSignaal } from "./kosten/stand-paneel";
 import { PerSoort } from "./kosten/per-soort";
@@ -128,6 +130,7 @@ export const ProjectKostenDashboard = memo(function ProjectKostenDashboard({
   });
 
   const deleteKost = useMutation(api.projectKosten.remove);
+  const createKost = useMutation(api.projectKosten.create);
 
   const budget = budgetVergelijking?.data ?? null;
 
@@ -156,21 +159,24 @@ export const ProjectKostenDashboard = memo(function ProjectKostenDashboard({
     return [...geboekt, ...gepland];
   }, [kostenPerScope, budget]);
 
-  const handleSubmit = useCallback(async (_data: KostenEntryData) => {
-    setIsSubmitting(true);
-    try {
-      showInfoToast(
-        "Kosten worden automatisch berekend uit uren-, machine- en materiaalregistraties. " +
-          "Gebruik de bijbehorende modules om nieuwe kosten toe te voegen."
-      );
-      toevoegen.sluiten();
-    } catch (error) {
-      showErrorToast("Fout bij toevoegen kostenpost");
-      logger.error("Toevoegen kostenpost mislukt", error, { module: "project/kosten" });
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [toevoegen]);
+  const handleSubmit = useCallback(
+    async (args: CreateArgs) => {
+      setIsSubmitting(true);
+      try {
+        await createKost(args);
+        showSuccessToast(args.type === "materiaal" ? "Materiaal geboekt" : "Machine-inzet geboekt");
+        toevoegen.sluiten();
+        return true;
+      } catch (error) {
+        showErrorToast(getMutationErrorMessage(error));
+        logger.error("Kosten boeken mislukt", error, { module: "project/kosten" });
+        return false;
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [createKost, toevoegen]
+  );
 
   const handleVerwijder = useCallback(
     async (post: PostVerwijderen) => {
@@ -307,9 +313,10 @@ export const ProjectKostenDashboard = memo(function ProjectKostenDashboard({
         onOpenChange={(open) => {
           if (!open) toevoegen.sluiten();
         }}
+        projectId={id}
+        soort={toevoegen.soort}
         onSubmit={handleSubmit}
         isLoading={isSubmitting}
-        initialData={toevoegen.soort ? { type: toevoegen.soort } : undefined}
       />
     </div>
   );
