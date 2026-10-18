@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useCallback, useSyncExternalStore } from "react";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useCurrentUser } from "./use-current-user";
 import { useIsAdmin } from "./use-users";
@@ -18,6 +18,29 @@ export interface OnboardingStep {
   completed: boolean;
   href: string;
   adminOnly?: boolean;
+}
+
+/**
+ * Wanneer de onboarding in beeld komt. Puur, zodat het testbaar is.
+ *
+ * Het welkomstvenster is voor een leeg account: zodra er bedrijfsgegevens,
+ * een klant of een offerte is, komt het niet meer (ook niet op een nieuw
+ * apparaat). "Gezien" en "weggeklikt" staan op het account; localStorage is
+ * alleen een snelle cache voor deze browser.
+ */
+export function onboardingZichtbaarheid(input: {
+  ingelogd: boolean;
+  laden: boolean;
+  introGezien: boolean;
+  checklistVerborgen: boolean;
+  checklistKlaar: boolean;
+  heeftAlIetsIngevuld: boolean;
+}): { welkom: boolean; checklist: boolean } {
+  const klaarVoorBeslissing = input.ingelogd && !input.laden;
+  return {
+    welkom: klaarVoorBeslissing && !input.introGezien && !input.heeftAlIetsIngevuld,
+    checklist: klaarVoorBeslissing && !input.checklistVerborgen && !input.checklistKlaar,
+  };
 }
 
 // Custom store for localStorage that handles SSR
@@ -74,6 +97,7 @@ const completedStore = createLocalStorageStore(ONBOARDING_COMPLETED_KEY);
 export function useOnboarding() {
   const { user, clerkUser } = useCurrentUser();
   const isAdmin = useIsAdmin();
+  const markeerOnboarding = useMutation(api.users.markeerOnboarding);
 
   // Use useSyncExternalStore for localStorage to avoid hydration issues
   const welcomeShown = useSyncExternalStore(
@@ -209,14 +233,16 @@ export function useOnboarding() {
     return false;
   }, [user, instellingen, klantenData, offertesData, isAdmin, medewerkers]);
 
-  // Actions
+  // Actions — eerst lokaal (direct dicht), dan op het account.
   const markWelcomeShown = useCallback(() => {
     welcomeShownStore.setValue(true);
-  }, []);
+    markeerOnboarding({ onderdeel: "intro" }).catch(() => {});
+  }, [markeerOnboarding]);
 
   const dismissOnboarding = useCallback(() => {
     dismissedStore.setValue(true);
-  }, []);
+    markeerOnboarding({ onderdeel: "checklist" }).catch(() => {});
+  }, [markeerOnboarding]);
 
   const resetOnboarding = useCallback(() => {
     welcomeShownStore.setValue(false);
@@ -224,11 +250,18 @@ export function useOnboarding() {
     completedStore.setValue(false);
   }, []);
 
-  // Determine if we should show onboarding components
-  // Only show after hydration (check window is available)
+  // Alleen na hydratatie beslissen (window bestaat).
   const isClient = typeof window !== "undefined";
-  const shouldShowWelcome = isClient && !welcomeShown && !isLoading && !!user;
-  const shouldShowChecklist = isClient && !dismissed && !isComplete && !isLoading && !!user;
+  const zichtbaar = onboardingZichtbaarheid({
+    ingelogd: isClient && !!user,
+    laden: isLoading,
+    introGezien: welcomeShown || !!user?.introGezienOp,
+    checklistVerborgen: dismissed || !!user?.onboardingVerborgenOp,
+    checklistKlaar: isComplete,
+    heeftAlIetsIngevuld: isProfileComplete || !!hasKlant || !!hasOfferte,
+  });
+  const shouldShowWelcome = zichtbaar.welkom;
+  const shouldShowChecklist = zichtbaar.checklist;
 
   return {
     // State

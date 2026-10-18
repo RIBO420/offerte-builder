@@ -445,6 +445,21 @@ export const updateProfile = mutation({
   },
 });
 
+// Onboarding afvinken op het account: het welkomstvenster ("intro") of de
+// checklist "Aan de slag" ("checklist"). Idempotent; het eerste moment blijft.
+export const markeerOnboarding = mutation({
+  args: { onderdeel: v.union(v.literal("intro"), v.literal("checklist")) },
+  handler: async (ctx, args) => {
+    const user = await requireAuth(ctx);
+    if (args.onderdeel === "intro") {
+      if (!user.introGezienOp) await ctx.db.patch(user._id, { introGezienOp: Date.now() });
+    } else if (!user.onboardingVerborgenOp) {
+      await ctx.db.patch(user._id, { onboardingVerborgenOp: Date.now() });
+    }
+    return null;
+  },
+});
+
 // Initialize missing defaults for the active organisation.
 //
 // Wordt bij elke paginalading aangeroepen (use-current-user.ts), dus houdt hij

@@ -61,6 +61,11 @@ export default defineSchema({
     // inloggen (de OrgGate in de app regelt de rest). Ontbreekt `orgId`, dan is
     // dat "nog niet gestempeld" — nooit "lid van alles".
     orgId: v.optional(v.id("organisaties")),
+    // Onboarding: wanneer dit account het welkomstvenster sloot en de
+    // checklist "Aan de slag" wegklikte. Op het account (niet in localStorage)
+    // zodat het niet op elk nieuw apparaat of in elk privévenster terugkomt.
+    introGezienOp: v.optional(v.number()),
+    onboardingVerborgenOp: v.optional(v.number()),
     createdAt: v.number(),
   })
     .index("by_clerk_id", ["clerkId"])
