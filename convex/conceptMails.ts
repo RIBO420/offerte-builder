@@ -565,6 +565,12 @@ export const verstuurConceptMail = internalAction({
 
     const fromEmail = process.env.RESEND_FROM_EMAIL || "noreply@toptuinen.nl";
 
+    // Offertemail: algemene voorwaarden automatisch als bijlage (K7)
+    const voorwaarden =
+      concept.event === "offerte_verzonden" && concept.orgId
+        ? await ctx.runQuery(internal.instellingen.getVoorwaardenForOrg, { orgId: concept.orgId })
+        : null;
+
     try {
       const response = await fetch("https://api.resend.com/emails", {
         method: "POST",
@@ -578,6 +584,9 @@ export const verstuurConceptMail = internalAction({
           subject: concept.onderwerp,
           html,
           reply_to: bedrijfsEmail || undefined,
+          ...(voorwaarden?.url
+            ? { attachments: [{ filename: voorwaarden.naam, path: voorwaarden.url }] }
+            : {}),
         }),
       });
 

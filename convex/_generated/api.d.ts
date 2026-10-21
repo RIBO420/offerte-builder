@@ -151,6 +151,7 @@ import type * as projectKosten from "../projectKosten.js";
 import type * as projectRapportages from "../projectRapportages.js";
 import type * as projecten from "../projecten.js";
 import type * as protocollen from "../protocollen.js";
+import type * as publiekeOfferte from "../publiekeOfferte.js";
 import type * as rapportage from "../rapportage.js";
 import type * as reistijdLogica from "../reistijdLogica.js";
 import type * as roles from "../roles.js";
@@ -350,6 +351,7 @@ declare const fullApi: ApiFromModules<{
   projectRapportages: typeof projectRapportages;
   projecten: typeof projecten;
   protocollen: typeof protocollen;
+  publiekeOfferte: typeof publiekeOfferte;
   rapportage: typeof rapportage;
   reistijdLogica: typeof reistijdLogica;
   roles: typeof roles;

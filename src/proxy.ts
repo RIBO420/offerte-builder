@@ -5,6 +5,8 @@ const isPublicRoute = createRouteMatcher([
   "/sso-callback(.*)",
   "/api/webhooks(.*)",
   "/configurator(.*)",
+  // Openbare offertelink (alleen lezen, token is de sleutel) — publiekeOfferte.ts
+  "/offerte/(.*)",
   "/monitoring",
   "/manifest.json",
   // Klant invitation accept page — reached via a Clerk invitation ticket while

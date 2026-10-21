@@ -124,6 +124,8 @@ async function sendViaResend(params: {
   html: string;
   fromName: string;
   replyTo?: string;
+  /** Bijlagen via URL (Resend haalt ze zelf op), bv. de algemene voorwaarden */
+  bijlagen?: { filename: string; path: string }[];
 }): Promise<string | undefined> {
   // Mail-sandbox-guard (fail-closed): zonder EMAIL_VERZENDEN_ACTIEF="true"
   // wordt er niets naar Resend gestuurd, alleen gelogd.
@@ -154,6 +156,7 @@ async function sendViaResend(params: {
       subject: params.subject,
       html: params.html,
       reply_to: params.replyTo || undefined,
+      ...(params.bijlagen?.length ? { attachments: params.bijlagen } : {}),
     }),
   });
 
@@ -396,6 +399,11 @@ export const sendOfferteNotification = internalAction({
       ctaLabel: "Offerte bekijken",
     });
 
+    // Algemene voorwaarden automatisch als bijlage (K7, HERO-nabouw)
+    const voorwaarden = offerte.orgId
+      ? await ctx.runQuery(internal.instellingen.getVoorwaardenForOrg, { orgId: offerte.orgId })
+      : null;
+
     try {
       const resendId = await sendViaResend({
         to: klant.email,
@@ -403,6 +411,7 @@ export const sendOfferteNotification = internalAction({
         html,
         fromName: bedrijf.naam,
         replyTo: bedrijf.email,
+        bijlagen: voorwaarden?.url ? [{ filename: voorwaarden.naam, path: voorwaarden.url }] : undefined,
       });
 
       console.info(

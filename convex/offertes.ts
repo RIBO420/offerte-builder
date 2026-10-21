@@ -7,7 +7,7 @@ import {
   type QueryCtx,
   type MutationCtx,
 } from "./_generated/server";
-import { AuthError, getOwnedKlant, getOwnedOfferte, requireOrg, requireOrgContext, requireOrgId } from "./auth";
+import { AuthError, generateSecureToken, getOwnedKlant, getOwnedOfferte, requireOrg, requireOrgContext, requireOrgId } from "./auth";
 import { requireNotViewer, assertKanNaarKlantVersturen } from "./roles";
 import { internal } from "./_generated/api";
 import { upgradeKlantPipeline } from "./pipelineHelpers";
@@ -1449,6 +1449,8 @@ export const updateStatus = mutation({
 
     if (args.status === "verzonden") {
       updates.verzondenAt = now;
+      // Openbare offertelink voor klanten zonder portaal (publiekeOfferte.ts)
+      if (!oldOfferte.shareToken) updates.shareToken = generateSecureToken();
       // Vaste teksten vastleggen met ingevulde velden (HERO-nabouw fase 2).
       // Een leeg of onbekend veld houdt het versturen tegen. Opnieuw
       // versturen na accepteren/afwijzen houdt de bestaande momentopname.
