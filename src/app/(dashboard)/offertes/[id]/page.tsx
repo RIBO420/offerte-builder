@@ -407,6 +407,8 @@ export default function OfferteDetailPage({
         open={showTemplateDialog}
         onOpenChange={setShowTemplateDialog}
         offerte={{
+          _id: offerte._id,
+          bron: offerte.bron,
           type: offerte.type,
           scopes: offerte.scopes,
           scopeData: offerte.scopeData as Record<string, unknown> | undefined,

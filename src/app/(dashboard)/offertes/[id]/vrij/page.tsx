@@ -13,6 +13,7 @@ import {
   VrijeRegelEditor,
   Overzichtsblok,
   TekstblokKiezer,
+  PostenOvernemen,
   type VrijeTeksten,
 } from "@/components/offerte/vrije-builder";
 import { KlantKoppeling } from "@/components/offerte/klant-koppeling";
@@ -230,6 +231,13 @@ function VrijeOfferteEditor({
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="space-y-6">
+          <div className="flex justify-end">
+            <PostenOvernemen
+              offerteId={offerteId}
+              disabled={vergrendeld}
+              onOvernemen={(nieuw) => setRegels((huidig) => [...huidig, ...nieuw])}
+            />
+          </div>
           <VrijeRegelEditor regels={regels} onChange={setRegels} />
           <TekstblokKiezer
             waarde={teksten}

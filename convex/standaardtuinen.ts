@@ -6,6 +6,7 @@ import { reserveerOfferteNummer } from "./lib/offerteNummer";
 import { haalStandaardTeksten } from "./tekstblokken";
 import { naarVrijeTeksten, offerteDocumentSoort } from "./lib/offerteTekst";
 import { standaardTermijnschemaVoor } from "./lib/termijnFacturatie";
+import { berekenVrijeTotalen } from "./vrijeOfferteBerekening";
 
 /**
  * Pakketten ("standaardtuinen") zijn sjablonen waarmee je een offerte voorgevuld
@@ -232,17 +233,26 @@ export const createOfferteFromTemplate = mutation({
     const offerteNummer =
       args.offerteNummer ?? (await reserveerOfferteNummer(ctx, org._id));
 
-    const totalen = {
-      materiaalkosten: 0,
-      arbeidskosten: 0,
-      totaalUren: 0,
-      subtotaal: 0,
-      marge: 0,
-      margePercentage: 0,
-      totaalExBtw: 0,
-      btw: 0,
-      totaalInclBtw: 0,
-    };
+    // Sjabloon met regels (uit een vrije offerte): een vrije offerte met die
+    // regels, nieuwe id's, totalen doorgerekend (HERO-nabouw fase 6)
+    const sjabloonRegels = (template.regels ?? []).map((r, i) => ({
+      ...r,
+      id: `${now.toString(36)}-${i}`,
+    }));
+    const totalen =
+      sjabloonRegels.length > 0
+        ? berekenVrijeTotalen(sjabloonRegels)
+        : {
+            materiaalkosten: 0,
+            arbeidskosten: 0,
+            totaalUren: 0,
+            subtotaal: 0,
+            marge: 0,
+            margePercentage: 0,
+            totaalExBtw: 0,
+            btw: 0,
+            totaalInclBtw: 0,
+          };
 
     const vrijeTeksten = naarVrijeTeksten(
       await haalStandaardTeksten(ctx, org._id, offerteDocumentSoort(template.type))
@@ -263,7 +273,7 @@ export const createOfferteFromTemplate = mutation({
       ),
       // Sjabloon-offertes zijn scope-offertes: dezelfde bewerkroute als de
       // wizard (PRD §2.5b onderscheidt alleen wizard vs. vrij).
-      bron: args.bron ?? "wizard",
+      bron: sjabloonRegels.length > 0 ? "vrij" : (args.bron ?? "wizard"),
       offerteNummer,
       klant,
       klantId: args.klantId,
@@ -274,7 +284,7 @@ export const createOfferteFromTemplate = mutation({
       scopes: template.scopes,
       scopeData: template.defaultWaarden,
       totalen,
-      regels: [],
+      regels: sjabloonRegels,
       createdAt: now,
       updatedAt: now,
     });

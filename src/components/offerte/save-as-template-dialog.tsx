@@ -26,6 +26,9 @@ import {
 import { Loader2, Save } from "lucide-react";
 import { useStandaardtuinen } from "@/hooks/use-standaardtuinen";
 import { showSuccessToast, showErrorToast } from "@/lib/toast-utils";
+import { useMutation } from "convex/react";
+import { api } from "@convex/_generated/api";
+import type { Id } from "@convex/_generated/dataModel";
 
 // Zod schema
 const templateSchema = z.object({
@@ -39,6 +42,9 @@ interface SaveAsTemplateDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   offerte: {
+    /** Vrije offerte: het sjabloon bewaart de regels zelf (HERO-nabouw) */
+    _id?: string;
+    bron?: "wizard" | "vrij";
     type: "aanleg" | "onderhoud";
     scopes?: string[];
     scopeData?: Record<string, unknown>;
@@ -52,6 +58,8 @@ export function SaveAsTemplateDialog({
   offerte,
 }: SaveAsTemplateDialogProps) {
   const { create } = useStandaardtuinen();
+  const vanVrijeOfferte = useMutation(api.offertePosten.sjabloonVanOfferte);
+  const metRegels = offerte.bron === "vrij" && !!offerte._id;
   const [isSaving, setIsSaving] = useState(false);
 
   const form = useForm<TemplateFormData>({
@@ -65,13 +73,21 @@ export function SaveAsTemplateDialog({
   const handleFormSubmit = async (data: TemplateFormData) => {
     setIsSaving(true);
     try {
-      await create({
-        naam: data.naam.trim(),
-        omschrijving: data.omschrijving?.trim() || undefined,
-        type: offerte.type,
-        scopes: offerte.scopes || [],
-        defaultWaarden: offerte.scopeData || {},
-      });
+      if (metRegels) {
+        await vanVrijeOfferte({
+          offerteId: offerte._id as Id<"offertes">,
+          naam: data.naam.trim(),
+          omschrijving: data.omschrijving?.trim() || undefined,
+        });
+      } else {
+        await create({
+          naam: data.naam.trim(),
+          omschrijving: data.omschrijving?.trim() || undefined,
+          type: offerte.type,
+          scopes: offerte.scopes || [],
+          defaultWaarden: offerte.scopeData || {},
+        });
+      }
 
       showSuccessToast("Template opgeslagen");
       onOpenChange(false);
@@ -96,8 +112,9 @@ export function SaveAsTemplateDialog({
         <DialogHeader>
           <DialogTitle>Opslaan als template</DialogTitle>
           <DialogDescription>
-            Sla deze offerte op als herbruikbare template. De klantgegevens
-            worden niet meegenomen, alleen de scopes en instellingen.
+            {metRegels
+              ? "Sla de regels van deze offerte op als sjabloon. De klantgegevens gaan niet mee."
+              : "Sla deze offerte op als herbruikbare template. De klantgegevens worden niet meegenomen, alleen de scopes en instellingen."}
           </DialogDescription>
         </DialogHeader>
 

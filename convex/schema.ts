@@ -27,6 +27,33 @@ import {
  * TODO: Standardize these in a future migration.
  */
 
+// Eén offerteregel; ook gebruikt door sjablonen met regels (HERO-nabouw fase 6)
+const offerteRegelValidator = v.object({
+  id: v.string(),
+  scope: v.string(),
+  omschrijving: v.string(),
+  eenheid: v.string(),
+  hoeveelheid: v.number(),
+  prijsPerEenheid: v.number(),
+  totaal: v.number(),
+  type: v.union(
+    v.literal("materiaal"),
+    v.literal("arbeid"),
+    v.literal("machine")
+  ),
+  margePercentage: v.optional(v.number()), // Override marge per regel
+  interneNotitie: v.optional(v.string()), // Interne notitie, niet zichtbaar voor klant
+  optioneel: v.optional(v.boolean()), // Optionele post — klant kan aan/uit zetten
+  // ── Vrije builder (route 2, PRD §2.5b) — ADDITIEF ──
+  // Bij vrije regels is prijsPerEenheid de VERKOOPprijs per eenheid;
+  // inkoopprijsPerEenheid + margePercentage voeden het overzichtsblok.
+  inkoopprijsPerEenheid: v.optional(v.number()),
+  btwCode: v.optional(v.union(v.literal(9), v.literal(21))), // btw per regel
+  kortingPercentage: v.optional(v.number()), // korting per regel (op verkoop)
+  productId: v.optional(v.id("producten")), // herkomst artikel-picker
+  prijsOpRegel: v.optional(v.boolean()), // €0-inkoop: geen marge-berekening
+});
+
 export default defineSchema({
   // Gebruikers (via Clerk, alleen referentie)
   // Role-based access control (RBAC) — 7-role model:
@@ -327,31 +354,7 @@ export default defineSchema({
 
     // Regels/posten
     regels: v.array(
-      v.object({
-        id: v.string(),
-        scope: v.string(),
-        omschrijving: v.string(),
-        eenheid: v.string(),
-        hoeveelheid: v.number(),
-        prijsPerEenheid: v.number(),
-        totaal: v.number(),
-        type: v.union(
-          v.literal("materiaal"),
-          v.literal("arbeid"),
-          v.literal("machine")
-        ),
-        margePercentage: v.optional(v.number()), // Override marge per regel
-        interneNotitie: v.optional(v.string()), // Interne notitie, niet zichtbaar voor klant
-        optioneel: v.optional(v.boolean()), // Optionele post — klant kan aan/uit zetten
-        // ── Vrije builder (route 2, PRD §2.5b) — ADDITIEF ──
-        // Bij vrije regels is prijsPerEenheid de VERKOOPprijs per eenheid;
-        // inkoopprijsPerEenheid + margePercentage voeden het overzichtsblok.
-        inkoopprijsPerEenheid: v.optional(v.number()),
-        btwCode: v.optional(v.union(v.literal(9), v.literal(21))), // btw per regel
-        kortingPercentage: v.optional(v.number()), // korting per regel (op verkoop)
-        productId: v.optional(v.id("producten")), // herkomst artikel-picker
-        prijsOpRegel: v.optional(v.boolean()), // €0-inkoop: geen marge-berekening
-      })
+      offerteRegelValidator
     ),
 
     // Catalogus-bouwsteenregels onderhoud (PRD §2.5a + bijlage A) — ADDITIEF
@@ -722,6 +725,8 @@ export default defineSchema({
     defaultWaarden: v.optional(
       v.union(aanlegScopeDataValidator, onderhoudScopeDataValidator)
     ),
+    // Sjabloon uit een vrije offerte (HERO-nabouw fase 6): de regels zelf
+    regels: v.optional(v.array(offerteRegelValidator)),
   })
     .index("by_org", ["orgId"]),
 
