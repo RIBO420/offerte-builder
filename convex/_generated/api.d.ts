@@ -40,6 +40,7 @@ import type * as dashboard from "../dashboard.js";
 import type * as debiteuren from "../debiteuren.js";
 import type * as debiteurenLogica from "../debiteurenLogica.js";
 import type * as demoSeed from "../demoSeed.js";
+import type * as documenten from "../documenten.js";
 import type * as emailLogs from "../emailLogs.js";
 import type * as emailTemplates from "../emailTemplates.js";
 import type * as export_ from "../export.js";
@@ -242,6 +243,7 @@ declare const fullApi: ApiFromModules<{
   debiteuren: typeof debiteuren;
   debiteurenLogica: typeof debiteurenLogica;
   demoSeed: typeof demoSeed;
+  documenten: typeof documenten;
   emailLogs: typeof emailLogs;
   emailTemplates: typeof emailTemplates;
   export: typeof export_;

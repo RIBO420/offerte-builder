@@ -43,6 +43,7 @@ interface DocumentTekstEditorProps {
 
 const GROEP_VOLGORDE: PlaceholderGroep[] = [
   "Klant",
+  "Leverancier",
   "Document",
   "Offerte",
   "Factuur",

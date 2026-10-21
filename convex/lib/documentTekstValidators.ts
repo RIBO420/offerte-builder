@@ -15,6 +15,9 @@ export const DOCUMENT_SOORT_WAARDEN = [
   "termijnfactuur",
   "eindfactuur",
   "creditnota",
+  "orderbevestiging",
+  "bestelformulier",
+  "leveringsbon",
 ] as const;
 
 export const documentSoortValidator = v.union(
@@ -24,5 +27,8 @@ export const documentSoortValidator = v.union(
   v.literal("factuur_onderhoud"),
   v.literal("termijnfactuur"),
   v.literal("eindfactuur"),
-  v.literal("creditnota")
+  v.literal("creditnota"),
+  v.literal("orderbevestiging"),
+  v.literal("bestelformulier"),
+  v.literal("leveringsbon")
 );

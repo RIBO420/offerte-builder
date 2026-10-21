@@ -15,6 +15,8 @@ export interface StandaardTekst {
   positie: "inleiding" | "afsluiting";
   naam: string;
   inhoud: string;
+  /** false = extra keuze naast de standaard (bv. prijsaanvraag, K9) */
+  standaard?: false;
 }
 
 const OFFERTE_INLEIDING = `Beste {{klant.naam}},
@@ -139,7 +141,7 @@ Hartelijk dank voor uw vertrouwen en uw opdracht. Wij hebben met plezier de onde
     naam: "Termijnfactuur – inleiding",
     inhoud: `Beste {{klant.naam}},
 
-Zoals afgesproken in onze offerte {{factuur.referentie}} ontvangt u hierbij de factuur voor de volgende termijn.`,
+Zoals afgesproken in onze offerte {{factuur.referentie}} ontvangt u hierbij de factuur voor {{termijn.omschrijving}} ({{termijn.percentage}}% van het offertebedrag).`,
   },
   {
     documentSoort: "termijnfactuur",
@@ -178,5 +180,69 @@ Zoals afgesproken ontvangt u hierbij de creditfactuur voor onze factuur {{factuu
 Met groene groet,
 
 {{medewerker.naam}}`,
+  },
+  {
+    documentSoort: "orderbevestiging",
+    positie: "inleiding",
+    naam: "Orderbevestiging – inleiding",
+    inhoud: `Beste {{klant.naam}},
+
+Hartelijk dank voor uw opdracht en het vertrouwen dat u in ons stelt. Conform onze offerte {{document.referentie}} leveren wij de volgende diensten en/of producten:`,
+  },
+  {
+    documentSoort: "orderbevestiging",
+    positie: "afsluiting",
+    naam: "Orderbevestiging – afsluiting",
+    inhoud: `Wij zorgen voor een zorgvuldige afhandeling en kijken ernaar uit om samen aan de slag te gaan. Gaat u akkoord met deze orderbevestiging? Onderteken deze dan en stuur hem per e-mail of post aan ons terug.
+
+Met groene groet,
+
+{{medewerker.naam}}
+
+________________________        ___________________________
+Plaats / datum                  Uw handtekening`,
+  },
+  {
+    documentSoort: "bestelformulier",
+    positie: "inleiding",
+    naam: "Bestelformulier – bestellen",
+    inhoud: `Geachte heer/mevrouw,
+
+Graag bestellen wij bij u de onderstaande artikelen. Wilt u de bestelling en de leverdatum aan ons bevestigen via {{bedrijf.email}}?`,
+  },
+  {
+    documentSoort: "bestelformulier",
+    positie: "inleiding",
+    naam: "Bestelformulier – prijsaanvraag",
+    standaard: false,
+    inhoud: `Geachte heer/mevrouw,
+
+Graag ontvangen wij van u een vrijblijvende prijsopgave voor de onderstaande artikelen.`,
+  },
+  {
+    documentSoort: "bestelformulier",
+    positie: "afsluiting",
+    naam: "Bestelformulier – afsluiting",
+    inhoud: `Met vriendelijke groet,
+
+{{medewerker.naam}}
+{{bedrijf.naam}}`,
+  },
+  {
+    documentSoort: "leveringsbon",
+    positie: "inleiding",
+    naam: "Leveringsbon – inleiding",
+    inhoud: `Beste {{klant.naam}},
+
+Zoals afgesproken leveren wij de volgende goederen bij u af:`,
+  },
+  {
+    documentSoort: "leveringsbon",
+    positie: "afsluiting",
+    naam: "Leveringsbon – afsluiting",
+    inhoud: `Hierbij bevestig ik dat de goederen correct zijn ontvangen.
+
+__________________________________________________
+Datum, naam en handtekening`,
   },
 ];

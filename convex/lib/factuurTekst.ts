@@ -63,6 +63,11 @@ export async function bouwFactuurTekstWaarden(
       datum: factuur.factuurdatum,
       bedragInclBtw: factuur.totaalInclBtw,
     },
+    termijn: {
+      nummer: factuur.deelfactuurNummer,
+      label: factuur.deelfactuurLabel,
+      percentage: factuur.deelfactuurPercentage,
+    },
     factuur: {
       vervaldatum: factuur.vervaldatum,
       // Creditfactuur verwijst naar de originele factuur, de rest naar de offerte

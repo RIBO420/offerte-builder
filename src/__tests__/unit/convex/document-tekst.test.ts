@@ -95,15 +95,23 @@ describe("bouwTekstWaarden", () => {
 });
 
 describe("startset (standaardteksten.md deel C)", () => {
-  it("elke soort heeft precies één inleiding en één afsluiting", () => {
+  it("elke soort heeft precies één standaard inleiding en afsluiting", () => {
     for (const soort of DOCUMENT_SOORTEN) {
       for (const positie of ["inleiding", "afsluiting"] as const) {
         expect(
-          STANDAARDTEKSTEN.filter((t) => t.documentSoort === soort && t.positie === positie),
+          STANDAARDTEKSTEN.filter(
+            (t) => t.documentSoort === soort && t.positie === positie && t.standaard !== false
+          ),
           `${soort} ${positie}`
         ).toHaveLength(1);
       }
     }
+  });
+
+  it("het bestelformulier heeft ook een prijsaanvraag als extra keuze (K9)", () => {
+    expect(
+      STANDAARDTEKSTEN.find((t) => t.naam === "Bestelformulier – prijsaanvraag")?.standaard
+    ).toBe(false);
   });
 
   it("bevat alleen geldige placeholders voor de eigen soort", () => {

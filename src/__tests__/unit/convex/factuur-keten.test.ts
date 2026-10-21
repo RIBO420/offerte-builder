@@ -11,7 +11,8 @@ import { join } from "node:path";
 import { describe, it, expect, beforeEach } from "vitest";
 import { ConvexError } from "convex/values";
 import { factureerTermijn, maakEindfactuur, overzicht } from "../../../../convex/factuurKeten";
-import { updateStatus, setBtwVerlegd, generate } from "../../../../convex/facturen";
+import { updateStatus, setBtwVerlegd, generate, getTeksten } from "../../../../convex/facturen";
+import { laadStandaardteksten } from "../../../../convex/tekstblokken";
 
 // ─── Nep-Convex-database ─────────────────────────────────────────────────────
 
@@ -287,6 +288,16 @@ describe("factuurketen offerte 01399", () => {
     expect(f.documentSoort).toBe("factuur");
     expect(f.termijnAftrek).toBeUndefined();
     expect(f.totaalInclBtw).toBe(29805.27);
+  });
+
+  it("de termijnfactuur noemt de termijn in de tekst", async () => {
+    await handlerVan<Record<string, unknown>, unknown>(laadStandaardteksten)(ctx, {});
+    const t1 = await termijnH(ctx, { offerteId, nummer: 1 });
+    const { teksten } = await handlerVan<
+      Record<string, unknown>,
+      { teksten: { inleiding?: string } }
+    >(getTeksten)(ctx, { id: t1 });
+    expect(teksten.inleiding).toContain("Termijn 1: na gunning (50% van het offertebedrag)");
   });
 
   it("factureren kan pas na acceptatie", async () => {

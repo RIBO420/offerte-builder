@@ -369,20 +369,27 @@ export const laadStandaardteksten = mutation({
 
     const nu = Date.now();
     let toegevoegd = 0;
+    const toegevoegdeSoorten = new Set<string>();
     for (const [index, tekst] of STANDAARDTEKSTEN.entries()) {
       const categorie = tekst.positie === "inleiding" ? "aanhef" : "voorwaarden";
-      const bestaat = eigen.some(
-        (b) =>
-          b.actief && b.categorie === categorie && b.documentSoort === tekst.documentSoort
-      );
+      // Standaard: alleen als er voor deze soort en positie nog niets staat.
+      // Extra keuze (bv. prijsaanvraag): alleen als die naam er nog niet is.
+      const bestaat =
+        tekst.standaard === false
+          ? eigen.some((b) => b.naam === tekst.naam && b.documentSoort === tekst.documentSoort)
+          : eigen.some(
+              (b) =>
+                b.actief && b.categorie === categorie && b.documentSoort === tekst.documentSoort
+            ) || toegevoegdeSoorten.has(`${categorie}|${tekst.documentSoort}`);
       if (bestaat) continue;
+      if (tekst.standaard !== false) toegevoegdeSoorten.add(`${categorie}|${tekst.documentSoort}`);
       await ctx.db.insert("tekstblokken", {
         orgId,
         naam: tekst.naam,
         categorie,
         inhoud: tekst.inhoud,
         documentSoort: tekst.documentSoort,
-        standaard: true,
+        standaard: tekst.standaard === false ? undefined : true,
         actief: true,
         volgorde: index,
         createdAt: nu,

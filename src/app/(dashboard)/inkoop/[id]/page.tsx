@@ -58,6 +58,7 @@ import {
   type InkoopStatus,
 } from "@/lib/constants/statuses";
 import { LaadIndicator } from "@/components/ui/laad-indicator";
+import { DocumentPdfKnop } from "@/components/pdf/document-pdf-knop";
 
 const dateFormatter = new Intl.DateTimeFormat("nl-NL", {
   day: "numeric",
@@ -203,7 +204,8 @@ export default function InkoopDetailPage({
               </p>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <DocumentPdfKnop bron={{ soort: "bestelformulier", inkooporderId }} size="default" />
             {currentStatus === "concept" && (
               <>
                 <Button variant="outline" asChild>

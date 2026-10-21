@@ -83,6 +83,22 @@ Wat Ricardo besloten heeft op basis van de stukken in deze map. Bij strijd met e
     wijziging die vandaag/morgen raakt, gebundeld na 2 minuten, in-app + push (achter
     de guard); ook bij een verlofbesluit. Splitsen verdeelt nu ook de begrote uren.
 
+13. **Fase 6.**
+    - Offertelink: een klant zonder portaal kreeg sinds maart een dode link. Nu krijgt
+      elke offerte bij versturen een deeltoken; `/offerte/<token>` is een
+      alleen-lezen pagina met PDF-download en de algemene voorwaarden. Akkoord gaat per
+      e-mail (zoals de offertetekst vraagt) of via het portaal.
+    - Algemene voorwaarden gaan automatisch als bijlage mee met de offertemail (K7).
+    - Versies bewaren de volledige vrije regel, teksten, korting, termijnschema en
+      uren. Terugzetten kan alleen in concept/voorcalculatie en wijzigt de status niet.
+    - Sjabloon uit een vrije offerte bewaart de regels. "Posten overnemen" in de vrije
+      builder haalt regels uit een sjabloon of eerdere offerte (optie: hoeveelheden 0).
+    - Orderbevestiging (geaccepteerde offerte), bestelformulier (inkooporder) en
+      leveringsbon (project, materiaal zonder prijzen) als PDF, met eigen vaste teksten
+      in de bibliotheek. Bestelformulier heeft "bestellen" als standaard en
+      "prijsaanvraag" als extra tekst (K9). Geen eigen nummerreeks: ze dragen het
+      offerte-/ordernummer. Meetdocument en brief niet gebouwd (geen vraag).
+
 ## Fasering
 
 | Fase | Inhoud | Stand |
@@ -94,7 +110,7 @@ Wat Ricardo besloten heeft op basis van de stukken in deze map. Bij strijd met e
 | 3 | Factuurketen: termijnschema per offerte, termijnfactuur per btw-tarief, eindfactuur met restmethode, btw verlegd + EU-vermelding, verplichte gegevens | klaar |
 | 4 | Planbord op tijdas: 15-min stap, vergroten aan twee kanten, begroot/gepland/resterend, verlof op het bord, standaardblok reistijd, undo, touch | klaar incl. SHOULD's (Planning → Tijdbord) |
 | 5 | HERO-import: klanten, projecten, open offertes, facturen/openstaande posten, herbruikbare artikelen (>5x gebruikt) | wacht op exportbestanden uit HERO |
-| 6 | SHOULD: versies, sjablonen, posten kopiëren, orderbevestiging, bestelformulier, leveringsbon | later |
+| 6 | SHOULD: versies, sjablonen, posten kopiëren, orderbevestiging, bestelformulier, leveringsbon | klaar |
 
 ## Open punten
 

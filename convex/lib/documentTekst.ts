@@ -25,6 +25,9 @@ export const DOCUMENT_SOORTEN = [
   "termijnfactuur",
   "eindfactuur",
   "creditnota",
+  "orderbevestiging",
+  "bestelformulier",
+  "leveringsbon",
 ] as const;
 export type DocumentSoort = (typeof DOCUMENT_SOORTEN)[number];
 
@@ -36,11 +39,15 @@ export const DOCUMENT_SOORT_LABELS: Record<DocumentSoort, string> = {
   termijnfactuur: "Termijnfactuur",
   eindfactuur: "Eindfactuur",
   creditnota: "Creditfactuur",
+  orderbevestiging: "Orderbevestiging",
+  bestelformulier: "Bestelformulier",
+  leveringsbon: "Leveringsbon",
 };
 
 export type PlaceholderGroep =
   | "Bedrijf"
   | "Klant"
+  | "Leverancier"
   | "Document"
   | "Offerte"
   | "Factuur"
@@ -84,12 +91,16 @@ export const PLACEHOLDERS: readonly PlaceholderDef[] = [
   { sleutel: "document.nummer", label: "Documentnummer", groep: "Document", voorbeeld: "01400" },
   { sleutel: "document.datum", label: "Datum", groep: "Document", voorbeeld: "21 oktober 2026" },
   { sleutel: "document.bedrag", label: "Totaalbedrag (incl. btw)", groep: "Document", voorbeeld: "€ 29.805,27" },
+  { sleutel: "document.referentie", label: "Verwijzing (offerte of project)", groep: "Document", voorbeeld: "01399" },
+  { sleutel: "leverancier.naam", label: "Naam leverancier", groep: "Leverancier", voorbeeld: "Boomkwekerij De Linde", soorten: ["bestelformulier"] },
 
   { sleutel: "offerte.geldigTot", label: "Geldig tot", groep: "Offerte", voorbeeld: "20 november 2026", soorten: OFFERTES },
   { sleutel: "offerte.termijnschema", label: "Termijnschema", groep: "Offerte", voorbeeld: "- 50% na gunning\n- 30% bij de start\n- 20% bij oplevering", soorten: OFFERTES },
 
   { sleutel: "factuur.vervaldatum", label: "Vervaldatum", groep: "Factuur", voorbeeld: "4 november 2026", soorten: FACTUREN },
   { sleutel: "factuur.referentie", label: "Verwijzing (offerte of factuur)", groep: "Factuur", voorbeeld: "01399", soorten: FACTUREN },
+  { sleutel: "termijn.omschrijving", label: "Termijn", groep: "Factuur", voorbeeld: "Termijn 1: na gunning", soorten: ["termijnfactuur", "eindfactuur"] },
+  { sleutel: "termijn.percentage", label: "Termijn (%)", groep: "Factuur", voorbeeld: "50", soorten: ["termijnfactuur", "eindfactuur"] },
 
   { sleutel: "medewerker.naam", label: "Naam afzender", groep: "Medewerker", voorbeeld: "Mickey Jansen" },
 ];
@@ -222,12 +233,14 @@ export interface TekstBron {
     email?: string;
     btwNummer?: string;
   };
-  document?: { nummer?: string; datum?: number; bedragInclBtw?: number };
+  document?: { nummer?: string; datum?: number; bedragInclBtw?: number; referentie?: string };
+  leverancier?: { naam?: string };
   offerte?: {
     geldigheidDagen?: number;
     termijnschema?: ReadonlyArray<{ percentage: number; label: string }>;
   };
   factuur?: { vervaldatum?: number; referentie?: string };
+  termijn?: { nummer?: number; label?: string; percentage?: number };
   medewerker?: { naam?: string };
 }
 
@@ -242,7 +255,7 @@ function volledigAdres(
 }
 
 export function bouwTekstWaarden(bron: TekstBron): TekstWaarden {
-  const { bedrijf, klant, document, offerte, factuur, medewerker } = bron;
+  const { bedrijf, klant, document, offerte, factuur, medewerker, leverancier, termijn } = bron;
   const geldigTot =
     document?.datum !== undefined && offerte?.geldigheidDagen
       ? formatDatumLang(document.datum + offerte.geldigheidDagen * DAG_MS)
@@ -267,6 +280,8 @@ export function bouwTekstWaarden(bron: TekstBron): TekstWaarden {
     "document.datum": document?.datum !== undefined ? formatDatumLang(document.datum) : undefined,
     "document.bedrag":
       document?.bedragInclBtw !== undefined ? formatEuro(document.bedragInclBtw) : undefined,
+    "document.referentie": document?.referentie,
+    "leverancier.naam": leverancier?.naam,
     "offerte.geldigTot": geldigTot,
     "offerte.termijnschema":
       offerte?.termijnschema && offerte.termijnschema.length > 0
@@ -275,6 +290,12 @@ export function bouwTekstWaarden(bron: TekstBron): TekstWaarden {
     "factuur.vervaldatum":
       factuur?.vervaldatum !== undefined ? formatDatumLang(factuur.vervaldatum) : undefined,
     "factuur.referentie": factuur?.referentie,
+    "termijn.omschrijving":
+      termijn?.nummer !== undefined && termijn.label
+        ? `Termijn ${termijn.nummer}: ${termijn.label}`
+        : undefined,
+    "termijn.percentage":
+      termijn?.percentage !== undefined ? termijn.percentage.toLocaleString("nl-NL") : undefined,
     "medewerker.naam": medewerker?.naam,
   };
 }

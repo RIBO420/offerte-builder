@@ -27,6 +27,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { formatCurrency } from "@/lib/format/currency";
+import { DocumentPdfKnop } from "@/components/pdf/document-pdf-knop";
 
 interface Stap {
   percentage: number;
@@ -86,6 +87,9 @@ export function TermijnenCard({ id, type, status, termijnschema }: TermijnenCard
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
         <CardTitle>{geaccepteerd ? "Facturatie" : "Termijnen"}</CardTitle>
+        {geaccepteerd && (
+          <DocumentPdfKnop bron={{ soort: "orderbevestiging", offerteId }} variant="ghost" />
+        )}
         {magSchemaBewerken && (
           <Button variant="outline" size="sm" onClick={() => setBewerken(true)}>
             <Edit className="size-4" />

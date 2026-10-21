@@ -44,6 +44,7 @@ import { getScopeDisplayName } from "@/lib/planning-templates";
 import { formatCurrency } from "@/lib/format/currency";
 import { cn } from "@/lib/utils";
 import { REVEAL_KLASSE } from "@/components/pagina-reveal";
+import { DocumentPdfKnop } from "@/components/pdf/document-pdf-knop";
 
 /** De logische volgende stap per projectstatus — de ene gevulde knop in de kop. */
 const HOOFDSTAP: Record<string, { label: string; pad: string; icoon: LucideIcon; omlijnd?: boolean }> = {
@@ -223,14 +224,17 @@ export default function ProjectDetailPage({
           projectId={id}
           actief="overzicht"
           acties={
-            hoofdstap && HoofdIcoon ? (
-              <Button asChild variant={hoofdstap.omlijnd ? "outline" : "default"}>
-                <Link href={`${basis}/${hoofdstap.pad}`}>
-                  <HoofdIcoon className="mr-2 size-4" aria-hidden="true" />
-                  {hoofdstap.label}
-                </Link>
-              </Button>
-            ) : undefined
+            <div className="flex flex-wrap gap-2">
+              <DocumentPdfKnop bron={{ soort: "leveringsbon", projectId: id as Id<"projecten"> }} size="default" />
+              {hoofdstap && HoofdIcoon ? (
+                <Button asChild variant={hoofdstap.omlijnd ? "outline" : "default"}>
+                  <Link href={`${basis}/${hoofdstap.pad}`}>
+                    <HoofdIcoon className="mr-2 size-4" aria-hidden="true" />
+                    {hoofdstap.label}
+                  </Link>
+                </Button>
+              ) : null}
+            </div>
           }
         />
 
