@@ -398,6 +398,9 @@ export default defineSchema({
         voorwaarden: v.optional(v.string()),
       })
     ),
+    // Begrote manuren (HERO-nabouw fase 1b): met de hand, wint van de uren
+    // uit de calculatie. → convex/lib/begroteUren.ts
+    begroteUren: v.optional(v.number()),
     // Termijnschema (HERO-nabouw fase 3): standaard bij aanleg 50/30/20 uit
     // Instellingen → Deelfacturen; leeg = in één keer factureren. Voedt
     // {{offerte.termijnschema}} en de termijnfacturen. → lib/termijnFacturatie.ts

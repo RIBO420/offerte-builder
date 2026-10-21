@@ -6,6 +6,7 @@ export { OfferteRegelsCard } from "./offerte-regels-card";
 export { NotitiesCard } from "./notities-card";
 export { TekstenCard } from "./teksten-card";
 export { TermijnenCard } from "./termijnen-card";
+export { BegroteUrenCard } from "./begrote-uren-card";
 export { TotalenCard } from "./totalen-card";
 export { ProjectCard } from "./project-card";
 export { DeleteDialog } from "./delete-dialog";

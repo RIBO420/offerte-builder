@@ -18,6 +18,7 @@ import {
 import { maakContractVanGeaccepteerdeOfferte } from "./onderhoudscontracten";
 import { upgradeKlantPipeline } from "./pipelineHelpers";
 import { klantNaam } from "./lib/offerteKlant";
+import { begroteUrenVanOfferte } from "./lib/begroteUren";
 
 /** Keten-actie die de mutation bij acceptatie moet uitvoeren. */
 export type KetenActie = "geen" | "contract_aanmaken" | "project_aanmaken";
@@ -81,6 +82,7 @@ export async function voerKetenActieUit(
       klantId: offerte.klantId,
       naam: `Project ${offerte.offerteNummer} - ${klantNaam(offerte.klant)}`,
       status: "gepland",
+      geschatteUren: begroteUrenVanOfferte(offerte),
       createdAt: now,
       updatedAt: now,
     });
@@ -112,6 +114,7 @@ export async function maakVangnetWerkitem(
     klantId: offerte.klantId,
     naam: `Uit offerte ${offerte.offerteNummer} — koppeling controleren`,
     status: "gepland",
+    geschatteUren: begroteUrenVanOfferte(offerte),
     createdAt: now,
     updatedAt: now,
   });

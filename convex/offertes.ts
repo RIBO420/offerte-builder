@@ -1283,6 +1283,32 @@ export const getTeksten = query({
 });
 
 /**
+ * Begrote manuren van één offerte (HERO-nabouw fase 1b). Leeg = de uren uit
+ * de calculatie. Kan tot de offerte geaccepteerd is; daarna staan de uren op
+ * de klus (aan te passen op het planbord).
+ */
+export const updateBegroteUren = mutation({
+  args: { id: v.id("offertes"), begroteUren: v.union(v.number(), v.null()) },
+  handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
+    const offerte = await getOwnedOfferte(ctx, args.id);
+    if (offerte.status === "geaccepteerd") {
+      throw new ConvexError("De offerte is geaccepteerd; pas de uren aan op de klus.");
+    }
+    if (
+      args.begroteUren !== null &&
+      (!Number.isFinite(args.begroteUren) || args.begroteUren < 0 || args.begroteUren > 10000)
+    ) {
+      throw new ConvexError("Begrote uren liggen tussen 0 en 10.000");
+    }
+    await ctx.db.patch(args.id, {
+      begroteUren: args.begroteUren ?? undefined,
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+/**
  * Termijnschema van één offerte (HERO-nabouw fase 3). Leeg = in één keer
  * factureren. Alleen zolang de offerte nog niet verstuurd is.
  */
@@ -1716,6 +1742,8 @@ export const duplicate = mutation({
       totalen: original.totalen,
       regels: original.regels,
       vrijeTeksten: original.vrijeTeksten,
+      termijnschema: original.termijnschema,
+      begroteUren: original.begroteUren,
       kortingOpTotaal: original.kortingOpTotaal,
       notities: original.notities
         ? `Kopie van ${original.offerteNummer}\n\n${original.notities}`

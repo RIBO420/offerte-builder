@@ -28,6 +28,7 @@ import { logTijdlijnEvent } from "./tijdlijn";
 import { zetTriggerMailKlaar } from "./mailTriggers";
 import { formatDatumNl } from "./conceptMails";
 import { adresRegel, klantFactuurAdres, klantUitvoerAdres } from "./lib/adres";
+import { begroteUrenVoorRegels } from "./lib/begroteUren";
 
 // ============================================
 // Types
@@ -315,11 +316,14 @@ export const createWerkitem = mutation({
     }
 
     // Gekoppelde entiteiten verifiëren (eigenaarschap)
+    let geschatteUren = args.geschatteUren;
     if (args.offerteId) {
       const offerte = await ctx.db.get(args.offerteId);
       if (!offerte || offerte.orgId?.toString() !== org._id.toString()) {
         throw new ConvexError("Offerte niet gevonden");
       }
+      // Zonder eigen uren: het deel van de begrote uren van deze regels
+      geschatteUren ??= begroteUrenVoorRegels(offerte, args.offerteRegelIds);
     }
     if (args.contractId) {
       const contract = await ctx.db.get(args.contractId);
@@ -354,7 +358,7 @@ export const createWerkitem = mutation({
       geplandeStart: args.geplandeStart,
       geplandeEind: args.geplandeEind,
       teamId: args.teamId,
-      geschatteUren: args.geschatteUren,
+      geschatteUren,
       adres,
       ontgravenVolumeM3: args.ontgravenVolumeM3,
       mbaStatus: args.mbaStatus,

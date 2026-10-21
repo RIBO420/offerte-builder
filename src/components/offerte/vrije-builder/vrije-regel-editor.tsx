@@ -2,7 +2,10 @@
 
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
-import { Plus, Trash2, Package, PenLine } from "lucide-react";
+import { Plus, Trash2, Package, PenLine, BookmarkPlus, BookmarkCheck } from "lucide-react";
+import { useMutation } from "convex/react";
+import { toast } from "sonner";
+import { api } from "../../../../convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
@@ -148,6 +151,30 @@ export function VrijeRegelEditor({
     () => new Map(berekenHoofdstukSubtotalen(regels).map((s) => [s.hoofdstuk, s.subtotaal])),
     [regels]
   );
+
+  // Losse regels komen niet vanzelf in het prijsboek (HERO-les): bewust opslaan
+  const maakProduct = useMutation(api.producten.create);
+  const [opslaand, setOpslaand] = useState<string | null>(null);
+  const opslaanInPrijsboek = async (regel: VrijeRegel) => {
+    setOpslaand(regel.id);
+    try {
+      const productId = await maakProduct({
+        productnaam: regel.omschrijving.trim(),
+        categorie: "Uit offertes",
+        inkoopprijs: regel.inkoopprijsPerEenheid ?? 0,
+        verkoopprijs: regel.prijsPerEenheid,
+        eenheid: regel.eenheid,
+        verliespercentage: 0,
+        btwCode: regel.btwCode,
+      });
+      updateRegel(regel.id, { productId: String(productId) });
+      toast.success(`"${regel.omschrijving}" staat nu in het prijsboek`);
+    } catch (fout) {
+      toast.error(fout instanceof Error ? fout.message : "Opslaan in prijsboek mislukt");
+    } finally {
+      setOpslaand(null);
+    }
+  };
 
   const updateRegel = (id: string, patch: Partial<VrijeRegel>) => {
     onChange(
@@ -315,6 +342,27 @@ export function VrijeRegelEditor({
                             <SelectItem value="machine">Machine</SelectItem>
                           </SelectContent>
                         </Select>
+                        {regel.productId ? (
+                          <span
+                            className="grid size-9 shrink-0 place-items-center text-muted-foreground"
+                            title="Uit het prijsboek"
+                          >
+                            <BookmarkCheck className="h-4 w-4" aria-label="Uit het prijsboek" />
+                          </span>
+                        ) : (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => opslaanInPrijsboek(regel)}
+                            disabled={!regel.omschrijving.trim() || opslaand === regel.id}
+                            aria-label="Opslaan in prijsboek"
+                            title="Opslaan in prijsboek"
+                            className="shrink-0 text-muted-foreground"
+                          >
+                            <BookmarkPlus className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Button
                           type="button"
                           variant="ghost"

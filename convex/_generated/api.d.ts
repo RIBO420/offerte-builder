@@ -65,6 +65,7 @@ import type * as leerfeedback from "../leerfeedback.js";
 import type * as leveranciers from "../leveranciers.js";
 import type * as lib_adres from "../lib/adres.js";
 import type * as lib_batchLoad from "../lib/batchLoad.js";
+import type * as lib_begroteUren from "../lib/begroteUren.js";
 import type * as lib_bezoekBemanning from "../lib/bezoekBemanning.js";
 import type * as lib_documentNummer from "../lib/documentNummer.js";
 import type * as lib_documentTekst from "../lib/documentTekst.js";
@@ -262,6 +263,7 @@ declare const fullApi: ApiFromModules<{
   leveranciers: typeof leveranciers;
   "lib/adres": typeof lib_adres;
   "lib/batchLoad": typeof lib_batchLoad;
+  "lib/begroteUren": typeof lib_begroteUren;
   "lib/bezoekBemanning": typeof lib_bezoekBemanning;
   "lib/documentNummer": typeof lib_documentNummer;
   "lib/documentTekst": typeof lib_documentTekst;

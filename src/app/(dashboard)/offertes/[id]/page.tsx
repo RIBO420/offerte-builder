@@ -34,6 +34,7 @@ import {
   NotitiesCard,
   TekstenCard,
   TermijnenCard,
+  BegroteUrenCard,
   TotalenCard,
   ProjectCard,
   DeleteDialog,
@@ -344,6 +345,12 @@ export default function OfferteDetailPage({
           {/* Right column - Totals & Tijdlijn */}
           <div className="space-y-4">
             <TotalenCard totalen={offerte.totalen} />
+            <BegroteUrenCard
+              id={id}
+              status={offerte.status}
+              begroteUren={offerte.begroteUren}
+              calculatieUren={offerte.totalen.totaalUren}
+            />
             <TermijnenCard
               id={id}
               type={offerte.type}
