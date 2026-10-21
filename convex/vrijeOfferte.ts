@@ -21,6 +21,7 @@ import {
 } from "./vrijeOfferteBerekening";
 import { beoordeelAcceptatie } from "./acceptatieRegels";
 import { Id } from "./_generated/dataModel";
+import { snapshotExtra, snapshotRegels } from "./lib/offerteSnapshot";
 
 const vrijeRegelValidator = v.object({
   id: v.string(),
@@ -144,18 +145,13 @@ export const updateVrijeRegels = mutation({
         scopes: offerte.scopes,
         scopeData: offerte.scopeData,
         totalen,
-        regels: regels.map((r) => ({
-          id: r.id,
-          scope: r.scope,
-          omschrijving: r.omschrijving,
-          eenheid: r.eenheid,
-          hoeveelheid: r.hoeveelheid,
-          prijsPerEenheid: r.prijsPerEenheid,
-          totaal: r.totaal,
-          type: r.type,
-          margePercentage: r.margePercentage,
-        })),
+        regels: snapshotRegels(regels),
         notities: offerte.notities,
+        ...snapshotExtra({
+          ...offerte,
+          vrijeTeksten: args.vrijeTeksten,
+          kortingOpTotaal: args.kortingOpTotaal,
+        }),
       },
       actie: "regels_gewijzigd",
       omschrijving: `Vrije regels gewijzigd (${regels.length} regels)`,

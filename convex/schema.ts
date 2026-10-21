@@ -835,9 +835,26 @@ export default defineSchema({
           totaal: v.number(),
           type: v.string(),
           margePercentage: v.optional(v.number()),
+          // Vrije builder (HERO-nabouw fase 6): volledige regel, zodat
+          // terugzetten niets verliest
+          inkoopprijsPerEenheid: v.optional(v.number()),
+          btwCode: v.optional(v.union(v.literal(9), v.literal(21))),
+          kortingPercentage: v.optional(v.number()),
+          productId: v.optional(v.string()),
+          prijsOpRegel: v.optional(v.boolean()),
+          interneNotitie: v.optional(v.string()),
+          optioneel: v.optional(v.boolean()),
         })
       ),
       notities: v.optional(v.string()),
+      vrijeTeksten: v.optional(
+        v.object({ aanhef: v.optional(v.string()), voorwaarden: v.optional(v.string()) })
+      ),
+      kortingOpTotaal: v.optional(v.number()),
+      termijnschema: v.optional(
+        v.array(v.object({ percentage: v.number(), label: v.string() }))
+      ),
+      begroteUren: v.optional(v.number()),
     }),
     // Audit info
     actie: v.union(

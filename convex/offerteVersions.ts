@@ -2,6 +2,7 @@ import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getOwnedOfferte } from "./auth";
 import { requireNotViewer } from "./roles";
+import { regelsUitSnapshot, snapshotExtra, snapshotRegels } from "./lib/offerteSnapshot";
 
 // Get all versions for an offerte
 export const listByOfferte = query({
@@ -135,6 +136,14 @@ export const rollback = mutation({
     // Verify the offerte belongs to the authenticated user
     const offerte = await getOwnedOfferte(ctx, version.offerteId);
 
+    // Terugzetten alleen zolang de offerte nog bij kantoor is (HERO-nabouw):
+    // een verstuurde of geaccepteerde offerte ligt vast bij de klant
+    if (offerte.status !== "concept" && offerte.status !== "voorcalculatie") {
+      throw new ConvexError(
+        "Een verstuurde offerte kan niet teruggezet worden. Zet hem eerst terug naar voorcalculatie."
+      );
+    }
+
     // First create a version snapshot of current state before rollback
     const currentVersions = await ctx.db
       .query("offerte_versions")
@@ -155,18 +164,11 @@ export const rollback = mutation({
       scopes: offerte.scopes,
       scopeData: offerte.scopeData,
       totalen: offerte.totalen,
-      regels: offerte.regels.map((r) => ({
-        id: r.id,
-        scope: r.scope,
-        omschrijving: r.omschrijving,
-        eenheid: r.eenheid,
-        hoeveelheid: r.hoeveelheid,
-        prijsPerEenheid: r.prijsPerEenheid,
-        totaal: r.totaal,
-        type: r.type,
-      })),
+      regels: snapshotRegels(offerte.regels),
       notities: offerte.notities,
+      ...snapshotExtra(offerte),
     };
+
 
     // Save current state as new version (before rollback)
     await ctx.db.insert("offerte_versions", {
@@ -180,14 +182,10 @@ export const rollback = mutation({
     });
 
     // Apply the old version to the offerte
+    // De status blijft de huidige: terugzetten gaat over de inhoud, niet over
+    // de keten (anders kon een concept-versie een acceptatie overschrijven)
     const snapshot = version.snapshot;
     await ctx.db.patch(version.offerteId, {
-      status: snapshot.status as
-        | "concept"
-        | "voorcalculatie"
-        | "verzonden"
-        | "geaccepteerd"
-        | "afgewezen",
       klant: snapshot.klant,
       algemeenParams: {
         bereikbaarheid: snapshot.algemeenParams.bereikbaarheid as
@@ -203,11 +201,13 @@ export const rollback = mutation({
       scopes: snapshot.scopes,
       scopeData: snapshot.scopeData,
       totalen: snapshot.totalen,
-      regels: snapshot.regels.map((r) => ({
-        ...r,
-        type: r.type as "materiaal" | "arbeid" | "machine",
-      })),
+      regels: regelsUitSnapshot(snapshot.regels),
       notities: snapshot.notities,
+      // Oudere snapshots hebben deze velden niet: dan blijft de huidige waarde
+      ...(snapshot.vrijeTeksten !== undefined ? { vrijeTeksten: snapshot.vrijeTeksten } : {}),
+      ...(snapshot.kortingOpTotaal !== undefined ? { kortingOpTotaal: snapshot.kortingOpTotaal } : {}),
+      ...(snapshot.termijnschema !== undefined ? { termijnschema: snapshot.termijnschema } : {}),
+      ...(snapshot.begroteUren !== undefined ? { begroteUren: snapshot.begroteUren } : {}),
       updatedAt: Date.now(),
     });
 
