@@ -75,6 +75,8 @@ interface OffertePDFProps {
   bedrijfsgegevens?: Bedrijfsgegevens;
   theme?: PdfTheme;
   voorwaarden?: string;
+  /** Ingevulde inleiding/afsluiting (offertes.getTeksten); wint van vrijeTeksten */
+  teksten?: { inleiding?: string; afsluiting?: string };
 }
 
 const scopeLabels: Record<string, string> = {
@@ -237,7 +239,9 @@ function formatLineItems(summary: ScopeSummary): string {
   return parts.length > 0 ? parts.join(', ') : 'Inclusief materiaal en arbeid';
 }
 
-export function OffertePDF({ offerte, bedrijfsgegevens, theme, voorwaarden }: OffertePDFProps) {
+export function OffertePDF({ offerte, bedrijfsgegevens, theme, voorwaarden, teksten }: OffertePDFProps) {
+  const inleiding = teksten?.inleiding ?? offerte.vrijeTeksten?.aanhef;
+  const afsluiting = teksten?.afsluiting ?? offerte.vrijeTeksten?.voorwaarden;
   const t = theme ?? getDefaultTheme();
   const s = t.styles;
 
@@ -376,10 +380,10 @@ export function OffertePDF({ offerte, bedrijfsgegevens, theme, voorwaarden }: Of
           )}
         </View>
 
-        {/* Aanhef uit de tekstblokkenbibliotheek (vrije builder, PRD §2.5b) */}
-        {offerte.vrijeTeksten?.aanhef && (
+        {/* Inleiding uit de tekstbibliotheek (HERO-nabouw fase 2) */}
+        {inleiding && (
           <View style={s.notesSection}>
-            <Text style={s.notesText}>{offerte.vrijeTeksten.aanhef}</Text>
+            <Text style={s.notesText}>{inleiding}</Text>
           </View>
         )}
 
@@ -499,15 +503,19 @@ export function OffertePDF({ offerte, bedrijfsgegevens, theme, voorwaarden }: Of
           </View>
         )}
 
-        {/* Voorwaarden: gekozen tekstblok op de offerte gaat vóór de
-            algemene instellingen-voorwaarden (vrije builder, PRD §2.5b) */}
-        {(offerte.vrijeTeksten?.voorwaarden || voorwaarden) && (
+        {/* Afsluiting uit de tekstbibliotheek; zonder afsluiting de algemene
+            voorwaarden uit Instellingen → Huisstijl, met kop. */}
+        {afsluiting ? (
           <View style={s.notesSection}>
-            <Text style={s.notesTitle}>Voorwaarden</Text>
-            <Text style={s.notesText}>
-              {offerte.vrijeTeksten?.voorwaarden || voorwaarden}
-            </Text>
+            <Text style={s.notesText}>{afsluiting}</Text>
           </View>
+        ) : (
+          voorwaarden && (
+            <View style={s.notesSection}>
+              <Text style={s.notesTitle}>Voorwaarden</Text>
+              <Text style={s.notesText}>{voorwaarden}</Text>
+            </View>
+          )
         )}
 
         {/* Footer */}

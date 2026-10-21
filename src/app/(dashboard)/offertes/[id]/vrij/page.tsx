@@ -231,7 +231,11 @@ function VrijeOfferteEditor({
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="space-y-6">
           <VrijeRegelEditor regels={regels} onChange={setRegels} />
-          <TekstblokKiezer waarde={teksten} onChange={setTeksten} />
+          <TekstblokKiezer
+            waarde={teksten}
+            onChange={setTeksten}
+            documentSoort={offerte.type === "onderhoud" ? "offerte_onderhoud" : "offerte_aanleg"}
+          />
         </div>
         <Overzichtsblok
           regels={regels}

@@ -3,6 +3,8 @@ import { mutation, query } from "./_generated/server";
 import { getOwnedKlant, requireOrg, requireOrgId } from "./auth";
 import { requireNotViewer } from "./roles";
 import { reserveerOfferteNummer } from "./lib/offerteNummer";
+import { haalStandaardTeksten } from "./tekstblokken";
+import { naarVrijeTeksten, offerteDocumentSoort } from "./lib/offerteTekst";
 
 /**
  * Pakketten ("standaardtuinen") zijn sjablonen waarmee je een offerte voorgevuld
@@ -241,10 +243,15 @@ export const createOfferteFromTemplate = mutation({
       totaalInclBtw: 0,
     };
 
+    const vrijeTeksten = naarVrijeTeksten(
+      await haalStandaardTeksten(ctx, org._id, offerteDocumentSoort(template.type))
+    );
+
     const offerteId = await ctx.db.insert("offertes", {
       orgId: org._id,
       type: template.type,
       status: "concept",
+      vrijeTeksten,
       // Sjabloon-offertes zijn scope-offertes: dezelfde bewerkroute als de
       // wizard (PRD §2.5b onderscheidt alleen wizard vs. vrij).
       bron: args.bron ?? "wizard",

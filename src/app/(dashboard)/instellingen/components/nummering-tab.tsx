@@ -1,8 +1,8 @@
 "use client";
 
 /**
- * Instellingen-tab "Nummering": nummerreeksen voor offertes en facturen
- * (HERO-nabouw). Bij de overstap gaat de nummering verder waar HERO stopt:
+ * Instellingen-tab "Nummering & termijnen": nummerreeksen voor offertes en
+ * facturen plus de termijnen die in de documentteksten komen (HERO-nabouw). Bij de overstap gaat de nummering verder waar HERO stopt:
  * kies "doorlopend", vul het voorvoegsel en het volgende nummer in.
  * Creditnota's lopen mee in de factuurreeks. Alleen directie mag opslaan
  * (server: instellingen.updateNummerreeksen).
@@ -175,6 +175,74 @@ function ReeksKaart({
   );
 }
 
+function TermijnenKaart({
+  huidig,
+}: {
+  huidig: { offerteGeldigheidDagen: number; standaardBetalingstermijn: number };
+}) {
+  const opslaan = useMutation(api.instellingen.updateDocumentTermijnen);
+  const [isSaving, setIsSaving] = useState(false);
+  const [waarden, setWaarden] = useState(huidig);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await opslaan(waarden);
+      toast.success("Termijnen opgeslagen");
+    } catch (fout) {
+      toast.error(fout instanceof Error ? fout.message : "Opslaan mislukt");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Termijnen</CardTitle>
+        <CardDescription>
+          Deze termijnen komen in de teksten op uw documenten (bijvoorbeeld
+          “geldig tot …” en “binnen … dagen”), zodat u ze nergens hoeft te typen.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="termijn-geldigheid">Offerte geldig (dagen)</Label>
+            <Input
+              id="termijn-geldigheid"
+              type="number"
+              min={1}
+              max={365}
+              value={waarden.offerteGeldigheidDagen}
+              onChange={(e) =>
+                setWaarden((w) => ({ ...w, offerteGeldigheidDagen: Number(e.target.value) }))
+              }
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="termijn-betaling">Betaaltermijn factuur (dagen)</Label>
+            <Input
+              id="termijn-betaling"
+              type="number"
+              min={1}
+              max={365}
+              value={waarden.standaardBetalingstermijn}
+              onChange={(e) =>
+                setWaarden((w) => ({ ...w, standaardBetalingstermijn: Number(e.target.value) }))
+              }
+            />
+          </div>
+        </div>
+        <Button onClick={handleSave} disabled={isSaving}>
+          {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Opslaan
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function NummeringTab() {
   const reeksen = useQuery(api.instellingen.getNummerreeksen);
 
@@ -201,6 +269,7 @@ export function NummeringTab() {
         omschrijving="Geldt voor alle facturen, ook termijn-, eind- en creditfacturen. Facturen moeten doorlopend genummerd zijn; het volgende nummer kan daarom nooit terug."
         huidig={reeksen.factuur}
       />
+      <TermijnenKaart huidig={reeksen.termijnen} />
     </div>
   );
 }

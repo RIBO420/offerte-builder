@@ -35,6 +35,16 @@ Wat Ricardo besloten heeft op basis van de stukken in deze map. Bij strijd met e
 5. **Teksten:** platte tekst met eenvoudige opsommingen, geen opmaakeditor. Placeholders
    in de bestaande `{{…}}`-notatie van de mailtriggers.
 6. **Planbord:** verder op @dnd-kit, geen FullCalendar.
+7. **Teksten (fase 2):** `tekstblokken.aanhef` = Inleiding, `voorwaarden` = Afsluiting
+   (alleen nieuwe labels, geen datamigratie). Per documentsoort één standaard.
+   Placeholders in `convex/lib/documentTekst.ts` (`{{klant.naam}}`, `{{bedrijf.iban}}`,
+   …); oude `{{klant_naam}}` blijft als alias werken. Startset = deel C van
+   `standaardteksten.md`, te laden met "Standaardteksten laden" (voegt alleen toe).
+   Momentopname: offerte bij `verzonden`, factuur bij `definitief`/versturen,
+   creditfactuur bij aanmaken. Lege of onbekende placeholder blokkeert; de
+   facturatie-engine verstuurt dan niet automatisch maar laat een concept staan.
+   Termijnen (geldigheid offerte, betaaltermijn) staan onder Instellingen →
+   Nummering & termijnen.
 
 ## Fasering
 
@@ -43,13 +53,20 @@ Wat Ricardo besloten heeft op basis van de stukken in deze map. Bij strijd met e
 | 0 | Docs in de repo, koppeltabel, besluiten | klaar |
 | 1 | Rekentest 01399, btw per tarief, nummerreeksen + startnummer | klaar |
 | 1b | Begrote manuren in de vrije builder; "opslaan in prijsboek" voor losse regels | open |
-| 2 | Tekstbibliotheek per documentsoort: inleiding/afsluiting, placeholders, momentopname bij versturen, lege placeholder blokkeert, bewerkscherm voor de klant | open |
+| 2 | Tekstbibliotheek per documentsoort: inleiding/afsluiting, placeholders, momentopname bij versturen, lege placeholder blokkeert, bewerkscherm voor de klant | klaar |
 | 3 | Factuurketen: termijnschema per offerte, termijnfactuur per btw-tarief, eindfactuur met restmethode, btw verlegd + EU-vermelding, verplichte gegevens | open |
 | 4 | Planbord op tijdas: 15-min stap, vergroten aan twee kanten, begroot/gepland/resterend, verlof op het bord, standaardblok reistijd, undo, touch | open |
 | 5 | HERO-import: klanten, projecten, open offertes, facturen/openstaande posten, herbruikbare artikelen (>5x gebruikt) | wacht op exportbestanden uit HERO |
 | 6 | SHOULD: versies, sjablonen, posten kopiëren, orderbevestiging, bestelformulier, leveringsbon | later |
 
 ## Open punten
+
+- `facturen.generate` (factuur vanuit project) rekent nog met één btw-percentage en
+  rondt de btw niet af; de vrije factuur en de engine doen het wel per tarief. Meenemen
+  in fase 3.
+- Bij de livegang op productie: "Standaardteksten laden" één keer klikken en de
+  bedrijfsgegevens (IBAN, e-mail, telefoon) compleet maken, anders blokkeren de
+  teksten het versturen.
 
 - Factuurnummer wordt nu bij het **aanmaken van het concept** uitgegeven. Een verwijderd
   concept laat dan een gat in de reeks. Voor facturen moet het nummer pas bij definitief

@@ -58,6 +58,7 @@ export function usePortaalFactuurPdf() {
             btwPercentage: f.btwPercentage,
             btw: f.btwBedrag,
             btwUitsplitsing: f.btwUitsplitsing,
+            tekstenVastgelegd: f.tekstenVastgelegd,
             totaalInclBtw: f.totaalInclBtw,
             notities: f.notities,
           },

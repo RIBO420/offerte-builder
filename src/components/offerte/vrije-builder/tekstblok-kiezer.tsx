@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { api } from "../../../../convex/_generated/api";
+import type { DocumentSoort } from "../../../../convex/lib/documentTekst";
 
 export interface VrijeTeksten {
   aanhef?: string;
@@ -19,19 +20,25 @@ export interface VrijeTeksten {
 interface TekstblokKiezerProps {
   waarde: VrijeTeksten;
   onChange: (teksten: VrijeTeksten) => void;
+  /** Toon de blokken van deze soort plus de algemene */
+  documentSoort?: DocumentSoort;
 }
 
 /**
- * Tekstblokken kiezen uit de bibliotheek (PRD §2.5b): aanhef en voorwaarden.
+ * Tekstblokken kiezen uit de bibliotheek (PRD §2.5b): inleiding ("aanhef")
+ * en afsluiting ("voorwaarden"). Velden als {{klant.naam}} worden bij het
+ * versturen ingevuld (HERO-nabouw fase 2).
  * Alleen kiezen/invoegen als platte tekst — er is bewust géén editor met
  * opmaak (principe 3: de huisstijl ligt vast in de template).
  */
-export function TekstblokKiezer({ waarde, onChange }: TekstblokKiezerProps) {
+export function TekstblokKiezer({ waarde, onChange, documentSoort }: TekstblokKiezerProps) {
   const aanhefBlokken = useQuery(api.tekstblokken.actief, {
     categorie: "aanhef",
+    documentSoort,
   });
   const voorwaardenBlokken = useQuery(api.tekstblokken.actief, {
     categorie: "voorwaarden",
+    documentSoort,
   });
 
   return (
@@ -41,13 +48,13 @@ export function TekstblokKiezer({ waarde, onChange }: TekstblokKiezerProps) {
       </CardHeader>
       <CardContent className="space-y-4">
         <Kiezer
-          label="Aanhef"
+          label="Inleiding"
           blokken={aanhefBlokken}
           gekozenTekst={waarde.aanhef}
           onKies={(inhoud) => onChange({ ...waarde, aanhef: inhoud })}
         />
         <Kiezer
-          label="Voorwaarden"
+          label="Afsluiting"
           blokken={voorwaardenBlokken}
           gekozenTekst={waarde.voorwaarden}
           onKies={(inhoud) => onChange({ ...waarde, voorwaarden: inhoud })}

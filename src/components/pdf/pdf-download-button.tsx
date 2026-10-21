@@ -65,6 +65,7 @@ interface PDFDownloadButtonProps {
   bedrijfsgegevens?: Bedrijfsgegevens;
   theme?: PdfTheme;
   voorwaarden?: string;
+  teksten?: { inleiding?: string; afsluiting?: string };
   variant?: "default" | "outline" | "secondary" | "ghost";
   size?: "default" | "sm" | "lg" | "icon";
   showPreview?: boolean;
@@ -75,6 +76,7 @@ export function PDFDownloadButton({
   bedrijfsgegevens,
   theme,
   voorwaarden,
+  teksten,
   variant = "outline",
   size = "default",
   showPreview = false,
@@ -88,7 +90,7 @@ export function PDFDownloadButton({
     setHasError(false);
     try {
       const blob = await pdf(
-        <OffertePDF offerte={offerte} bedrijfsgegevens={bedrijfsgegevens} theme={theme} voorwaarden={voorwaarden} />
+        <OffertePDF offerte={offerte} bedrijfsgegevens={bedrijfsgegevens} theme={theme} voorwaarden={voorwaarden} teksten={teksten} />
       ).toBlob();
 
       const url = URL.createObjectURL(blob);
@@ -144,6 +146,7 @@ export function PDFDownloadButton({
           bedrijfsgegevens={bedrijfsgegevens}
           theme={theme}
           voorwaarden={voorwaarden}
+          teksten={teksten}
           open={previewOpen}
           onOpenChange={setPreviewOpen}
         />

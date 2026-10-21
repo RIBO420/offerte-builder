@@ -1,5 +1,10 @@
 /**
- * Tekstblokkenbibliotheek (PRD §2.5b)
+ * Tekstblokkenbibliotheek (PRD §2.5b, HERO-nabouw fase 2)
+ *
+ * "aanhef" heet in de UI Inleiding en "voorwaarden" Afsluiting: de tekst
+ * boven en onder de regels van een document. Per documentsoort is één blok
+ * per positie de standaard; die komt vanzelf op een nieuw document. De klant
+ * beheert deze teksten zelf; placeholders → convex/lib/documentTekst.ts.
  *
  * Bedrijfsbrede bibliotheek van herbruikbare tekstblokken voor de vrije
  * offerte-builder: aanhef, voorwaarden, standaardteksten en e-mailteksten.
@@ -11,9 +16,18 @@
  */
 
 import { v, ConvexError } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, type QueryCtx, type MutationCtx } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 import { requireOrgId } from "./auth";
 import { requireKantoor, requireNotViewer } from "./roles";
+import {
+  DOCUMENT_SOORT_LABELS,
+  onbekendePlaceholders,
+  type DocumentSoort,
+  type DocumentTeksten,
+} from "./lib/documentTekst";
+import { documentSoortValidator } from "./lib/documentTekstValidators";
+import { STANDAARDTEKSTEN } from "./lib/standaardteksten";
 
 // ─── Domeinconstanten (gedeeld met de UI) ────────────────────────────────────
 
@@ -27,8 +41,8 @@ export const TEKSTBLOK_CATEGORIEEN = [
 export type TekstblokCategorie = (typeof TEKSTBLOK_CATEGORIEEN)[number];
 
 export const TEKSTBLOK_CATEGORIE_LABELS: Record<TekstblokCategorie, string> = {
-  aanhef: "Aanhef",
-  voorwaarden: "Voorwaarden",
+  aanhef: "Inleiding",
+  voorwaarden: "Afsluiting",
   standaardtekst: "Standaardtekst",
   email: "E-mail",
 };
@@ -47,6 +61,12 @@ export interface TekstblokInvoer {
   categorie: string;
   inhoud: string;
   volgorde?: number;
+  documentSoort?: DocumentSoort;
+}
+
+/** Categorieën die op een document komen en dus placeholders kennen. */
+export function isDocumentTekst(categorie: string): boolean {
+  return categorie === "aanhef" || categorie === "voorwaarden";
 }
 
 /**
@@ -67,6 +87,17 @@ export function valideerTekstblok(invoer: TekstblokInvoer): void {
   }
   if (invoer.volgorde !== undefined && invoer.volgorde < 0) {
     throw new ConvexError("Volgorde kan niet negatief zijn");
+  }
+  if (isDocumentTekst(invoer.categorie)) {
+    const onbekend = onbekendePlaceholders(invoer.inhoud, invoer.documentSoort);
+    if (onbekend.length > 0) {
+      const waar = invoer.documentSoort
+        ? ` op een ${DOCUMENT_SOORT_LABELS[invoer.documentSoort].toLowerCase()}`
+        : "";
+      throw new ConvexError(
+        `Onbekend veld${waar}: ${onbekend.map((o) => `{{${o}}}`).join(", ")}`
+      );
+    }
   }
 }
 
@@ -96,6 +127,8 @@ export const list = query({
 export const actief = query({
   args: {
     categorie: v.optional(categorieValidator),
+    // Met soort: blokken van die soort plus de algemene (zonder soort)
+    documentSoort: v.optional(documentSoortValidator),
   },
   handler: async (ctx, args) => {
     await requireNotViewer(ctx);
@@ -111,7 +144,11 @@ export const actief = query({
 
     const blokken = eigen.filter(
       (b) =>
-        b.actief && (args.categorie ? b.categorie === args.categorie : true)
+        b.actief &&
+        (args.categorie ? b.categorie === args.categorie : true) &&
+        (args.documentSoort
+          ? b.documentSoort === undefined || b.documentSoort === args.documentSoort
+          : true)
     );
 
     return [...blokken].sort(
@@ -129,11 +166,14 @@ export const create = mutation({
     categorie: categorieValidator,
     inhoud: v.string(),
     volgorde: v.optional(v.number()),
+    documentSoort: v.optional(documentSoortValidator),
+    standaard: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     await requireKantoor(ctx);
     const orgId = await requireOrgId(ctx);
     valideerTekstblok(args);
+    assertStandaardMogelijk(args.categorie, args.documentSoort, args.standaard);
 
     // Zonder expliciete volgorde: achteraan in de categorie — binnen de eigen
     // organisatie, niet bedrijfsoverstijgend.
@@ -152,16 +192,22 @@ export const create = mutation({
     }
 
     const nu = Date.now();
-    return await ctx.db.insert("tekstblokken", {
+    const id = await ctx.db.insert("tekstblokken", {
       orgId,
       naam: args.naam.trim(),
       categorie: args.categorie,
       inhoud: args.inhoud,
+      documentSoort: args.documentSoort,
+      standaard: args.standaard || undefined,
       actief: true,
       volgorde,
       createdAt: nu,
       updatedAt: nu,
     });
+    if (args.standaard && args.documentSoort) {
+      await maakEnigeStandaard(ctx, orgId, id, args.categorie, args.documentSoort);
+    }
+    return id;
   },
 });
 
@@ -172,6 +218,9 @@ export const update = mutation({
     categorie: v.optional(categorieValidator),
     inhoud: v.optional(v.string()),
     volgorde: v.optional(v.number()),
+    // null = voor alle soorten
+    documentSoort: v.optional(v.union(documentSoortValidator, v.null())),
+    standaard: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     await requireKantoor(ctx);
@@ -182,20 +231,34 @@ export const update = mutation({
       throw new ConvexError("Tekstblok niet gevonden");
     }
 
+    const categorie = args.categorie ?? blok.categorie;
+    const documentSoort =
+      args.documentSoort === null
+        ? undefined
+        : (args.documentSoort ?? blok.documentSoort);
+    const standaard = args.standaard ?? blok.standaard ?? false;
+
     valideerTekstblok({
       naam: args.naam ?? blok.naam,
-      categorie: args.categorie ?? blok.categorie,
+      categorie,
       inhoud: args.inhoud ?? blok.inhoud,
       volgorde: args.volgorde ?? blok.volgorde,
+      documentSoort,
     });
+    assertStandaardMogelijk(categorie, documentSoort, standaard);
 
     await ctx.db.patch(args.id, {
       ...(args.naam !== undefined ? { naam: args.naam.trim() } : {}),
       ...(args.categorie !== undefined ? { categorie: args.categorie } : {}),
       ...(args.inhoud !== undefined ? { inhoud: args.inhoud } : {}),
       ...(args.volgorde !== undefined ? { volgorde: args.volgorde } : {}),
+      documentSoort,
+      standaard: standaard || undefined,
       updatedAt: Date.now(),
     });
+    if (standaard && documentSoort) {
+      await maakEnigeStandaard(ctx, orgId, args.id, categorie, documentSoort);
+    }
     return args.id;
   },
 });
@@ -217,8 +280,116 @@ export const setActief = mutation({
 
     await ctx.db.patch(args.id, {
       actief: args.actief,
+      // Een uitgezet blok kan geen standaard meer zijn
+      ...(args.actief ? {} : { standaard: undefined }),
       updatedAt: Date.now(),
     });
     return args.id;
+  },
+});
+
+// ─── Standaard per documentsoort ─────────────────────────────────────────────
+
+function assertStandaardMogelijk(
+  categorie: string,
+  documentSoort: DocumentSoort | undefined,
+  standaard: boolean | undefined
+): void {
+  if (!standaard) return;
+  if (!isDocumentTekst(categorie)) {
+    throw new ConvexError("Alleen een inleiding of afsluiting kan standaard zijn");
+  }
+  if (!documentSoort) {
+    throw new ConvexError("Kies een documentsoort om dit blok standaard te maken");
+  }
+}
+
+/** Zet `standaard` uit bij de andere blokken met dezelfde soort en positie. */
+async function maakEnigeStandaard(
+  ctx: MutationCtx,
+  orgId: Id<"organisaties">,
+  id: Id<"tekstblokken">,
+  categorie: string,
+  documentSoort: DocumentSoort
+): Promise<void> {
+  const eigen = await ctx.db
+    .query("tekstblokken")
+    .withIndex("by_org", (q) => q.eq("orgId", orgId))
+    .collect();
+  for (const b of eigen) {
+    if (
+      b._id !== id &&
+      b.standaard &&
+      b.categorie === categorie &&
+      b.documentSoort === documentSoort
+    ) {
+      await ctx.db.patch(b._id, { standaard: undefined, updatedAt: Date.now() });
+    }
+  }
+}
+
+/**
+ * Standaard inleiding en afsluiting voor een nieuw document van deze soort
+ * (met placeholders; vullen gebeurt bij het versturen). Geen standaard = leeg.
+ */
+export async function haalStandaardTeksten(
+  ctx: QueryCtx | MutationCtx,
+  orgId: Id<"organisaties">,
+  documentSoort: DocumentSoort
+): Promise<DocumentTeksten> {
+  const eigen = await ctx.db
+    .query("tekstblokken")
+    .withIndex("by_org", (q) => q.eq("orgId", orgId))
+    .collect();
+  const vind = (categorie: "aanhef" | "voorwaarden") =>
+    eigen.find(
+      (b) =>
+        b.actief &&
+        b.standaard &&
+        b.categorie === categorie &&
+        b.documentSoort === documentSoort
+    )?.inhoud;
+  return { inleiding: vind("aanhef"), afsluiting: vind("voorwaarden") };
+}
+
+/**
+ * Laadt de startset (standaardteksten.md deel C). Voegt per soort en positie
+ * alleen iets toe als daar nog geen actief blok staat; bestaande teksten van
+ * de klant blijven altijd ongemoeid. Geeft het aantal toegevoegde blokken.
+ */
+export const laadStandaardteksten = mutation({
+  args: {},
+  handler: async (ctx) => {
+    await requireKantoor(ctx);
+    const orgId = await requireOrgId(ctx);
+    const eigen = await ctx.db
+      .query("tekstblokken")
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
+      .collect();
+
+    const nu = Date.now();
+    let toegevoegd = 0;
+    for (const [index, tekst] of STANDAARDTEKSTEN.entries()) {
+      const categorie = tekst.positie === "inleiding" ? "aanhef" : "voorwaarden";
+      const bestaat = eigen.some(
+        (b) =>
+          b.actief && b.categorie === categorie && b.documentSoort === tekst.documentSoort
+      );
+      if (bestaat) continue;
+      await ctx.db.insert("tekstblokken", {
+        orgId,
+        naam: tekst.naam,
+        categorie,
+        inhoud: tekst.inhoud,
+        documentSoort: tekst.documentSoort,
+        standaard: true,
+        actief: true,
+        volgorde: index,
+        createdAt: nu,
+        updatedAt: nu,
+      });
+      toegevoegd += 1;
+    }
+    return { toegevoegd };
   },
 });

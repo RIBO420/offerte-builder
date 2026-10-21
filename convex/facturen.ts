@@ -29,6 +29,11 @@ import {
 import { logTijdlijnEvent } from "./tijdlijn";
 import { voorcalculatieVanProject } from "./lib/voorcalculatieLookup";
 import { formatteerFactuurNummer } from "./lib/documentNummer";
+import {
+  factuurTekstVelden,
+  getoondeFactuurTeksten,
+  legFactuurTekstenVast,
+} from "./lib/factuurTekst";
 import { archiveerVerzondenDocument } from "./lib/klantBestandenArchief";
 import { klantFactuurAdres } from "./lib/adres";
 
@@ -140,10 +145,17 @@ export async function verstuurFactuurKern(
     );
   }
   const now = Date.now();
+  // Vaste teksten vastleggen (HERO-nabouw fase 2); al vastgelegd bij
+  // definitief = blijft staan. Gooit bij een leeg of onbekend veld.
+  const tekstenVastgelegd = await legFactuurTekstenVast(ctx, factuur, {
+    datum: now,
+    medewerkerNaam: opts.auteurId ? opts.auteurNaam : undefined,
+  });
   await ctx.db.patch(factuur._id, {
     ...statusPatch("verzonden", betaalStatus),
     verzondenAt: now,
     updatedAt: now,
+    ...(tekstenVastgelegd ? { tekstenVastgelegd } : {}),
   });
 
   // Referentie-administratie: gekoppelde werkitems → gefactureerd blijft
@@ -362,10 +374,16 @@ export const generate = mutation({
     const vervaldatum = now + betalingstermijnDagen * 24 * 60 * 60 * 1000;
 
     // Maak de factuur aan
+    const tekstVelden = await factuurTekstVelden(
+      ctx,
+      org._id,
+      offerte.type === "onderhoud" ? "factuur_onderhoud" : "factuur"
+    );
     const factuurId = await ctx.db.insert("facturen", {
       orgId: org._id,
       projectId: args.projectId,
       factuurnummer,
+      ...tekstVelden,
       status: "concept",
       documentStatus: "concept",
       betaalStatus: "open",
@@ -793,13 +811,22 @@ export const updateStatus = mutation({
       return args.id;
     }
 
-    // concept ↔ definitief: pure documentketen
+    // concept ↔ definitief: pure documentketen. Definitief legt de teksten
+    // vast (een leeg veld houdt het tegen); terug naar concept maakt ze live.
     const mapped = mapLegacyStatus(args.status);
+    const tekstenVastgelegd =
+      args.status === "definitief"
+        ? await legFactuurTekstenVast(ctx, factuur, {
+            datum: now,
+            medewerkerNaam: user.name,
+          })
+        : undefined;
     await ctx.db.patch(args.id, {
       ...statusPatch(
         mapped.documentStatus,
         effectieveStatussen(factuur).betaalStatus
       ),
+      tekstenVastgelegd,
       updatedAt: now,
     });
 
@@ -820,6 +847,43 @@ export const updateStatus = mutation({
     }
 
     return args.id;
+  },
+});
+
+/**
+ * Inleiding en afsluiting zoals ze op de factuur-PDF komen (HERO-nabouw
+ * fase 2): de momentopname vanaf definitief, anders live ingevuld.
+ */
+export const getTeksten = query({
+  args: { id: v.id("facturen") },
+  handler: async (ctx, args) => {
+    const gebruiker = await requireNotViewer(ctx);
+    const factuur = await getOwnedFactuur(ctx, args.id);
+    return await getoondeFactuurTeksten(ctx, factuur, gebruiker.name);
+  },
+});
+
+/** Inleiding/afsluiting op één conceptfactuur aanpassen. */
+export const updateTeksten = mutation({
+  args: {
+    id: v.id("facturen"),
+    inleiding: v.optional(v.string()),
+    afsluiting: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
+    const factuur = await getOwnedFactuur(ctx, args.id);
+    if (effectieveStatussen(factuur).documentStatus !== "concept") {
+      throw new ConvexError(
+        "Alleen een conceptfactuur kan nog aangepast worden. Zet hem eerst terug naar concept."
+      );
+    }
+    const inleiding = args.inleiding?.trim() ? args.inleiding : undefined;
+    const afsluiting = args.afsluiting?.trim() ? args.afsluiting : undefined;
+    await ctx.db.patch(args.id, {
+      teksten: inleiding || afsluiting ? { inleiding, afsluiting } : undefined,
+      updatedAt: Date.now(),
+    });
   },
 });
 
@@ -918,10 +982,12 @@ export const createVrij = mutation({
     const totalen = berekenFactuurTotalen(args.regels, 21);
     const betalingstermijnDagen = instellingen.standaardBetalingstermijn ?? 14;
 
+    const tekstVelden = await factuurTekstVelden(ctx, org._id, "factuur");
     const factuurId = await ctx.db.insert("facturen", {
       orgId: org._id,
       klantId: args.klantId,
       factuurnummer,
+      ...tekstVelden,
       status: "concept",
       documentStatus: "concept",
       betaalStatus: "open",
@@ -1486,7 +1552,7 @@ export const createCreditnota = mutation({
     regelIds: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
-    await requireNotViewer(ctx);
+    const gebruiker = await requireNotViewer(ctx);
     const org = await requireOrg(ctx);
     const now = Date.now();
 
@@ -1568,7 +1634,9 @@ export const createCreditnota = mutation({
     );
 
     // Maak de creditnota aan (als factuur met isCreditnota = true)
+    const tekstVelden = await factuurTekstVelden(ctx, org._id, "creditnota");
     const creditnotaId = await ctx.db.insert("facturen", {
+      ...tekstVelden,
       orgId: org._id,
       projectId: factuur.projectId,
       klantId: factuur.klantId,
@@ -1598,6 +1666,17 @@ export const createCreditnota = mutation({
       createdAt: now,
       updatedAt: now,
     });
+
+    // Een creditnota is meteen definitief: teksten nu vastleggen. Een leeg
+    // veld houdt het aanmaken tegen (de transactie rolt dan terug).
+    const creditnota = await ctx.db.get(creditnotaId);
+    if (creditnota) {
+      const tekstenVastgelegd = await legFactuurTekstenVast(ctx, creditnota, {
+        datum: now,
+        medewerkerNaam: gebruiker.name,
+      });
+      if (tekstenVastgelegd) await ctx.db.patch(creditnotaId, { tekstenVastgelegd });
+    }
 
     // Update laatsteFactuurNummer in instellingen
     await ctx.db.patch(instellingen._id, {

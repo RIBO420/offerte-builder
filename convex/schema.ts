@@ -1,5 +1,7 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { documentSoortValidator } from "./lib/documentTekstValidators";
+
 import {
   aanlegScopeDataValidator,
   beschikbaarheidsVensterValidator,
@@ -396,6 +398,16 @@ export default defineSchema({
         voorwaarden: v.optional(v.string()),
       })
     ),
+    // Momentopname bij versturen (HERO-nabouw fase 2): de teksten met
+    // ingevulde placeholders. De PDF toont deze zodra hij bestaat; terug naar
+    // concept/voorcalculatie wist hem weer.
+    tekstenVastgelegd: v.optional(
+      v.object({
+        aanhef: v.optional(v.string()),
+        voorwaarden: v.optional(v.string()),
+        op: v.number(),
+      })
+    ),
     // Korting op het totaal (bedrag ex btw) — naast korting per regel
     kortingOpTotaal: v.optional(v.number()),
 
@@ -579,6 +591,8 @@ export default defineSchema({
     ),
     factuurNummerCijfers: v.optional(v.number()),
     standaardBetalingstermijn: v.optional(v.number()),
+    // Geldigheid van een offerte in dagen → {{offerte.geldigTot}} (K1)
+    offerteGeldigheidDagen: v.optional(v.number()),
     // Deelfactuur templates (FAC-002)
     // Bijv. [{naam: "50/30/20", stappen: [{percentage: 50, label: "Vooraf"}, ...]}]
     deelfactuurTemplates: v.optional(v.array(v.object({
@@ -1687,6 +1701,24 @@ export default defineSchema({
       email: v.optional(v.string()),
       telefoon: v.optional(v.string()),
     }),
+
+    // Vaste teksten (HERO-nabouw fase 2): soort bepaalt welke standaard
+    // inleiding/afsluiting erop komt; teksten bevat placeholders, de
+    // momentopname de ingevulde versie vanaf definitief.
+    documentSoort: v.optional(documentSoortValidator),
+    teksten: v.optional(
+      v.object({
+        inleiding: v.optional(v.string()),
+        afsluiting: v.optional(v.string()),
+      })
+    ),
+    tekstenVastgelegd: v.optional(
+      v.object({
+        inleiding: v.optional(v.string()),
+        afsluiting: v.optional(v.string()),
+        op: v.number(),
+      })
+    ),
 
     // Factuurregels
     regels: v.array(
@@ -4298,6 +4330,12 @@ export default defineSchema({
     ),
     // Platte tekst, geen HTML/markdown
     inhoud: v.string(),
+    // HERO-nabouw fase 2: in de UI heet "aanhef" Inleiding en "voorwaarden"
+    // Afsluiting. Per documentsoort is er één standaard die vanzelf op een
+    // nieuw document komt. Zonder documentSoort = te kiezen op elke soort.
+    // Placeholders: convex/lib/documentTekst.ts
+    documentSoort: v.optional(documentSoortValidator),
+    standaard: v.optional(v.boolean()),
     // Verwijderen = deactiveren; geen hard delete
     actief: v.boolean(),
     // Weergavevolgorde binnen de categorie

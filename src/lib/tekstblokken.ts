@@ -16,8 +16,8 @@ export const TEKSTBLOK_CATEGORIEEN = [
 export type TekstblokCategorie = (typeof TEKSTBLOK_CATEGORIEEN)[number];
 
 export const TEKSTBLOK_CATEGORIE_LABELS: Record<TekstblokCategorie, string> = {
-  aanhef: "Aanhef",
-  voorwaarden: "Voorwaarden",
+  aanhef: "Inleiding",
+  voorwaarden: "Afsluiting",
   standaardtekst: "Standaardtekst",
   email: "E-mail",
 };

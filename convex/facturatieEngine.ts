@@ -55,6 +55,7 @@ import {
 import { verstuurFactuurKern } from "./facturen";
 import { klantFactuurAdres } from "./lib/adres";
 import { formatteerFactuurNummer } from "./lib/documentNummer";
+import { factuurTekstVelden, factuurTekstenBlokkade } from "./lib/factuurTekst";
 
 const ENGINE_AUTEUR = "Facturatie-engine";
 
@@ -369,7 +370,13 @@ export async function verwerkKlaarVoorFacturatie(
   // heeft aangezet. Mail blijft achter de mailGuard (sandbox verstuurt nooit).
   if (magEngineDirectVersturen(contract)) {
     const factuur = await ctx.db.get(factuurId);
-    if (factuur && effectieveStatussen(factuur).documentStatus === "concept") {
+    // Ontbreekt er iets in de vaste teksten (bv. IBAN), dan niet automatisch
+    // versturen: de factuur blijft als concept staan voor kantoor.
+    if (
+      factuur &&
+      effectieveStatussen(factuur).documentStatus === "concept" &&
+      !(await factuurTekstenBlokkade(ctx, factuur))
+    ) {
       await verstuurFactuurKern(ctx, factuur, {
         auteurId: args.auteurId,
         auteurNaam: args.auteurNaam ?? ENGINE_AUTEUR,
@@ -416,7 +423,11 @@ async function maakEngineFactuur(
   const betalingstermijnDagen = instellingen.standaardBetalingstermijn ?? 14;
   const now = Date.now();
 
+  const tekstVelden = werkitem.orgId
+    ? await factuurTekstVelden(ctx, werkitem.orgId, "factuur_onderhoud")
+    : {};
   return await ctx.db.insert("facturen", {
+    ...tekstVelden,
     // Tenant komt van het werkitem: dit pad draait ook vanuit de cron/afronding
     // zonder identity, dus nooit uit een JWT.
     orgId: werkitem.orgId,
@@ -502,7 +513,7 @@ export const sluitMaandverzamelfacturen = internalMutation({
         // BEWUST opnieuw lezen: verstuurFactuurKern heeft de zojuist gepatchte
         // factuurdatum/vervaldatum nodig, niet de kopie van vóór de patch.
         const vers = await ctx.db.get(factuur._id);
-        if (vers) {
+        if (vers && !(await factuurTekstenBlokkade(ctx, vers))) {
           await verstuurFactuurKern(ctx, vers, { auteurNaam: ENGINE_AUTEUR });
           directVerstuurd++;
         }
@@ -628,7 +639,11 @@ export const factureerContractTermijnen = internalMutation({
       const totalen = berekenFactuurTotalen([regel], btwCode);
       const betalingstermijnDagen = instellingen.standaardBetalingstermijn ?? 14;
 
+      const tekstVelden = contract.orgId
+        ? await factuurTekstVelden(ctx, contract.orgId, "factuur_onderhoud")
+        : {};
       const factuurId = await ctx.db.insert("facturen", {
+        ...tekstVelden,
         // Identity-loze cron: de tenant komt uit het contract, niet uit een JWT.
         orgId: contract.orgId,
         klantId: contract.klantId,
@@ -668,7 +683,7 @@ export const factureerContractTermijnen = internalMutation({
 
       if (magEngineDirectVersturen(contract)) {
         const vers = await ctx.db.get(factuurId);
-        if (vers) {
+        if (vers && !(await factuurTekstenBlokkade(ctx, vers))) {
           await verstuurFactuurKern(ctx, vers, { auteurNaam: ENGINE_AUTEUR });
         }
       }

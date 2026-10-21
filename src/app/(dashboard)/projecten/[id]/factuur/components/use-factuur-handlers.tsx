@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../../../../../convex/_generated/api";
 import { Id, Doc } from "../../../../../../../convex/_generated/dataModel";
 import { toast } from "sonner";
@@ -220,6 +220,11 @@ export function useFactuurHandlers(
   }, [factuurId, creditnotaReden, createCreditnotaMutation]);
 
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  // Live ingevulde inleiding/afsluiting voor een concept (HERO-nabouw fase 2)
+  const liveTeksten = useQuery(
+    api.facturen.getTeksten,
+    factuurId ? { id: factuurId } : "skip"
+  );
 
   /**
    * Map Convex factuur Doc to FactuurPDF component props.
@@ -251,6 +256,7 @@ export function useFactuurHandlers(
       btwUitsplitsing: factuur.btwUitsplitsing,
       totaalInclBtw: factuur.totaalInclBtw,
       notities: factuur.notities,
+      tekstenVastgelegd: factuur.tekstenVastgelegd,
     };
   }
 
@@ -277,6 +283,7 @@ export function useFactuurHandlers(
           bedrijfsgegevens={options?.bedrijfsgegevens}
           theme={options?.theme}
           voorwaarden={options?.voorwaarden}
+          teksten={liveTeksten?.teksten}
         />
       );
 
@@ -305,7 +312,7 @@ export function useFactuurHandlers(
     } finally {
       setIsDownloadingPdf(false);
     }
-  }, [options?.factuur, options?.bedrijfsgegevens, options?.theme, options?.voorwaarden]);
+  }, [options?.factuur, options?.bedrijfsgegevens, options?.theme, options?.voorwaarden, liveTeksten?.teksten]);
 
   const handlePreviewPdf = useCallback(async () => {
     const factuur = options?.factuur;
@@ -329,6 +336,7 @@ export function useFactuurHandlers(
           bedrijfsgegevens={options?.bedrijfsgegevens}
           theme={options?.theme}
           voorwaarden={options?.voorwaarden}
+          teksten={liveTeksten?.teksten}
         />
       );
 
@@ -349,7 +357,7 @@ export function useFactuurHandlers(
     } finally {
       setIsDownloadingPdf(false);
     }
-  }, [options?.factuur, options?.bedrijfsgegevens, options?.theme, options?.voorwaarden]);
+  }, [options?.factuur, options?.bedrijfsgegevens, options?.theme, options?.voorwaarden, liveTeksten?.teksten]);
 
   return {
     isGenerating,

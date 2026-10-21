@@ -25,6 +25,13 @@ import {
   type OfferteKlant,
 } from "./lib/offerteKlant";
 import { reserveerOfferteNummer } from "./lib/offerteNummer";
+import { haalStandaardTeksten } from "./tekstblokken";
+import {
+  getoondeOfferteTeksten,
+  legOfferteTekstenVast,
+  naarVrijeTeksten,
+  offerteDocumentSoort,
+} from "./lib/offerteTekst";
 import { archiveerVerzondenDocument } from "./lib/klantBestandenArchief";
 import { klantFactuurAdres } from "./lib/adres";
 import { Doc, Id } from "./_generated/dataModel";
@@ -662,12 +669,18 @@ export const create = mutation({
     const offerteNummer =
       args.offerteNummer ?? (await reserveerOfferteNummer(ctx, org._id));
 
+    // Standaard inleiding en afsluiting van deze soort uit de bibliotheek
+    const vrijeTeksten = naarVrijeTeksten(
+      await haalStandaardTeksten(ctx, org._id, offerteDocumentSoort(args.type))
+    );
+
     const offerteId = await ctx.db.insert("offertes", {
       orgId: org._id,
       type: args.type,
       status: "concept",
       bron: args.bron,
       offerteNummer,
+      vrijeTeksten,
       klant,
       klantId: args.klantId,
       leadId: args.leadId,
@@ -1242,6 +1255,48 @@ export const updateRegels = mutation({
 
 // Update status
 // Workflow: concept → voorcalculatie → verzonden → geaccepteerd/afgewezen
+/**
+ * Inleiding en afsluiting zoals ze op de PDF komen: de momentopname na
+ * versturen, anders live ingevuld. `ontbrekend` = velden die het versturen
+ * nog tegenhouden.
+ */
+export const getTeksten = query({
+  args: { id: v.id("offertes") },
+  handler: async (ctx, args) => {
+    const gebruiker = await requireNotViewer(ctx);
+    const offerte = await getOwnedOfferte(ctx, args.id);
+    return await getoondeOfferteTeksten(ctx, offerte, gebruiker.name);
+  },
+});
+
+/**
+ * Inleiding en afsluiting op één offerte aanpassen (de bibliotheek blijft
+ * ongemoeid). Alleen zolang de offerte nog niet verstuurd is.
+ */
+export const updateTeksten = mutation({
+  args: {
+    id: v.id("offertes"),
+    inleiding: v.optional(v.string()),
+    afsluiting: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
+    const offerte = await getOwnedOfferte(ctx, args.id);
+    if (offerte.status !== "concept" && offerte.status !== "voorcalculatie") {
+      throw new ConvexError(
+        "Een verstuurde offerte is vastgelegd. Zet hem eerst terug naar voorcalculatie."
+      );
+    }
+    await ctx.db.patch(args.id, {
+      vrijeTeksten: naarVrijeTeksten({
+        inleiding: args.inleiding?.trim() ? args.inleiding : undefined,
+        afsluiting: args.afsluiting?.trim() ? args.afsluiting : undefined,
+      }),
+      updatedAt: Date.now(),
+    });
+  },
+});
+
 export const updateStatus = mutation({
   args: {
     id: v.id("offertes"),
@@ -1254,7 +1309,7 @@ export const updateStatus = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    await requireNotViewer(ctx);
+    const gebruiker = await requireNotViewer(ctx);
     const orgId = await requireOrgId(ctx);
     // Capability "versturen naar klant" (PRD §1.2): de overgang naar
     // "verzonden" triggert e-mail/portaalnotificatie — alleen kantoor
@@ -1325,6 +1380,19 @@ export const updateStatus = mutation({
 
     if (args.status === "verzonden") {
       updates.verzondenAt = now;
+      // Vaste teksten vastleggen met ingevulde velden (HERO-nabouw fase 2).
+      // Een leeg of onbekend veld houdt het versturen tegen. Opnieuw
+      // versturen na accepteren/afwijzen houdt de bestaande momentopname.
+      if (!oldOfferte.tekstenVastgelegd) {
+        updates.tekstenVastgelegd = await legOfferteTekstenVast(ctx, oldOfferte, {
+          datum: now,
+          medewerkerNaam: gebruiker.name,
+        });
+      }
+    }
+    // Terug naar bewerken: de teksten zijn weer live
+    if (args.status === "concept" || args.status === "voorcalculatie") {
+      updates.tekstenVastgelegd = undefined;
     }
 
     // Reset customerResponse when status changes away from geaccepteerd/afgewezen

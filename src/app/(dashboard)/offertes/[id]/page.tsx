@@ -32,6 +32,7 @@ import {
   ScopesCard,
   OfferteRegelsCard,
   NotitiesCard,
+  TekstenCard,
   TotalenCard,
   ProjectCard,
   DeleteDialog,
@@ -329,6 +330,12 @@ export default function OfferteDetailPage({
               id={id}
               bron={offerte.bron}
               status={offerte.status}
+            />
+            <TekstenCard
+              id={id}
+              type={offerte.type}
+              status={offerte.status}
+              vrijeTeksten={offerte.vrijeTeksten}
             />
             <NotitiesCard notities={offerte.notities} />
           </div>

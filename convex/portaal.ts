@@ -417,6 +417,13 @@ export const getFactuurVoorPdf = query({
         btwUitsplitsing: factuur.btwUitsplitsing,
         totaalInclBtw: factuur.totaalInclBtw,
         notities: factuur.notities,
+        // Alleen de vastgelegde (verstuurde) teksten; nooit de sjabloontekst
+        tekstenVastgelegd: factuur.tekstenVastgelegd
+          ? {
+              inleiding: factuur.tekstenVastgelegd.inleiding,
+              afsluiting: factuur.tekstenVastgelegd.afsluiting,
+            }
+          : undefined,
       },
       bedrijfsgegevens: instellingen?.bedrijfsgegevens,
     };

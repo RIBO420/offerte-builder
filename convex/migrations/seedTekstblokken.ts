@@ -35,7 +35,7 @@ export const TEKSTBLOKKEN_STARTVULLING: TekstblokSeedRecord[] = [
     categorie: "aanhef",
     volgorde: 0,
     inhoud:
-      "Geachte {{klant_naam}},\n\n" +
+      "Geachte {{klant.naam}},\n\n" +
       "Hartelijk dank voor uw aanvraag. Hierbij ontvangt u onze offerte " +
       "voor de besproken werkzaamheden. Wij hebben de werkzaamheden en " +
       "bijbehorende kosten hieronder voor u uitgewerkt.",

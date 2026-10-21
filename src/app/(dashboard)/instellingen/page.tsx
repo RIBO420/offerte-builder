@@ -309,7 +309,7 @@ export default function InstellingenPage() {
             </TabsTrigger>
             <TabsTrigger value="nummering" className="flex items-center gap-2">
               <Hash className="h-4 w-4" />
-              Nummering
+              Nummering & termijnen
             </TabsTrigger>
             <TabsTrigger value="deelfacturen" className="flex items-center gap-2">
               <FileStack className="h-4 w-4" />

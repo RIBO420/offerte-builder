@@ -5,6 +5,7 @@ import { requireAdmin, requireKantoor, requireNotViewer } from "./roles";
 import { isGeldigeTijd, naarMinuten } from "./dagkaartLogica";
 import { isGeldigeSuggestieDrempel } from "./beurtNacalculatieLogica";
 import { reserveerOfferteNummer } from "./lib/offerteNummer";
+import { STANDAARD_OFFERTE_GELDIGHEID_DAGEN } from "./lib/offerteTekst";
 import {
   factuurReeks,
   formatteerDocumentNummer,
@@ -205,6 +206,36 @@ export const updateNummerreeksen = mutation({
   },
 });
 
+/**
+ * Termijnen op documenten (HERO-nabouw fase 2): geldigheid van een offerte
+ * → {{offerte.geldigTot}}, betaaltermijn → {{bedrijf.betaaltermijn}} en de
+ * vervaldatum van facturen. Eén plek, nooit getypt in een tekst.
+ */
+export const updateDocumentTermijnen = mutation({
+  args: {
+    offerteGeldigheidDagen: v.number(),
+    standaardBetalingstermijn: v.number(),
+  },
+  handler: async (ctx, args) => {
+    await requireKantoor(ctx);
+    const orgId = await requireOrgId(ctx);
+    for (const dagen of [args.offerteGeldigheidDagen, args.standaardBetalingstermijn]) {
+      if (!Number.isInteger(dagen) || dagen < 1 || dagen > 365) {
+        throw new ConvexError("Een termijn is een heel aantal dagen tussen 1 en 365");
+      }
+    }
+    const settings = await ctx.db
+      .query("instellingen")
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
+      .unique();
+    if (!settings) throw new ConvexError("Instellingen niet gevonden");
+    await ctx.db.patch(settings._id, {
+      offerteGeldigheidDagen: args.offerteGeldigheidDagen,
+      standaardBetalingstermijn: args.standaardBetalingstermijn,
+    });
+  },
+});
+
 /** Huidige reeksen met het eerstvolgende nummer, voor het instellingenscherm. */
 export const getNummerreeksen = query({
   args: {},
@@ -224,6 +255,11 @@ export const getNummerreeksen = query({
       voorbeeld: formatteerDocumentNummer(reeks, laatste + 1, jaar),
     });
     return {
+      termijnen: {
+        offerteGeldigheidDagen:
+          settings.offerteGeldigheidDagen ?? STANDAARD_OFFERTE_GELDIGHEID_DAGEN,
+        standaardBetalingstermijn: settings.standaardBetalingstermijn ?? 14,
+      },
       offerte: metVoorbeeld(offerteReeks(settings), settings.laatsteOfferteNummer),
       factuur: metVoorbeeld(
         factuurReeks(settings),

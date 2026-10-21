@@ -30,6 +30,7 @@ import {
   AanmaningDialog,
 } from "./components";
 import { REVEAL_KLASSE } from "@/components/pagina-reveal";
+import { FactuurTeksten } from "./components/factuur-teksten";
 
 /** Klantgerichte naam op het papier — nooit "Top Tuinen OS". */
 const KLANT_MERKNAAM = "Top Tuinen";
@@ -286,7 +287,9 @@ export default function FactuurPage({
                       betaaldAt={factuur.betaaldAt}
                       email={factuur.klant.email}
                     />
-                  ) : offerte ? (
+                  ) : null}
+                  {factuur && <FactuurTeksten factuur={factuur} />}
+                  {!factuur && offerte ? (
                     <UitDeOfferte
                       klantNaam={klantNaam(offerte.klant)}
                       email={offerte.klant?.email}

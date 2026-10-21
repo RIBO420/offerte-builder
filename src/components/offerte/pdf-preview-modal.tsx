@@ -72,6 +72,7 @@ interface PdfPreviewModalProps {
   bedrijfsgegevens?: Bedrijfsgegevens;
   theme?: PdfTheme;
   voorwaarden?: string;
+  teksten?: { inleiding?: string; afsluiting?: string };
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -81,6 +82,7 @@ export function PdfPreviewModal({
   bedrijfsgegevens,
   theme,
   voorwaarden,
+  teksten,
   open,
   onOpenChange,
 }: PdfPreviewModalProps) {
@@ -93,7 +95,7 @@ export function PdfPreviewModal({
     setError(null);
     try {
       const blob = await pdf(
-        <OffertePDF offerte={offerte} bedrijfsgegevens={bedrijfsgegevens} theme={theme} voorwaarden={voorwaarden} />
+        <OffertePDF offerte={offerte} bedrijfsgegevens={bedrijfsgegevens} theme={theme} voorwaarden={voorwaarden} teksten={teksten} />
       ).toBlob();
 
       const url = URL.createObjectURL(blob);
@@ -112,7 +114,7 @@ export function PdfPreviewModal({
     } finally {
       setIsLoading(false);
     }
-  }, [offerte, bedrijfsgegevens, theme, voorwaarden]);
+  }, [offerte, bedrijfsgegevens, theme, voorwaarden, teksten]);
 
   useEffect(() => {
     if (open) {

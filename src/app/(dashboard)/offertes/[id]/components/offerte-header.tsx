@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useQuery } from "convex/react";
+import { api } from "@convex/_generated/api";
+import type { Id } from "@convex/_generated/dataModel";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -116,6 +119,8 @@ export function OfferteHeader({
   onShowDeleteDialog,
 }: OfferteHeaderProps) {
   const [showNieuweVersieDialog, setShowNieuweVersieDialog] = useState(false);
+  // Inleiding/afsluiting met ingevulde velden voor de PDF
+  const teksten = useQuery(api.offertes.getTeksten, { id: id as Id<"offertes"> });
   // PRD §1.2: alleen kantoor mag de offerte naar de klant versturen
   const isKantoor = useIsKantoor();
 
@@ -223,6 +228,7 @@ export function OfferteHeader({
           bedrijfsgegevens={instellingen?.bedrijfsgegevens}
           theme={pdfTheme}
           voorwaarden={pdfVoorwaarden}
+          teksten={teksten?.teksten}
           showPreview
           variant="outline"
           size="sm"

@@ -4,6 +4,7 @@ export { KlantDetailsCard } from "./klant-details-card";
 export { ScopesCard } from "./scopes-card";
 export { OfferteRegelsCard } from "./offerte-regels-card";
 export { NotitiesCard } from "./notities-card";
+export { TekstenCard } from "./teksten-card";
 export { TotalenCard } from "./totalen-card";
 export { ProjectCard } from "./project-card";
 export { DeleteDialog } from "./delete-dialog";

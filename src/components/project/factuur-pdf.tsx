@@ -59,6 +59,8 @@ interface Factuur {
   totaalInclBtw: number;
   betaalInstructies?: string;
   notities?: string;
+  /** Ingevulde teksten, vastgelegd bij definitief/versturen (HERO-nabouw fase 2) */
+  tekstenVastgelegd?: { inleiding?: string; afsluiting?: string };
 }
 
 interface FactuurPDFProps {
@@ -66,6 +68,8 @@ interface FactuurPDFProps {
   bedrijfsgegevens?: Bedrijfsgegevens;
   theme?: PdfTheme;
   voorwaarden?: string;
+  /** Live ingevulde teksten van een concept (facturen.getTeksten) */
+  teksten?: { inleiding?: string; afsluiting?: string };
 }
 
 // Factuur-specific styles derived from theme tokens
@@ -443,7 +447,8 @@ const formatDate = (timestamp: number): string => {
   }).format(new Date(timestamp));
 };
 
-export function FactuurPDF({ factuur, bedrijfsgegevens, theme, voorwaarden }: FactuurPDFProps) {
+export function FactuurPDF({ factuur, bedrijfsgegevens, theme, voorwaarden, teksten }: FactuurPDFProps) {
+  const { inleiding, afsluiting } = factuur.tekstenVastgelegd ?? teksten ?? {};
   const t = theme ?? getDefaultTheme();
   const styles = createFactuurStyles(t);
 
@@ -561,6 +566,13 @@ export function FactuurPDF({ factuur, bedrijfsgegevens, theme, voorwaarden }: Fa
             <Text style={styles.addressText}>Tel: {factuur.klant.telefoon}</Text>
           )}
         </View>
+
+        {/* Inleiding uit de tekstbibliotheek */}
+        {inleiding && (
+          <View style={styles.notesSection}>
+            <Text style={styles.notesText}>{inleiding}</Text>
+          </View>
+        )}
 
         {/* Line items table */}
         <View style={styles.table}>
@@ -716,6 +728,13 @@ export function FactuurPDF({ factuur, bedrijfsgegevens, theme, voorwaarden }: Fa
           <View style={styles.notesSection}>
             <Text style={styles.notesTitle}>Opmerkingen</Text>
             <Text style={styles.notesText}>{factuur.notities}</Text>
+          </View>
+        )}
+
+        {/* Afsluiting uit de tekstbibliotheek */}
+        {afsluiting && (
+          <View style={styles.notesSection}>
+            <Text style={styles.notesText}>{afsluiting}</Text>
           </View>
         )}
 
