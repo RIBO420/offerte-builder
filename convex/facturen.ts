@@ -28,6 +28,7 @@ import {
 } from "./facturatieLogica";
 import { logTijdlijnEvent } from "./tijdlijn";
 import { voorcalculatieVanProject } from "./lib/voorcalculatieLookup";
+import { formatteerFactuurNummer } from "./lib/documentNummer";
 import { archiveerVerzondenDocument } from "./lib/klantBestandenArchief";
 import { klantFactuurAdres } from "./lib/adres";
 
@@ -315,9 +316,11 @@ export const generate = mutation({
     // Genereer factuurnummer
     const laatsteNummer = instellingen.laatsteFactuurNummer ?? 0;
     const volgendNummer = laatsteNummer + 1;
-    const jaar = new Date().getFullYear();
-    const prefix = instellingen.factuurNummerPrefix ?? "FAC-";
-    const factuurnummer = `${prefix}${jaar}-${String(volgendNummer).padStart(3, "0")}`;
+    const factuurnummer = formatteerFactuurNummer(
+      instellingen,
+      volgendNummer,
+      new Date().getFullYear()
+    );
 
     // Kopieer regels van offerte (zonder scope en type, conform schema)
     const regels = offerte.regels.map((regel) => ({
@@ -906,9 +909,11 @@ export const createVrij = mutation({
 
     const laatsteNummer = instellingen.laatsteFactuurNummer ?? 0;
     const volgendNummer = laatsteNummer + 1;
-    const jaar = new Date().getFullYear();
-    const prefix = instellingen.factuurNummerPrefix ?? "FAC-";
-    const factuurnummer = `${prefix}${jaar}-${String(volgendNummer).padStart(3, "0")}`;
+    const factuurnummer = formatteerFactuurNummer(
+      instellingen,
+      volgendNummer,
+      new Date().getFullYear()
+    );
 
     const totalen = berekenFactuurTotalen(args.regels, 21);
     const betalingstermijnDagen = instellingen.standaardBetalingstermijn ?? 14;
@@ -1522,11 +1527,15 @@ export const createCreditnota = mutation({
       );
     }
 
-    // Genereer creditnota nummer met CN-prefix
+    // Creditnotanummer uit de factuurreeks (CN-prefix in het jaarformaat)
     const laatsteNummer = instellingen.laatsteFactuurNummer ?? 0;
     const volgendNummer = laatsteNummer + 1;
-    const jaar = new Date().getFullYear();
-    const creditnotaNummer = `CN-${jaar}-${String(volgendNummer).padStart(3, "0")}`;
+    const creditnotaNummer = formatteerFactuurNummer(
+      instellingen,
+      volgendNummer,
+      new Date().getFullYear(),
+      "creditnota"
+    );
 
     // Bepaal welke regels gecrediteerd worden
     let creditRegels = factuur.regels;

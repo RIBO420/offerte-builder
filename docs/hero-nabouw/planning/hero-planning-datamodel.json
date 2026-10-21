@@ -1,0 +1,119 @@
+{
+  "_meta": {
+    "bron": "HERO (login.hero-software.de), account Top Tuinen, uitgelezen op 20-10-2026",
+    "toelichting": "De structuur komt uit echte HERO-responses. Namen, adressen, telefoonnummers en id's van medewerkers en klanten zijn vervangen door placeholders.",
+    "zie_ook": ["HERO-planning-spec.md", "PLANNING-MODULE.md"]
+  },
+
+  "scheduler_config": {
+    "bibliotheek": "FullCalendar Scheduler (resource timeline, betaalde licentie)",
+    "timeZone": "UTC",
+    "editable": true,
+    "selectable": true,
+    "droppable": false,
+    "snapDuration": "niet ingesteld → is gelijk aan slotDuration",
+    "eventResizableFromStart": "niet ingesteld → alleen de eindkant is te vergroten",
+    "resourceGroupField": "group",
+    "resourceAreaWidth": "200px",
+    "dagtijden": { "van": "07:00", "tot": "18:00" },
+    "views": {
+      "viewDay": { "type": "resourceTimelineDay", "slotDuration": "15 min (kwartierlijnen)" },
+      "viewThreeDays": { "type": "resourceTimeline", "dayCount": 3, "slotDuration": { "hours": 2 } },
+      "viewSevenDays": { "type": "resourceTimeline", "dayCount": 7, "slotDuration": { "hours": 3 } },
+      "viewWeek": { "type": "resourceTimelineWeek", "slotDuration": { "hours": 3 } },
+      "viewFourteenDays": { "type": "resourceTimeline", "dayCount": 14, "slotDuration": { "hours": 3 } },
+      "viewFourWeeks": { "type": "resourceTimeline", "duration": { "weeks": 4 }, "slotDuration": { "days": 1 } },
+      "viewMonth": { "type": "resourceTimelineMonth", "slotDuration": { "days": 1 } }
+    }
+  },
+
+  "resources": [
+    { "id": "other", "title": "Over het algemeen" },
+    { "id": "other/projects", "title": "Projecten gepland" },
+    { "id": "partner", "title": "Medewerkers" },
+    { "id": "partner/<MEDEWERKER_ID_1>", "title": "<MEDEWERKER 1>" },
+    { "id": "partner/<MEDEWERKER_ID_2>", "title": "<MEDEWERKER 2>" }
+  ],
+  "_resources_noot": "Bij Top Tuinen: 8 medewerkers, geen voertuigen of machines. Brontypen die bestaan: Voertuig, Ruimte, Machine, Gereedschap, Overig.",
+
+  "categories": [
+    { "name": "Afspraak op locatie", "color": "geelgroen" },
+    { "name": "Kantoor", "color": "#E4C441" },
+    { "name": "Team Blauw", "color": "blauw" },
+    { "name": "Team Groen", "color": "groen" },
+    { "name": "Team Oranje", "color": "oranje" },
+    { "name": "Team Paars", "color": "paars" }
+  ],
+
+  "event_types_gezien": ["execution", "office", "school", "meeting", "bad_weather"],
+
+  "event_voorbeeld_uitvoering": {
+    "id": "scheduler/<ID>",
+    "project_match_id": "<PROJECT_ID>",
+    "category_id": "<CATEGORIE_ID>",
+    "category": { "name": "Team Groen", "color": "groen" },
+    "type": "execution",
+    "title": "<KLUSNAAM>",
+    "description": "<vrije tekst, bijvoorbeeld 'xx manuur totaal gepland + namen'>",
+    "start": "2026-10-21T08:00:00",
+    "end": "2026-10-21T16:00:00",
+    "all_day": false,
+    "partners": ["<MEDEWERKER_ID_1>", "<MEDEWERKER_ID_2>"],
+    "resources": [],
+    "provider": "scheduler",
+    "is_done": false,
+    "is_recurring": false,
+    "address": "<ADRES VAN DE KLUS>"
+  },
+
+  "event_voorbeeld_reistijd": {
+    "type": "office",
+    "category": { "name": "Kantoor" },
+    "title": "REISTIJD",
+    "start": "07:30",
+    "end": "08:00",
+    "partners": "7 medewerkers",
+    "is_recurring": false,
+    "_noot": "Wordt elke werkdag met de hand opnieuw aangemaakt"
+  },
+
+  "appointment_form_velden": [
+    "Titel", "Begindatum", "Van", "Einddatum", "Tot",
+    "Herhaling (Uniek | Dagelijks | Wekelijks | Maandelijks | Jaarlijks)",
+    "Project / Contactpersoon", "Categorie", "Medewerkers", "Bronnen", "Beschrijving", "Voltooid (vinkje)"
+  ],
+
+  "kaartweergave_opties": [
+    "Contactpersoon", "Aantal toegewezen medewerkers en resources", "Categorie",
+    "Klantadres of projectadres (indien afwijkend)", "Klantnaam", "Klantnaam of contactpersoon",
+    "Project- of klantnummer", "Projectnaam", "Projectnummer en projectnaam of contactnummer",
+    "Begin- en eindtijd", "Titel"
+  ],
+
+  "project_stappen_hero": [
+    "Nieuw - eerste contact", "Afspraak op locatie", "Offerte", "Detail gesprek",
+    "Opdracht toekenning", "Opdracht bevestiging", "Start uitvoering", "In uitvoering",
+    "Factuur", "Claim", "Afgesloten", "Gearchiveerd"
+  ],
+
+  "gebruik_hoogseizoen_18mei_12jun_2026": {
+    "afspraken_excl_reistijd": 100,
+    "met_project": 82,
+    "zonder_medewerker": 7,
+    "met_meerdere_medewerkers": 33,
+    "meerdaags": 0,
+    "herhalend": 0,
+    "hele_dag": 0,
+    "gemiddelde_duur_uur": 4.59,
+    "maximale_duur_uur": 8,
+    "projecten": 37,
+    "max_afspraken_per_project": 13,
+    "tijden_op_kwartieren": "vrijwel allemaal (:00 / :15 / :30 / :45)",
+    "teams": {
+      "Team Groen": "64 afspraken; 1 vaste kern + 0 tot 2 wisselende helpers",
+      "Team Paars": "16 afspraken; 1 vaste kern, soms + 1",
+      "Team Blauw": "16 afspraken; 1 vaste kern + 1 vaak wisselende helper",
+      "Team Oranje": "4 afspraken"
+    }
+  }
+}

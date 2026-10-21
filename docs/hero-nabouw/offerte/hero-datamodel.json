@@ -1,0 +1,250 @@
+{
+  "_meta": {
+    "bron": "HERO (login.hero-software.de), account Top Tuinen, uitgelezen op 20-10-2026",
+    "toelichting": "Structuur nagebouwd op basis van echte HERO-JSON. Klantgegevens zijn vervangen door placeholders. 'example_title' en 'example_service' komen uit de editorcode en niet uit echte Top Tuinen-documenten, want die gebruiken geen titels of diensten.",
+    "zie_ook": "HERO-offerte-spec.md"
+  },
+
+  "customer_document": {
+    "atType": "CustomerDocument",
+    "id": 0,
+    "type": "offer",
+    "document_type_id": 1034526,
+    "source": "editor",
+    "nr": "0xxxx",
+    "contact_id": 0,
+    "project_match_id": 0,
+    "status_code": 0,
+    "_status_codes_gezien": { "0": "concept / voorlopige versie", "200": "verstuurd" },
+    "value": 0,
+    "vat": 0,
+    "currency": "EUR",
+    "date": "2026-10-19",
+    "published_customer_document_draft_id": 0,
+    "file_upload_id": 0
+  },
+
+  "draft": {
+    "atType": "CustomerDocumentDraft",
+    "id": 0,
+    "customer_document_id": 0,
+    "type": "offer",
+    "document_type_id": 1034526,
+    "status_code": 0,
+    "nr": "0xxxx",
+    "value": 0,
+    "data": {
+      "version": 37,
+      "date": "2026-10-19",
+      "subject": "Offerte nr. ",
+      "total_price": 0,
+      "total_vat": 0,
+      "custom_date": "",
+      "project_address_text": "",
+      "receiver": {
+        "atType": "Customer",
+        "id": 0,
+        "company_name": "",
+        "company_legal_form": "",
+        "title": "Dhr.",
+        "title_custom": "",
+        "first_name": "<VOORNAAM>",
+        "last_name": "<ACHTERNAAM>",
+        "nr": "<KLANTNR>",
+        "ust_id_number": "",
+        "email": "<EMAIL>",
+        "leitweg_nr": "",
+        "address": { "street": "", "line_1": "", "line_2": "", "zipcode": null, "city": null, "country": "", "country_code": "" },
+        "trade_register_number": ""
+      },
+      "options": {
+        "font": "Calibri",
+        "font_size": "11",
+        "pdf_layout": "modern",
+        "show_vat": true,
+        "number_prefix": "ANG-",
+        "number_range": "10000",
+        "_noot_nummering": "number_prefix en number_range zijn standaardwaarden van HERO, niet de echte reeks. Het startnummer wordt een instelling in toptuinen.app en wordt vlak voor livegang ingevuld.",
+        "subject_prefix": "Offerte nr. ",
+        "subject_font": "Arial",
+        "subject_font_size": "13",
+        "subject_font_bold": true,
+        "logo_width": "45",
+        "logo_heigth": "30",
+        "footer_text": "company_full_page",
+        "footer_font_size": "7",
+        "folding_marks": true,
+        "page_margin_top": "40",
+        "page_margin_bottom": "35",
+        "page_margin_left": "0",
+        "page_margin_right": "0",
+        "content_margin_top": "100",
+        "content_margin_left": "25",
+        "content_margin_right": "15",
+        "text_preamble": "215715",
+        "text_prolog": "215714",
+        "show_title_sum": true,
+        "_noot": "123 sleutels in totaal, zie bijlage A van de spec"
+      },
+      "item_number_schema": {
+        "tiers": [{ "numberLength": 1 }, { "numberLength": 3 }],
+        "skipNonExistingLevels": false,
+        "skippedTiersFiller": "_"
+      },
+      "totals": {
+        "base": 0, "net": 0, "netOptional": 0, "netOnDemand": 0,
+        "time": 0, "wage": 0, "wage_base": 0,
+        "material": 0, "material_base": 0,
+        "sales": 0, "margin": 0, "marginPos": 0,
+        "byVat": [], "vat": 0
+      },
+      "items": [
+        {
+          "type": "text",
+          "id": 215715,
+          "uid": "aj4mr8pj",
+          "title": "Offerte- Inleiding Top Tuinen",
+          "text": "<p>Geachte mevrouw/heer {{Customer.last_name}},</p><p>Wij willen u hartelijk bedanken voor uw offerteaanvraag. ...</p>",
+          "pagebreak": null
+        },
+        {
+          "type": "table",
+          "uid": "rxrqu2d70",
+          "sales_type": "",
+          "sales_name": "",
+          "sales_value": 0,
+          "sales_total": 0,
+          "metalPricePerKg": 0,
+          "pagebreak": false,
+          "items": [
+            {
+              "atType": "SupplyProduct",
+              "type": "product",
+              "uid": "3vovn0rg",
+              "nr": "1911",
+              "name": "Voorbereidende werkzaamheden, sloop en afvoer",
+              "description": "<p>Wij starten met het zorgvuldig vrijmaken van ...</p><ul><li>...</li></ul>",
+              "unit_type": "Stk",
+              "quantity": 1,
+              "base_price": 5238.5,
+              "marge": 24.73,
+              "net_price_per_unit": 6534,
+              "list_price": 0,
+              "vat_percent": 21,
+              "time_minutes": 0,
+              "sales": 0,
+              "optional": null,
+              "onDemand": null,
+              "measurements": [],
+              "itemNumber": { "identifiers": ["0", "001"], "isFixed": null },
+              "sales_price_id": 0,
+              "supply_service_id": 0,
+              "supplier_id": "",
+              "ean": "",
+              "manufacturer": "",
+              "quantity_min": 0,
+              "quantity_interval": 0,
+              "price_quantity": 0,
+              "hash": "<sha256 van stamdata-snapshot>",
+              "attributes": {
+                "stock": { "status": null, "count": null, "description": null },
+                "measurement": { "amount": null, "length": null, "width": null, "height": null }
+              }
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "id": 215714,
+          "uid": "x5tp6id0",
+          "title": "Offerte - Afsluiting Top Tuinen",
+          "text": "<p>Bovenstaande prijzen zijn geldig tot vier weken ...</p><p>Met groene groet,</p><p>{{Partner.full_name}}</p>",
+          "pagebreak": null
+        }
+      ],
+      "suggested_items": []
+    }
+  },
+
+  "example_title": {
+    "type": "title",
+    "uid": "<uid>",
+    "title": "Positie 1",
+    "text": "Posten",
+    "items": ["<ProductLine | ServiceLine | TitleItem>"],
+    "totals": { "net": 0, "material": 0, "material_base": 0, "wage": 0, "wage_base": 0, "time": 0 }
+  },
+
+  "example_service": {
+    "type": "service",
+    "supply_service_id": 1001,
+    "name": "Tuinonderhoud uurbasis",
+    "unit_type": "uur",
+    "quantity": 1,
+    "vat_percent": 21,
+    "net_price_per_unit": 60,
+    "components": {
+      "product_positions": [],
+      "wage_positions": [
+        { "wage_group": "Hovenier", "activity": "", "time_minutes": 60, "wage_cost_price": 30, "wage_per_hour": 60, "quantity": 60 }
+      ]
+    },
+    "is_custom_price": false,
+    "custom_material_price": 0,
+    "custom_wage_price": 0,
+    "is_fixed_net_price": false,
+    "_bruto": 72.6
+  },
+
+  "example_measurement": {
+    "_uitleg": "Illustratief voorbeeld (de waarden zijn verzonnen, de velden komen uit de editorcode). Hoeveelheid berekenen met formules (Aufmaß): elke regel heeft een label en een formule; de som wordt de hoeveelheid. Tot 4 decimalen, afgerond op 2.",
+    "measurements": [
+      { "label": "Achtertuin", "formula": "12.5*4", "result": 50, "unit_type": "m²" },
+      { "label": "Strook zijkant", "formula": "8*1.2", "result": 9.6, "unit_type": "m²" }
+    ],
+    "quantity": 59.6
+  },
+
+  "price_lists": [
+    { "name": "VK1", "formula": "Aankoopprijs + 0,00%", "markup_percent": 0, "is_default": true },
+    { "name": "Standaardmarge", "formula": "Aankoopprijs + 40,00%", "markup_percent": 40, "is_default": false },
+    { "name": "Klantspecifiek (test)", "formula": "Aankoopprijs + 66,67%", "markup_percent": 66.67, "is_default": false }
+  ],
+
+  "wage_groups": [
+    { "name": "Hovenier", "cost_per_hour": 30, "markup_percent": 100, "price_per_hour": 60 }
+  ],
+
+  "document_types": [
+    "1e Herinnering", "Aanbetaling", "Algemeen", "Bestelformulier", "Bouwplaatsrapport", "Brief", "Calculatie",
+    "Creditfactuur", "Factuur - Aanleg - Top Tuinen", "Factuur - Onderhoud - Top Tuinen", "Factuur BTW-verlegd",
+    "Jaarlijkse offerte", "Leveringsbon", "Meetdocument", "Offerte-aanleg", "Offerte-onderhoud", "Orderbevestiging"
+  ],
+
+  "fixture_01399": {
+    "_uitleg": "Echte offerte-aanleg 01399 (zonder klantgegevens). Gebruik als acceptatietest: de eigen rekenmotor moet exact deze totalen opleveren.",
+    "lines": [
+      { "nr": "1911", "name": "Voorbereidende werkzaamheden, sloop en afvoer", "quantity": 1, "unit": "st", "base_price": 5238.50, "marge": 24.73, "net_price_per_unit": 6534.00, "vat_percent": 21 },
+      { "nr": "1912", "name": "Grondwerk en nieuwe funderingsopbouw", "quantity": 1, "unit": "st", "base_price": 3288.60, "marge": 32.61, "net_price_per_unit": 4361.01, "vat_percent": 21 },
+      { "nr": "1913", "name": "Grindoprit en siergrindvakken", "quantity": 1, "unit": "st", "base_price": 3196.25, "marge": 31.00, "net_price_per_unit": 4187.09, "vat_percent": 21 },
+      { "nr": "1914", "name": "Vernieuwen en verbreden toegangspaden", "quantity": 1, "unit": "st", "base_price": 1940.00, "marge": 35.00, "net_price_per_unit": 2619.00, "vat_percent": 21 },
+      { "nr": "1915", "name": "Realisatie drie verhoogde cortenstalen plantenbakken", "quantity": 1, "unit": "st", "base_price": 4590.00, "marge": 37.82, "net_price_per_unit": 6326.00, "vat_percent": 21 },
+      { "nr": "1916", "name": "Meerstammige sierboom", "quantity": 1, "unit": "st", "base_price": 280.00, "marge": 40.00, "net_price_per_unit": 392.00, "vat_percent": 9 },
+      { "nr": "1917", "name": "Levering en aanplant van kleurrijke, onderhoudsvriendelijke sierbeplanting", "quantity": 1, "unit": "st", "base_price": 200.00, "marge": 40.00, "net_price_per_unit": 280.00, "vat_percent": 9 }
+    ],
+    "expected_totals": {
+      "base": 18733.35,
+      "net": 24699.10,
+      "netOptional": 0,
+      "netOnDemand": 0,
+      "material": 24699.10,
+      "material_base": 18733.35,
+      "byVat": [
+        { "vat": 21, "net": 24027.10, "base": 18253.35 },
+        { "vat": 9, "net": 672.00, "base": 480.00 }
+      ],
+      "vat": 5106.17,
+      "brutto": 29805.27
+    }
+  }
+}

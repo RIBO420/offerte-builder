@@ -13,6 +13,7 @@
 import { MutationCtx } from "../_generated/server";
 import { Id } from "../_generated/dataModel";
 import { ConvexError } from "convex/values";
+import { formatteerDocumentNummer, offerteReeks } from "./documentNummer";
 
 export function formatteerOfferteNummer(
   prefix: string,
@@ -59,10 +60,10 @@ export async function reserveerOfferteNummer(
   // bestaan (import, handmatig nummer, andere prefix-instelling).
   for (let poging = 0; poging < 50; poging++) {
     volgnummer += 1;
-    offerteNummer = formatteerOfferteNummer(
-      settings.offerteNummerPrefix,
-      jaar,
-      volgnummer
+    offerteNummer = formatteerDocumentNummer(
+      offerteReeks(settings),
+      volgnummer,
+      jaar
     );
     // by_nummer is bedrijfsoverstijgend; nummers zijn per organisatie uniek.
     // Zonder dit org-filter (zelfde post-filter als offertes.getByNummer)

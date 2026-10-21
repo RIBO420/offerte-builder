@@ -1,13 +1,17 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query, internalQuery } from "./_generated/server";
 import { requireOrg, requireOrgId } from "./auth";
-import { requireKantoor, requireNotViewer } from "./roles";
+import { requireAdmin, requireKantoor, requireNotViewer } from "./roles";
 import { isGeldigeTijd, naarMinuten } from "./dagkaartLogica";
 import { isGeldigeSuggestieDrempel } from "./beurtNacalculatieLogica";
+import { reserveerOfferteNummer } from "./lib/offerteNummer";
 import {
-  formatteerOfferteNummer,
-  reserveerOfferteNummer,
-} from "./lib/offerteNummer";
+  factuurReeks,
+  formatteerDocumentNummer,
+  offerteReeks,
+  valideerNummerreeks,
+  type Nummerreeks,
+} from "./lib/documentNummer";
 
 const bedrijfsgegevensValidator = v.object({
   naam: v.string(),
@@ -142,6 +146,90 @@ export const update = mutation({
 
     await ctx.db.patch(settings._id, updates);
     return settings._id;
+  },
+});
+
+const nummerreeksValidator = v.object({
+  prefix: v.string(),
+  formaat: v.union(v.literal("jaar"), v.literal("doorlopend")),
+  cijfers: v.number(),
+  volgendNummer: v.number(),
+});
+
+/**
+ * Nummerreeksen voor offertes en facturen (HERO-nabouw): formaat, voorvoegsel
+ * en het volgende nummer, zodat de nummering doorloopt waar HERO stopt.
+ * Alleen directie; het volgende nummer kan nooit terug (valideerNummerreeks).
+ * Een reeks die je niet meestuurt blijft ongemoeid.
+ */
+export const updateNummerreeksen = mutation({
+  args: {
+    offerte: v.optional(nummerreeksValidator),
+    factuur: v.optional(nummerreeksValidator),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    const orgId = await requireOrgId(ctx);
+
+    const settings = await ctx.db
+      .query("instellingen")
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
+      .unique();
+    if (!settings) {
+      throw new ConvexError("Instellingen niet gevonden");
+    }
+
+    const updates: Record<string, unknown> = {};
+    if (args.offerte) {
+      const { volgendNummer, ...reeks } = args.offerte;
+      valideerNummerreeks(reeks, volgendNummer, settings.laatsteOfferteNummer);
+      updates.offerteNummerPrefix = reeks.prefix;
+      updates.offerteNummerFormaat = reeks.formaat;
+      updates.offerteNummerCijfers = reeks.cijfers;
+      updates.laatsteOfferteNummer = volgendNummer - 1;
+    }
+    if (args.factuur) {
+      const { volgendNummer, ...reeks } = args.factuur;
+      valideerNummerreeks(
+        reeks,
+        volgendNummer,
+        settings.laatsteFactuurNummer ?? 0
+      );
+      updates.factuurNummerPrefix = reeks.prefix;
+      updates.factuurNummerFormaat = reeks.formaat;
+      updates.factuurNummerCijfers = reeks.cijfers;
+      updates.laatsteFactuurNummer = volgendNummer - 1;
+    }
+
+    await ctx.db.patch(settings._id, updates);
+  },
+});
+
+/** Huidige reeksen met het eerstvolgende nummer, voor het instellingenscherm. */
+export const getNummerreeksen = query({
+  args: {},
+  handler: async (ctx) => {
+    const orgId = await requireOrgId(ctx);
+    const settings = await ctx.db
+      .query("instellingen")
+      .withIndex("by_org", (q) => q.eq("orgId", orgId))
+      .unique();
+    if (!settings) return null;
+
+    const jaar = new Date().getFullYear();
+    const metVoorbeeld = (reeks: Nummerreeks, laatste: number) => ({
+      ...reeks,
+      laatsteNummer: laatste,
+      volgendNummer: laatste + 1,
+      voorbeeld: formatteerDocumentNummer(reeks, laatste + 1, jaar),
+    });
+    return {
+      offerte: metVoorbeeld(offerteReeks(settings), settings.laatsteOfferteNummer),
+      factuur: metVoorbeeld(
+        factuurReeks(settings),
+        settings.laatsteFactuurNummer ?? 0
+      ),
+    };
   },
 });
 
@@ -378,10 +466,10 @@ export const previewNextOfferteNummer = query({
 
     if (!settings) return null;
 
-    return formatteerOfferteNummer(
-      settings.offerteNummerPrefix,
-      new Date().getFullYear(),
-      settings.laatsteOfferteNummer + 1
+    return formatteerDocumentNummer(
+      offerteReeks(settings),
+      settings.laatsteOfferteNummer + 1,
+      new Date().getFullYear()
     );
   },
 });

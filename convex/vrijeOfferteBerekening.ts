@@ -232,6 +232,41 @@ export function berekenHoofdstukSubtotalen(
   return volgorde.map((hoofdstuk) => ({ hoofdstuk, ...map.get(hoofdstuk)! }));
 }
 
+export interface BtwPerTarief {
+  percentage: number;
+  grondslag: number;
+  bedrag: number;
+}
+
+/**
+ * Btw-uitsplitsing per tarief (9 vóór 21), afgerond per tarief — zoals HERO
+ * en berekenBtwUitsplitsing in facturatieLogica, zodat offerte en facturen
+ * op de cent gelijk lopen. Korting op totaal gaat naar rato over de regels.
+ */
+export function berekenBtwPerTarief(
+  regels: ReadonlyArray<VrijeRegel>,
+  kortingOpTotaal = 0
+): BtwPerTarief[] {
+  const subtotaal = regels.reduce((som, r) => som + r.totaal, 0);
+  const kortingsFactor =
+    subtotaal > 0 ? round2(subtotaal - kortingOpTotaal) / subtotaal : 0;
+  const perTarief = new Map<number, number>();
+  for (const regel of regels) {
+    const code = regel.btwCode ?? 21;
+    perTarief.set(
+      code,
+      (perTarief.get(code) ?? 0) + regel.totaal * kortingsFactor
+    );
+  }
+  return [...perTarief.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([percentage, grondslag]) => ({
+      percentage,
+      grondslag: round2(grondslag),
+      bedrag: round2(grondslag * (percentage / 100)),
+    }));
+}
+
 export interface VrijeTotalen {
   materiaalkosten: number;
   arbeidskosten: number;
@@ -250,8 +285,7 @@ export interface VrijeTotalen {
  *
  * - subtotaal      = som regeltotalen (verkoop, ná korting per regel)
  * - totaalExBtw    = subtotaal − korting op totaal
- * - btw            = per regel naar btw-code (9/21), korting op totaal
- *                    naar rato over de regels verdeeld
+ * - btw            = som van berekenBtwPerTarief (per tarief afgerond)
  * - marge          = verkoop − inkoop (alleen regels met bekende inkoop)
  * - margePercentage = marge ÷ totaalExBtw (marge op verkoop, PRD-semantiek)
  */
@@ -292,15 +326,13 @@ export function berekenVrijeTotalen(
   }
 
   const totaalExBtw = round2(subtotaal - kortingOpTotaal);
-  // Korting op totaal naar rato verdelen over de regels voor de btw-grondslag
   const kortingsFactor = subtotaal > 0 ? totaalExBtw / subtotaal : 0;
-  let btw = 0;
-  for (const regel of regels) {
-    const grondslag = regel.totaal * kortingsFactor;
-    const code = regel.btwCode ?? 21;
-    btw += grondslag * (code / 100);
-  }
-  btw = round2(btw);
+  const btw = round2(
+    berekenBtwPerTarief(regels, kortingOpTotaal).reduce(
+      (som, t) => som + t.bedrag,
+      0
+    )
+  );
 
   const marge = round2(totaalExBtw - inkoopTotaal * kortingsFactor);
   const margePercentage =

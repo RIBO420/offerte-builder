@@ -5,7 +5,7 @@ import Link from "next/link";
 import { PaginaReveal } from "@/components/pagina-reveal";
 import { PageHeader } from "@/components/page-header";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calculator, CalendarClock, Clock, Sliders, Link2, FileStack, Bell, Mail, Paintbrush } from "lucide-react";
+import { Calculator, CalendarClock, Clock, Sliders, Link2, FileStack, Bell, Mail, Paintbrush, Hash } from "lucide-react";
 import { toast } from "sonner";
 import { useInstellingen } from "@/hooks/use-instellingen";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -24,6 +24,7 @@ import { HerinneringenTab } from "./components/herinneringen-tab";
 import { EmailTemplatesTab } from "./components/email-templates-tab";
 import { HuisstijlTab } from "./components/huisstijl-tab";
 import { DagkaartTab } from "./components/dagkaart-tab";
+import { NummeringTab } from "./components/nummering-tab";
 import { GeavanceerdBeheer } from "./components/gevarenzone";
 import { LaadIndicator } from "@/components/ui/laad-indicator";
 
@@ -286,8 +287,10 @@ export default function InstellingenPage() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           {/* flex-wrap i.p.v. overflow-x-auto: de app scrolt nergens zijwaarts
-              (CLAUDE.md regel 1); de 10 tabs wrappen op smalle schermen. */}
-          <TabsList className="flex-wrap justify-start overflow-x-visible group-data-[orientation=horizontal]/tabs:h-auto group-data-[orientation=horizontal]/tabs:sm:h-auto">
+              (CLAUDE.md regel 1); de tabs wrappen op smalle schermen. De
+              triggers rekken standaard op tot de lijsthoogte (h-[calc(100%)]),
+              waardoor een tweede rij onder de inhoud schoof: hier h-auto. */}
+          <TabsList className="flex-wrap justify-start overflow-x-visible group-data-[orientation=horizontal]/tabs:h-auto group-data-[orientation=horizontal]/tabs:sm:h-auto [&>[role=tab]]:h-auto">
             <TabsTrigger value="tarieven" className="flex items-center gap-2">
               <Calculator className="h-4 w-4" />
               Tarieven
@@ -303,6 +306,10 @@ export default function InstellingenPage() {
             <TabsTrigger value="koppelingen" className="flex items-center gap-2">
               <Link2 className="h-4 w-4" />
               Koppelingen
+            </TabsTrigger>
+            <TabsTrigger value="nummering" className="flex items-center gap-2">
+              <Hash className="h-4 w-4" />
+              Nummering
             </TabsTrigger>
             <TabsTrigger value="deelfacturen" className="flex items-center gap-2">
               <FileStack className="h-4 w-4" />
@@ -374,6 +381,8 @@ export default function InstellingenPage() {
           )}
 
           {activeTab === "koppelingen" && <KoppelingenTab />}
+
+          {activeTab === "nummering" && <NummeringTab />}
 
           {activeTab === "deelfacturen" && <DeelfactuurTemplatesTab />}
 

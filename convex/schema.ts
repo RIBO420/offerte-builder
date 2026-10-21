@@ -565,9 +565,19 @@ export default defineSchema({
     }),
     offerteNummerPrefix: v.string(),
     laatsteOfferteNummer: v.number(),
+    // Nummerformaat (HERO-nabouw): "jaar" = {prefix}{jaar}-{001} (default),
+    // "doorlopend" = {prefix}{01399}. → convex/lib/documentNummer.ts
+    offerteNummerFormaat: v.optional(
+      v.union(v.literal("jaar"), v.literal("doorlopend"))
+    ),
+    offerteNummerCijfers: v.optional(v.number()),
     // Factuur instellingen
     factuurNummerPrefix: v.optional(v.string()),
     laatsteFactuurNummer: v.optional(v.number()),
+    factuurNummerFormaat: v.optional(
+      v.union(v.literal("jaar"), v.literal("doorlopend"))
+    ),
+    factuurNummerCijfers: v.optional(v.number()),
     standaardBetalingstermijn: v.optional(v.number()),
     // Deelfactuur templates (FAC-002)
     // Bijv. [{naam: "50/30/20", stappen: [{percentage: 50, label: "Vooraf"}, ...]}]

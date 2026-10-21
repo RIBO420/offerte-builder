@@ -54,6 +54,7 @@ import {
 } from "./facturatieLogica";
 import { verstuurFactuurKern } from "./facturen";
 import { klantFactuurAdres } from "./lib/adres";
+import { formatteerFactuurNummer } from "./lib/documentNummer";
 
 const ENGINE_AUTEUR = "Facturatie-engine";
 
@@ -83,13 +84,15 @@ async function volgendFactuurnummer(
     );
   }
   const volgendNummer = (instellingen.laatsteFactuurNummer ?? 0) + 1;
-  const jaar = new Date().getFullYear();
-  const prefix = instellingen.factuurNummerPrefix ?? "FAC-";
   await ctx.db.patch(instellingen._id, {
     laatsteFactuurNummer: volgendNummer,
   });
   return {
-    factuurnummer: `${prefix}${jaar}-${String(volgendNummer).padStart(3, "0")}`,
+    factuurnummer: formatteerFactuurNummer(
+      instellingen,
+      volgendNummer,
+      new Date().getFullYear()
+    ),
     instellingen,
   };
 }
@@ -609,8 +612,6 @@ export const factureerContractTermijnen = internalMutation({
         btwCodes.size === 1 ? [...btwCodes][0] : DEFAULT_BTW_ONDERHOUD;
 
       const volgendNummer = (instellingen.laatsteFactuurNummer ?? 0) + 1;
-      const jaar = new Date().getFullYear();
-      const prefix = instellingen.factuurNummerPrefix ?? "FAC-";
       await ctx.db.patch(instellingen._id, {
         laatsteFactuurNummer: volgendNummer,
       });
@@ -631,7 +632,11 @@ export const factureerContractTermijnen = internalMutation({
         // Identity-loze cron: de tenant komt uit het contract, niet uit een JWT.
         orgId: contract.orgId,
         klantId: contract.klantId,
-        factuurnummer: `${prefix}${jaar}-${String(volgendNummer).padStart(3, "0")}`,
+        factuurnummer: formatteerFactuurNummer(
+          instellingen,
+          volgendNummer,
+          new Date().getFullYear()
+        ),
         status: "concept",
         documentStatus: "concept",
         betaalStatus: "open",

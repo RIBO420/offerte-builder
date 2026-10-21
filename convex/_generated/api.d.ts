@@ -65,6 +65,7 @@ import type * as leveranciers from "../leveranciers.js";
 import type * as lib_adres from "../lib/adres.js";
 import type * as lib_batchLoad from "../lib/batchLoad.js";
 import type * as lib_bezoekBemanning from "../lib/bezoekBemanning.js";
+import type * as lib_documentNummer from "../lib/documentNummer.js";
 import type * as lib_fotoHash from "../lib/fotoHash.js";
 import type * as lib_klantBestandenArchief from "../lib/klantBestandenArchief.js";
 import type * as lib_klantNaam from "../lib/klantNaam.js";
@@ -251,6 +252,7 @@ declare const fullApi: ApiFromModules<{
   "lib/adres": typeof lib_adres;
   "lib/batchLoad": typeof lib_batchLoad;
   "lib/bezoekBemanning": typeof lib_bezoekBemanning;
+  "lib/documentNummer": typeof lib_documentNummer;
   "lib/fotoHash": typeof lib_fotoHash;
   "lib/klantBestandenArchief": typeof lib_klantBestandenArchief;
   "lib/klantNaam": typeof lib_klantNaam;

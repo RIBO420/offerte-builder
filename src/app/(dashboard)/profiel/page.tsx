@@ -538,7 +538,7 @@ export default function ProfielPage() {
                       }
                     />
                     <p className="text-xs text-muted-foreground">
-                      Bijv. OFF-2026-001
+                      Formaat en volgend nummer: Instellingen → Nummering
                     </p>
                   </div>
                   <div className="space-y-2">
@@ -550,7 +550,7 @@ export default function ProfielPage() {
                       disabled
                     />
                     <p className="text-xs text-muted-foreground">
-                      Automatisch verhoogd bij nieuwe offerte
+                      Aan te passen onder Instellingen → Nummering
                     </p>
                   </div>
                 </div>
