@@ -5,6 +5,7 @@ export { ScopesCard } from "./scopes-card";
 export { OfferteRegelsCard } from "./offerte-regels-card";
 export { NotitiesCard } from "./notities-card";
 export { TekstenCard } from "./teksten-card";
+export { TermijnenCard } from "./termijnen-card";
 export { TotalenCard } from "./totalen-card";
 export { ProjectCard } from "./project-card";
 export { DeleteDialog } from "./delete-dialog";

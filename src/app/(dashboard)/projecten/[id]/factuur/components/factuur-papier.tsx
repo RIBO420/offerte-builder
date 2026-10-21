@@ -48,6 +48,8 @@ export interface FactuurPapierProps {
     totaal: number;
   };
   notities?: string;
+  /** Wettelijke vermelding onder de totalen (bv. btw verlegd) */
+  vermelding?: string;
 }
 
 const LABEL = "mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground";
@@ -63,6 +65,7 @@ export function FactuurPapier({
   correcties,
   bedragen,
   notities,
+  vermelding,
 }: FactuurPapierProps) {
   const kenmerk = [nummer, factuurdatum ? formatDate(factuurdatum) : null].filter(Boolean).join(" · ");
 
@@ -176,6 +179,9 @@ export function FactuurPapier({
         </dl>
       )}
 
+      {vermelding && (
+        <p className="whitespace-pre-wrap border-t pt-4 text-[13px] font-medium">{vermelding}</p>
+      )}
       {notities && (
         <p className="whitespace-pre-wrap border-t pt-4 text-[13px] text-muted-foreground">{notities}</p>
       )}

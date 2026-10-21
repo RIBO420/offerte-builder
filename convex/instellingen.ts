@@ -6,6 +6,7 @@ import { isGeldigeTijd, naarMinuten } from "./dagkaartLogica";
 import { isGeldigeSuggestieDrempel } from "./beurtNacalculatieLogica";
 import { reserveerOfferteNummer } from "./lib/offerteNummer";
 import { STANDAARD_OFFERTE_GELDIGHEID_DAGEN } from "./lib/offerteTekst";
+import { vermeldingVoor } from "./lib/factuurControle";
 import {
   factuurReeks,
   formatteerDocumentNummer,
@@ -215,6 +216,9 @@ export const updateDocumentTermijnen = mutation({
   args: {
     offerteGeldigheidDagen: v.number(),
     standaardBetalingstermijn: v.number(),
+    // Vermeldingen bij btw verlegd (fase 3); leeg = standaardtekst
+    btwVerlegdVermeldingNl: v.optional(v.string()),
+    btwVerlegdVermeldingEu: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     await requireKantoor(ctx);
@@ -232,6 +236,12 @@ export const updateDocumentTermijnen = mutation({
     await ctx.db.patch(settings._id, {
       offerteGeldigheidDagen: args.offerteGeldigheidDagen,
       standaardBetalingstermijn: args.standaardBetalingstermijn,
+      ...(args.btwVerlegdVermeldingNl !== undefined
+        ? { btwVerlegdVermeldingNl: args.btwVerlegdVermeldingNl.trim() || undefined }
+        : {}),
+      ...(args.btwVerlegdVermeldingEu !== undefined
+        ? { btwVerlegdVermeldingEu: args.btwVerlegdVermeldingEu.trim() || undefined }
+        : {}),
     });
   },
 });
@@ -259,6 +269,8 @@ export const getNummerreeksen = query({
         offerteGeldigheidDagen:
           settings.offerteGeldigheidDagen ?? STANDAARD_OFFERTE_GELDIGHEID_DAGEN,
         standaardBetalingstermijn: settings.standaardBetalingstermijn ?? 14,
+        btwVerlegdVermeldingNl: vermeldingVoor("nl", settings),
+        btwVerlegdVermeldingEu: vermeldingVoor("eu", settings),
       },
       offerte: metVoorbeeld(offerteReeks(settings), settings.laatsteOfferteNummer),
       factuur: metVoorbeeld(

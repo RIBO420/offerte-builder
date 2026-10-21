@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import type { PdfTheme } from "@/components/pdf/pdf-theme";
 import type { Bedrijfsgegevens } from "@/types/offerte";
 import { logger } from "@/lib/logger";
+import { btwVerlegdRegel, weergaveCorrecties } from "@convex/lib/termijnFacturatie";
 
 export interface FactuurHandlersState {
   isGenerating: boolean;
@@ -244,11 +245,13 @@ export function useFactuurHandlers(
         prijsPerEenheid: r.prijsPerEenheid,
         totaal: r.totaal,
       })),
-      correcties: factuur.correcties?.map((c, i) => ({
+      // Eigen correcties plus de termijnen die op een eindfactuur in mindering komen
+      correcties: weergaveCorrecties(factuur).map((c, i) => ({
         id: `correctie-${i}`,
         omschrijving: c.omschrijving,
         bedrag: c.bedrag,
       })),
+      btwVermelding: btwVerlegdRegel(factuur),
       subtotaal: factuur.subtotaal,
       btwPercentage: factuur.btwPercentage,
       btw: factuur.btwBedrag,

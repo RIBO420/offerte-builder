@@ -18,6 +18,7 @@ import {
   type TekstWaarden,
 } from "./documentTekst";
 import { haalStandaardTeksten } from "../tekstblokken";
+import { factuurgegevensMelding } from "./factuurControle";
 
 const DAG_MS = 24 * 60 * 60 * 1000;
 
@@ -105,6 +106,9 @@ export async function factuurTekstenBlokkade(
   ctx: QueryCtx | MutationCtx,
   factuur: Doc<"facturen">
 ): Promise<string | undefined> {
+  // Verplichte factuurgegevens (fase 3) houden het versturen net zo goed tegen
+  const gegevens = factuurgegevensMelding(factuur);
+  if (gegevens) return gegevens;
   if (factuur.tekstenVastgelegd || !factuur.teksten) return undefined;
   const r = vul(factuur, await bouwFactuurTekstWaarden(ctx, factuur));
   return blokkadeMelding(r.ontbrekend, r.onbekend);

@@ -28,7 +28,13 @@ import {
 } from "./facturatieLogica";
 import { logTijdlijnEvent } from "./tijdlijn";
 import { voorcalculatieVanProject } from "./lib/voorcalculatieLookup";
-import { formatteerFactuurNummer } from "./lib/documentNummer";
+import { berekenTotalenVoorFactuur } from "./lib/termijnFacturatie";
+import { factuurgegevensMelding, vermeldingVoor } from "./lib/factuurControle";
+import {
+  CONCEPT_FACTUURNUMMER,
+  geefFactuurNummerUit,
+  reserveerFactuurNummer,
+} from "./lib/factuurNummer";
 import {
   factuurTekstVelden,
   getoondeFactuurTeksten,
@@ -133,6 +139,11 @@ function statusPatch(
  * De klantmail loopt via portaalEmail.sendFactuurNotification en zit
  * daarmee ALTIJD achter de mailGuard (sandbox verstuurt nooit).
  */
+function assertFactuurgegevensCompleet(factuur: Doc<"facturen">): void {
+  const melding = factuurgegevensMelding(factuur);
+  if (melding) throw new ConvexError(melding);
+}
+
 export async function verstuurFactuurKern(
   ctx: MutationCtx,
   factuur: Doc<"facturen">,
@@ -145,6 +156,9 @@ export async function verstuurFactuurKern(
     );
   }
   const now = Date.now();
+  assertFactuurgegevensCompleet(factuur);
+  // Direct versturen vanuit concept: eerst het nummer uitgeven
+  factuur = await geefFactuurNummerUit(ctx, factuur);
   // Vaste teksten vastleggen (HERO-nabouw fase 2); al vastgelegd bij
   // definitief = blijft staan. Gooit bij een leeg of onbekend veld.
   const tekstenVastgelegd = await legFactuurTekstenVast(ctx, factuur, {
@@ -282,13 +296,15 @@ export const generate = mutation({
     // Haal project op en verifieer eigenaarschap
     const project = await getOwnedProject(ctx, args.projectId);
 
-    // Controleer of project al een factuur heeft
-    const bestaandeFactuur = await ctx.db
+    // Controleer of project al een factuur heeft. Meerdere facturen per
+    // project zijn legitiem (termijnen, meerwerk, creditnota's): dan geen
+    // tweede volledige factuur — de termijnen lopen via de offerte.
+    const bestaandeFacturen = await ctx.db
       .query("facturen")
       .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
-      .unique();
+      .collect();
 
-    if (bestaandeFactuur) {
+    if (bestaandeFacturen.some((f) => !f.isCreditnota && !f.meerwerkId)) {
       throw new ConvexError("Er bestaat al een factuur voor dit project");
     }
 
@@ -325,16 +341,11 @@ export const generate = mutation({
       throw new ConvexError("Instellingen niet gevonden. Configureer eerst je bedrijfsgegevens.");
     }
 
-    // Genereer factuurnummer
-    const laatsteNummer = instellingen.laatsteFactuurNummer ?? 0;
-    const volgendNummer = laatsteNummer + 1;
-    const factuurnummer = formatteerFactuurNummer(
-      instellingen,
-      volgendNummer,
-      new Date().getFullYear()
-    );
+    // Het factuurnummer komt pas bij definitief maken (geefFactuurNummerUit)
+    const factuurnummer = CONCEPT_FACTUURNUMMER;
 
-    // Kopieer regels van offerte (zonder scope en type, conform schema)
+    // Kopieer regels van offerte (zonder scope en type, conform schema),
+    // met het btw-tarief per regel uit de vrije builder
     const regels = offerte.regels.map((regel) => ({
       id: regel.id,
       omschrijving: regel.omschrijving,
@@ -342,6 +353,7 @@ export const generate = mutation({
       hoeveelheid: regel.hoeveelheid,
       prijsPerEenheid: regel.prijsPerEenheid,
       totaal: regel.totaal,
+      ...(regel.btwCode ? { btwCode: regel.btwCode } : {}),
     }));
 
     // Voeg correcties toe op basis van nacalculatie afwijkingen (indien significant)
@@ -361,13 +373,14 @@ export const generate = mutation({
       }
     }
 
-    // Bereken totalen
-    const regelsTotaal = regels.reduce((sum, r) => sum + r.totaal, 0);
-    const correctiesTotaal = correcties.reduce((sum, c) => sum + c.bedrag, 0);
-    const subtotaal = regelsTotaal + correctiesTotaal;
+    // Bereken totalen: btw per tarief, afgerond per tarief (HERO-nabouw)
     const btwPercentage = instellingen.btwPercentage;
-    const btwBedrag = subtotaal * (btwPercentage / 100);
-    const totaalInclBtw = subtotaal + btwBedrag;
+    const {
+      subtotaal,
+      btwBedrag,
+      totaalInclBtw,
+      btwUitsplitsing,
+    } = berekenTotalenVoorFactuur({ regels, correcties, btwPercentage });
 
     // Bepaal betalingstermijn en vervaldatum
     const betalingstermijnDagen = instellingen.standaardBetalingstermijn ?? 14;
@@ -414,17 +427,13 @@ export const generate = mutation({
       btwPercentage,
       btwBedrag,
       totaalInclBtw,
+      btwUitsplitsing,
       factuurdatum: now,
       vervaldatum,
       betalingstermijnDagen,
       notities: args.notities,
       createdAt: now,
       updatedAt: now,
-    });
-
-    // Update laatsteFactuurNummer in instellingen
-    await ctx.db.patch(instellingen._id, {
-      laatsteFactuurNummer: volgendNummer,
     });
 
     return factuurId;
@@ -518,10 +527,21 @@ export const get = query({
  * Haal factuur op voor een specifiek project.
  */
 export const getByProject = query({
-  args: { projectId: v.id("projecten") },
+  args: {
+    projectId: v.id("projecten"),
+    // Termijnen (HERO-nabouw fase 3): een specifieke factuur van dit project
+    factuurId: v.optional(v.id("facturen")),
+  },
   handler: async (ctx, args) => {
     // Verifieer eigenaarschap van project
     await getOwnedProject(ctx, args.projectId);
+
+    if (args.factuurId) {
+      const gekozen = await ctx.db.get(args.factuurId);
+      if (gekozen && gekozen.projectId?.toString() === args.projectId.toString()) {
+        return gekozen;
+      }
+    }
 
     // Meerdere facturen per project zijn legitiem (deelfacturen FAC-001,
     // meerwerk FAC-003, creditnota's FAC-008); .unique() gooide dan een
@@ -540,6 +560,36 @@ export const getByProject = query({
     const kandidaten = regulier.length > 0 ? regulier : facturen;
     kandidaten.sort((a, b) => a._creationTime - b._creationTime);
     return kandidaten[0];
+  },
+});
+
+/** Alle facturen van een project (termijnen, eindfactuur, creditnota's) voor de wisselaar. */
+export const listByProject = query({
+  args: { projectId: v.id("projecten") },
+  handler: async (ctx, args) => {
+    await getOwnedProject(ctx, args.projectId);
+    const facturen = await ctx.db
+      .query("facturen")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .collect();
+    return facturen
+      .filter((f) => !f.isArchived)
+      .sort((a, b) => a._creationTime - b._creationTime)
+      .map((f) => ({
+        _id: f._id,
+        factuurnummer: f.factuurnummer,
+        soort: f.isCreditnota
+          ? "Creditfactuur"
+          : f.isEindfactuur
+            ? "Eindfactuur"
+            : f.isDeelfactuur
+              ? `Termijn ${f.deelfactuurNummer}`
+              : f.meerwerkId
+                ? "Meerwerk"
+                : "Factuur",
+        status: f.status,
+        totaalInclBtw: f.totaalInclBtw,
+      }));
   },
 });
 
@@ -700,13 +750,14 @@ export const update = mutation({
 
       // Herbereken totalen incl. btw-uitsplitsing per tarief (§2.8 punt 4);
       // correcties dragen geen btwCode en vallen op het default-percentage.
-      const totalen = berekenFactuurTotalen(
-        [
-          ...nieuweRegels,
-          ...nieuweCorrecties.map((c) => ({ totaal: c.bedrag })),
-        ],
-        factuur.btwPercentage
-      );
+      // Eindfactuur: restmethode met de eerdere termijnen; btw verlegd: 0
+      const totalen = berekenTotalenVoorFactuur({
+        regels: nieuweRegels,
+        correcties: nieuweCorrecties,
+        btwPercentage: factuur.btwPercentage,
+        termijnAftrek: factuur.termijnAftrek,
+        btwVerlegd: factuur.btwVerlegd,
+      });
 
       updates.subtotaal = totalen.subtotaal;
       updates.btwBedrag = totalen.btwBedrag;
@@ -814,9 +865,14 @@ export const updateStatus = mutation({
     // concept ↔ definitief: pure documentketen. Definitief legt de teksten
     // vast (een leeg veld houdt het tegen); terug naar concept maakt ze live.
     const mapped = mapLegacyStatus(args.status);
+    // Definitief: nu pas het factuurnummer (doorlopende reeks zonder gaten),
+    // en alleen als alle verplichte gegevens erop staan
+    if (args.status === "definitief") assertFactuurgegevensCompleet(factuur);
+    const genummerd =
+      args.status === "definitief" ? await geefFactuurNummerUit(ctx, factuur) : factuur;
     const tekstenVastgelegd =
       args.status === "definitief"
-        ? await legFactuurTekstenVast(ctx, factuur, {
+        ? await legFactuurTekstenVast(ctx, genummerd, {
             datum: now,
             medewerkerNaam: user.name,
           })
@@ -847,6 +903,52 @@ export const updateStatus = mutation({
     }
 
     return args.id;
+  },
+});
+
+/**
+ * Btw verlegd op een conceptfactuur (HERO-nabouw fase 3): "nl" binnenlands,
+ * "eu" intracommunautair, null = uit. Btw wordt 0 en de vermelding uit de
+ * instellingen komt op de PDF; het btw-nummer van de klant is dan verplicht.
+ */
+export const setBtwVerlegd = mutation({
+  args: {
+    id: v.id("facturen"),
+    btwVerlegd: v.union(v.literal("nl"), v.literal("eu"), v.null()),
+    klantBtwNummer: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
+    const factuur = await getOwnedFactuur(ctx, args.id);
+    if (effectieveStatussen(factuur).documentStatus !== "concept") {
+      throw new ConvexError("Alleen een conceptfactuur kan nog aangepast worden.");
+    }
+    const instellingen = await ctx.db
+      .query("instellingen")
+      .withIndex("by_org", (q) => q.eq("orgId", factuur.orgId))
+      .unique();
+    const btwVerlegd = args.btwVerlegd ?? undefined;
+    const klantBtwNummer =
+      args.klantBtwNummer !== undefined
+        ? args.klantBtwNummer.trim() || undefined
+        : factuur.klantBtwNummer;
+    const totalen = berekenTotalenVoorFactuur({
+      regels: factuur.regels,
+      correcties: factuur.correcties,
+      btwPercentage: factuur.btwPercentage,
+      termijnAftrek: factuur.termijnAftrek,
+      btwVerlegd,
+    });
+    await ctx.db.patch(args.id, {
+      btwVerlegd,
+      klantBtwNummer,
+      btwVerlegdVermelding: btwVerlegd ? vermeldingVoor(btwVerlegd, instellingen) : undefined,
+      subtotaal: totalen.subtotaal,
+      btwBedrag: totalen.btwBedrag,
+      totaalInclBtw: totalen.totaalInclBtw,
+      btwUitsplitsing: totalen.btwUitsplitsing,
+      updatedAt: Date.now(),
+    });
   },
 });
 
@@ -971,13 +1073,8 @@ export const createVrij = mutation({
       );
     }
 
-    const laatsteNummer = instellingen.laatsteFactuurNummer ?? 0;
-    const volgendNummer = laatsteNummer + 1;
-    const factuurnummer = formatteerFactuurNummer(
-      instellingen,
-      volgendNummer,
-      new Date().getFullYear()
-    );
+    // Het factuurnummer komt pas bij definitief maken (geefFactuurNummerUit)
+    const factuurnummer = CONCEPT_FACTUURNUMMER;
 
     const totalen = berekenFactuurTotalen(args.regels, 21);
     const betalingstermijnDagen = instellingen.standaardBetalingstermijn ?? 14;
@@ -1023,10 +1120,6 @@ export const createVrij = mutation({
       notities: args.notities,
       createdAt: now,
       updatedAt: now,
-    });
-
-    await ctx.db.patch(instellingen._id, {
-      laatsteFactuurNummer: volgendNummer,
     });
 
     return factuurId;
@@ -1593,15 +1686,9 @@ export const createCreditnota = mutation({
       );
     }
 
-    // Creditnotanummer uit de factuurreeks (CN-prefix in het jaarformaat)
-    const laatsteNummer = instellingen.laatsteFactuurNummer ?? 0;
-    const volgendNummer = laatsteNummer + 1;
-    const creditnotaNummer = formatteerFactuurNummer(
-      instellingen,
-      volgendNummer,
-      new Date().getFullYear(),
-      "creditnota"
-    );
+    // Creditnotanummer uit de factuurreeks (CN-prefix in het jaarformaat);
+    // een creditnota is meteen definitief en krijgt dus nu zijn nummer
+    const creditnotaNummer = await reserveerFactuurNummer(ctx, org._id, "creditnota");
 
     // Bepaal welke regels gecrediteerd worden
     let creditRegels = factuur.regels;
@@ -1677,11 +1764,6 @@ export const createCreditnota = mutation({
       });
       if (tekstenVastgelegd) await ctx.db.patch(creditnotaId, { tekstenVastgelegd });
     }
-
-    // Update laatsteFactuurNummer in instellingen
-    await ctx.db.patch(instellingen._id, {
-      laatsteFactuurNummer: volgendNummer,
-    });
 
     return creditnotaId;
   },

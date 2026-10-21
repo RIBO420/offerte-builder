@@ -54,7 +54,7 @@ import {
 } from "./facturatieLogica";
 import { verstuurFactuurKern } from "./facturen";
 import { klantFactuurAdres } from "./lib/adres";
-import { formatteerFactuurNummer } from "./lib/documentNummer";
+import { CONCEPT_FACTUURNUMMER } from "./lib/factuurNummer";
 import { factuurTekstVelden, factuurTekstenBlokkade } from "./lib/factuurTekst";
 
 const ENGINE_AUTEUR = "Facturatie-engine";
@@ -84,18 +84,9 @@ async function volgendFactuurnummer(
       "Instellingen niet gevonden. Configureer eerst je bedrijfsgegevens."
     );
   }
-  const volgendNummer = (instellingen.laatsteFactuurNummer ?? 0) + 1;
-  await ctx.db.patch(instellingen._id, {
-    laatsteFactuurNummer: volgendNummer,
-  });
-  return {
-    factuurnummer: formatteerFactuurNummer(
-      instellingen,
-      volgendNummer,
-      new Date().getFullYear()
-    ),
-    instellingen,
-  };
+  // Het nummer komt pas bij versturen of definitief maken
+  // (lib/factuurNummer.ts:geefFactuurNummerUit)
+  return { factuurnummer: CONCEPT_FACTUURNUMMER, instellingen };
 }
 
 /**
@@ -622,10 +613,6 @@ export const factureerContractTermijnen = internalMutation({
       const btwCode: 9 | 21 =
         btwCodes.size === 1 ? [...btwCodes][0] : DEFAULT_BTW_ONDERHOUD;
 
-      const volgendNummer = (instellingen.laatsteFactuurNummer ?? 0) + 1;
-      await ctx.db.patch(instellingen._id, {
-        laatsteFactuurNummer: volgendNummer,
-      });
 
       const regel = {
         id: `termijn-${termijn._id}`,
@@ -647,11 +634,7 @@ export const factureerContractTermijnen = internalMutation({
         // Identity-loze cron: de tenant komt uit het contract, niet uit een JWT.
         orgId: contract.orgId,
         klantId: contract.klantId,
-        factuurnummer: formatteerFactuurNummer(
-          instellingen,
-          volgendNummer,
-          new Date().getFullYear()
-        ),
+        factuurnummer: CONCEPT_FACTUURNUMMER,
         status: "concept",
         documentStatus: "concept",
         betaalStatus: "open",

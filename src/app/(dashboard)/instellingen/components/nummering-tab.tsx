@@ -19,6 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -178,7 +179,12 @@ function ReeksKaart({
 function TermijnenKaart({
   huidig,
 }: {
-  huidig: { offerteGeldigheidDagen: number; standaardBetalingstermijn: number };
+  huidig: {
+    offerteGeldigheidDagen: number;
+    standaardBetalingstermijn: number;
+    btwVerlegdVermeldingNl: string;
+    btwVerlegdVermeldingEu: string;
+  };
 }) {
   const opslaan = useMutation(api.instellingen.updateDocumentTermijnen);
   const [isSaving, setIsSaving] = useState(false);
@@ -199,7 +205,7 @@ function TermijnenKaart({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Termijnen</CardTitle>
+        <CardTitle>Termijnen en vermeldingen</CardTitle>
         <CardDescription>
           Deze termijnen komen in de teksten op uw documenten (bijvoorbeeld
           “geldig tot …” en “binnen … dagen”), zodat u ze nergens hoeft te typen.
@@ -234,6 +240,35 @@ function TermijnenKaart({
             />
           </div>
         </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="vermelding-nl">Vermelding btw verlegd (Nederland)</Label>
+            <Textarea
+              id="vermelding-nl"
+              rows={2}
+              value={waarden.btwVerlegdVermeldingNl}
+              onChange={(e) =>
+                setWaarden((w) => ({ ...w, btwVerlegdVermeldingNl: e.target.value }))
+              }
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="vermelding-eu">Vermelding btw verlegd (EU-bedrijf)</Label>
+            <Textarea
+              id="vermelding-eu"
+              rows={2}
+              value={waarden.btwVerlegdVermeldingEu}
+              onChange={(e) =>
+                setWaarden((w) => ({ ...w, btwVerlegdVermeldingEu: e.target.value }))
+              }
+            />
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          De vermeldingen komen op een factuur met btw verlegd, met het
+          btw-nummer van de klant eronder. Laat de exacte tekst één keer door uw
+          boekhouder bevestigen.
+        </p>
         <Button onClick={handleSave} disabled={isSaving}>
           {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Opslaan

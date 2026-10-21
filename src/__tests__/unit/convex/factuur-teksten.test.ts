@@ -174,6 +174,8 @@ const BEDRIJF = {
   plaats: "Groenstad",
   email: "info@toptuinen.nl",
   telefoon: "06 12345678",
+  kvk: "12345678",
+  btw: "NL001234567B01",
 };
 
 beforeEach(async () => {
@@ -232,7 +234,7 @@ describe("vaste teksten op facturen", () => {
   it("een nieuwe factuur krijgt soort en standaardteksten", async () => {
     const id = await createVrijH(ctx, { klantId, regels: REGELS });
     const f = db.byId(id)!;
-    expect(f.factuurnummer).toBe("FACT01130");
+    expect(f.factuurnummer).toBe("Concept"); // nummer pas bij definitief
     expect(f.documentSoort).toBe("factuur");
     expect((f.teksten as { afsluiting: string }).afsluiting).toContain("{{bedrijf.iban}}");
   });

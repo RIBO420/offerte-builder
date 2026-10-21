@@ -34,6 +34,7 @@ import { zetTriggerMailKlaar } from "./mailTriggers";
 import { eigenaarVanOrg } from "./lib/orgEigenaar";
 import { naamPatchVoor } from "./lib/klantNaam";
 import { sanitizePhone, validateRequiredPostcode } from "./validators";
+import { btwVerlegdRegel, weergaveCorrecties } from "./lib/termijnFacturatie";
 
 /**
  * Klant-zichtbaarheid van een factuur (portaal-regel 3): uitsluitend
@@ -407,10 +408,9 @@ export const getFactuurVoorPdf = query({
           prijsPerEenheid: r.prijsPerEenheid,
           totaal: r.totaal,
         })),
-        correcties: factuur.correcties?.map((c) => ({
-          omschrijving: c.omschrijving,
-          bedrag: c.bedrag,
-        })),
+        // Eigen correcties plus termijnen die op een eindfactuur in mindering komen
+        correcties: weergaveCorrecties(factuur),
+        btwVermelding: btwVerlegdRegel(factuur),
         subtotaal: factuur.subtotaal,
         btwPercentage: factuur.btwPercentage,
         btwBedrag: factuur.btwBedrag,

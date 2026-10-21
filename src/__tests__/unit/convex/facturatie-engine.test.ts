@@ -37,6 +37,10 @@ import {
 } from "../../../../convex/facturatieLogica";
 import { verwerkKlaarVoorFacturatie } from "../../../../convex/facturatieEngine";
 import {
+  CONCEPT_FACTUURNUMMER,
+  geefFactuurNummerUit,
+} from "../../../../convex/lib/factuurNummer";
+import {
   verstuurFactuurKern,
   verwerkBetaaldBedragKern,
 } from "../../../../convex/facturen";
@@ -73,6 +77,8 @@ function basisOpstelling() {
       adres: "Kwekerijweg 1",
       postcode: "1234 AB",
       plaats: "Boskoop",
+      kvk: "12345678",
+      btw: "NL001234567B01",
     },
   });
   const ctx = createMockCtx(store);
@@ -333,7 +339,8 @@ describe("verwerkKlaarVoorFacturatie (per_bezoek, §8.8 afrondingstest)", () => 
     // Datum van dienst = uitvoeringsdag; referenties naar werkitem
     expect(factuur.datumVanDienst).toBe("2026-05-12");
     expect(factuur.werkitemIds).toEqual([werkitemId]);
-    expect(factuur.factuurnummer).toMatch(/^FAC-\d{4}-042$/);
+    // Concept heeft nog geen nummer; dat komt pas bij definitief/versturen
+    expect(factuur.factuurnummer).toBe(CONCEPT_FACTUURNUMMER);
     // Idempotentie-vergrendeling terug op het werkitem
     expect(store.get(werkitemId)?.factuurId).toBe(factuur._id);
   });
@@ -776,6 +783,14 @@ describe("factuurnummering is per organisatie", () => {
     const a1 = await verwerkKlaarVoorFacturatie(ctx, { werkitemId: beurtA });
     const b1 = await verwerkKlaarVoorFacturatie(ctx, { werkitemId: beurtB });
     const a2 = await verwerkKlaarVoorFacturatie(ctx, { werkitemId: beurtA2 });
+
+    // Concepten krijgen hun nummer pas bij definitief/versturen
+    for (const r of [a1, b1, a2]) {
+      await geefFactuurNummerUit(
+        ctx,
+        store.get(r.factuurId as string) as unknown as Doc<"facturen">
+      );
+    }
 
     // Elke org zet zijn eigen reeks voort: A vanaf 41, B vanaf 7
     expect(store.get(a1.factuurId as string)?.factuurnummer).toBe(

@@ -33,6 +33,7 @@ import {
   OfferteRegelsCard,
   NotitiesCard,
   TekstenCard,
+  TermijnenCard,
   TotalenCard,
   ProjectCard,
   DeleteDialog,
@@ -343,6 +344,12 @@ export default function OfferteDetailPage({
           {/* Right column - Totals & Tijdlijn */}
           <div className="space-y-4">
             <TotalenCard totalen={offerte.totalen} />
+            <TermijnenCard
+              id={id}
+              type={offerte.type}
+              status={offerte.status}
+              termijnschema={offerte.termijnschema}
+            />
             {/* Eén chronologische tijdlijn: systeemdatums + klantactiviteit */}
             <EngagementTimeline
               emailLogs={[]}

@@ -19,6 +19,7 @@ import {
   type DocumentTeksten,
   type TekstWaarden,
 } from "./documentTekst";
+import { standaardTermijnschemaVoor } from "./termijnFacturatie";
 
 export const STANDAARD_OFFERTE_GELDIGHEID_DAGEN = 30;
 const STANDAARD_BETAALTERMIJN_DAGEN = 14;
@@ -75,12 +76,11 @@ export async function bouwOfferteTekstWaarden(
     offerte: {
       geldigheidDagen:
         instellingen?.offerteGeldigheidDagen ?? STANDAARD_OFFERTE_GELDIGHEID_DAGEN,
-      // Fase 3 zet het schema per offerte; tot dan het eerste sjabloon uit
-      // Instellingen → Deelfacturen.
+      // Het schema van de offerte zelf; oudere offertes zonder schema vallen
+      // terug op het standaardschema (alleen aanleg)
       termijnschema:
-        offerte.type === "aanleg"
-          ? instellingen?.deelfactuurTemplates?.[0]?.stappen
-          : undefined,
+        offerte.termijnschema ??
+        standaardTermijnschemaVoor(offerte.type, instellingen?.deelfactuurTemplates),
     },
     medewerker: { naam: opties.medewerkerNaam },
   });

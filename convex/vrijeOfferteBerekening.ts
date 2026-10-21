@@ -244,7 +244,7 @@ export interface BtwPerTarief {
  * op de cent gelijk lopen. Korting op totaal gaat naar rato over de regels.
  */
 export function berekenBtwPerTarief(
-  regels: ReadonlyArray<VrijeRegel>,
+  regels: ReadonlyArray<Pick<VrijeRegel, "totaal" | "btwCode">>,
   kortingOpTotaal = 0
 ): BtwPerTarief[] {
   const subtotaal = regels.reduce((som, r) => som + r.totaal, 0);

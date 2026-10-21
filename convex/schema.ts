@@ -398,6 +398,12 @@ export default defineSchema({
         voorwaarden: v.optional(v.string()),
       })
     ),
+    // Termijnschema (HERO-nabouw fase 3): standaard bij aanleg 50/30/20 uit
+    // Instellingen → Deelfacturen; leeg = in één keer factureren. Voedt
+    // {{offerte.termijnschema}} en de termijnfacturen. → lib/termijnFacturatie.ts
+    termijnschema: v.optional(
+      v.array(v.object({ percentage: v.number(), label: v.string() }))
+    ),
     // Momentopname bij versturen (HERO-nabouw fase 2): de teksten met
     // ingevulde placeholders. De PDF toont deze zodra hij bestaat; terug naar
     // concept/voorcalculatie wist hem weer.
@@ -593,6 +599,9 @@ export default defineSchema({
     standaardBetalingstermijn: v.optional(v.number()),
     // Geldigheid van een offerte in dagen → {{offerte.geldigTot}} (K1)
     offerteGeldigheidDagen: v.optional(v.number()),
+    // Vermeldingen bij btw verlegd (fase 3); de boekhouder stelt ze vast
+    btwVerlegdVermeldingNl: v.optional(v.string()),
+    btwVerlegdVermeldingEu: v.optional(v.string()),
     // Deelfactuur templates (FAC-002)
     // Bijv. [{naam: "50/30/20", stappen: [{percentage: 50, label: "Vooraf"}, ...]}]
     deelfactuurTemplates: v.optional(v.array(v.object({
@@ -1671,6 +1680,27 @@ export default defineSchema({
     deelfactuurPercentage: v.optional(v.number()), // percentage van totaal offertebedrag
     deelfactuurLabel: v.optional(v.string()), // bijv. "Vooraf", "Bij start", "Bij oplevering"
 
+    // Eindfactuur (HERO-nabouw fase 3): eerdere termijnen per btw-tarief die
+    // in mindering komen. Aanwezig = totalen volgens de restmethode
+    // (berekenEindfactuurTotalen). → lib/termijnFacturatie.ts
+    isEindfactuur: v.optional(v.boolean()),
+    termijnAftrek: v.optional(
+      v.array(
+        v.object({
+          omschrijving: v.string(),
+          percentage: v.number(),
+          netto: v.number(),
+          btw: v.number(),
+        })
+      )
+    ),
+    // Btw verlegd (fase 3): "nl" = binnenlands verlegd, "eu" =
+    // intracommunautair. Btw 0, vermelding op de PDF, btw-nummer verplicht.
+    btwVerlegd: v.optional(v.union(v.literal("nl"), v.literal("eu"))),
+    klantBtwNummer: v.optional(v.string()),
+    // Vermelding zoals hij op de PDF komt (momentopname uit de instellingen)
+    btwVerlegdVermelding: v.optional(v.string()),
+
     // Meerwerk referentie (FAC-003)
     meerwerkId: v.optional(v.id("meerwerk")),
 
@@ -1828,6 +1858,7 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_project", ["projectId"])
+    .index("by_offerte", ["offerteId"])
     .index("by_org", ["orgId"])
     .index("by_factuurnummer", ["factuurnummer"])
     .index("by_status", ["status"])

@@ -1,7 +1,8 @@
 "use client";
 
 import { use } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "convex/react";
 import { ArrowLeft, FileText, Loader2 } from "lucide-react";
 import { api } from "../../../../../../convex/_generated/api";
@@ -31,6 +32,8 @@ import {
 } from "./components";
 import { REVEAL_KLASSE } from "@/components/pagina-reveal";
 import { FactuurTeksten } from "./components/factuur-teksten";
+import { BtwVerlegdKaart, ProjectFacturenWissel } from "./components/factuur-keten";
+import { btwVerlegdRegel, weergaveCorrecties } from "@convex/lib/termijnFacturatie";
 
 /** Klantgerichte naam op het papier — nooit "Top Tuinen OS". */
 const KLANT_MERKNAAM = "Top Tuinen";
@@ -106,7 +109,13 @@ export default function FactuurPage({
   const projectId = id as Id<"projecten">;
 
   const projectDetails = useQuery(api.projecten.getWithDetails, projectId ? { id: projectId } : "skip");
-  const factuur = useQuery(api.facturen.getByProject, projectId ? { projectId } : "skip");
+  // Termijnen: meerdere facturen per project, gekozen via ?factuur=
+  const gekozenFactuurId = useSearchParams().get("factuur") as Id<"facturen"> | null;
+  const factuur = useQuery(
+    api.facturen.getByProject,
+    projectId ? { projectId, ...(gekozenFactuurId ? { factuurId: gekozenFactuurId } : {}) } : "skip"
+  );
+  const projectFacturen = useQuery(api.facturen.listByProject, projectId ? { projectId } : "skip");
   // Nacalculatie zit al in `getWithDetails`; geen aparte query.
   const nacalculatie = projectDetails?.nacalculatie;
 
@@ -174,6 +183,11 @@ export default function FactuurPage({
       aanmaningStatus={aanmaningStatus}
       creditnota={creditnota}
     />
+  ) : offerte?.termijnschema?.length ? (
+    // Met een termijnschema lopen de facturen via de offerte (termijnen + eindfactuur)
+    <Button asChild>
+      <Link href={`/offertes/${offerte._id}`}>Termijnen factureren</Link>
+    </Button>
   ) : (
     <Button onClick={handlers.handleGenerateFactuur} disabled={handlers.isGenerating}>
       {handlers.isGenerating && <Loader2 className="mr-2 size-4 animate-spin" />}
@@ -244,7 +258,8 @@ export default function FactuurPage({
                       klant={factuur.klant}
                       projectNaam={project.naam}
                       regels={factuur.regels}
-                      correcties={factuur.correcties}
+                      correcties={weergaveCorrecties(factuur)}
+                      vermelding={btwVerlegdRegel(factuur)}
                       bedragen={{
                         subtotaal: factuur.subtotaal,
                         btw: factuurBtw(factuur),
@@ -288,6 +303,14 @@ export default function FactuurPage({
                       email={factuur.klant.email}
                     />
                   ) : null}
+                  {projectFacturen && projectFacturen.length > 1 && (
+                    <ProjectFacturenWissel
+                      projectId={id}
+                      huidigId={factuur?._id}
+                      facturen={projectFacturen}
+                    />
+                  )}
+                  {factuur && <BtwVerlegdKaart factuur={factuur} />}
                   {factuur && <FactuurTeksten factuur={factuur} />}
                   {!factuur && offerte ? (
                     <UitDeOfferte

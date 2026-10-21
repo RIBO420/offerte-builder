@@ -46,6 +46,23 @@ Wat Ricardo besloten heeft op basis van de stukken in deze map. Bij strijd met e
    Termijnen (geldigheid offerte, betaaltermijn) staan onder Instellingen →
    Nummering & termijnen.
 
+8. **Factuurketen (fase 3):** het termijnschema hoort bij de offerte (aanleg:
+   eerste sjabloon uit Instellingen → Deelfacturen, anders 50/30/20; onderhoud geen).
+   Na acceptatie maakt het blok Facturatie op de offerte termijn 1, 2, … als
+   concept; de laatste termijn is de eindfactuur (hele offerte min eerdere termijnen,
+   btw restmethode). Zonder schema één factuur. Factureren vraagt een project (daar
+   staat de factuurpagina; meerdere facturen per project via `?factuur=`).
+   Eindfactuur pas als de termijnen definitief zijn. → `convex/factuurKeten.ts`,
+   `convex/lib/termijnFacturatie.ts`.
+9. **Factuurnummer pas bij definitief** (of direct versturen); een concept heet
+   "Concept". Creditnota's krijgen hun nummer bij aanmaken (meteen definitief).
+10. **Btw verlegd** is een keuze op de conceptfactuur: Nederland of EU-bedrijf. Btw 0,
+    vermelding uit Instellingen → Nummering & termijnen, btw-nummer klant verplicht.
+    Geen landveld op de klant: kantoor kiest per factuur.
+11. **Verplichte gegevens** bij definitief/versturen: naam, adres, KvK- en btw-nummer
+    van het bedrijf; naam en adres van de klant; minimaal één regel. De
+    facturatie-engine verstuurt anders niet automatisch.
+
 ## Fasering
 
 | Fase | Inhoud | Stand |
@@ -54,23 +71,21 @@ Wat Ricardo besloten heeft op basis van de stukken in deze map. Bij strijd met e
 | 1 | Rekentest 01399, btw per tarief, nummerreeksen + startnummer | klaar |
 | 1b | Begrote manuren in de vrije builder; "opslaan in prijsboek" voor losse regels | open |
 | 2 | Tekstbibliotheek per documentsoort: inleiding/afsluiting, placeholders, momentopname bij versturen, lege placeholder blokkeert, bewerkscherm voor de klant | klaar |
-| 3 | Factuurketen: termijnschema per offerte, termijnfactuur per btw-tarief, eindfactuur met restmethode, btw verlegd + EU-vermelding, verplichte gegevens | open |
+| 3 | Factuurketen: termijnschema per offerte, termijnfactuur per btw-tarief, eindfactuur met restmethode, btw verlegd + EU-vermelding, verplichte gegevens | klaar |
 | 4 | Planbord op tijdas: 15-min stap, vergroten aan twee kanten, begroot/gepland/resterend, verlof op het bord, standaardblok reistijd, undo, touch | open |
 | 5 | HERO-import: klanten, projecten, open offertes, facturen/openstaande posten, herbruikbare artikelen (>5x gebruikt) | wacht op exportbestanden uit HERO |
 | 6 | SHOULD: versies, sjablonen, posten kopiëren, orderbevestiging, bestelformulier, leveringsbon | later |
 
 ## Open punten
 
-- `facturen.generate` (factuur vanuit project) rekent nog met één btw-percentage en
-  rondt de btw niet af; de vrije factuur en de engine doen het wel per tarief. Meenemen
-  in fase 3.
+- Bij livegang: KvK- en btw-nummer van Top Tuinen moeten in de bedrijfsgegevens
+  staan, anders kan geen factuur meer definitief.
+- Btw-restmethode en de twee btw-verlegd-vermeldingen laten bevestigen door de
+  boekhouder.
 - Bij de livegang op productie: "Standaardteksten laden" één keer klikken en de
   bedrijfsgegevens (IBAN, e-mail, telefoon) compleet maken, anders blokkeren de
   teksten het versturen.
 
-- Factuurnummer wordt nu bij het **aanmaken van het concept** uitgegeven. Een verwijderd
-  concept laat dan een gat in de reeks. Voor facturen moet het nummer pas bij definitief
-  maken komen (fase 3).
 - Welke export levert HERO (CSV/XLSX per onderdeel)? Nodig voor fase 5.
 - Boekhoudpakket bevestigen (Exact?) voordat de koppeling gebouwd wordt.
 - EU-vermelding en btw-restmethode laten vaststellen door de boekhouder.

@@ -27,6 +27,10 @@ import {
 import { reserveerOfferteNummer } from "./lib/offerteNummer";
 import { haalStandaardTeksten } from "./tekstblokken";
 import {
+  standaardTermijnschemaVoor,
+  valideerTermijnschema,
+} from "./lib/termijnFacturatie";
+import {
   getoondeOfferteTeksten,
   legOfferteTekstenVast,
   naarVrijeTeksten,
@@ -673,6 +677,14 @@ export const create = mutation({
     const vrijeTeksten = naarVrijeTeksten(
       await haalStandaardTeksten(ctx, org._id, offerteDocumentSoort(args.type))
     );
+    const instellingen = await ctx.db
+      .query("instellingen")
+      .withIndex("by_org", (q) => q.eq("orgId", org._id))
+      .unique();
+    const termijnschema = standaardTermijnschemaVoor(
+      args.type,
+      instellingen?.deelfactuurTemplates
+    );
 
     const offerteId = await ctx.db.insert("offertes", {
       orgId: org._id,
@@ -681,6 +693,7 @@ export const create = mutation({
       bron: args.bron,
       offerteNummer,
       vrijeTeksten,
+      termijnschema,
       klant,
       klantId: args.klantId,
       leadId: args.leadId,
@@ -1266,6 +1279,36 @@ export const getTeksten = query({
     const gebruiker = await requireNotViewer(ctx);
     const offerte = await getOwnedOfferte(ctx, args.id);
     return await getoondeOfferteTeksten(ctx, offerte, gebruiker.name);
+  },
+});
+
+/**
+ * Termijnschema van één offerte (HERO-nabouw fase 3). Leeg = in één keer
+ * factureren. Alleen zolang de offerte nog niet verstuurd is.
+ */
+export const updateTermijnschema = mutation({
+  args: {
+    id: v.id("offertes"),
+    termijnschema: v.array(v.object({ percentage: v.number(), label: v.string() })),
+  },
+  handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
+    const offerte = await getOwnedOfferte(ctx, args.id);
+    if (offerte.status !== "concept" && offerte.status !== "voorcalculatie") {
+      throw new ConvexError(
+        "Het termijnschema van een verstuurde offerte ligt vast. Zet hem eerst terug naar voorcalculatie."
+      );
+    }
+    const stappen = args.termijnschema.map((s) => ({
+      percentage: s.percentage,
+      label: s.label.trim(),
+    }));
+    const fout = valideerTermijnschema(stappen);
+    if (fout) throw new ConvexError(fout);
+    await ctx.db.patch(args.id, {
+      termijnschema: stappen.length > 0 ? stappen : undefined,
+      updatedAt: Date.now(),
+    });
   },
 });
 

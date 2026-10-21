@@ -59,6 +59,8 @@ interface Factuur {
   totaalInclBtw: number;
   betaalInstructies?: string;
   notities?: string;
+  /** Wettelijke vermelding onder de totalen, bv. btw verlegd (fase 3) */
+  btwVermelding?: string;
   /** Ingevulde teksten, vastgelegd bij definitief/versturen (HERO-nabouw fase 2) */
   tekstenVastgelegd?: { inleiding?: string; afsluiting?: string };
 }
@@ -686,6 +688,13 @@ export function FactuurPDF({ factuur, bedrijfsgegevens, theme, voorwaarden, teks
             </Text>
           </View>
         </View>
+
+        {/* Btw verlegd / wettelijke vermelding */}
+        {factuur.btwVermelding && (
+          <View style={styles.notesSection}>
+            <Text style={styles.notesText}>{factuur.btwVermelding}</Text>
+          </View>
+        )}
 
         {/* Payment instructions */}
         <View style={styles.paymentSection}>
