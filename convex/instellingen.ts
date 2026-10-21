@@ -294,12 +294,27 @@ export const updateDagkaartInstellingen = mutation({
     pauzeEind: v.optional(v.string()),
     loodsAfrondingMinuten: v.optional(v.number()),
     standaardReistijdMinuten: v.optional(v.number()),
+    werkdagStart: v.optional(v.string()),
+    werkdagEind: v.optional(v.string()),
+    urenPerDag: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     await requireKantoor(ctx);
     const orgId = await requireOrgId(ctx);
 
-    for (const tijd of [args.vertrekTijd, args.pauzeStart, args.pauzeEind]) {
+    if (
+      args.urenPerDag !== undefined &&
+      (!Number.isFinite(args.urenPerDag) || args.urenPerDag < 1 || args.urenPerDag > 16)
+    ) {
+      throw new ConvexError("Uren per dag ligt tussen 1 en 16");
+    }
+    for (const tijd of [
+      args.vertrekTijd,
+      args.pauzeStart,
+      args.pauzeEind,
+      args.werkdagStart,
+      args.werkdagEind,
+    ]) {
       if (tijd !== undefined && !isGeldigeTijd(tijd)) {
         throw new ConvexError("Ongeldige tijd (verwacht HH:MM)");
       }
@@ -335,7 +350,17 @@ export const updateDagkaartInstellingen = mutation({
         args.loodsAfrondingMinuten ?? huidige.loodsAfrondingMinuten,
       standaardReistijdMinuten:
         args.standaardReistijdMinuten ?? huidige.standaardReistijdMinuten,
+      werkdagStart: args.werkdagStart ?? huidige.werkdagStart,
+      werkdagEind: args.werkdagEind ?? huidige.werkdagEind,
+      urenPerDag: args.urenPerDag ?? huidige.urenPerDag,
     };
+    if (
+      nieuw.werkdagStart &&
+      nieuw.werkdagEind &&
+      naarMinuten(nieuw.werkdagEind) <= naarMinuten(nieuw.werkdagStart)
+    ) {
+      throw new ConvexError("De werkdag moet na de begintijd eindigen");
+    }
     if (
       nieuw.pauzeStart &&
       nieuw.pauzeEind &&

@@ -20,8 +20,10 @@
 import { v, ConvexError } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
-import { requireOrg, requireOrgId } from "./auth";
-import { requireKantoor } from "./roles";
+import { requireAuth, requireOrg, requireOrgId } from "./auth";
+import { isKantoorRol, requireKantoor } from "./roles";
+import { type BordAfwezigheid } from "./tijdbordLogica";
+import { DAGKAART_DEFAULTS } from "./dagkaartLogica";
 import { beschikbaarheidsVensterValidator } from "./validators";
 import {
   addDagen,
@@ -62,6 +64,9 @@ export const getBordContext = query({
   },
   handler: async (ctx, args) => {
     const orgId = await requireOrgId(ctx);
+    // Privacy (ontwerpbeslissing 3): de reden van afwezigheid alleen voor kantoor
+    const gebruiker = await requireAuth(ctx);
+    const kantoor = isKantoorRol(gebruiker.role);
 
     const [
       teams,
@@ -72,6 +77,9 @@ export const getBordContext = query({
       reserveringen,
       voertuigen,
       machines,
+      verlof,
+      verzuim,
+      instellingen,
     ] = await Promise.all([
       ctx.db
         .query("teams")
@@ -115,7 +123,48 @@ export const getBordContext = query({
         .query("machines")
         .withIndex("by_org", (q) => q.eq("orgId", orgId))
         .collect(),
+      ctx.db
+        .query("verlofaanvragen")
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
+        .collect(),
+      ctx.db
+        .query("verzuimregistraties")
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
+        .collect(),
+      ctx.db
+        .query("instellingen")
+        .withIndex("by_org", (q) => q.eq("orgId", orgId))
+        .unique(),
     ]);
+
+    // Verlof (aangevraagd = waarschuwing, goedgekeurd = blokkade) en ziekte
+    const afwezigOpBord: BordAfwezigheid[] = [
+      ...verlof
+        .filter(
+          (a) =>
+            (a.status === "aangevraagd" || a.status === "goedgekeurd") &&
+            overlaptPeriode(a.startDatum, a.eindDatum, args.start, args.eind)
+        )
+        .map((a) => ({
+          medewerkerId: a.medewerkerId,
+          startDatum: a.startDatum,
+          eindDatum: a.eindDatum,
+          status: a.status as "aangevraagd" | "goedgekeurd",
+          soort: kantoor ? a.type : undefined,
+        })),
+      ...verzuim
+        .filter((z) =>
+          overlaptPeriode(z.startDatum, z.herstelDatum ?? args.eind, args.start, args.eind)
+        )
+        .map((z) => ({
+          medewerkerId: z.medewerkerId,
+          startDatum: z.startDatum,
+          eindDatum: z.herstelDatum ? addDagen(z.herstelDatum, -1) : args.eind,
+          status: "ziek" as const,
+          soort: kantoor ? "ziek" : undefined,
+        })),
+    ];
+    const dk = instellingen?.dagkaartInstellingen;
 
     const medewerkerNamen: Record<string, string> = {};
     for (const m of medewerkers) medewerkerNamen[m._id] = m.naam;
@@ -198,6 +247,17 @@ export const getBordContext = query({
       ),
       medewerkerNamen,
       materieelWaarschuwingen,
+      // Tijdbord (HERO-nabouw fase 4)
+      verlof: afwezigOpBord,
+      werkdag: {
+        werkdagStart: dk?.werkdagStart,
+        werkdagEind: dk?.werkdagEind,
+        urenPerDag: dk?.urenPerDag,
+      },
+      reistijd: {
+        vertrekTijd: dk?.vertrekTijd ?? DAGKAART_DEFAULTS.vertrekTijd,
+        minuten: dk?.standaardReistijdMinuten ?? DAGKAART_DEFAULTS.standaardReistijdMinuten,
+      },
     };
   },
 });
@@ -316,6 +376,38 @@ export const setBemanning = mutation({
     if (!team || team.orgId?.toString() !== org._id.toString()) {
       throw new ConvexError("Team niet gevonden");
     }
+    // Goedgekeurd verlof en ziekte blokkeren (een aanvraag alleen niet)
+    const [verlof, verzuim] = await Promise.all([
+      ctx.db
+        .query("verlofaanvragen")
+        .withIndex("by_org_status", (q) => q.eq("orgId", org._id).eq("status", "goedgekeurd"))
+        .collect(),
+      ctx.db
+        .query("verzuimregistraties")
+        .withIndex("by_org", (q) => q.eq("orgId", org._id))
+        .collect(),
+    ]);
+    for (const medewerkerId of args.medewerkerIds) {
+      const metVerlof = verlof.some(
+        (a) =>
+          a.medewerkerId === medewerkerId &&
+          a.startDatum <= args.datum &&
+          args.datum <= a.eindDatum
+      );
+      const ziek = verzuim.some(
+        (z) =>
+          z.medewerkerId === medewerkerId &&
+          z.startDatum <= args.datum &&
+          (!z.herstelDatum || args.datum < z.herstelDatum)
+      );
+      if (metVerlof || ziek) {
+        const m = await ctx.db.get(medewerkerId);
+        throw new ConvexError(
+          `${m?.naam ?? "Deze medewerker"} is op ${args.datum} afwezig (${metVerlof ? "goedgekeurd verlof" : "ziek"}) en kan niet ingepland worden.`
+        );
+      }
+    }
+
     const bestaand = await ctx.db
       .query("teamBemanning")
       .withIndex("by_team_datum", (q) =>

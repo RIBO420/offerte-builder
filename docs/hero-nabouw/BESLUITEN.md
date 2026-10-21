@@ -63,6 +63,18 @@ Wat Ricardo besloten heeft op basis van de stukken in deze map. Bij strijd met e
     van het bedrijf; naam en adres van de klant; minimaal één regel. De
     facturatie-engine verstuurt anders niet automatisch.
 
+12. **Tijdbord (fase 4)** is een nieuwe weergave naast het weekbord
+    (`/planning/tijdbord`), tot Top Tuinen hem goedkeurt. Datamodel ongewijzigd: een klus
+    heeft een datumbereik en één dagvenster (bv. ma–wo, elke dag 08:00–16:00), zodat
+    dagkaart en medewerker-app blijven werken. Rand trekken binnen de dag = tijd, naar
+    een andere dag = dagen erbij/eraf. Een klus met per dag andere tijden = splitsen
+    (weekbord). Uit de bak plant het bord meteen alle begrote uren (zoveel werkdagen als
+    nodig) in plaats van een restant in de bak te laten. Stap 15 min; als een kwartier
+    smaller wordt dan ~2,5 px (2 weken, of week op een tablet) 1 uur. Werkdag en uren per
+    dag: Instellingen → Planning. Verlof: aanvraag = gestreept + waarschuwing,
+    goedgekeurd/ziek = telt niet mee in de bemanning en `setBemanning` weigert; reden
+    alleen voor kantoor. Undo/redo per sessie in de browser.
+
 ## Fasering
 
 | Fase | Inhoud | Stand |
@@ -72,11 +84,15 @@ Wat Ricardo besloten heeft op basis van de stukken in deze map. Bij strijd met e
 | 1b | Begrote manuren in de vrije builder; "opslaan in prijsboek" voor losse regels | open |
 | 2 | Tekstbibliotheek per documentsoort: inleiding/afsluiting, placeholders, momentopname bij versturen, lege placeholder blokkeert, bewerkscherm voor de klant | klaar |
 | 3 | Factuurketen: termijnschema per offerte, termijnfactuur per btw-tarief, eindfactuur met restmethode, btw verlegd + EU-vermelding, verplichte gegevens | klaar |
-| 4 | Planbord op tijdas: 15-min stap, vergroten aan twee kanten, begroot/gepland/resterend, verlof op het bord, standaardblok reistijd, undo, touch | open |
+| 4 | Planbord op tijdas: 15-min stap, vergroten aan twee kanten, begroot/gepland/resterend, verlof op het bord, standaardblok reistijd, undo, touch | MVP klaar (Planning → Tijdbord) |
 | 5 | HERO-import: klanten, projecten, open offertes, facturen/openstaande posten, herbruikbare artikelen (>5x gebruikt) | wacht op exportbestanden uit HERO |
 | 6 | SHOULD: versies, sjablonen, posten kopiëren, orderbevestiging, bestelformulier, leveringsbon | later |
 
 ## Open punten
+
+- Tijdbord SHOULD's nog open: verlof goedkeuren vanaf het bord met gevolgen in beeld,
+  meerdere blokken tegelijk selecteren/alt-slepen, "slecht weer → volgende werkdag",
+  meldingen naar de medewerker-app bij een wijziging, klik op een lege plek.
 
 - Bij livegang: KvK- en btw-nummer van Top Tuinen moeten in de bedrijfsgegevens
   staan, anders kan geen factuur meer definitief.

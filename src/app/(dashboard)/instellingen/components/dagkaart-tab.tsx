@@ -14,6 +14,7 @@ import { useMutation } from "convex/react";
 import { toast } from "sonner";
 import { api } from "@convex/_generated/api";
 import { DAGKAART_DEFAULTS } from "@convex/dagkaartLogica";
+import { STANDAARD_WERKDAG, minutenNaarTijd } from "@convex/tijdbordLogica";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,6 +33,9 @@ interface DagkaartInstellingenWaarden {
   pauzeEind?: string;
   loodsAfrondingMinuten?: number;
   standaardReistijdMinuten?: number;
+  werkdagStart?: string;
+  werkdagEind?: string;
+  urenPerDag?: number;
 }
 
 export function DagkaartTab({
@@ -51,6 +55,11 @@ export function DagkaartTab({
     standaardReistijdMinuten:
       dagkaartInstellingen?.standaardReistijdMinuten ??
       DAGKAART_DEFAULTS.standaardReistijdMinuten,
+    werkdagStart:
+      dagkaartInstellingen?.werkdagStart ?? minutenNaarTijd(STANDAARD_WERKDAG.start),
+    werkdagEind:
+      dagkaartInstellingen?.werkdagEind ?? minutenNaarTijd(STANDAARD_WERKDAG.eind),
+    urenPerDag: dagkaartInstellingen?.urenPerDag ?? STANDAARD_WERKDAG.urenPerDag,
   });
 
   const handleSave = async () => {
@@ -152,6 +161,44 @@ export function DagkaartTab({
               />
               <p className="text-xs text-muted-foreground">
                 Gebruikt zolang er geen Google Maps-reistijd beschikbaar is.
+              </p>
+            </div>
+          </div>
+          <div className="grid gap-4 border-t pt-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="werkdag-start">Werkdag van</Label>
+              <Input
+                id="werkdag-start"
+                type="time"
+                step={900}
+                value={waarden.werkdagStart}
+                onChange={(e) => setWaarden((w) => ({ ...w, werkdagStart: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="werkdag-eind">Werkdag tot</Label>
+              <Input
+                id="werkdag-eind"
+                type="time"
+                step={900}
+                value={waarden.werkdagEind}
+                onChange={(e) => setWaarden((w) => ({ ...w, werkdagEind: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="werkdag-uren">Uren per persoon per dag</Label>
+              <Input
+                id="werkdag-uren"
+                type="number"
+                min={1}
+                max={16}
+                step={0.5}
+                value={waarden.urenPerDag}
+                onChange={(e) => setWaarden((w) => ({ ...w, urenPerDag: Number(e.target.value) }))}
+              />
+              <p className="text-xs text-muted-foreground">
+                Het tijdbord is grijs buiten de werkdag. Bij inplannen uit de
+                bak stelt het bord zoveel dagen voor als de begrote uren nodig hebben.
               </p>
             </div>
           </div>

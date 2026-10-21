@@ -162,6 +162,7 @@ import type * as taakReacties from "../taakReacties.js";
 import type * as team from "../team.js";
 import type * as teams from "../teams.js";
 import type * as tekstblokken from "../tekstblokken.js";
+import type * as tijdbordLogica from "../tijdbordLogica.js";
 import type * as tijdlijn from "../tijdlijn.js";
 import type * as tijdlijnMigratie from "../tijdlijnMigratie.js";
 import type * as toolboxMeetings from "../toolboxMeetings.js";
@@ -358,6 +359,7 @@ declare const fullApi: ApiFromModules<{
   team: typeof team;
   teams: typeof teams;
   tekstblokken: typeof tekstblokken;
+  tijdbordLogica: typeof tijdbordLogica;
   tijdlijn: typeof tijdlijn;
   tijdlijnMigratie: typeof tijdlijnMigratie;
   toolboxMeetings: typeof toolboxMeetings;

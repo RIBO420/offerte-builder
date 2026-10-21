@@ -11,6 +11,7 @@ import Link from "next/link";
 const WEERGAVEN = [
   { href: "/planning", label: "Overzicht" },
   { href: "/planning/weekbord", label: "Weekbord" },
+  { href: "/planning/tijdbord", label: "Tijdbord" },
   { href: "/planning/lijst", label: "Lijst" },
   { href: "/planning/dagkaart", label: "Dagkaart" },
 ] as const;

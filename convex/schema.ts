@@ -658,6 +658,11 @@ export default defineSchema({
         // Default reistijd per verplaatsing als er geen berekende reistijd is
         // (geen GOOGLE_MAPS_API_KEY of nog niet berekend), default 20
         standaardReistijdMinuten: v.optional(v.number()),
+        // Tijdbord (HERO-nabouw fase 4): grijs buiten de werkdag, en het
+        // voorstel bij inplannen. Default 07:00–18:00, 8 uur per persoon.
+        werkdagStart: v.optional(v.string()),
+        werkdagEind: v.optional(v.string()),
+        urenPerDag: v.optional(v.number()),
       })
     ),
     // Veld-rol instellingen (PRD §2.6, stap 9a). Drempels voor de
