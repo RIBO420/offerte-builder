@@ -216,6 +216,8 @@ export interface BordAfwezigheid {
   status: AfwezigStatus;
   /** Alleen voor kantoor (privacy); anderen zien "afwezig" */
   soort?: string;
+  /** Alleen voor kantoor: om de aanvraag vanaf het bord te behandelen */
+  aanvraagId?: string;
 }
 
 /** Aanvragen geven een waarschuwing; goedgekeurd verlof en ziekte blokkeren. */
@@ -245,4 +247,27 @@ export function afwezigLabel(a: BordAfwezigheid): string {
   if (a.status === "ziek") return a.soort ? "Ziek" : "Afwezig";
   const soort = a.soort ? (SOORT_LABEL[a.soort] ?? "Verlof") : "Afwezig";
   return a.status === "aangevraagd" && a.soort ? `${soort} aangevraagd` : soort;
+}
+
+/** Werkdagen (ma–vr) van start t/m eind. */
+export function werkdagenIn(start: string, eind: string): string[] {
+  const uit: string[] = [];
+  for (let d = start; d <= eind; d = addDagen(d, 1)) if (isWerkdag(d)) uit.push(d);
+  return uit;
+}
+
+/**
+ * "Slecht weer → volgende werkdag" (I-9): het blok schuift naar de eerste
+ * werkdag ná de huidige begindag en houdt evenveel werkdagen en dezelfde tijden.
+ */
+export function naarVolgendeWerkdag(plan: Plan): Plan {
+  const aantal = Math.max(1, werkdagenIn(plan.geplandeStart, plan.geplandeEind).length);
+  let start = addDagen(plan.geplandeStart, 1);
+  while (!isWerkdag(start)) start = addDagen(start, 1);
+  let eind = start;
+  for (let n = 1; n < aantal; ) {
+    eind = addDagen(eind, 1);
+    if (isWerkdag(eind)) n++;
+  }
+  return { ...plan, geplandeStart: start, geplandeEind: eind };
 }

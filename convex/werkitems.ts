@@ -29,6 +29,7 @@ import { zetTriggerMailKlaar } from "./mailTriggers";
 import { formatDatumNl } from "./conceptMails";
 import { adresRegel, klantFactuurAdres, klantUitvoerAdres } from "./lib/adres";
 import { begroteUrenVoorRegels } from "./lib/begroteUren";
+import { planMeldingNaWijziging } from "./planningMeldingen";
 
 // ============================================
 // Types
@@ -483,6 +484,19 @@ export const updatePlanning = mutation({
     }
 
     await ctx.db.patch(werkitem._id, patch);
+
+    // Medewerker-app: gebundelde melding als vandaag/morgen geraakt wordt
+    await planMeldingNaWijziging(
+      ctx,
+      werkitem,
+      {
+        geplandeStart:
+          args.geplandeStart === undefined ? werkitem.geplandeStart : (args.geplandeStart ?? undefined),
+        geplandeEind:
+          args.geplandeEind === undefined ? werkitem.geplandeEind : (args.geplandeEind ?? undefined),
+      },
+      patch.updatedAt as number
+    );
 
     // — Audit-event (PRD §2.2: audit-logging hoort meteen bij het bord) —
     const doelTeam =

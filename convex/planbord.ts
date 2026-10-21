@@ -151,6 +151,7 @@ export const getBordContext = query({
           eindDatum: a.eindDatum,
           status: a.status as "aangevraagd" | "goedgekeurd",
           soort: kantoor ? a.type : undefined,
+          aanvraagId: kantoor ? a._id : undefined,
         })),
       ...verzuim
         .filter((z) =>
@@ -259,6 +260,35 @@ export const getBordContext = query({
         minuten: dk?.standaardReistijdMinuten ?? DAGKAART_DEFAULTS.standaardReistijdMinuten,
       },
     };
+  },
+});
+
+/**
+ * Voortgang uit de medewerker-app (HERO-nabouw fase 4): gewerkte uren per
+ * werkitem in het bereik (urenSegmenten, categorie "werken", alle mensen).
+ * Status (bezig/klaar) staat al op het werkitem zelf.
+ */
+export const getVoortgang = query({
+  args: { start: v.string(), eind: v.string() },
+  handler: async (ctx, args) => {
+    const orgId = await requireOrgId(ctx);
+    const segmenten = await ctx.db
+      .query("urenSegmenten")
+      .withIndex("by_org_datum", (q) =>
+        q.eq("orgId", orgId).gte("datum", args.start).lte("datum", args.eind)
+      )
+      .collect();
+    const minuten: Record<string, number> = {};
+    for (const s of segmenten) {
+      if (s.categorie !== "werken" || !s.werkitemId) continue;
+      const [bu, bm] = s.beginTijd.split(":").map(Number);
+      const [eu, em] = s.eindTijd.split(":").map(Number);
+      const duur = eu * 60 + em - (bu * 60 + bm);
+      if (duur > 0) minuten[s.werkitemId] = (minuten[s.werkitemId] ?? 0) + duur;
+    }
+    return Object.fromEntries(
+      Object.entries(minuten).map(([id, m]) => [id, Math.round((m / 60) * 4) / 4])
+    ) as Record<string, number>;
   },
 });
 
@@ -736,10 +766,18 @@ export const splitsWerkitem = mutation({
     const now = Date.now();
     const ids: Id<"projecten">[] = [];
 
+    // Begrote uren gelijk over de delen (anders houdt deel 1 alles en lijken
+    // de andere delen op het tijdbord ongepland)
+    const urenPerDeel =
+      item.geschatteUren !== undefined
+        ? Math.round((item.geschatteUren / n) * 4) / 4
+        : undefined;
+
     // Deel 1 = het origineel (behoudt offerte-/facturatie-koppelingen)
     const eerste = args.delen[0];
     await ctx.db.patch(item._id, {
       naam: `${basisNaam} (deel 1/${n})`,
+      geschatteUren: urenPerDeel,
       geplandeStart: eerste.geplandeStart,
       geplandeEind: eerste.geplandeEind ?? eerste.geplandeStart,
       teamId: eerste.teamId ?? item.teamId,
@@ -752,6 +790,7 @@ export const splitsWerkitem = mutation({
       const nieuwId = await ctx.db.insert("projecten", {
         ...kopieerbareVelden(item),
         naam: `${basisNaam} (deel ${i + 1}/${n})`,
+        geschatteUren: urenPerDeel,
         geplandeStart: deel.geplandeStart,
         geplandeEind: deel.geplandeEind ?? deel.geplandeStart,
         teamId: deel.teamId ?? item.teamId,

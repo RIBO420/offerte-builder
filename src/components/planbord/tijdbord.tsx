@@ -35,7 +35,20 @@ import {
 } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Redo2, Undo2, UserX } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  CircleCheck,
+  CirclePlay,
+  CloudRain,
+  Copy,
+  Inbox,
+  MoreHorizontal,
+  Redo2,
+  Scissors,
+  Undo2,
+  UserX,
+} from "lucide-react";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { addDagen, dagenTussen, magPlanbordMuteren } from "../../../convex/planbordLogica";
@@ -47,6 +60,7 @@ import {
   isWerkdag,
   korteTijdLabel,
   minutenNaarTijd,
+  naarVolgendeWerkdag,
   schuif,
   tijdNaarMinuten,
   trekEind,
@@ -55,11 +69,20 @@ import {
   verplaats,
   voorstelUitBak,
   werkdagUit,
+  werkdagenIn,
   type BordAfwezigheid,
   type Plan,
   type Werkdag,
 } from "../../../convex/tijdbordLogica";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useVorigeData } from "@/hooks/use-vorige-data";
 import {
   naarBemanningCel,
@@ -113,11 +136,16 @@ interface PlanStand {
   teamId: Id<"teams"> | null;
 }
 
-interface Wijziging {
+interface Stap {
   id: Id<"projecten">;
-  titel: string;
   voor: PlanStand;
   na: PlanStand;
+}
+
+/** Eén handeling op het bord (kan meerdere blokken raken) — één undo-stap. */
+interface Wijziging {
+  titel: string;
+  stappen: Stap[];
 }
 
 function planVan(ev: PlanbordEvent, werkdag: Werkdag): Plan {
@@ -148,6 +176,7 @@ function TijdCel({
   hoogte,
   grijs,
   onbemand,
+  onKlik,
   children,
 }: {
   teamId: Id<"teams"> | null;
@@ -155,6 +184,8 @@ function TijdCel({
   hoogte: number;
   grijs: boolean;
   onbemand: boolean;
+  /** Klik op een lege plek (I-10) */
+  onKlik?: (e: React.MouseEvent<HTMLDivElement>) => void;
   children: React.ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({
@@ -167,6 +198,7 @@ function TijdCel({
       data-tcel-datum={datum}
       data-tcel-team={teamId ?? ""}
       style={{ height: hoogte }}
+      onClick={onKlik}
       className={`relative border-l border-t ${grijs ? "bg-muted/50" : "bg-card"} ${
         isOver ? "bg-accent/60" : ""
       } ${onbemand ? "outline outline-1 -outline-offset-1 outline-amber-400/70" : ""}`}
@@ -190,7 +222,9 @@ interface SegmentProps {
   sleepLabel: string | null;
   urenLabel: { tekst: string; tekort: boolean } | null;
   vasteTijd: boolean;
-  onSelecteer: (id: Id<"projecten">) => void;
+  voortgang: { status: string; gewerkt?: number };
+  onSelecteer: (id: Id<"projecten">, toevoegen: boolean) => void;
+  onMenu: (x: number, y: number, id: Id<"projecten">) => void;
   onRandStart: (e: React.PointerEvent, ev: PlanbordEvent, plan: Plan, kant: "start" | "eind") => void;
 }
 
@@ -211,7 +245,9 @@ const Segment = memo(function Segment({
   sleepLabel,
   urenLabel,
   vasteTijd,
+  voortgang,
   onSelecteer,
+  onMenu,
   onRandStart,
 }: SegmentProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -236,7 +272,13 @@ const Segment = memo(function Segment({
       data-testid="tijdbord-blok"
       onClick={(e) => {
         e.stopPropagation();
-        onSelecteer(ev.id);
+        onSelecteer(ev.id, e.shiftKey || e.metaKey || e.ctrlKey);
+      }}
+      onContextMenu={(e) => {
+        if (!magMuteren) return;
+        e.preventDefault();
+        e.stopPropagation();
+        onMenu(e.clientX, e.clientY, ev.id);
       }}
       style={{
         left: `${pos.left}%`,
@@ -264,8 +306,13 @@ const Segment = memo(function Segment({
           className="absolute inset-y-0 left-0 w-2 cursor-ew-resize touch-none hover:bg-foreground/15 [@media(pointer:coarse)]:w-4"
         />
       )}
-      <p className="truncate pt-0.5 font-semibold" title={ev.titel}>
-        {ev.titel}
+      <p className="flex items-center gap-1 truncate pt-0.5 font-semibold" title={ev.titel}>
+        {voortgang.status === "afgerond" || voortgang.status === "uitgevoerd" ? (
+          <CircleCheck className="size-3 shrink-0 text-status-geaccepteerd-text" aria-label="Klaar" />
+        ) : voortgang.status === "in_uitvoering" ? (
+          <CirclePlay className="size-3 shrink-0 text-status-gepland-text" aria-label="Bezig" />
+        ) : null}
+        <span className="truncate">{ev.titel}</span>
       </p>
       <p className="flex gap-1.5 truncate tabular-nums text-muted-foreground">
         <span>{sleepLabel ?? (isEerste ? dagLabel(plan) : korteTijdLabel(plan))}</span>
@@ -273,6 +320,9 @@ const Segment = memo(function Segment({
           <span className={urenLabel.tekort ? "font-medium text-amber-700 dark:text-amber-300" : ""}>
             {urenLabel.tekst}
           </span>
+        )}
+        {isEerste && voortgang.gewerkt !== undefined && (
+          <span title="Gewerkt volgens de medewerker-app">{voortgang.gewerkt} u gewerkt</span>
         )}
       </p>
       {magMuteren && isLaatste && (
@@ -327,6 +377,34 @@ export function Tijdbord() {
   );
 
   const updatePlanning = useMutation(api.werkitems.updatePlanning);
+  const dupliceer = useMutation(api.planbord.dupliceerWerkitem);
+  const splits = useMutation(api.planbord.splitsWerkitem);
+  const { data: voortgang } = useVorigeData(useQuery(api.planbord.getVoortgang, bereik));
+
+  // Alt ingedrukt tijdens slepen = kopiëren
+  const altIngedrukt = useRef(false);
+  useEffect(() => {
+    const zet = (e: KeyboardEvent) => {
+      altIngedrukt.current = e.altKey;
+    };
+    window.addEventListener("keydown", zet);
+    window.addEventListener("keyup", zet);
+    return () => {
+      window.removeEventListener("keydown", zet);
+      window.removeEventListener("keyup", zet);
+    };
+  }, []);
+
+  // Contextmenu (I-9), klik op een lege plek (I-10), verlof behandelen
+  const [menu, setMenu] = useState<{ x: number; y: number; id: Id<"projecten"> } | null>(null);
+  const [legePlek, setLegePlek] = useState<{
+    x: number;
+    y: number;
+    teamId: Id<"teams"> | null;
+    datum: string;
+    minuut: number;
+  } | null>(null);
+  const [verlofOpen, setVerlofOpen] = useState<BordAfwezigheid | null>(null);
 
   // — Bemanning per team-dag (min goedgekeurd verlof en ziekte) —
   const bemanning = useCallback(
@@ -351,7 +429,18 @@ export function Tijdbord() {
   // — Preview tijdens slepen/trekken —
   const [preview, setPreview] = useState<{ id: Id<"projecten">; plan: Plan; teamId?: Id<"teams"> | null } | null>(null);
   const [sleep, setSleep] = useState<{ id: Id<"projecten">; label: string } | null>(null);
-  const [geselecteerd, setGeselecteerd] = useState<Id<"projecten"> | null>(null);
+  // Selectie (I-8): klik = één blok, shift/ctrl-klik = erbij of eraf
+  const [selectie, setSelectie] = useState<Set<Id<"projecten">>>(new Set());
+  const selecteer = useCallback((id: Id<"projecten">, toevoegen: boolean) => {
+    setSelectie((huidig) => {
+      if (!toevoegen) return new Set([id]);
+      const nieuw = new Set(huidig);
+      if (nieuw.has(id)) nieuw.delete(id);
+      else nieuw.add(id);
+      return nieuw;
+    });
+  }, []);
+  const wisSelectie = useCallback(() => setSelectie(new Set()), []);
 
   const planVoor = useCallback(
     (ev: PlanbordEvent): Plan =>
@@ -378,7 +467,7 @@ export function Tijdbord() {
   const pasToe = useCallback(
     async (w: Wijziging) => {
       try {
-        await schrijf(w.id, w.na);
+        for (const stap of w.stappen) await schrijf(stap.id, stap.na);
         setTerug((t) => [...t.slice(-49), w]);
         setVooruit([]);
       } catch (fout) {
@@ -392,7 +481,7 @@ export function Tijdbord() {
     const w = terug[terug.length - 1];
     if (!w) return;
     try {
-      await schrijf(w.id, w.voor);
+      for (const stap of [...w.stappen].reverse()) await schrijf(stap.id, stap.voor);
       setTerug((t) => t.slice(0, -1));
       setVooruit((v) => [...v, w]);
       toast.success(`Ongedaan: ${w.titel}`);
@@ -405,7 +494,7 @@ export function Tijdbord() {
     const w = vooruit[vooruit.length - 1];
     if (!w) return;
     try {
-      await schrijf(w.id, w.na);
+      for (const stap of w.stappen) await schrijf(stap.id, stap.na);
       setVooruit((v) => v.slice(0, -1));
       setTerug((t) => [...t, w]);
     } catch (fout) {
@@ -416,6 +505,20 @@ export function Tijdbord() {
   const standVan = useCallback(
     (ev: PlanbordEvent): PlanStand => ({ plan: planVan(ev, werkdag), teamId: ev.resourceId }),
     [werkdag]
+  );
+
+  /** Dezelfde bewerking op alle geselecteerde blokken (of alleen dit blok). */
+  const groep = useCallback(
+    (titel: string, ids: Iterable<Id<"projecten">>, maak: (ev: PlanbordEvent) => PlanStand | null): Wijziging => {
+      const stappen: Stap[] = [];
+      for (const id of ids) {
+        const ev = events.find((x) => x.id === id);
+        const na = ev ? maak(ev) : null;
+        if (ev && na) stappen.push({ id: ev.id, voor: standVan(ev), na });
+      }
+      return { titel: stappen.length > 1 ? `${titel} (${stappen.length} blokken)` : titel, stappen };
+    },
+    [events, standVan]
   );
 
   // — Toetsenbord (I-6, I-7) —
@@ -435,29 +538,34 @@ export function Tijdbord() {
         return;
       }
       if (e.key === "Escape") {
-        setGeselecteerd(null);
+        wisSelectie();
+        setMenu(null);
+        setLegePlek(null);
         return;
       }
-      if (!geselecteerd || !magMuteren) return;
+      if (selectie.size === 0 || !magMuteren) return;
       if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
-      const ev = events.find((x) => x.id === geselecteerd);
-      if (!ev) return;
       e.preventDefault();
       const richting = e.key === "ArrowRight" ? 1 : -1;
-      const huidig = planVan(ev, werkdag);
-      const nieuw = e.shiftKey ? schuif(huidig, 0, richting) : schuif(huidig, 15 * richting, 0);
-      void pasToe({ id: ev.id, titel: ev.titel, voor: standVan(ev), na: { plan: nieuw, teamId: ev.resourceId } });
+      void pasToe(
+        groep(e.shiftKey ? "Dag verschoven" : "Tijd verschoven", selectie, (ev) => ({
+          plan: e.shiftKey
+            ? schuif(planVan(ev, werkdag), 0, richting)
+            : schuif(planVan(ev, werkdag), 15 * richting, 0),
+          teamId: ev.resourceId,
+        }))
+      );
     };
     window.addEventListener("keydown", opToets);
     return () => window.removeEventListener("keydown", opToets);
-  }, [geselecteerd, magMuteren, events, werkdag, pasToe, standVan, ongedaan, opnieuw]);
+  }, [selectie, magMuteren, werkdag, pasToe, groep, ongedaan, opnieuw, wisSelectie]);
 
   // — Randen trekken (I-2): pointer events, ook op aanraakschermen —
   const onRandStart = useCallback(
     (e: React.PointerEvent, ev: PlanbordEvent, plan: Plan, kant: "start" | "eind") => {
       e.stopPropagation();
       e.preventDefault();
-      setGeselecteerd(ev.id);
+      setSelectie(new Set([ev.id]));
       let laatste: Plan | null = null;
       const beweeg = (pe: PointerEvent) => {
         const cel = document
@@ -476,7 +584,7 @@ export function Tijdbord() {
         window.removeEventListener("pointercancel", klaar);
         const nieuw = laatste;
         if (nieuw && JSON.stringify(nieuw) !== JSON.stringify(plan)) {
-          void pasToe({ id: ev.id, titel: ev.titel, voor: standVan(ev), na: { plan: nieuw, teamId: ev.resourceId } }).finally(
+          void pasToe(groep(ev.titel, [ev.id], () => ({ plan: nieuw, teamId: ev.resourceId }))).finally(
             () => setPreview(null)
           );
         } else {
@@ -487,7 +595,7 @@ export function Tijdbord() {
       window.addEventListener("pointerup", klaar);
       window.addEventListener("pointercancel", klaar);
     },
-    [werkdag, pasToe, standVan]
+    [werkdag, pasToe, groep]
   );
 
   // — Slepen (I-1, I-4) —
@@ -542,8 +650,8 @@ export function Tijdbord() {
     if (!actief || !doel) return;
     if (doel.soort === "bak-drop") {
       if (actief.soort !== "tblok") return;
-      const ev = events.find((x) => x.id === actief.werkitemId);
-      if (ev) await pasToe({ id: ev.id, titel: ev.titel, voor: standVan(ev), na: { plan: null, teamId: null } });
+      const ids = selectie.has(actief.werkitemId) ? selectie : [actief.werkitemId];
+      await pasToe(groep("Terug naar de bak", ids, () => ({ plan: null, teamId: null })));
       return;
     }
     const k = kandidaat(e);
@@ -558,14 +666,39 @@ export function Tijdbord() {
       }
     }
     if (actief.soort === "tblok" && k.ev) {
-      await pasToe({ id: k.ev.id, titel: k.ev.titel, voor: standVan(k.ev), na: k.stand });
+      const ev = k.ev;
+      const nieuwPlan = k.stand.plan!;
+      // Alt-slepen = kopiëren (I-8): een kopie op de nieuwe plek
+      if (altIngedrukt.current) {
+        try {
+          const { id: kopieId } = await dupliceer({ id: ev.id, doelDatum: nieuwPlan.geplandeStart });
+          await updatePlanning({ id: kopieId, ...nieuwPlan, teamId: k.stand.teamId });
+          toast.success(`Kopie van ${ev.titel} gemaakt`);
+        } catch (fout) {
+          toast.error(fout instanceof Error ? fout.message : "Kopiëren mislukt");
+        }
+        return;
+      }
+      // Meerdere geselecteerd: allemaal evenveel dagen en minuten mee (team blijft)
+      if (selectie.has(ev.id) && selectie.size > 1) {
+        const oud = planVan(ev, werkdag);
+        const dagen = dagenTussen(oud.geplandeStart, nieuwPlan.geplandeStart);
+        const minuten =
+          tijdNaarMinuten(nieuwPlan.geplandeStartTijd) - tijdNaarMinuten(oud.geplandeStartTijd);
+        await pasToe(
+          groep("Verplaatst", selectie, (x) => ({
+            plan: schuif(planVan(x, werkdag), minuten, dagen),
+            teamId: x.resourceId,
+          }))
+        );
+        return;
+      }
+      await pasToe(groep(ev.titel, [ev.id], () => k.stand));
     } else if (actief.soort === "bak") {
       const item = wachtrij?.find((w) => w._id === actief.werkitemId);
       await pasToe({
-        id: actief.werkitemId,
         titel: item?.naam ?? "Klus",
-        voor: { plan: null, teamId: null },
-        na: k.stand,
+        stappen: [{ id: actief.werkitemId, voor: { plan: null, teamId: null }, na: k.stand }],
       });
     }
   };
@@ -618,12 +751,125 @@ export function Tijdbord() {
       if (!ev.geschatteUren || !ev.resourceId) return null;
       const gepland = geplandeManuren(plan, (d) => bemanning(ev.resourceId!, d).mensen.length);
       return {
-        tekst: `${Math.round(gepland * 10) / 10}/${ev.geschatteUren} u`,
+        tekst: `${(Math.round(gepland * 10) / 10).toLocaleString("nl-NL")}/${ev.geschatteUren.toLocaleString("nl-NL")} u`,
         tekort: gepland + 0.01 < ev.geschatteUren,
       };
     },
     [bemanning]
   );
+
+  // — Capaciteit per team per dag: "24 u / 18 u gepland" —
+  const capaciteitLabel = (
+    teamId: Id<"teams">,
+    datum: string,
+    lijst: { plan: Plan }[],
+    mensen: number
+  ): string => {
+    const capaciteit = mensen * werkdag.urenPerDag;
+    const gepland = lijst.reduce(
+      (t, { plan }) =>
+        t + ((tijdNaarMinuten(plan.geplandeEindTijd) - tijdNaarMinuten(plan.geplandeStartTijd)) / 60) * mensen,
+      0
+    );
+    const nl = (n: number) => (Math.round(n * 10) / 10).toLocaleString("nl-NL");
+    return `${nl(gepland)} van ${nl(capaciteit)} u`;
+  };
+
+  // — Contextmenu-acties (I-9) —
+  const openMenu = useCallback((x: number, y: number, id: Id<"projecten">) => {
+    setSelectie((huidig) => (huidig.has(id) ? huidig : new Set([id])));
+    setLegePlek(null);
+    setMenu({ x, y, id });
+  }, []);
+
+  const menuActie = async (actie: "weer" | "bak" | "kopie" | "verdeel") => {
+    const ids = [...selectie];
+    setMenu(null);
+    if (actie === "weer") {
+      await pasToe(
+        groep("Slecht weer", ids, (ev) => ({
+          plan: naarVolgendeWerkdag(planVan(ev, werkdag)),
+          teamId: ev.resourceId,
+        }))
+      );
+      return;
+    }
+    if (actie === "bak") {
+      await pasToe(groep("Terug naar de bak", ids, () => ({ plan: null, teamId: null })));
+      return;
+    }
+    for (const id of ids) {
+      const ev = events.find((x) => x.id === id);
+      if (!ev) continue;
+      const plan = planVan(ev, werkdag);
+      try {
+        if (actie === "kopie") {
+          await dupliceer({ id, doelDatum: naarVolgendeWerkdag(plan).geplandeStart });
+          toast.success(`Kopie van ${ev.titel} op de volgende werkdag`);
+        } else {
+          const dagen = werkdagenIn(plan.geplandeStart, plan.geplandeEind);
+          if (dagen.length < 2) {
+            toast.info(`${ev.titel} staat maar één werkdag gepland`);
+            continue;
+          }
+          await splits({
+            id,
+            delen: dagen.map((d) => ({
+              geplandeStart: d,
+              geplandeEind: d,
+              ...(ev.resourceId ? { teamId: ev.resourceId } : {}),
+            })),
+          });
+          toast.success(`${ev.titel} verdeeld over ${dagen.length} dagen`);
+        }
+      } catch (fout) {
+        toast.error(fout instanceof Error ? fout.message : "Actie mislukt");
+      }
+    }
+  };
+
+  // — Klik op een lege plek: een klus uit de bak hier plannen (I-10) —
+  const planHier = async (item: BakItem) => {
+    const plek = legePlek;
+    setLegePlek(null);
+    if (!plek) return;
+    const mensen = plek.teamId ? bemanning(plek.teamId, plek.datum).mensen.length : 1;
+    await pasToe({
+      titel: item.naam,
+      stappen: [
+        {
+          id: item._id,
+          voor: { plan: null, teamId: null },
+          na: {
+            plan: voorstelUitBak(plek.datum, plek.minuut, item.geschatteUren, mensen, werkdag),
+            teamId: plek.teamId,
+          },
+        },
+      ],
+    });
+  };
+
+  // — Verlof: gevolgen van goedkeuren voor de planning —
+  const verlofGevolgen = (a: BordAfwezigheid): string[] => {
+    const uit: string[] = [];
+    for (const datum of kolommen) {
+      if (datum < a.startDatum || datum > a.eindDatum) continue;
+      for (const r of resources) {
+        const bem = bemanning(r.id, datum);
+        if (!bem.mensen.includes(a.medewerkerId as Id<"medewerkers">)) continue;
+        const klussen = (indeling.get(`${r.id}|${datum}`) ?? []).length;
+        const dag = kolomKop(datum, "ruim").voluit;
+        if (klussen > 0) {
+          uit.push(
+            bem.mensen.length - 1 === 0
+              ? `${dag}: ${r.naam} is dan onbemand (${klussen} ${klussen === 1 ? "klus" : "klussen"})`
+              : `${dag}: ${klussen} ${klussen === 1 ? "klus" : "klussen"} bij ${r.naam}, nog ${bem.mensen.length - 1} man`
+          );
+        }
+      }
+    }
+    return uit;
+  };
 
   // — Medewerkerweergave (read-only afgeleide van dezelfde data) —
   const medewerkerRijen = useMemo(() => {
@@ -667,7 +913,14 @@ export function Tijdbord() {
   };
 
   return (
-    <div className="flex flex-wrap items-start gap-4" onClick={() => setGeselecteerd(null)}>
+    <div
+      className="flex flex-wrap items-start gap-4"
+      onClick={() => {
+        wisSelectie();
+        setMenu(null);
+        setLegePlek(null);
+      }}
+    >
       <DndContext
         sensors={sensors}
         collisionDetection={pointerWithin}
@@ -751,6 +1004,20 @@ export function Tijdbord() {
               <Button variant="outline" size="icon" aria-label="Opnieuw (ctrl+shift+z)" disabled={!vooruit.length} onClick={() => void opnieuw()}>
                 <Redo2 className="size-4" />
               </Button>
+              {magMuteren && selectie.size > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const r = e.currentTarget.getBoundingClientRect();
+                    setMenu({ x: r.left, y: r.bottom + 4, id: [...selectie][0] });
+                  }}
+                >
+                  <MoreHorizontal className="size-4" />
+                  {selectie.size > 1 ? `${selectie.size} blokken` : "Acties"}
+                </Button>
+              )}
             </div>
           </div>
 
@@ -804,23 +1071,48 @@ export function Tijdbord() {
                           hoogte={hoogte}
                           grijs={!werkdagHier}
                           onbemand={!!teamId && lijst.length > 0 && mensen === 0}
+                          onKlik={
+                            magMuteren && (wachtrij?.length ?? 0) > 0
+                              ? (e) => {
+                                  e.stopPropagation();
+                                  const r = e.currentTarget.getBoundingClientRect();
+                                  wisSelectie();
+                                  setMenu(null);
+                                  setLegePlek({
+                                    x: e.clientX,
+                                    y: e.clientY,
+                                    teamId,
+                                    datum,
+                                    minuut: minuutOpX(e.clientX - r.left, r.width, werkdag),
+                                  });
+                                }
+                              : undefined
+                          }
                         >
                           {teamId && (
                             <p
                               className="flex h-[18px] items-center gap-1 truncate px-1 text-[10px] text-muted-foreground"
                               title={bem?.mensen.map((m) => namen[m]).join(", ")}
                             >
-                              <span className="tabular-nums">{mensen} man</span>
+                              <span className="tabular-nums">
+                                {mensen} man · {capaciteitLabel(teamId, datum, lijst, mensen)}
+                              </span>
                               {lijst.length > 0 && mensen === 0 && (
                                 <span className="font-medium text-amber-700 dark:text-amber-300">onbemand</span>
                               )}
                               {bem?.aangevraagd.map((a) => (
-                                <span
+                                <button
+                                  type="button"
                                   key={a.medewerkerId}
-                                  className="rounded-sm bg-[repeating-linear-gradient(135deg,var(--muted),var(--muted)_3px,transparent_3px,transparent_6px)] px-1"
+                                  disabled={!a.aanvraagId}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setVerlofOpen(a);
+                                  }}
+                                  className="rounded-sm bg-[repeating-linear-gradient(135deg,var(--muted),var(--muted)_3px,transparent_3px,transparent_6px)] px-1 enabled:hover:underline"
                                 >
                                   {namen[a.medewerkerId]?.split(" ")[0] ?? "?"}: {afwezigLabel(a)}
-                                </span>
+                                </button>
                               ))}
                             </p>
                           )}
@@ -847,13 +1139,15 @@ export function Tijdbord() {
                               werkdag={werkdag}
                               isEerste={datum === plan.geplandeStart || datum === kolommen[0]}
                               isLaatste={datum === plan.geplandeEind || datum === kolommen[kolommen.length - 1]}
-                              geselecteerd={geselecteerd === ev.id}
+                              geselecteerd={selectie.has(ev.id)}
                               overlap={overlap}
                               magMuteren={magMuteren}
                               sleepLabel={sleep?.id === ev.id ? sleep.label : null}
                               urenLabel={datum === plan.geplandeStart ? begrotingLabel(ev, plan) : null}
                               vasteTijd={!!(ev.startTijd && ev.eindTijd)}
-                              onSelecteer={setGeselecteerd}
+                              voortgang={{ status: ev.status, gewerkt: voortgang?.[ev.id] }}
+                              onSelecteer={selecteer}
+                              onMenu={openMenu}
                               onRandStart={onRandStart}
                             />
                           ))}
@@ -908,17 +1202,23 @@ export function Tijdbord() {
                   return (
                     <div key={datum} className="flex flex-wrap content-start gap-0.5 border-l border-t p-1">
                       {vandaagAfwezig.map((a, i) => (
-                        <span
+                        <button
+                          type="button"
                           key={`${a.medewerkerId}-${i}`}
                           title={afwezigLabel(a)}
-                          className={`max-w-full truncate rounded-sm px-1 text-[10px] ${
+                          disabled={!(a.aanvraagId && a.status === "aangevraagd")}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setVerlofOpen(a);
+                          }}
+                          className={`max-w-full truncate rounded-sm px-1 text-[10px] enabled:hover:underline ${
                             blokkeertInplannen(a.status)
                               ? "bg-muted font-medium"
                               : "border border-dashed bg-[repeating-linear-gradient(135deg,var(--muted),var(--muted)_3px,transparent_3px,transparent_6px)]"
                           }`}
                         >
                           {namen[a.medewerkerId]?.split(" ")[0] ?? "?"}
-                        </span>
+                        </button>
                       ))}
                     </div>
                   );
@@ -943,6 +1243,190 @@ export function Tijdbord() {
           />
         </div>
       </DndContext>
+
+      {menu && (
+        <div
+          role="menu"
+          className="fixed z-50 min-w-56 rounded-md border bg-popover p-1 text-sm shadow-md"
+          style={{ left: Math.min(menu.x, window.innerWidth - 240), top: Math.min(menu.y, window.innerHeight - 200) }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {[
+            { actie: "weer" as const, label: "Slecht weer → volgende werkdag", icoon: CloudRain },
+            { actie: "kopie" as const, label: "Kopie op de volgende werkdag", icoon: Copy },
+            { actie: "verdeel" as const, label: "Verdeel over losse dagen", icoon: Scissors },
+            { actie: "bak" as const, label: "Terug naar de bak", icoon: Inbox },
+          ].map(({ actie, label, icoon: Icoon }) => (
+            <button
+              key={actie}
+              type="button"
+              role="menuitem"
+              onClick={() => void menuActie(actie)}
+              className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left hover:bg-accent"
+            >
+              <Icoon className="size-4 text-muted-foreground" aria-hidden="true" />
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {legePlek && (
+        <LegePlekKiezer
+          plek={legePlek}
+          items={wachtrij ?? []}
+          teamNaam={resources.find((r) => r.id === legePlek.teamId)?.naam ?? "zonder team"}
+          onKies={(item) => void planHier(item)}
+          onSluit={() => setLegePlek(null)}
+        />
+      )}
+
+      {verlofOpen && (
+        <VerlofBesluit
+          aanvraag={verlofOpen}
+          naam={namen[verlofOpen.medewerkerId] ?? "Medewerker"}
+          gevolgen={verlofGevolgen(verlofOpen)}
+          onSluit={() => setVerlofOpen(null)}
+        />
+      )}
     </div>
+  );
+}
+
+function LegePlekKiezer({
+  plek,
+  items,
+  teamNaam,
+  onKies,
+  onSluit,
+}: {
+  plek: { x: number; y: number; datum: string; minuut: number };
+  items: BakItem[];
+  teamNaam: string;
+  onKies: (item: BakItem) => void;
+  onSluit: () => void;
+}) {
+  const [zoek, setZoek] = useState("");
+  const zichtbaar = items.filter((i) =>
+    `${i.naam} ${i.klantNaam ?? ""}`.toLowerCase().includes(zoek.toLowerCase())
+  );
+  return (
+    <div
+      role="dialog"
+      aria-label="Klus hier plannen"
+      className="fixed z-50 w-72 rounded-md border bg-popover p-2 text-sm shadow-md"
+      style={{ left: Math.min(plek.x, window.innerWidth - 300), top: Math.min(plek.y, window.innerHeight - 320) }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <p className="px-1 pb-1.5 text-xs text-muted-foreground">
+        {teamNaam} · {kolomKop(plek.datum, "ruim").voluit} · {minutenNaarTijd(plek.minuut)}
+      </p>
+      <input
+        autoFocus
+        value={zoek}
+        onChange={(e) => setZoek(e.target.value)}
+        onKeyDown={(e) => e.key === "Escape" && onSluit()}
+        placeholder="Zoek een klus uit de bak…"
+        className="mb-1 h-8 w-full rounded-md border bg-transparent px-2 text-sm"
+      />
+      <ul className="max-h-56 overflow-y-auto">
+        {zichtbaar.map((item) => (
+          <li key={item._id}>
+            <button
+              type="button"
+              onClick={() => onKies(item)}
+              className="flex w-full items-baseline gap-2 rounded-sm px-2 py-1.5 text-left hover:bg-accent"
+            >
+              <span className="min-w-0 flex-1 truncate">{item.naam}</span>
+              {item.geschatteUren != null && (
+                <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{item.geschatteUren} u</span>
+              )}
+            </button>
+          </li>
+        ))}
+        {zichtbaar.length === 0 && <li className="px-2 py-1.5 text-muted-foreground">Niets gevonden</li>}
+      </ul>
+    </div>
+  );
+}
+
+function VerlofBesluit({
+  aanvraag,
+  naam,
+  gevolgen,
+  onSluit,
+}: {
+  aanvraag: BordAfwezigheid;
+  naam: string;
+  gevolgen: string[];
+  onSluit: () => void;
+}) {
+  const goedkeuren = useMutation(api.verlof.goedkeuren);
+  const afkeuren = useMutation(api.verlof.afkeuren);
+  const [reden, setReden] = useState("");
+  const [bezig, setBezig] = useState(false);
+
+  const besluit = async (akkoord: boolean) => {
+    if (!aanvraag.aanvraagId) return;
+    setBezig(true);
+    try {
+      const id = aanvraag.aanvraagId as Id<"verlofaanvragen">;
+      if (akkoord) await goedkeuren({ id });
+      else await afkeuren({ id, afwijzingReden: reden.trim() || undefined });
+      toast.success(akkoord ? `Verlof van ${naam} goedgekeurd` : `Verlof van ${naam} afgewezen`);
+      onSluit();
+    } catch (fout) {
+      toast.error(
+        fout instanceof Error && "data" in fout
+          ? String((fout as { data: unknown }).data)
+          : "Opslaan mislukt"
+      );
+    } finally {
+      setBezig(false);
+    }
+  };
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onSluit()}>
+      <DialogContent className="sm:max-w-md" onClick={(e) => e.stopPropagation()}>
+        <DialogHeader>
+          <DialogTitle>{afwezigLabel(aanvraag)}: {naam}</DialogTitle>
+          <DialogDescription>
+            {aanvraag.startDatum === aanvraag.eindDatum
+              ? kolomKop(aanvraag.startDatum, "ruim").voluit
+              : `${kolomKop(aanvraag.startDatum, "ruim").voluit} t/m ${kolomKop(aanvraag.eindDatum, "ruim").voluit}`}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2 text-sm">
+          <p className="font-medium">Gevolgen voor de planning in deze periode</p>
+          {gevolgen.length === 0 ? (
+            <p className="text-muted-foreground">Geen klussen geraakt in de getoonde periode.</p>
+          ) : (
+            <ul className="list-disc space-y-1 pl-5">
+              {gevolgen.map((g) => (
+                <li key={g}>{g}</li>
+              ))}
+            </ul>
+          )}
+          <input
+            value={reden}
+            onChange={(e) => setReden(e.target.value)}
+            placeholder="Reden bij afwijzen (optioneel)"
+            className="mt-2 h-9 w-full rounded-md border bg-transparent px-2"
+          />
+          <p className="text-xs text-muted-foreground">
+            {naam} krijgt een melding van het besluit in de app.
+          </p>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => void besluit(false)} disabled={bezig}>
+            Afwijzen
+          </Button>
+          <Button onClick={() => void besluit(true)} disabled={bezig}>
+            Goedkeuren
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

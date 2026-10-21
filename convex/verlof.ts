@@ -14,6 +14,7 @@ import {
   getLinkedMedewerker,
 } from "./roles";
 import { laadDocsMap } from "./lib/batchLoad";
+import { meldMedewerker } from "./planningMeldingen";
 
 // ============================================
 // VERLOFAANVRAGEN — Leave Request Management
@@ -438,6 +439,15 @@ export const goedkeuren = mutation({
       updatedAt: Date.now(),
     });
 
+    // Medewerker-app: het besluit meteen melden (HERO-nabouw fase 4)
+    await meldMedewerker(
+      ctx,
+      aanvraag.medewerkerId,
+      aanvraag.orgId,
+      "Verlof goedgekeurd",
+      `Je verlof van ${aanvraag.startDatum} t/m ${aanvraag.eindDatum} is goedgekeurd.`
+    );
+
     return args.id;
   },
 });
@@ -466,6 +476,16 @@ export const afkeuren = mutation({
       afwijzingReden: args.afwijzingReden,
       updatedAt: Date.now(),
     });
+
+    await meldMedewerker(
+      ctx,
+      aanvraag.medewerkerId,
+      aanvraag.orgId,
+      "Verlof afgewezen",
+      `Je verlofaanvraag van ${aanvraag.startDatum} t/m ${aanvraag.eindDatum} is afgewezen${
+        args.afwijzingReden ? `: ${args.afwijzingReden}` : "."
+      }`
+    );
 
     return args.id;
   },

@@ -139,6 +139,7 @@ import type * as places from "../places.js";
 import type * as placesLogica from "../placesLogica.js";
 import type * as planbord from "../planbord.js";
 import type * as planbordLogica from "../planbordLogica.js";
+import type * as planningMeldingen from "../planningMeldingen.js";
 import type * as planningTaken from "../planningTaken.js";
 import type * as planningsattendering from "../planningsattendering.js";
 import type * as portaal from "../portaal.js";
@@ -337,6 +338,7 @@ declare const fullApi: ApiFromModules<{
   placesLogica: typeof placesLogica;
   planbord: typeof planbord;
   planbordLogica: typeof planbordLogica;
+  planningMeldingen: typeof planningMeldingen;
   planningTaken: typeof planningTaken;
   planningsattendering: typeof planningsattendering;
   portaal: typeof portaal;

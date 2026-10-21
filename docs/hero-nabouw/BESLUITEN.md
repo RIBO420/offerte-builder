@@ -74,6 +74,14 @@ Wat Ricardo besloten heeft op basis van de stukken in deze map. Bij strijd met e
     dag: Instellingen → Planning. Verlof: aanvraag = gestreept + waarschuwing,
     goedgekeurd/ziek = telt niet mee in de bemanning en `setBemanning` weigert; reden
     alleen voor kantoor. Undo/redo per sessie in de browser.
+    SHOULD's ook gebouwd: shift/ctrl-klik = meerdere blokken (samen slepen of met
+    pijltjes), alt-slepen = kopie, rechtsklik of "Acties" = slecht weer → volgende
+    werkdag / kopie volgende werkdag / verdeel over losse dagen / terug naar de bak,
+    klik op een lege plek = klus uit de bak hier plannen, capaciteit per team-dag,
+    gewerkte uren en bezig/klaar uit de app op het blok, verlof goedkeuren/afwijzen
+    vanaf het bord met de gevolgen in beeld. Meldingen naar de medewerker-app: bij een
+    wijziging die vandaag/morgen raakt, gebundeld na 2 minuten, in-app + push (achter
+    de guard); ook bij een verlofbesluit. Splitsen verdeelt nu ook de begrote uren.
 
 ## Fasering
 
@@ -81,18 +89,15 @@ Wat Ricardo besloten heeft op basis van de stukken in deze map. Bij strijd met e
 |---|---|---|
 | 0 | Docs in de repo, koppeltabel, besluiten | klaar |
 | 1 | Rekentest 01399, btw per tarief, nummerreeksen + startnummer | klaar |
-| 1b | Begrote manuren in de vrije builder; "opslaan in prijsboek" voor losse regels | open |
+| 1b | Begrote manuren in de vrije builder; "opslaan in prijsboek" voor losse regels | klaar |
 | 2 | Tekstbibliotheek per documentsoort: inleiding/afsluiting, placeholders, momentopname bij versturen, lege placeholder blokkeert, bewerkscherm voor de klant | klaar |
 | 3 | Factuurketen: termijnschema per offerte, termijnfactuur per btw-tarief, eindfactuur met restmethode, btw verlegd + EU-vermelding, verplichte gegevens | klaar |
-| 4 | Planbord op tijdas: 15-min stap, vergroten aan twee kanten, begroot/gepland/resterend, verlof op het bord, standaardblok reistijd, undo, touch | MVP klaar (Planning → Tijdbord) |
+| 4 | Planbord op tijdas: 15-min stap, vergroten aan twee kanten, begroot/gepland/resterend, verlof op het bord, standaardblok reistijd, undo, touch | klaar incl. SHOULD's (Planning → Tijdbord) |
 | 5 | HERO-import: klanten, projecten, open offertes, facturen/openstaande posten, herbruikbare artikelen (>5x gebruikt) | wacht op exportbestanden uit HERO |
 | 6 | SHOULD: versies, sjablonen, posten kopiëren, orderbevestiging, bestelformulier, leveringsbon | later |
 
 ## Open punten
 
-- Tijdbord SHOULD's nog open: verlof goedkeuren vanaf het bord met gevolgen in beeld,
-  meerdere blokken tegelijk selecteren/alt-slepen, "slecht weer → volgende werkdag",
-  meldingen naar de medewerker-app bij een wijziging, klik op een lege plek.
 
 - Bij livegang: KvK- en btw-nummer van Top Tuinen moeten in de bedrijfsgegevens
   staan, anders kan geen factuur meer definitief.

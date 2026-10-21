@@ -13,6 +13,8 @@ import {
   type BordAfwezigheid,
   geplandeManuren,
   minutenNaarTijd,
+  naarVolgendeWerkdag,
+  werkdagenIn,
   schuif,
   snap,
   stapVoorKwartierBreedte,
@@ -145,5 +147,17 @@ describe("verlof op het bord (ontwerpbeslissing 3)", () => {
     expect(afwezigLabel({ ...lijst[0], soort: undefined })).toBe("Afwezig");
     expect(afwezigLabel(lijst[2])).toBe("Afwezig");
     expect(afwezigLabel({ ...lijst[2], soort: "ziek" })).toBe("Ziek");
+  });
+});
+
+describe("slecht weer → volgende werkdag (I-9)", () => {
+  it("schuift een dag op en houdt de tijden", () => {
+    expect(naarVolgendeWerkdag(plan)).toEqual({ ...plan, geplandeStart: "2026-10-21", geplandeEind: "2026-10-22" });
+  });
+
+  it("vrijdag gaat naar maandag; twee werkdagen blijven twee werkdagen", () => {
+    const vr = { ...plan, geplandeStart: "2026-10-23", geplandeEind: "2026-10-26" };
+    expect(werkdagenIn(vr.geplandeStart, vr.geplandeEind)).toEqual(["2026-10-23", "2026-10-26"]);
+    expect(naarVolgendeWerkdag(vr)).toMatchObject({ geplandeStart: "2026-10-26", geplandeEind: "2026-10-27" });
   });
 });

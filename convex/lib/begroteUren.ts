@@ -12,16 +12,17 @@
 
 export function begroteUrenVanOfferte(offerte: {
   begroteUren?: number;
-  totalen: { totaalUren: number };
+  totalen?: { totaalUren: number };
 }): number | undefined {
   if (offerte.begroteUren !== undefined && offerte.begroteUren > 0) return offerte.begroteUren;
-  return offerte.totalen.totaalUren > 0 ? offerte.totalen.totaalUren : undefined;
+  const uren = offerte.totalen?.totaalUren ?? 0;
+  return uren > 0 ? uren : undefined;
 }
 
 export function begroteUrenVoorRegels(
   offerte: {
     begroteUren?: number;
-    totalen: { totaalUren: number };
+    totalen?: { totaalUren: number };
     regels: ReadonlyArray<{ id: string; totaal: number }>;
   },
   regelIds: ReadonlyArray<string> | undefined
