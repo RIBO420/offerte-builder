@@ -113,3 +113,39 @@ export const importeer = internalMutation({
     };
   },
 });
+
+/**
+ * Zet alle artikelen die níét uit HERO komen uit (besluit Ricardo,
+ * 22-10-2026: de HERO-set vervangt de oude voorbeeldartikelen). Uitzetten,
+ * niet wissen: offertes kunnen naar een artikel verwijzen en kantoor kan ze
+ * onder Uitgeschakeld terugzetten. Let op: de scope-calculator vindt dan geen
+ * materiaalprijzen meer en laat die regels weg.
+ *
+ *   npx convex run heroArtikelImport:zetEigenArtikelenUit '{"orgId":"…"}' [--prod]
+ */
+export const zetEigenArtikelenUit = internalMutation({
+  args: {
+    orgId: v.id("organisaties"),
+    uitvoeren: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const actief = await ctx.db
+      .query("producten")
+      .withIndex("by_org_actief", (q) =>
+        q.eq("orgId", args.orgId).eq("isActief", true)
+      )
+      .collect();
+    const eigen = actief.filter((p) => p.heroArtikelnummer === undefined);
+    if (args.uitvoeren) {
+      const nu = Date.now();
+      for (const p of eigen) {
+        await ctx.db.patch(p._id, { isActief: false, updatedAt: nu });
+      }
+    }
+    return {
+      uitgevoerd: args.uitvoeren === true,
+      uitgezet: eigen.length,
+      namen: eigen.map((p) => p.productnaam),
+    };
+  },
+});
