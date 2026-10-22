@@ -19,6 +19,7 @@ Deze map beschrijft hoe Top Tuinen nu werkt in HERO Software en wat er in toptui
 | `offerte/` | `OFFERTE-MODULE.md`, `HERO-offerte-spec.md`, `hero-datamodel.json` | Offertes maken: tekstblokken, artikelregels, opslag, btw, PDF |
 | `planning/` | `PLANNING-MODULE.md`, `HERO-planning-spec.md`, `hero-planning-datamodel.json` | Planbord: teams, opdrachtenbakje, slepen en vergroten per kwartier, verlof, koppeling met de medewerker-app |
 | `documenten/` | `DOCUMENTEN-MODULE.md`, `HERO-documenttypes-spec.md`, `standaardteksten.md` | Alle documentsoorten (aanbetaling, termijn- en eindfactuur, creditfactuur, herinnering, bestelformulier, …), vaste teksten per soort, regels die zorgen dat een document altijd klopt |
+| `import/` | `FACTUUR-KLANT-KOPPELING.md` | Fase 5: HERO-facturen automatisch aan de juiste klant koppelen (onderzoek, matchregel `convex/lib/factuurKlantMatch.ts`) |
 
 ## Samenhang tussen de modules
 

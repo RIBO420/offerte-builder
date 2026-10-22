@@ -1,6 +1,7 @@
 /**
  * Welke klant hoort bij deze factuur? — één pure regel voor de HERO-import
  * (fase 5) en een latere "nog te koppelen"-lijst.
+ * Onderzoek en metingen: docs/hero-nabouw/import/FACTUUR-KLANT-KOPPELING.md
  *
  * ## Waarom dit bestand er is
  *
