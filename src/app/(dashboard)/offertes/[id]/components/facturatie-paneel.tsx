@@ -1,23 +1,25 @@
 "use client";
 
 /**
- * Termijnen van de offerte (HERO-nabouw fase 3). Vóór versturen: het
- * termijnschema bekijken en aanpassen. Na acceptatie: per termijn de factuur
- * maken ("Factureer termijn 1"), de laatste is de eindfactuur, met het
- * overzicht gefactureerd / betaald / openstaand.
+ * Termijnen en facturatie van de offerte (HERO-nabouw fase 3), compact voor
+ * de zijkolom. Vóór versturen: het termijnschema bekijken en aanpassen. Na
+ * acceptatie: een balk gefactureerd/betaald, het openstaande bedrag, per
+ * termijn de factuur (openen of "Factureer termijn n"; de laatste is de
+ * eindfactuur) en de orderbevestiging. Vervangt de TermijnenCard; getoond in
+ * dezelfde gevallen.
  */
 
 import { useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
-import { Edit, Loader2, Plus, Receipt, Trash2 } from "lucide-react";
+import { Loader2, Pencil, Plus, Receipt, Trash2 } from "lucide-react";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { SectiePaneel } from "@/components/ui/sectie-paneel";
 import {
   Dialog,
   DialogContent,
@@ -34,7 +36,7 @@ interface Stap {
   label: string;
 }
 
-interface TermijnenCardProps {
+interface FacturatiePaneelProps {
   id: string;
   type: "aanleg" | "onderhoud";
   status: string;
@@ -54,7 +56,7 @@ function foutTekst(fout: unknown, standaard: string): string {
     : standaard;
 }
 
-export function TermijnenCard({ id, type, status, termijnschema }: TermijnenCardProps) {
+export function FacturatiePaneel({ id, type, status, termijnschema }: FacturatiePaneelProps) {
   const offerteId = id as Id<"offertes">;
   const geaccepteerd = status === "geaccepteerd";
   const magSchemaBewerken = status === "concept" || status === "voorcalculatie";
@@ -83,23 +85,39 @@ export function TermijnenCard({ id, type, status, termijnschema }: TermijnenCard
     }
   };
 
+  const geheelBetaald =
+    !!overzicht && overzicht.totaal > 0 && overzicht.openstaand <= 0 && overzicht.betaald >= overzicht.totaal;
+  const deel = (n: number) =>
+    overzicht && overzicht.totaal > 0 ? `${Math.min(100, Math.max(0, (n / overzicht.totaal) * 100))}%` : "0%";
+
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
-        <CardTitle>{geaccepteerd ? "Facturatie" : "Termijnen"}</CardTitle>
-        {geaccepteerd && (
-          <DocumentPdfKnop bron={{ soort: "orderbevestiging", offerteId }} variant="ghost" />
-        )}
-        {magSchemaBewerken && (
-          <Button variant="outline" size="sm" onClick={() => setBewerken(true)}>
-            <Edit className="size-4" />
-            Bewerken
-          </Button>
-        )}
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <SectiePaneel
+      titel={geaccepteerd ? "Facturatie" : "Termijnen"}
+      kopbalk
+      acties={
+        <>
+          {geaccepteerd && geheelBetaald && (
+            <span className="rounded-full bg-status-geaccepteerd px-2 py-0.5 text-xs font-semibold text-status-geaccepteerd-text">
+              Betaald
+            </span>
+          )}
+          {magSchemaBewerken && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground"
+              onClick={() => setBewerken(true)}
+            >
+              <Pencil />
+              Bewerken
+            </Button>
+          )}
+        </>
+      }
+    >
+      <div className="flex flex-col gap-2.5 px-4 py-3">
         {!geaccepteerd && (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-[13px] text-muted-foreground">
             {schema.length === 0
               ? type === "onderhoud"
                 ? "Geen termijnen: na acceptatie volgt één factuur."
@@ -108,50 +126,80 @@ export function TermijnenCard({ id, type, status, termijnschema }: TermijnenCard
           </p>
         )}
 
+        {geaccepteerd && overzicht === undefined && (
+          <div className="h-12 animate-pulse rounded-md bg-muted" aria-hidden="true" />
+        )}
+
         {geaccepteerd && overzicht && (
           <>
-            <ul className="divide-y">
+            {/* Balk: gefactureerd (licht) met betaald (vol) erover */}
+            <div
+              role="img"
+              aria-label={`${formatCurrency(overzicht.gefactureerd)} gefactureerd en ${formatCurrency(overzicht.betaald)} betaald van ${formatCurrency(overzicht.totaal)}`}
+              className="relative h-1.5 overflow-hidden rounded-full bg-muted"
+            >
+              <span
+                className="absolute inset-y-0 left-0 rounded-full bg-status-geaccepteerd-dot/35"
+                style={{ width: deel(overzicht.gefactureerd) }}
+              />
+              <span
+                className="absolute inset-y-0 left-0 rounded-full bg-status-geaccepteerd-dot"
+                style={{ width: deel(overzicht.betaald) }}
+              />
+            </div>
+            <div className="flex flex-wrap justify-between gap-x-3 text-[13px] tabular-nums">
+              <span>
+                <b className="font-semibold">{formatCurrency(overzicht.gefactureerd)}</b>{" "}
+                <span className="text-muted-foreground">gefactureerd</span>
+              </span>
+              <span className="text-muted-foreground">
+                {formatCurrency(Math.max(0, overzicht.openstaand))} open
+              </span>
+            </div>
+
+            <ul className="divide-y border-t">
               {(overzicht.zonderSchema
                 ? [{ nummer: 1, percentage: 100, label: "volledige factuur", isEindfactuur: true, prognose: overzicht.totaal, factuur: overzicht.eindfactuur }]
                 : overzicht.termijnen
               ).map((t) => {
                 const isVolgende =
                   overzicht.zonderSchema ? !t.factuur : overzicht.volgendeNummer === t.nummer;
+                const titel = overzicht.zonderSchema
+                  ? "Factuur"
+                  : t.isEindfactuur
+                    ? `Eind · ${t.percentage}%`
+                    : `Termijn ${t.nummer} · ${t.percentage}%`;
                 return (
-                  <li key={t.nummer} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-3">
+                  <li key={t.nummer} className="flex flex-wrap items-center gap-x-2 gap-y-1 py-2 text-[13px]">
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium">
-                        {overzicht.zonderSchema
-                          ? "Factuur"
-                          : t.isEindfactuur
-                            ? `Eindfactuur – ${t.percentage}% ${t.label}`
-                            : `Termijn ${t.nummer} – ${t.percentage}% ${t.label}`}
-                      </p>
-                      <p className="text-xs text-muted-foreground tabular-nums">
-                        {t.factuur
-                          ? `${t.factuur.factuurnummer} · ${formatCurrency(t.factuur.totaalInclBtw)}`
-                          : `ca. ${formatCurrency(t.prognose)} incl. btw`}
-                      </p>
+                      <p className="truncate font-medium" title={t.label}>{titel}</p>
+                      {!t.factuur && (
+                        <p className="text-xs text-muted-foreground tabular-nums">
+                          ca. {formatCurrency(t.prognose)}
+                        </p>
+                      )}
                     </div>
                     {t.factuur ? (
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <Link
+                          href={factuurLink(overzicht.projectId ?? t.factuur.projectId, t.factuur._id)}
+                          className="text-primary tabular-nums transition-colors hover:text-primary/80"
+                        >
+                          {t.factuur.factuurnummer}
+                        </Link>
                         <StatusBadge status={factuurStatus(t.factuur)} domain="factuur" size="sm" showIcon={false} />
-                        <Button asChild variant="ghost" size="sm">
-                          <Link href={factuurLink(overzicht.projectId ?? t.factuur.projectId, t.factuur._id)}>
-                            Openen
-                          </Link>
-                        </Button>
                       </div>
                     ) : isVolgende ? (
                       <Button
                         size="sm"
+                        variant="outline"
                         onClick={() => maak(t.nummer, t.isEindfactuur)}
                         disabled={bezig !== null}
                       >
                         {bezig === (t.isEindfactuur ? "eind" : t.nummer) ? (
-                          <Loader2 className="size-4 animate-spin" />
+                          <Loader2 className="animate-spin" />
                         ) : (
-                          <Receipt className="size-4" />
+                          <Receipt />
                         )}
                         {overzicht.zonderSchema
                           ? "Factuur maken"
@@ -166,31 +214,18 @@ export function TermijnenCard({ id, type, status, termijnschema }: TermijnenCard
                 );
               })}
             </ul>
-            <dl className="grid grid-cols-3 gap-2 text-sm">
-              <div>
-                <dt className="text-xs text-muted-foreground">Gefactureerd</dt>
-                <dd className="font-medium tabular-nums">
-                  {formatCurrency(overzicht.gefactureerd)}
-                  <span className="text-xs font-normal text-muted-foreground"> van {formatCurrency(overzicht.totaal)}</span>
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs text-muted-foreground">Betaald</dt>
-                <dd className="font-medium tabular-nums">{formatCurrency(overzicht.betaald)}</dd>
-              </div>
-              <div>
-                <dt className="text-xs text-muted-foreground">Openstaand</dt>
-                <dd className="font-medium tabular-nums">{formatCurrency(overzicht.openstaand)}</dd>
-              </div>
-            </dl>
+
             {overzicht.losseFacturen.length > 0 && (
               <p className="text-xs text-muted-foreground">
                 Ook gekoppeld: {overzicht.losseFacturen.map((f) => f.factuurnummer).join(", ")}
               </p>
             )}
+            <div className="-mx-2.5 -mb-1">
+              <DocumentPdfKnop bron={{ soort: "orderbevestiging", offerteId }} variant="ghost" />
+            </div>
           </>
         )}
-      </CardContent>
+      </div>
       {bewerken && (
         <SchemaDialog
           offerteId={offerteId}
@@ -198,7 +233,7 @@ export function TermijnenCard({ id, type, status, termijnschema }: TermijnenCard
           onClose={() => setBewerken(false)}
         />
       )}
-    </Card>
+    </SectiePaneel>
   );
 }
 

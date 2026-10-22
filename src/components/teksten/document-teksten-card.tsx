@@ -129,7 +129,7 @@ export function DocumentTekstenCard({
   );
 }
 
-function TekstVoorbeeld({ titel, tekst }: { titel: string; tekst?: string }) {
+export function TekstVoorbeeld({ titel, tekst }: { titel: string; tekst?: string }) {
   const [uitgeklapt, setUitgeklapt] = useState(false);
   if (!tekst) return null;
   const lang = tekst.split("\n").length > 6;
@@ -154,7 +154,7 @@ function TekstVoorbeeld({ titel, tekst }: { titel: string; tekst?: string }) {
   );
 }
 
-function TekstenDialog({
+export function TekstenDialog({
   open,
   onOpenChange,
   documentNaam,

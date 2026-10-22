@@ -5,125 +5,89 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { m } from "framer-motion";
 import { shimmer, staggerContainer, fadeInUp } from "./skeleton-animations";
 
-// Offerte Detail Skeleton
+// Offerte Detail Skeleton — volgt variant A "Regels centraal": kop met
+// fasestrip, regelspaneel als hoofdkolom en een zijkolom van 360px. Verwacht
+// een `@container/offerte` eromheen (de pagina en loading.tsx zetten die).
 export function OfferteDetailSkeleton() {
   return (
-    <m.div
+    <div
       role="status"
       aria-busy="true"
       aria-label="Offerte details laden"
-      className="space-y-6"
-      variants={staggerContainer}
-      initial="initial"
-      animate="animate"
+      className="mx-auto flex w-full max-w-[1400px] flex-col gap-5"
     >
-      {/* Header */}
-      <m.div className="flex items-center gap-4" variants={fadeInUp}>
-        <m.div {...shimmer}>
-          <Skeleton className="h-10 w-10 rounded-lg" />
-        </m.div>
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <m.div {...shimmer}>
-              <Skeleton className="h-8 w-32" />
-            </m.div>
-            <m.div {...shimmer}>
-              <Skeleton className="h-6 w-20 rounded-full" />
-            </m.div>
+      {/* Kop */}
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-3">
+              <Skeleton className="h-8 w-56" />
+              <Skeleton className="h-6 w-24 rounded-full" />
+            </div>
+            <Skeleton className="h-4 w-[min(26rem,80vw)]" />
           </div>
-          <m.div {...shimmer}>
-            <Skeleton className="h-4 w-48" />
-          </m.div>
+          <div className="flex gap-1.5">
+            <Skeleton className="h-10 w-10" />
+            <Skeleton className="h-10 w-20" />
+            <Skeleton className="h-10 w-36" />
+          </div>
         </div>
-      </m.div>
-
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Left column */}
-        <div className="space-y-6 lg:col-span-2">
-          {/* Klantgegevens */}
-          <m.div variants={fadeInUp}>
-            <Card>
-              <CardHeader>
-                <m.div {...shimmer}>
-                  <Skeleton className="h-6 w-32" />
-                </m.div>
-              </CardHeader>
-              <CardContent className="grid gap-4 md:grid-cols-2">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="space-y-1">
-                    <m.div {...shimmer}>
-                      <Skeleton className="h-3 w-16" />
-                    </m.div>
-                    <m.div {...shimmer}>
-                      <Skeleton className="h-5 w-32" />
-                    </m.div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          </m.div>
-
-          {/* Regels */}
-          <m.div variants={fadeInUp}>
-            <Card>
-              <CardHeader>
-                <m.div {...shimmer}>
-                  <Skeleton className="h-6 w-28" />
-                </m.div>
-                <m.div {...shimmer}>
-                  <Skeleton className="h-4 w-20" />
-                </m.div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="flex items-center gap-4 py-2 border-b last:border-0">
-                      <div className="flex-1 space-y-1">
-                        <m.div {...shimmer}>
-                          <Skeleton className="h-4 w-48" />
-                        </m.div>
-                        <m.div {...shimmer}>
-                          <Skeleton className="h-3 w-24" />
-                        </m.div>
-                      </div>
-                      <m.div {...shimmer}>
-                        <Skeleton className="h-4 w-20" />
-                      </m.div>
-                      <m.div {...shimmer}>
-                        <Skeleton className="h-4 w-16" />
-                      </m.div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </m.div>
+        {/* Fasestrip */}
+        <div className="flex items-center">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="contents">
+              {i > 0 && <Skeleton className="mx-3 h-0.5 min-w-3 flex-1" />}
+              <Skeleton className="size-[22px] shrink-0 rounded-full" />
+            </div>
+          ))}
         </div>
-
-        {/* Right column */}
-        <m.div className="space-y-6" variants={fadeInUp}>
-          <Card>
-            <CardHeader>
-              <m.div {...shimmer}>
-                <Skeleton className="h-6 w-20" />
-              </m.div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="flex justify-between">
-                  <m.div {...shimmer}>
-                    <Skeleton className="h-4 w-28" />
-                  </m.div>
-                  <m.div {...shimmer}>
-                    <Skeleton className="h-4 w-20" />
-                  </m.div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </m.div>
       </div>
-    </m.div>
+
+      <div className="grid items-start gap-5 @5xl/offerte:grid-cols-[minmax(0,1fr)_360px]">
+        {/* Regelspaneel */}
+        <div className="overflow-hidden rounded-lg border bg-card">
+          <div className="flex items-center gap-2 border-b bg-muted/40 px-3 py-2.5">
+            <Skeleton className="h-5 w-28" />
+            <Skeleton className="h-4 w-6" />
+            <Skeleton className="ml-auto h-7 w-20" />
+          </div>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-4 border-b px-4 py-3 last:border-0">
+              <Skeleton className={i % 3 === 0 ? "h-3 w-24" : "h-4 w-48"} />
+              <Skeleton className="ml-auto h-4 w-16" />
+              <Skeleton className="h-4 w-20" />
+            </div>
+          ))}
+          <div className="grid border-t @xl:grid-cols-2">
+            <div className="space-y-1.5 px-4 py-3">
+              <Skeleton className="h-4 w-36" />
+              <Skeleton className="h-3 w-48" />
+            </div>
+            <div className="space-y-1.5 px-4 py-3">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-3 w-40" />
+            </div>
+          </div>
+        </div>
+
+        {/* Zijkolom */}
+        <div className="flex flex-col gap-3.5">
+          <Skeleton className="h-[172px] rounded-lg" />
+          {[3, 3, 2].map((rijen, i) => (
+            <div key={i} className="overflow-hidden rounded-lg border bg-card">
+              <div className="border-b bg-muted/40 px-3 py-2.5">
+                <Skeleton className="h-5 w-24" />
+              </div>
+              <div className="space-y-2 px-4 py-3">
+                {Array.from({ length: rijen }).map((_, j) => (
+                  <Skeleton key={j} className="h-4 w-full" />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
 

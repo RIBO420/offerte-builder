@@ -89,6 +89,7 @@ export function SectiePaneel({
   titel,
   icoon,
   telling,
+  bijschrift,
   uitleg,
   acties,
   gewicht = "secundair",
@@ -103,6 +104,11 @@ export function SectiePaneel({
   icoon?: ReactNode;
   /** Klein getal rechts van de titel (open taken, aantal entries). */
   telling?: number;
+  /**
+   * Korte gedempte regel direct achter titel en telling (bv. de condities van
+   * een offerte). Kort zelf in als de kop te smal wordt — nooit zijwaarts.
+   */
+  bijschrift?: ReactNode;
   /**
    * Waar deze sectie voor is. Hangt achter een info-icoon in de kop in plaats
    * van als alinea in beeld te staan: uitleg lees je één keer, daarna is het
@@ -151,6 +157,11 @@ export function SectiePaneel({
           <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[11px] font-medium tabular-nums text-muted-foreground">
             {telling}
           </span>
+        )}
+        {bijschrift && (
+          <p className="min-w-0 truncate text-xs leading-4 text-muted-foreground">
+            {bijschrift}
+          </p>
         )}
         {uitleg && (
           <Tooltip>

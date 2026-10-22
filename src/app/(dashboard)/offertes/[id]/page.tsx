@@ -8,39 +8,34 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
 import { FileText } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { formatCurrency } from "@/lib/format";
 import { SaveAsTemplateDialog } from "@/components/offerte/save-as-template-dialog";
 import { KlantKoppeling } from "@/components/offerte/klant-koppeling";
-import { OfferteWorkflowStepper } from "@/components/offerte/offerte-workflow-stepper";
 import { EngagementTimeline } from "@/components/offerte/engagement-timeline";
 import { useQuery } from "convex/react";
 import { api } from "../../../../../convex/_generated/api";
 import { useOffertes } from "@/hooks/use-offertes";
 import { useInstellingen } from "@/hooks/use-instellingen";
 import { usePdfTheme } from "@/hooks/use-pdf-theme";
+import { useIsKantoor } from "@/hooks/use-users";
 import { OfferteDetailSkeleton } from "@/components/skeletons";
-import { STATUS_CONFIG } from "@/lib/constants/statuses";
+import { STATUS_CONFIG, getStatusConfig } from "@/lib/constants/statuses";
 import { Id } from "../../../../../convex/_generated/dataModel";
 import { toast } from "sonner";
 import { showDeleteToast } from "@/lib/toast-utils";
 
-import {
-  OfferteHeader,
-  VoorcalculatieCard,
-  KlantDetailsCard,
-  ScopesCard,
-  OfferteRegelsCard,
-  NotitiesCard,
-  TekstenCard,
-  TermijnenCard,
-  BegroteUrenCard,
-  TotalenCard,
-  ProjectCard,
-  DeleteDialog,
-  StatusChangeDialog,
-} from "./components";
+import { DeleteDialog, StatusChangeDialog } from "./components";
 import { KoppelWerkitemsDialog } from "./components/koppel-werkitems-dialog";
+import { OfferteKop } from "./components/offerte-kop";
+import { RegelsPaneel } from "./components/regels-paneel";
+import { TotaalHeldvlak } from "./components/totaal-heldvlak";
+import { UitvoeringPaneel } from "./components/uitvoering-paneel";
+import { KlantPaneel } from "./components/klant-paneel";
+import { FacturatiePaneel } from "./components/facturatie-paneel";
+import {
+  bepaalFases,
+  bepaalVolgendeStap,
+  type OfferteStatus,
+} from "./components/offerte-voortgang";
 
 export default function OfferteDetailPage({
   params,
@@ -61,6 +56,8 @@ export default function OfferteDetailPage({
 
   const { updateStatus, delete: deleteOfferte, restore: restoreOfferte, duplicate } = useOffertes();
   const { getNextNummer, instellingen } = useInstellingen();
+  // PRD §1.2: alleen kantoor mag de offerte naar de klant versturen
+  const isKantoor = useIsKantoor();
   const { theme: pdfTheme, voorwaarden: pdfVoorwaarden } = usePdfTheme();
 
   // Fetch version history for engagement timeline
@@ -87,7 +84,9 @@ export default function OfferteDetailPage({
   const [isUpdating, setIsUpdating] = useState(false);
   const [statusChangeConfirm, setStatusChangeConfirm] = useState<{
     open: boolean;
-    targetStatus: "concept" | "voorcalculatie" | "verzonden" | "geaccepteerd" | "afgewezen" | null;
+    targetStatus: OfferteStatus | null;
+    /** Tussenstatus die eerst gezet wordt (concept → voorcalculatie → verzonden). */
+    via?: OfferteStatus;
   }>({ open: false, targetStatus: null });
 
   // Optimistic status update state
@@ -96,16 +95,14 @@ export default function OfferteDetailPage({
   // Get the display status (optimistic or actual)
   const displayStatus = optimisticStatus ?? offerte?.status ?? "concept";
 
-  const handleStatusChange = (
-    newStatus: "concept" | "voorcalculatie" | "verzonden" | "geaccepteerd" | "afgewezen"
-  ) => {
+  const handleStatusChange = (newStatus: OfferteStatus, via?: OfferteStatus) => {
     if (!offerte) return;
     // PRD §2.5: geen acceptatie zonder werkitem — koppel-dialoog eerst
     if (newStatus === "geaccepteerd" && acceptatieInfo?.koppelingNodig) {
       setShowKoppelDialog(true);
       return;
     }
-    setStatusChangeConfirm({ open: true, targetStatus: newStatus });
+    setStatusChangeConfirm({ open: true, targetStatus: newStatus, via });
   };
 
   // Na de koppel-dialoog: werkitems bestaan, acceptatie kan door
@@ -137,6 +134,7 @@ export default function OfferteDetailPage({
     if (!offerte || !statusChangeConfirm.targetStatus) return;
 
     const newStatus = statusChangeConfirm.targetStatus;
+    const via = statusChangeConfirm.via;
 
     // Close dialog
     setStatusChangeConfirm({ open: false, targetStatus: null });
@@ -149,7 +147,14 @@ export default function OfferteDetailPage({
     toast.success(`Status gewijzigd naar ${STATUS_CONFIG[newStatus].label}`);
 
     try {
-      // 2. Make actual server call
+      // 2. Make actual server call. "Versturen" vanuit een concept met
+      // voorcalculatie gaat via de voorcalculatie-status: de server staat
+      // concept → verzonden alleen toe voor vrije offertes. Faalt de tweede
+      // stap, dan staat de offerte netjes op voorcalculatie (klaar om te
+      // verzenden) en meldt de toast waarom.
+      if (via && via !== offerte.status) {
+        await updateStatus({ id: offerte._id, status: via });
+      }
       await updateStatus({ id: offerte._id, status: newStatus });
 
       // 3. Clear optimistic state (server data will take over)
@@ -221,9 +226,9 @@ export default function OfferteDetailPage({
       <>
         <PageHeader customLabels={{ [`/offertes/${id}`]: "Laden..." }} />
 
-        <PaginaReveal className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
+        <div className="@container/offerte flex flex-1 flex-col p-4 md:px-8 md:py-6">
           <OfferteDetailSkeleton />
-        </PaginaReveal>
+        </div>
       </>
     );
   }
@@ -254,123 +259,114 @@ export default function OfferteDetailPage({
     );
   }
 
+  const status = offerte.status as OfferteStatus;
+  const isVrij = offerte.bron === "vrij";
+  const heeftVoorcalculatie = !!voorcalculatie;
+  const volgendeStap = bepaalVolgendeStap({
+    offerteId: id,
+    status,
+    heeftVoorcalculatie,
+    isVrij,
+    isKantoor,
+    project: existingProject,
+  });
+  const fases = bepaalFases({
+    status,
+    heeftVoorcalculatie,
+    isVrij,
+    verzondenAt: offerte.verzondenAt,
+    customerResponse: offerte.customerResponse,
+    project: existingProject,
+    projectStatusLabel: existingProject
+      ? getStatusConfig(existingProject.status, "project").label
+      : undefined,
+  });
+
   return (
     <>
-      <PageHeader customLabels={{ [`/offertes/${id}`]: offerte.offerteNummer }}>
-        <Badge variant="secondary" className="text-sm md:text-lg font-semibold px-2 py-0.5 md:px-3 md:py-1 truncate max-w-[150px] md:max-w-none">
-          {formatCurrency(offerte.totalen.totaalInclBtw)} incl. BTW
-        </Badge>
-      </PageHeader>
+      <PageHeader customLabels={{ [`/offertes/${id}`]: offerte.offerteNummer }} />
 
-      {/* Eén reveal op de buitenkant; de blokken eronder zijn gewone divs en
+      {/* Variant A "Regels centraal": kop met fasestrip, de regels als
+          hoofdkolom, totaal/uitvoering/klant/facturatie/tijdlijn ernaast.
+          Eén reveal op de buitenkant; de blokken eronder zijn gewone divs en
           staan er dus ook als er nul animatieframes vallen.
           → src/components/pagina-reveal.tsx */}
-      <PaginaReveal className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
-        {/* Header */}
-        <div>
-          <OfferteHeader
+      <PaginaReveal className="@container/offerte flex flex-1 flex-col p-4 md:px-8 md:py-6">
+        <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-5">
+          <OfferteKop
             offerte={offerte}
             id={id}
             displayStatus={displayStatus}
             isUpdating={isUpdating}
-            voorcalculatie={voorcalculatie}
+            heeftVoorcalculatie={heeftVoorcalculatie}
+            isKantoor={isKantoor}
             instellingen={instellingen}
             pdfTheme={pdfTheme}
             pdfVoorwaarden={pdfVoorwaarden?.offerte}
             offerteVersions={offerteVersions ?? undefined}
+            volgendeStap={volgendeStap}
+            fases={fases}
             onStatusChange={handleStatusChange}
             onDuplicate={handleDuplicate}
             onShowTemplateDialog={() => setShowTemplateDialog(true)}
             onShowDeleteDialog={() => setShowDeleteDialog(true)}
           />
-        </div>
 
-        {/* Workflow Stepper */}
-        <div>
-          <Card className="p-4 md:p-6">
-            <OfferteWorkflowStepper
-              currentStatus={displayStatus as "concept" | "voorcalculatie" | "verzonden" | "geaccepteerd" | "afgewezen"}
-              hasVoorcalculatie={!!voorcalculatie}
-              offerteId={id}
-              showNextStepAction={true}
-            />
-          </Card>
-        </div>
-
-        {/* Voorcalculatie Card */}
-        {(offerte.status === "concept" || voorcalculatie) && (
-          <div>
-            <VoorcalculatieCard
+          {/* Zijkolom ernaast vanaf 64rem containerbreedte, daaronder eronder */}
+          <div className="grid items-start gap-5 @5xl/offerte:grid-cols-[minmax(0,1fr)_360px]">
+            <RegelsPaneel
               id={id}
-              offerteStatus={offerte.status}
-              voorcalculatie={voorcalculatie}
-            />
-          </div>
-        )}
-
-        <div className="grid gap-4 lg:grid-cols-3">
-          {/* Left column - Details */}
-          <div className="space-y-4 lg:col-span-2">
-            {offerte.klant ? (
-              <KlantDetailsCard klant={offerte.klant} />
-            ) : (
-              /* Een concept mag zonder klant bestaan (bv. gestart vanuit een
-                 template of als vrije offerte). Dan hoort hier geen gat te
-                 vallen maar de plek waar je hem koppelt — vóórdat de statusknop
-                 hem alsnog eist. */
-              <KlantKoppeling
-                weergave="strip"
-                offerteId={id as Id<"offertes">}
-                klant={null}
-                klantId={offerte.klantId}
-                status={offerte.status}
-              />
-            )}
-            <ScopesCard scopes={offerte.scopes} algemeenParams={offerte.algemeenParams} />
-            <OfferteRegelsCard
               regels={offerte.regels}
-              id={id}
               bron={offerte.bron}
               status={offerte.status}
-            />
-            <TekstenCard
-              id={id}
               type={offerte.type}
-              status={offerte.status}
+              algemeenParams={offerte.algemeenParams}
+              totalen={offerte.totalen}
               vrijeTeksten={offerte.vrijeTeksten}
+              notities={offerte.notities}
             />
-            <NotitiesCard notities={offerte.notities} />
-          </div>
 
-          {/* Right column - Totals & Tijdlijn */}
-          <div className="space-y-4">
-            <TotalenCard totalen={offerte.totalen} />
-            <BegroteUrenCard
-              id={id}
-              status={offerte.status}
-              begroteUren={offerte.begroteUren}
-              calculatieUren={offerte.totalen.totaalUren}
-            />
-            <TermijnenCard
-              id={id}
-              type={offerte.type}
-              status={offerte.status}
-              termijnschema={offerte.termijnschema}
-            />
-            {/* Eén chronologische tijdlijn: systeemdatums + klantactiviteit */}
-            <EngagementTimeline
-              emailLogs={[]}
-              versions={offerteVersions ?? []}
-              customerResponse={offerte.customerResponse}
-              createdAt={offerte.createdAt}
-              updatedAt={offerte.updatedAt}
-              verzondenAt={offerte.verzondenAt}
-            />
-            <ProjectCard
-              id={id}
-              offerteStatus={offerte.status}
-              existingProject={existingProject}
-            />
+            <aside aria-label="Overzicht" className="flex min-w-0 flex-col gap-3.5">
+              <TotaalHeldvlak totalen={offerte.totalen} />
+              <UitvoeringPaneel
+                id={id}
+                status={offerte.status}
+                isVrij={isVrij}
+                begroteUren={offerte.begroteUren}
+                calculatieUren={offerte.totalen.totaalUren}
+                voorcalculatie={voorcalculatie}
+              />
+              {offerte.klant ? (
+                <KlantPaneel klant={offerte.klant} klantId={offerte.klantId} />
+              ) : (
+                /* Een concept mag zonder klant bestaan (bv. gestart vanuit een
+                   template of als vrije offerte). Dan hoort hier geen gat te
+                   vallen maar de plek waar je hem koppelt — vóórdat de statusknop
+                   hem alsnog eist. */
+                <KlantKoppeling
+                  weergave="sectie"
+                  offerteId={id as Id<"offertes">}
+                  klant={null}
+                  klantId={offerte.klantId}
+                  status={offerte.status}
+                />
+              )}
+              <FacturatiePaneel
+                id={id}
+                type={offerte.type}
+                status={offerte.status}
+                termijnschema={offerte.termijnschema}
+              />
+              {/* Eén chronologische tijdlijn: systeemdatums + klantactiviteit */}
+              <EngagementTimeline
+                emailLogs={[]}
+                versions={offerteVersions ?? []}
+                customerResponse={offerte.customerResponse}
+                createdAt={offerte.createdAt}
+                updatedAt={offerte.updatedAt}
+                verzondenAt={offerte.verzondenAt}
+              />
+            </aside>
           </div>
         </div>
       </PaginaReveal>

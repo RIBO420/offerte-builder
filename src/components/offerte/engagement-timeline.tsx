@@ -1,32 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-  Mail,
-  Eye,
-  CheckCircle,
-  XCircle,
-  MessageSquare,
-  History,
-  Clock,
-  AlertCircle,
-  Activity,
-  MailCheck,
-  MailX,
-  MousePointerClick,
-} from "lucide-react";
+import { useMemo, useState } from "react";
+import { SectiePaneel } from "@/components/ui/sectie-paneel";
+import { formatDate, formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 // ── Types ──────────────────────────────────────────────────────────────
@@ -49,8 +25,6 @@ interface TimelineEvent {
   type: TimelineEventType;
   description: string;
   timestamp: number;
-  icon: React.ReactNode;
-  iconColor: string;
   dotColor: string;
 }
 
@@ -93,37 +67,6 @@ interface EngagementTimelineProps {
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
-function formatRelativeTime(timestamp: number): string {
-  const now = Date.now();
-  const diff = now - timestamp;
-  const seconds = Math.floor(diff / 1000);
-  const minutes = Math.floor(seconds / 60);
-  const hours = Math.floor(minutes / 60);
-  const days = Math.floor(hours / 24);
-  const weeks = Math.floor(days / 7);
-  const months = Math.floor(days / 30);
-
-  if (seconds < 60) return "Zojuist";
-  if (minutes < 60) return `${minutes} min geleden`;
-  if (hours < 24) return `${hours} uur geleden`;
-  if (days === 1) return "Gisteren";
-  if (days < 7) return `${days} dagen geleden`;
-  if (weeks === 1) return "1 week geleden";
-  if (weeks < 5) return `${weeks} weken geleden`;
-  if (months === 1) return "1 maand geleden";
-  return `${months} maanden geleden`;
-}
-
-function formatAbsoluteTime(timestamp: number): string {
-  return new Intl.DateTimeFormat("nl-NL", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(timestamp));
-}
-
 const EMAIL_TYPE_LABELS: Record<string, string> = {
   offerte_verzonden: "Offerte",
   herinnering: "Herinnering",
@@ -140,30 +83,28 @@ const EMAIL_TYPE_LABELS: Record<string, string> = {
  * - mislukt/bounced/afgewezen = `status-afgewezen`;
  * - bekeken en klantvraag = `status-herinnering` (amber, vraagt aandacht);
  * - systeemdatums = gedempt grijs.
- * Betekenis zit nooit in de kleur alleen: icoon + omschrijving dragen het.
+ * Betekenis zit nooit in de kleur alleen: de omschrijving draagt het.
  */
 const EVENT_KLEUREN = {
   communicatie: {
-    iconColor: "text-status-voorcalculatie-text",
     dotColor: "bg-status-voorcalculatie-dot",
   },
   gelukt: {
-    iconColor: "text-status-geaccepteerd-text",
     dotColor: "bg-status-geaccepteerd-dot",
   },
   mislukt: {
-    iconColor: "text-status-afgewezen-text",
     dotColor: "bg-status-afgewezen-dot",
   },
   aandacht: {
-    iconColor: "text-status-herinnering-text",
     dotColor: "bg-status-herinnering-dot",
   },
   systeem: {
-    iconColor: "text-muted-foreground",
     dotColor: "bg-muted-foreground/50",
   },
 } as const;
+
+/** Compact in de zijkolom: de laatste drie, de rest achter "Alles (n)". */
+const ZICHTBAAR = 3;
 
 // ── Component ──────────────────────────────────────────────────────────
 
@@ -194,12 +135,6 @@ export function EngagementTimeline({
               ? `${typeLabel} kon niet worden afgeleverd bij ${log.to}`
               : `${typeLabel} verstuurd naar ${log.to}`,
         timestamp: log.createdAt,
-        icon:
-          log.status === "mislukt" || log.status === "bounced" ? (
-            <AlertCircle className="h-3.5 w-3.5" />
-          ) : (
-            <Mail className="h-3.5 w-3.5" />
-          ),
         ...(log.status === "mislukt" || log.status === "bounced"
           ? EVENT_KLEUREN.mislukt
           : EVENT_KLEUREN.communicatie),
@@ -212,7 +147,6 @@ export function EngagementTimeline({
           type: "email_delivered",
           description: `${typeLabel} afgeleverd`,
           timestamp: log.deliveredAt,
-          icon: <MailCheck className="h-3.5 w-3.5" />,
           ...EVENT_KLEUREN.gelukt,
         });
       }
@@ -224,7 +158,6 @@ export function EngagementTimeline({
           type: "email_geopend",
           description: `${typeLabel} geopend`,
           timestamp: log.openedAt,
-          icon: <Eye className="h-3.5 w-3.5" />,
           ...EVENT_KLEUREN.communicatie,
         });
       }
@@ -236,7 +169,6 @@ export function EngagementTimeline({
           type: "email_clicked",
           description: `Link in ${typeLabel.toLowerCase()} aangeklikt`,
           timestamp: log.clickedAt,
-          icon: <MousePointerClick className="h-3.5 w-3.5" />,
           ...EVENT_KLEUREN.communicatie,
         });
       }
@@ -248,7 +180,6 @@ export function EngagementTimeline({
           type: "email_bounced",
           description: `${typeLabel} geweigerd door mailserver`,
           timestamp: log.bouncedAt,
-          icon: <MailX className="h-3.5 w-3.5" />,
           ...EVENT_KLEUREN.mislukt,
         });
       }
@@ -261,7 +192,6 @@ export function EngagementTimeline({
         type: "offerte_bekeken",
         description: "Offerte bekeken door klant",
         timestamp: customerResponse.viewedAt,
-        icon: <Eye className="h-3.5 w-3.5" />,
         ...EVENT_KLEUREN.aandacht,
       });
     }
@@ -275,7 +205,6 @@ export function EngagementTimeline({
         type: "offerte_geaccepteerd",
         description: "Offerte geaccepteerd door klant",
         timestamp: customerResponse.respondedAt,
-        icon: <CheckCircle className="h-3.5 w-3.5" />,
         ...EVENT_KLEUREN.gelukt,
       });
     }
@@ -289,7 +218,6 @@ export function EngagementTimeline({
         type: "offerte_afgewezen",
         description: "Offerte afgewezen door klant",
         timestamp: customerResponse.respondedAt,
-        icon: <XCircle className="h-3.5 w-3.5" />,
         ...EVENT_KLEUREN.mislukt,
       });
     }
@@ -304,7 +232,6 @@ export function EngagementTimeline({
         type: "klant_vraag",
         description: "Klant heeft een vraag gesteld",
         timestamp: customerResponse.respondedAt,
-        icon: <MessageSquare className="h-3.5 w-3.5" />,
         ...EVENT_KLEUREN.aandacht,
       });
     }
@@ -318,8 +245,6 @@ export function EngagementTimeline({
         type: "versie_aangemaakt",
         description: version.omschrijving || `Versie ${version.versieNummer} aangemaakt`,
         timestamp: version.createdAt,
-        icon: <History className="h-3.5 w-3.5" />,
-        iconColor: "text-muted-foreground",
         dotColor: "bg-muted-foreground/50",
       });
     }
@@ -331,8 +256,6 @@ export function EngagementTimeline({
         type: "email_verzonden",
         description: "Offerte verzonden",
         timestamp: verzondenAt,
-        icon: <Mail className="h-3.5 w-3.5" />,
-        iconColor: "text-muted-foreground",
         dotColor: "bg-muted-foreground/50",
       });
     }
@@ -343,8 +266,6 @@ export function EngagementTimeline({
         type: "versie_aangemaakt",
         description: "Laatst gewijzigd",
         timestamp: updatedAt,
-        icon: <History className="h-3.5 w-3.5" />,
-        iconColor: "text-muted-foreground",
         dotColor: "bg-muted-foreground/50",
       });
     }
@@ -355,8 +276,6 @@ export function EngagementTimeline({
       type: "versie_aangemaakt",
       description: "Offerte aangemaakt",
       timestamp: createdAt,
-      icon: <Clock className="h-3.5 w-3.5" />,
-      iconColor: "text-muted-foreground",
       dotColor: "bg-muted-foreground/30",
     });
 
@@ -366,72 +285,47 @@ export function EngagementTimeline({
     return items;
   }, [emailLogs, versions, customerResponse, createdAt, updatedAt, verzondenAt]);
 
+  const [alles, setAlles] = useState(false);
+  const zichtbaar = alles ? events : events.slice(0, ZICHTBAAR);
+
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base flex items-center gap-2">
-          <Activity className="h-4 w-4 text-muted-foreground" />
-          Tijdlijn
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {events.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-4">
-            Nog geen activiteit
-          </p>
-        ) : (
-          <TooltipProvider delayDuration={300}>
-            <div className="relative space-y-0">
-              {/* Vertical line */}
-              <div className="absolute left-[7px] top-2 bottom-2 w-px bg-border" />
-
-              {events.map((event, index) => (
-                <div
-                  key={event.id}
-                  className={cn(
-                    "relative flex items-start gap-3 py-2",
-                    index === 0 && "pt-0"
-                  )}
-                >
-                  {/* Dot on timeline */}
-                  <div
-                    className={cn(
-                      "relative z-10 mt-1 h-[15px] w-[15px] shrink-0 rounded-full border-2 border-background flex items-center justify-center",
-                      event.dotColor
-                    )}
-                  >
-                    {/* Binnenste stip is een "gat" in de gekleurde stip en
-                        moet dus de paginakleur volgen, net als de border. */}
-                    <div className="h-1.5 w-1.5 rounded-full bg-background" />
-                  </div>
-
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start gap-1.5">
-                      <span className={cn("shrink-0 mt-0.5", event.iconColor)}>
-                        {event.icon}
-                      </span>
-                      <p className="text-xs leading-snug text-foreground truncate">
-                        {event.description}
-                      </p>
-                    </div>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <p className="text-[11px] text-muted-foreground mt-0.5 ml-5 cursor-default">
-                          {formatRelativeTime(event.timestamp)}
-                        </p>
-                      </TooltipTrigger>
-                      <TooltipContent side="left" className="text-xs">
-                        {formatAbsoluteTime(event.timestamp)}
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </TooltipProvider>
-        )}
-      </CardContent>
-    </Card>
+    <SectiePaneel
+      titel="Tijdlijn"
+      kopbalk
+      acties={
+        events.length > ZICHTBAAR && (
+          <button
+            type="button"
+            onClick={() => setAlles((a) => !a)}
+            aria-expanded={alles}
+            className="rounded px-1 text-[13px] text-primary transition-colors hover:text-primary/80 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          >
+            {alles ? "Minder" : `Alles (${events.length})`}
+          </button>
+        )
+      }
+    >
+      <ol className="grid gap-2.5 px-4 py-3 text-[13px]">
+        {zichtbaar.map((event) => (
+          <li
+            key={event.id}
+            className="grid grid-cols-[8px_minmax(0,1fr)_auto] items-baseline gap-2.5"
+          >
+            <span
+              aria-hidden="true"
+              className={cn("size-2 translate-y-px rounded-full", event.dotColor)}
+            />
+            <span className="min-w-0 [overflow-wrap:anywhere]">{event.description}</span>
+            <time
+              dateTime={new Date(event.timestamp).toISOString()}
+              title={formatDateTime(event.timestamp)}
+              className="text-xs whitespace-nowrap text-muted-foreground tabular-nums"
+            >
+              {formatDate(event.timestamp)}
+            </time>
+          </li>
+        ))}
+      </ol>
+    </SectiePaneel>
   );
 }

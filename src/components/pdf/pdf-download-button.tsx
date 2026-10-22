@@ -69,6 +69,8 @@ interface PDFDownloadButtonProps {
   variant?: "default" | "outline" | "secondary" | "ghost";
   size?: "default" | "sm" | "lg" | "icon";
   showPreview?: boolean;
+  /** Tekst op de previewknop (default "Bekijk PDF"). */
+  label?: string;
 }
 
 export function PDFDownloadButton({
@@ -80,6 +82,7 @@ export function PDFDownloadButton({
   variant = "outline",
   size = "default",
   showPreview = false,
+  label = "Bekijk PDF",
 }: PDFDownloadButtonProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -139,7 +142,7 @@ export function PDFDownloadButton({
           onClick={() => setPreviewOpen(true)}
         >
           <Eye className="mr-2 h-4 w-4" />
-          Bekijk PDF
+          {label}
         </Button>
         <PdfPreviewModal
           offerte={offerte}

@@ -1,18 +1,3 @@
-export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("nl-NL", {
-    style: "currency",
-    currency: "EUR",
-  }).format(amount);
-}
-
-export function formatDate(timestamp: number): string {
-  return new Intl.DateTimeFormat("nl-NL", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(new Date(timestamp));
-}
-
 // Gelijk gehouden met de centrale labelmaps (`src/lib/rapportage-labels.ts`
 // voor /rapportages, `instellingen/components/constants.ts` voor de normuren)
 // — labelmap-drift liet hier ooit de rauwe key `water_elektra` op het
