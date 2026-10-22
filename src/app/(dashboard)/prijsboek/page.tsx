@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/page-header";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -75,6 +75,8 @@ import {
   Power,
 } from "lucide-react";
 import { useProducten, useUitgeschakeldeProducten } from "@/hooks/use-producten";
+import { HERO_CATEGORIEEN } from "../../../../convex/lib/heroCategorie";
+import { cn } from "@/lib/utils";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { Id } from "../../../../convex/_generated/dataModel";
 import { toast } from "sonner";
@@ -197,6 +199,12 @@ const categoryIcons: Record<string, React.ComponentType<{ className?: string }>>
   "default": Package,
 };
 
+function categorieVolgorde(categorie: string): number {
+  if (categorie === "Overig") return Number.MAX_SAFE_INTEGER;
+  const i = (HERO_CATEGORIEEN as readonly string[]).indexOf(categorie);
+  return i >= 0 ? i : HERO_CATEGORIEEN.length;
+}
+
 function PrijsboekPageContent() {
   const { isLoading: isUserLoading } = useCurrentUser();
   const {
@@ -257,10 +265,11 @@ function PrijsboekPageContent() {
     return matchesSearch && matchesTab;
   });
 
-  // Get unique categories from actual products
+  // Categorieën in de volgorde van het werk (HERO-indeling), andere
+  // alfabetisch daarachter en "Overig" altijd onderaan
   const uniqueCategories = [
     ...new Set(zichtbareProducten.map((p) => p.categorie)),
-  ].sort();
+  ].sort((a, b) => categorieVolgorde(a) - categorieVolgorde(b) || a.localeCompare(b, "nl"));
 
   const categoryCounts = uniqueCategories.map((cat) => ({
     id: cat,
@@ -273,6 +282,15 @@ function PrijsboekPageContent() {
   }));
 
   const totalCount = zichtbareProducten.length;
+
+  const categorieKeuzes = [
+    { id: "alle", naam: "Alle artikelen", count: totalCount },
+    ...categoryCounts,
+  ];
+  // Kaarten bovenaan: de vier grootste categorieën
+  const grootsteCategorieen = [...categoryCounts]
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 4);
 
   const handleZetAan = async (product: Product) => {
     try {
@@ -490,8 +508,8 @@ function PrijsboekPageContent() {
           gewone elementen en staan er dus ook als er nul animatieframes
           vallen. → src/components/pagina-reveal.tsx */}
       <PaginaReveal className="flex flex-1 flex-col gap-6 p-4 md:gap-8 md:p-8">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="min-w-0">
             <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
               Prijsboek
             </h1>
@@ -499,7 +517,7 @@ function PrijsboekPageContent() {
               Beheer je producten, materialen en prijzen
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <input
               ref={fileInputRef}
               type="file"
@@ -687,8 +705,8 @@ function PrijsboekPageContent() {
         </div>
 
         {/* Category stats */}
-        <div className="grid gap-4 md:grid-cols-4">
-          {categoryCounts.slice(0, 4).map((cat) => {
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+          {grootsteCategorieen.map((cat) => {
             const IconComponent = cat.icon;
             return (
               <Card
@@ -753,28 +771,53 @@ function PrijsboekPageContent() {
           </p>
         )}
 
-        {/* Tabs & Table */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="flex-wrap h-auto">
-            <TabsTrigger value="alle">
-              Alle producten
-              <Badge variant="secondary" className="ml-2">
-                {totalCount}
-              </Badge>
-            </TabsTrigger>
-            {categoryCounts.map((cat) => (
-              <TabsTrigger key={cat.id} value={cat.id}>
-                {cat.naam}
-                {cat.count > 0 && (
-                  <Badge variant="secondary" className="ml-2">
-                    {cat.count}
-                  </Badge>
-                )}
-              </TabsTrigger>
-            ))}
-          </TabsList>
+        {/* Categorieën + tabel: een lijst links op brede schermen, een
+            keuzelijst op smalle. Een tabbalk met vijftien categorieën moest
+            zijwaarts scrollen. */}
+        <div className="grid gap-6 lg:grid-cols-[15rem_minmax(0,1fr)]">
+          <nav aria-label="Categorieën" className="hidden lg:block">
+            <div className="sticky top-4 space-y-0.5">
+              <p className="px-3 pb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Categorieën
+              </p>
+              {categorieKeuzes.map((cat) => {
+                const actief = activeTab === cat.id;
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setActiveTab(cat.id)}
+                    aria-current={actief ? "true" : undefined}
+                    className={cn(
+                      "flex w-full items-center justify-between gap-3 rounded-md px-3 py-1.5 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      actief
+                        ? "bg-muted font-medium text-foreground"
+                        : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                    )}
+                  >
+                    <span className="min-w-0 truncate">{cat.naam}</span>
+                    <span className="shrink-0 text-xs tabular-nums">{cat.count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </nav>
 
-          <TabsContent value={activeTab} className="space-y-4">
+          <div className="min-w-0 space-y-4">
+            <div className="lg:hidden">
+              <Select value={activeTab} onValueChange={setActiveTab}>
+                <SelectTrigger aria-label="Categorie" className="w-full sm:w-80">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {categorieKeuzes.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {cat.naam} ({cat.count})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             {isLoading ? (
               <Card>
                 <CardContent className="flex items-center justify-center py-12">
@@ -787,11 +830,13 @@ function PrijsboekPageContent() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Product</TableHead>
-                      <TableHead>Categorie</TableHead>
-                      <TableHead>Leverancier</TableHead>
-                      <TableHead className="text-right">Inkoop</TableHead>
+                      {activeTab === "alle" && (
+                        <TableHead className="hidden md:table-cell">Categorie</TableHead>
+                      )}
+                      <TableHead className="hidden 2xl:table-cell">Leverancier</TableHead>
+                      <TableHead className="hidden text-right sm:table-cell">Inkoop</TableHead>
                       <TableHead className="text-right">Verkoop</TableHead>
-                      <TableHead className="text-right">Verlies %</TableHead>
+                      <TableHead className="hidden text-right 2xl:table-cell">Verlies %</TableHead>
                       <TableHead className="w-[50px]"></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -801,29 +846,31 @@ function PrijsboekPageContent() {
                         key={product._id}
                         className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
                       >
-                        <TableCell>
-                          <div>
-                            <p className="font-medium">{product.productnaam}</p>
+                        <TableCell className="whitespace-normal">
+                          <div className="min-w-0">
+                            <p className="font-medium text-pretty">{product.productnaam}</p>
                             <p className="text-sm text-muted-foreground">
                               per {product.eenheid}
                             </p>
                           </div>
                         </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">
-                            {product.categorie}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
+                        {activeTab === "alle" && (
+                          <TableCell className="hidden md:table-cell">
+                            <Badge variant="outline">
+                              {product.categorie}
+                            </Badge>
+                          </TableCell>
+                        )}
+                        <TableCell className="hidden text-muted-foreground 2xl:table-cell">
                           {product.leverancier || "-"}
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="hidden text-right sm:table-cell">
                           {formatCurrency(product.inkoopprijs)}
                         </TableCell>
                         <TableCell className="text-right font-medium">
                           {formatCurrency(product.verkoopprijs)}
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="hidden text-right 2xl:table-cell">
                           {product.verliespercentage}%
                         </TableCell>
                         <TableCell>
@@ -906,8 +953,8 @@ function PrijsboekPageContent() {
                 </CardContent>
               </Card>
             )}
-          </TabsContent>
-        </Tabs>
+          </div>
+        </div>
       </PaginaReveal>
 
       {/* Import Preview Dialog */}
