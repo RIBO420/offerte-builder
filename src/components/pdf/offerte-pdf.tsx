@@ -8,6 +8,8 @@ import {
   View,
 } from "@react-pdf/renderer";
 import { formatCurrency, formatDate, getDefaultTheme } from "./pdf-theme";
+import { PDF_KOP } from "./pdf-fonts";
+import { ArtikelBeschrijvingPdf, geenAfbreking } from "./artikel-beschrijving-pdf";
 import type { PdfTheme } from "./pdf-theme";
 import type { Bedrijfsgegevens } from "@/types/offerte";
 
@@ -24,6 +26,7 @@ interface OfferteRegel {
   interneNotitie?: string; // NOT rendered in customer PDF
   optioneel?: boolean;
   btwCode?: number; // 9 of 21 (vrije builder, PRD §2.5b)
+  artikelBeschrijving?: string; // offertetekst uit het prijsboek, klein onder de regel
 }
 
 interface OfferteTotalen {
@@ -112,6 +115,8 @@ interface ScopeSummary {
   totaal: number;
   visibleItems: ScopeLineItem[]; // Items to show with quantities
   hasHiddenItems: boolean; // True if there are hidden kleinmateriaal/arbeid items
+  // Regels met een artikelbeschrijving: naam + offertetekst onder de samenvatting
+  beschrijvingen: Array<{ omschrijving: string; tekst: string }>;
 }
 
 // Units that should always be shown with quantities
@@ -176,6 +181,9 @@ function summarizeRegelsByScope(regels: OfferteRegel[]): ScopeSummary[] {
     const existing = scopeMap.get(regel.scope);
     const isVisible = shouldShowItem(regel);
 
+    const tekst = regel.artikelBeschrijving?.trim();
+    const beschrijving = tekst ? { omschrijving: regel.omschrijving, tekst } : null;
+
     const lineItem: ScopeLineItem | null = isVisible ? {
       omschrijving: regel.omschrijving,
       hoeveelheid: regel.hoeveelheid,
@@ -192,6 +200,11 @@ function summarizeRegelsByScope(regels: OfferteRegel[]): ScopeSummary[] {
       if (!isVisible) {
         existing.hasHiddenItems = true;
       }
+      if (beschrijving && !existing.beschrijvingen.some((b) =>
+        b.omschrijving === beschrijving.omschrijving && b.tekst === beschrijving.tekst
+      )) {
+        existing.beschrijvingen.push(beschrijving);
+      }
     } else {
       scopeMap.set(regel.scope, {
         scope: regel.scope,
@@ -199,6 +212,7 @@ function summarizeRegelsByScope(regels: OfferteRegel[]): ScopeSummary[] {
         totaal: regel.totaal,
         visibleItems: lineItem ? [lineItem] : [],
         hasHiddenItems: !isVisible,
+        beschrijvingen: beschrijving ? [beschrijving] : [],
       });
     }
   }
@@ -236,6 +250,35 @@ function formatLineItems(summary: ScopeSummary): string {
   }
 
   return parts.length > 0 ? parts.join(', ') : 'Inclusief materiaal en arbeid';
+}
+
+/**
+ * Omschrijving-cel van een onderdeel: de samenvatting, en daaronder per regel
+ * met een artikelbeschrijving de regelnaam (klein, halfvet) met zijn
+ * offertetekst. De cel is een gewone View, dus een lange tekst breekt over
+ * de pagina heen.
+ */
+function OmschrijvingCel({ summary, theme: t }: { summary: ScopeSummary; theme: PdfTheme }) {
+  const s = t.styles;
+  return (
+    <View style={{ flex: 4, paddingRight: 8 }}>
+      <Text style={[s.tableCell, { fontSize: t.typography.smallSize, color: t.colors.muted }]}>
+        {formatLineItems(summary)}
+      </Text>
+      {summary.beschrijvingen.map((b, i) => (
+        <View key={i} style={{ marginTop: 6 }}>
+          <Text
+            style={{ ...PDF_KOP, fontSize: t.typography.smallSize, color: t.colors.text }}
+            minPresenceAhead={14}
+            hyphenationCallback={geenAfbreking}
+          >
+            {b.omschrijving}
+          </Text>
+          <ArtikelBeschrijvingPdf tekst={b.tekst} theme={t} />
+        </View>
+      ))}
+    </View>
+  );
 }
 
 export function OffertePDF({ offerte, bedrijfsgegevens, theme, voorwaarden, teksten }: OffertePDFProps) {
@@ -410,9 +453,7 @@ export function OffertePDF({ offerte, bedrijfsgegevens, theme, voorwaarden, teks
                   <Text style={[s.tableCell, { flex: 2, fontWeight: 600 }]}>
                     {summary.scopeLabel}
                   </Text>
-                  <Text style={[s.tableCell, { flex: 4, fontSize: t.typography.smallSize, color: t.colors.muted }]}>
-                    {formatLineItems(summary)}
-                  </Text>
+                  <OmschrijvingCel summary={summary} theme={t} />
                   <Text style={[s.tableCellRight, { flex: 1 }]}>
                     {formatCurrency(summary.totaal)}
                   </Text>
@@ -449,9 +490,7 @@ export function OffertePDF({ offerte, bedrijfsgegevens, theme, voorwaarden, teks
                   <Text style={[s.tableCell, { flex: 2, fontWeight: 600 }]}>
                     {summary.scopeLabel}
                   </Text>
-                  <Text style={[s.tableCell, { flex: 4, fontSize: t.typography.smallSize, color: t.colors.muted }]}>
-                    {formatLineItems(summary)}
-                  </Text>
+                  <OmschrijvingCel summary={summary} theme={t} />
                   <Text style={[s.tableCellRight, { flex: 1 }]}>
                     {formatCurrency(summary.totaal)}
                   </Text>

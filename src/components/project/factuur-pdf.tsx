@@ -10,6 +10,7 @@ import {
 } from "@react-pdf/renderer";
 import { getDefaultTheme } from "@/components/pdf/pdf-theme";
 import { PDF_KOP } from "@/components/pdf/pdf-fonts";
+import { ArtikelBeschrijvingPdf } from "@/components/pdf/artikel-beschrijving-pdf";
 import type { PdfTheme } from "@/components/pdf/pdf-theme";
 import type { Bedrijfsgegevens } from "@/types/offerte";
 
@@ -21,6 +22,8 @@ interface FactuurRegel {
   eenheid: string;
   prijsPerEenheid: number;
   totaal: number;
+  /** Offertetekst van het artikel; klein en gedempt onder de omschrijving */
+  artikelBeschrijving?: string;
 }
 
 // Correction/adjustment line
@@ -601,9 +604,10 @@ export function FactuurPDF({ factuur, bedrijfsgegevens, theme, voorwaarden, teks
               key={regel.id}
               style={index % 2 === 0 ? styles.tableRow : styles.tableRowAlt}
             >
-              <Text style={[styles.tableCell, styles.colOmschrijving]}>
-                {regel.omschrijving}
-              </Text>
+              <View style={[styles.colOmschrijving, { paddingRight: 8 }]}>
+                <Text style={styles.tableCell}>{regel.omschrijving}</Text>
+                <ArtikelBeschrijvingPdf tekst={regel.artikelBeschrijving} theme={t} />
+              </View>
               <Text style={[styles.tableCellRight, styles.colAantal]}>
                 {regel.aantal}
               </Text>

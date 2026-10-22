@@ -244,6 +244,7 @@ export function useFactuurHandlers(
         eenheid: r.eenheid,
         prijsPerEenheid: r.prijsPerEenheid,
         totaal: r.totaal,
+        artikelBeschrijving: r.artikelBeschrijving,
       })),
       // Eigen correcties plus de termijnen die op een eindfactuur in mindering komen
       correcties: weergaveCorrecties(factuur).map((c, i) => ({

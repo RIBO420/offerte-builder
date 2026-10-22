@@ -48,6 +48,7 @@ export function usePortaalFactuurPdf() {
               eenheid: r.eenheid,
               prijsPerEenheid: r.prijsPerEenheid,
               totaal: r.totaal,
+              artikelBeschrijving: r.artikelBeschrijving,
             })),
             correcties: f.correcties?.map((c, i) => ({
               id: `correctie-${i}`,
