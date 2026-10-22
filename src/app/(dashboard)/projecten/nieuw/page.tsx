@@ -1,5 +1,6 @@
 "use client";
 import { klantNaam } from "@convex/lib/offerteKlant";
+import { projectTitel, werkzaamhedenUitOfferte } from "@convex/lib/projectTitel";
 import { heeftVoorcalculatieStap } from "@convex/acceptatieRegels";
 
 import { Suspense, useCallback, useState, useEffect } from "react";
@@ -87,7 +88,8 @@ function NieuwProjectPageContent() {
   // Create project mutation
   const createProject = useMutation(api.projecten.create);
 
-  const [projectNaam, setProjectNaam] = useState("");
+  // null = nog niet aangeraakt: dan staat het voorstel in het veld.
+  const [projectNaam, setProjectNaam] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
 
@@ -103,10 +105,14 @@ function NieuwProjectPageContent() {
     heeftVoorcalculatieStap(offerte) &&
     voorcalculatie === null;
 
-  // Default project name
+  // Voorstel: "Klantnaam – werkzaamheden" (zelfde regel als bij akkoord)
   const defaultNaam = offerte
-    ? `Project ${offerte.offerteNummer} - ${klantNaam(offerte.klant)}`
+    ? projectTitel({
+        klantNaam: klantNaam(offerte.klant, ""),
+        werkzaamheden: werkzaamhedenUitOfferte(offerte),
+      })
     : "";
+  const titel = (projectNaam ?? defaultNaam).trim();
 
   const handleCreate = useCallback(async () => {
     if (!offerteId) {
@@ -114,11 +120,16 @@ function NieuwProjectPageContent() {
       return;
     }
 
+    if (!titel) {
+      toast.error("Geef het project een titel");
+      return;
+    }
+
     setIsCreating(true);
     try {
       const projectId = await createProject({
         offerteId,
-        naam: projectNaam || defaultNaam,
+        naam: titel,
       });
       toast.success("Project aangemaakt - start met planning");
       // Projects now start at "gepland" status, voorcalculatie is at offerte level
@@ -150,7 +161,7 @@ function NieuwProjectPageContent() {
     } finally {
       setIsCreating(false);
     }
-  }, [offerteId, projectNaam, defaultNaam, createProject, router]);
+  }, [offerteId, titel, createProject, router]);
 
   // Redirect if project already exists
   useEffect(() => {
@@ -277,21 +288,24 @@ function NieuwProjectPageContent() {
               <CardHeader>
                 <CardTitle>Project Details</CardTitle>
                 <CardDescription>
-                  Geef het project een naam en maak het aan
+                  Geef het project een titel en maak het aan
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-2">
-                  <Label htmlFor="project-naam">Projectnaam</Label>
+                  <Label htmlFor="project-naam">Titel</Label>
                   <Input
                     id="project-naam"
-                    placeholder={defaultNaam || "Voer een projectnaam in"}
-                    value={projectNaam}
+                    placeholder="Klantnaam – werkzaamheden"
+                    value={projectNaam ?? defaultNaam}
                     onChange={(e) => setProjectNaam(e.target.value)}
                     disabled={!offerte}
+                    maxLength={120}
+                    required
+                    aria-required="true"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Laat leeg om de standaard naam te gebruiken
+                    Voorstel uit de offerte: klantnaam en werkzaamheden. Pas aan waar nodig.
                   </p>
                 </div>
 
@@ -337,7 +351,7 @@ function NieuwProjectPageContent() {
                     <Button
                       className="w-full"
                       onClick={handleCreate}
-                      disabled={!offerte || isCreating}
+                      disabled={!offerte || !titel || isCreating}
                       size="lg"
                     >
                       {isCreating ? (

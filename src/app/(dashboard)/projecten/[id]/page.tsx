@@ -189,7 +189,8 @@ export default function ProjectDetailPage({
     );
   }
 
-  const { project, offerte, voorcalculatie, planningTaken, nacalculatie } = projectDetails;
+  const { project, offerte, klant: klantRecord, voorcalculatie, planningTaken, nacalculatie } =
+    projectDetails;
   const [planning, uitvoering, nacalculatieFase, factuur] = projectFasen(project.status);
   const basis = `/projecten/${id}`;
 
@@ -204,7 +205,9 @@ export default function ProjectDetailPage({
   const urenPct = gelogd !== null ? procent(gelogd, begroot) : 0;
 
   // — Gegevens —
-  const klant = offerte ? klantNaam(offerte.klant) : null;
+  // Klant via het project (ook zonder offerte), anders van de offerte.
+  const klant = klantRecord?.naam?.trim() || (offerte ? klantNaam(offerte.klant) : null);
+  const klantHref = klantRecord ? `/klanten/${klantRecord._id}` : null;
   const scopes = (offerte?.scopes ?? []).map(getScopeDisplayName);
   const teamleden = voorcalculatie?.teamleden ?? [];
   const teamTekst =
@@ -366,9 +369,9 @@ export default function ProjectDetailPage({
                     <>
                       <dt className="text-muted-foreground">Klant</dt>
                       <dd className="min-w-0 truncate">
-                        {project.klantId ? (
+                        {klantHref ? (
                           <Link
-                            href={`/klanten/${project.klantId}`}
+                            href={klantHref}
                             className="text-primary hover:underline"
                           >
                             {klant}

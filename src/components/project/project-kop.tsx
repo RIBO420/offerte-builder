@@ -22,6 +22,7 @@ import { klantNaam } from "@convex/lib/offerteKlant";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { ProjectTitelKnop } from "@/components/project/project-titel-dialog";
 
 export type ProjectTab =
   | "overzicht"
@@ -166,17 +167,23 @@ export function ProjectKop({
   }
   if (!details) return null;
 
-  const { project, offerte } = details;
+  const { project, offerte, klant } = details;
   const fasen = projectFasen(project.status);
+  // Klant via het project (ook bij lead-projecten zonder offerte), anders
+  // de klantgegevens op de offerte.
+  const klantTekst = klant?.naam?.trim() || (offerte ? klantNaam(offerte.klant) : null);
 
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
         <div className="flex min-w-0 flex-col gap-1.5">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <h1 className="font-display text-balance text-2xl font-semibold tracking-tight md:text-[28px]">
-              {project.naam}
-            </h1>
+            <div className="flex min-w-0 items-center gap-1">
+              <h1 className="font-display text-balance text-2xl font-semibold tracking-tight md:text-[28px]">
+                {project.naam}
+              </h1>
+              <ProjectTitelKnop projectId={project._id} huidigeTitel={project.naam} />
+            </div>
             <StatusBadge status={project.status} domain="project" size="sm" />
           </div>
           <p className="text-sm text-muted-foreground">
@@ -190,7 +197,17 @@ export function ProjectKop({
                   {offerte.offerteNummer}
                 </Link>
               ) : null,
-              offerte ? <span key="klant">{klantNaam(offerte.klant)}</span> : null,
+              klant ? (
+                <Link
+                  key="klant"
+                  href={`/klanten/${klant._id}`}
+                  className="text-foreground/80 transition-colors hover:text-foreground hover:underline"
+                >
+                  {klantTekst}
+                </Link>
+              ) : klantTekst ? (
+                <span key="klant">{klantTekst}</span>
+              ) : null,
               <span key="datum">aangemaakt {formatDatum(project.createdAt)}</span>,
             ]
               .filter(Boolean)

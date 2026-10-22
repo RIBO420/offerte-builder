@@ -537,7 +537,14 @@ export const update = mutation({
     const updates: Record<string, unknown> = { updatedAt: now };
 
     if (args.naam !== undefined) {
-      updates.naam = args.naam;
+      const naam = args.naam.replace(/\s+/g, " ").trim();
+      if (!naam) {
+        throw new ConvexError("Een project heeft een titel nodig");
+      }
+      if (naam.length > 120) {
+        throw new ConvexError("De titel is te lang (maximaal 120 tekens)");
+      }
+      updates.naam = naam;
     }
 
     if (args.toegewezenVoertuigen !== undefined) {
@@ -740,6 +747,15 @@ export const getWithDetails = query({
     // Get related offerte (optioneel sinds werkitem-generalisatie, B1)
     const offerte = project.offerteId ? await ctx.db.get(project.offerteId) : null;
 
+    // Klant op het project zelf (lead-projecten hebben geen offerte), met
+    // terugval op de klant van de offerte. Alleen van de eigen organisatie.
+    const klantId = project.klantId ?? offerte?.klantId;
+    const klantDoc = klantId ? await ctx.db.get(klantId) : null;
+    const klant =
+      klantDoc && klantDoc.orgId?.toString() === orgId.toString()
+        ? { _id: klantDoc._id, naam: klantDoc.naam }
+        : null;
+
     // Voorcalculatie: eerst project-niveau (gekopieerd/gekoppeld), dan offerte.
     const voorcalculatie = await voorcalculatieVoorProject(ctx, project, "project");
 
@@ -766,6 +782,7 @@ export const getWithDetails = query({
     return {
       project,
       offerte,
+      klant,
       voorcalculatie,
       planningTaken: planningTaken.sort((a, b) => a.volgorde - b.volgorde),
       nacalculatie,
