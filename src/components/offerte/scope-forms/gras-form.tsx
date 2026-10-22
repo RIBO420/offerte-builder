@@ -317,7 +317,7 @@ export function GrasForm({ data, onChange, onValidationChange }: GrasFormProps) 
                 <FormItem className="flex items-center justify-between rounded-lg border p-3">
                   <div className="space-y-0">
                     <FormLabel className="text-sm flex items-center gap-1.5">
-                      <Fence className="h-3.5 w-3.5 text-stone-500" />
+                      <Fence className="h-3.5 w-3.5 text-muted-foreground" />
                       Opsluitbanden plaatsen?
                     </FormLabel>
                     <FormDescription className="text-xs">
@@ -342,7 +342,7 @@ export function GrasForm({ data, onChange, onValidationChange }: GrasFormProps) 
               }}
             >
               <div className="overflow-hidden">
-                <div className="ml-4 space-y-3 border-l-2 border-stone-200 pl-4 dark:border-stone-700">
+                <div className="ml-4 space-y-3 border-l-2 border-border pl-4">
                   <FormField
                     control={form.control}
                     name="opsluitbandenMeters"
@@ -367,7 +367,7 @@ export function GrasForm({ data, onChange, onValidationChange }: GrasFormProps) 
                       </FormItem>
                     )}
                   />
-                  <div className="flex items-start gap-2 rounded-lg bg-stone-50 p-2.5 text-xs text-stone-600 dark:bg-stone-950/30 dark:text-stone-400">
+                  <div className="flex items-start gap-2 rounded-lg bg-muted/50 p-2.5 text-xs text-muted-foreground">
                     <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                     <span>Opsluitbanden houden het gazon netjes afgebakend</span>
                   </div>

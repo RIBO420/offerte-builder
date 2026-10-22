@@ -137,13 +137,13 @@ export function KlantThreadPaneel({
   const heeftBerichten = !!threadId && !!messages && messages.length > 0;
 
   return (
-    <div className="rounded-lg border border-amber-400/60 dark:border-amber-500/50 overflow-hidden">
+    <div className="rounded-lg border border-status-in-uitvoering-border overflow-hidden">
       {/* Rustige rand + oogje i.p.v. knalgele banner (WS6): de markering
           verschijnt pas zodra er klant-zichtbare inhoud staat. */}
       {heeftBerichten && (
-        <div className="border-b border-amber-400/40 bg-amber-50/60 dark:bg-amber-950/20 px-3 py-1.5 flex items-center gap-2">
-          <Eye className="h-3.5 w-3.5 text-amber-700 dark:text-amber-400" />
-          <span className="text-[11px] font-medium tracking-wide text-amber-800 dark:text-amber-300 uppercase">
+        <div className="border-b border-status-in-uitvoering-border bg-status-in-uitvoering px-3 py-1.5 flex items-center gap-2">
+          <Eye className="h-3.5 w-3.5 text-status-in-uitvoering-text" />
+          <span className="text-[11px] font-medium tracking-wide text-status-in-uitvoering-text uppercase">
             Zichtbaar voor klant
           </span>
         </div>
@@ -158,7 +158,7 @@ export function KlantThreadPaneel({
             </div>
           ) : !heeftBerichten ? (
             <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Eye className="h-3.5 w-3.5 text-amber-700 dark:text-amber-400" />
+              <Eye className="h-3.5 w-3.5 text-status-in-uitvoering-text" />
               Nog geen berichten — wat je hier naar de klant stuurt, ziet die in
               het portaal.
             </p>
@@ -169,17 +169,17 @@ export function KlantThreadPaneel({
                 className={cn(
                   "rounded-md px-3 py-2 text-sm max-w-[85%]",
                   m.senderType === "klant"
-                    ? "bg-white dark:bg-amber-900/40 border border-amber-200 dark:border-amber-800"
-                    : "bg-amber-100 dark:bg-amber-900/70 ml-auto"
+                    ? "bg-card border border-status-in-uitvoering-border"
+                    : "bg-status-in-uitvoering ml-auto"
                 )}
               >
-                <p className="text-[11px] font-medium text-amber-900 dark:text-amber-200">
+                <p className="text-[11px] font-medium text-status-in-uitvoering-text">
                   {m.senderType === "klant" ? m.senderName : `${m.senderName} (kantoor)`}
-                  <span className="font-normal text-amber-700/60 dark:text-amber-300/50 ml-2">
+                  <span className="font-normal text-status-in-uitvoering-text/60 ml-2">
                     {formatTijd(m.createdAt)}
                   </span>
                 </p>
-                <p className="text-gray-900 dark:text-amber-50 whitespace-pre-wrap mt-0.5">
+                <p className="text-foreground whitespace-pre-wrap mt-0.5">
                   {m.message}
                 </p>
               </div>
@@ -192,18 +192,18 @@ export function KlantThreadPaneel({
           className={cn(
             "rounded-md border p-2 space-y-2 transition-colors",
             naarKlant && isKantoor
-              ? "border-amber-500 bg-amber-100/70 dark:bg-amber-900/40"
-              : "border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900"
+              ? "border-status-in-uitvoering-dot bg-status-in-uitvoering"
+              : "border-input bg-card"
           )}
         >
           <div className="flex items-center gap-2 text-xs">
             {naarKlant && isKantoor ? (
-              <span className="inline-flex items-center gap-1 font-semibold text-amber-800 dark:text-amber-300">
+              <span className="inline-flex items-center gap-1 font-semibold text-status-in-uitvoering-text">
                 <Eye className="h-3.5 w-3.5" />
                 Dit bericht gaat NAAR DE KLANT
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 font-medium text-gray-600 dark:text-gray-300">
+              <span className="inline-flex items-center gap-1 font-medium text-muted-foreground">
                 <Lock className="h-3.5 w-3.5" />
                 Intern — niet zichtbaar voor de klant
               </span>
@@ -218,7 +218,7 @@ export function KlantThreadPaneel({
                 />
                 <Label
                   htmlFor="naar-klant-toggle"
-                  className="text-xs text-gray-700 dark:text-gray-300"
+                  className="text-xs text-foreground"
                 >
                   Naar klant
                 </Label>
@@ -243,7 +243,7 @@ export function KlantThreadPaneel({
               disabled={busy || !tekst.trim()}
               className={cn(
                 naarKlant && isKantoor
-                  ? "bg-amber-500 hover:bg-amber-600 text-amber-950"
+                  ? "bg-status-in-uitvoering-text text-status-in-uitvoering hover:bg-status-in-uitvoering-text/90"
                   : undefined
               )}
             >
@@ -270,7 +270,7 @@ export function KlantThreadPaneel({
               klant kan een notificatie ontvangen. Controleer de inhoud goed.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/40 p-3 text-sm whitespace-pre-wrap">
+          <div className="rounded-md border border-status-in-uitvoering-border bg-status-in-uitvoering p-3 text-sm whitespace-pre-wrap">
             {tekst.trim()}
           </div>
           <AlertDialogFooter>
@@ -281,7 +281,7 @@ export function KlantThreadPaneel({
                 void verstuurExtern();
               }}
               disabled={busy}
-              className="bg-amber-500 hover:bg-amber-600 text-amber-950"
+              className="bg-status-in-uitvoering-text text-status-in-uitvoering hover:bg-status-in-uitvoering-text/90"
             >
               {busy ? (
                 <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />

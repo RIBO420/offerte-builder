@@ -78,11 +78,11 @@ export function getConfidenceColor(
 ): string {
   switch (level) {
     case "hoog":
-      return "text-green-600 dark:text-green-400";
+      return "text-status-geaccepteerd-text";
     case "gemiddeld":
-      return "text-yellow-600 dark:text-yellow-400";
+      return "text-status-verzonden-text";
     case "laag":
-      return "text-orange-600 dark:text-orange-400";
+      return "text-status-in-uitvoering-text";
   }
 }
 
@@ -339,12 +339,12 @@ export function getSuggestionTypeColor(
 ): { text: string; bg: string } {
   if (type === "onderschatting") {
     return {
-      text: "text-red-600 dark:text-red-400",
-      bg: "bg-red-100 dark:bg-red-900/30",
+      text: "text-status-vervallen-text",
+      bg: "bg-status-vervallen",
     };
   }
   return {
-    text: "text-blue-600 dark:text-blue-400",
-    bg: "bg-blue-100 dark:bg-blue-900/30",
+    text: "text-status-voorcalculatie-text",
+    bg: "bg-status-voorcalculatie",
   };
 }

@@ -62,10 +62,10 @@ const BUCKET_LABELS: Record<string, string> = {
 };
 
 const BUCKET_BADGE: Record<string, string> = {
-  "0_14": "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200",
-  "14_30": "bg-orange-200 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
-  "30_60": "bg-red-200 text-red-800 dark:bg-red-900 dark:text-red-200",
-  "60_plus": "bg-red-600 text-white dark:bg-red-700 dark:text-red-50",
+  "0_14": "bg-status-herinnering text-status-herinnering-text",
+  "14_30": "bg-status-in-uitvoering text-status-in-uitvoering-text",
+  "30_60": "bg-status-vervallen text-status-vervallen-text",
+  "60_plus": "bg-destructive text-white",
 };
 
 const ESCALATIE_LABELS: Record<string, string> = {
@@ -258,7 +258,7 @@ export function OpenstaandOverzicht({ isKantoor }: OpenstaandOverzichtProps) {
                         {post.gepauzeerd ? (
                           <Badge
                             variant="outline"
-                            className="border-amber-500 text-amber-700 dark:text-amber-300"
+                            className="border-status-verzonden-border text-status-verzonden-text"
                             title={post.pauzeReden ?? undefined}
                           >
                             <PauseCircle className="mr-1 h-3 w-3" />

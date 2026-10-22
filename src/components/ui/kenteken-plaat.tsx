@@ -164,7 +164,7 @@ export const KentekenPlaat = memo(function KentekenPlaat({
         config.plate,
         config.shadow,
         // Validation styling
-        showValidation && !isValid && "ring-2 ring-red-500 ring-offset-1",
+        showValidation && !isValid && "ring-2 ring-destructive ring-offset-1",
         className
       )}
       style={{

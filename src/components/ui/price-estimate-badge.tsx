@@ -59,7 +59,7 @@ export function PriceEstimateBadge({
     <Badge
       variant="secondary"
       className={cn(
-        "gap-1 text-xs font-normal bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-800",
+        "gap-1 text-xs font-normal bg-status-voorcalculatie text-status-voorcalculatie-text border-status-voorcalculatie-border",
         className
       )}
     >
@@ -106,14 +106,14 @@ export function PriceEstimateBadge({
 
   // Detailed view
   return (
-    <div className={cn("rounded-lg border bg-blue-50/50 dark:bg-blue-950/20 p-3", className)}>
-      <div className="flex items-center gap-2 text-sm font-medium text-blue-700 dark:text-blue-300 mb-2">
+    <div className={cn("rounded-lg border border-status-voorcalculatie-border bg-status-voorcalculatie/50 p-3", className)}>
+      <div className="flex items-center gap-2 text-sm font-medium text-status-voorcalculatie-text mb-2">
         <TrendingUp className="h-4 w-4" />
         <span>Prijsinschatting</span>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger>
-              <Info className="h-3 w-3 text-blue-500" />
+              <Info className="h-3 w-3 text-status-voorcalculatie-dot" />
             </TooltipTrigger>
             <TooltipContent>
               Gebaseerd op {estimate.dataPoints} vergelijkbare offertes
@@ -129,7 +129,7 @@ export function PriceEstimateBadge({
         {estimate.estimatedPrice && (
           <>
             <span className="text-muted-foreground">Geschat totaal:</span>
-            <span className="font-medium text-blue-700 dark:text-blue-300">
+            <span className="font-medium text-status-voorcalculatie-text">
               {formatCurrency(estimate.estimatedPrice)}
             </span>
           </>

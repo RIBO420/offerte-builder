@@ -417,7 +417,7 @@ export function ProductImportDialog({
                                 {rij.waarschuwingen.map((w, i) => (
                                   <li
                                     key={i}
-                                    className="flex items-start gap-1 text-xs text-amber-600 dark:text-amber-500"
+                                    className="flex items-start gap-1 text-xs text-status-in-uitvoering-text"
                                   >
                                     <AlertTriangle className="mt-0.5 size-3 shrink-0" />
                                     {w}
@@ -439,7 +439,7 @@ export function ProductImportDialog({
         {stap === "resultaat" && rapport && (
           <div className="grid gap-2 py-4 text-sm">
             <p className="flex items-center gap-2 font-medium">
-              <CheckCircle2 className="size-5 text-green-600" />
+              <CheckCircle2 className="size-5 text-status-geaccepteerd-dot" />
               Import afgerond
             </p>
             <ul className="ml-7 list-disc space-y-1 text-muted-foreground">

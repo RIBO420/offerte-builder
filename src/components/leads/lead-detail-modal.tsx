@@ -143,14 +143,14 @@ const quickActionMap: Record<
 
 // Activity dot colors
 const activityDotColors: Record<string, string> = {
-  status_wijziging: "bg-yellow-500",
-  notitie: "bg-blue-500",
-  toewijzing: "bg-purple-500",
-  offerte_gekoppeld: "bg-indigo-500",
-  klant_gekoppeld: "bg-teal-500",
+  status_wijziging: "bg-status-verzonden-dot",
+  notitie: "bg-status-voorcalculatie-dot",
+  toewijzing: "bg-scope-specials",
+  offerte_gekoppeld: "bg-primary",
+  klant_gekoppeld: "bg-status-nacalculatie-dot",
   // Grijs: een koppeling die er niet meer is, geen gebeurtenis om op te vallen.
   klant_ontkoppeld: "bg-muted-foreground/60",
-  aangemaakt: "bg-green-500",
+  aangemaakt: "bg-status-geaccepteerd-dot",
 };
 
 // Waarop de duplicaatcheck (klanten.checkDuplicates) heeft gematcht — in
@@ -908,8 +908,8 @@ export function LeadDetailModal({
             </div>
           </div>
           {!lead.gekoppeldKlantId && duplicaten && duplicaten.length > 0 && (
-            <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
-              <TriangleAlert className="size-4 shrink-0 text-amber-600" />
+            <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-status-in-uitvoering-border bg-status-in-uitvoering px-3 py-2 text-sm">
+              <TriangleAlert className="size-4 shrink-0 text-status-in-uitvoering-dot" />
               <span className="min-w-0">
                 Er bestaat al een klant met dit{" "}
                 {duplicaatLabels[duplicaten[0].matchType] ??
@@ -1297,7 +1297,7 @@ export function LeadDetailModal({
                         <span
                           className={`block size-2.5 rounded-full ${
                             activityDotColors[activiteit.type] ??
-                            "bg-gray-400"
+                            "bg-muted-foreground/60"
                           }`}
                         />
                       </div>

@@ -82,9 +82,9 @@ interface MenuIngang {
   actie: () => void;
 }
 
-/** De amberkleurige tegel van de vrije route; het icoon zegt welk type. */
-const VRIJ_TEGEL =
-  "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400";
+/** De tegel van de vrije route (zelfde tint als "Overige diensten" in
+ *  NewOfferteDialog); het icoon zegt welk type. */
+const VRIJ_TEGEL = "bg-scope-specials/15 text-scope-specials";
 
 export function NieuweOfferteSplitButton({
   klantId,
@@ -141,7 +141,7 @@ export function NieuweOfferteSplitButton({
       ondertitel: "Begin met een eerder opgeslagen samenstelling",
       toets: "t",
       icon: LayoutTemplate,
-      tegel: "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300",
+      tegel: "bg-chart-3/15 text-chart-3",
       actie: () => {
         setMenuOpen(false);
         setShowTemplatesSheet(true, { klantId });

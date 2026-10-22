@@ -52,7 +52,7 @@ const TextareaWithCount = React.forwardRef<
           className={cn(
             "text-xs text-right",
             ratio > 0.9 && ratio < 1
-              ? "text-amber-500 dark:text-amber-400"
+              ? "text-status-in-uitvoering-text"
               : ratio >= 1
                 ? "text-destructive"
                 : "text-muted-foreground"

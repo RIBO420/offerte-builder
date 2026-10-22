@@ -183,7 +183,7 @@ export const OfferteCard = memo(function OfferteCard({
               className={`flex h-6 w-6 items-center justify-center rounded-md ${
                 offerte.type === "aanleg"
                   ? "bg-primary/10"
-                  : "bg-green-100 dark:bg-green-900/30"
+                  : "bg-scope-gras/15"
               }`}
             >
               {offerte.type === "aanleg" ? (
@@ -196,7 +196,7 @@ export const OfferteCard = memo(function OfferteCard({
               ) : (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Trees className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
+                    <Trees className="h-3.5 w-3.5 text-scope-gras" />
                   </TooltipTrigger>
                   <TooltipContent>Onderhoud</TooltipContent>
                 </Tooltip>
@@ -225,7 +225,7 @@ export const OfferteCard = memo(function OfferteCard({
                 <DropdownMenuItem asChild>
                   <Link
                     href={`/projecten/${projectInfo._id}`}
-                    className="text-blue-600"
+                    className="text-primary"
                   >
                     <ExternalLink className="mr-2 h-4 w-4" />
                     Bekijk Project
@@ -235,7 +235,7 @@ export const OfferteCard = memo(function OfferteCard({
                 <DropdownMenuItem asChild>
                   <Link
                     href={`/projecten/nieuw?offerte=${offerte._id}`}
-                    className="text-green-600"
+                    className="text-status-geaccepteerd-text"
                   >
                     <FolderKanban className="mr-2 h-4 w-4" />
                     Start Project
@@ -288,7 +288,7 @@ export const OfferteCard = memo(function OfferteCard({
         {/* Bottom row: Bedrag + Status + Date + Actions */}
         <div className="flex items-center justify-between gap-2 px-0">
           <div className="flex items-center gap-3">
-            <span className="text-base font-semibold text-green-600 dark:text-green-400">
+            <span className="text-base font-semibold text-foreground">
               {formatCurrency(offerte.totalen.totaalInclBtw)}
             </span>
             <StatusBadge status={offerte.status} size="sm" />
@@ -298,7 +298,7 @@ export const OfferteCard = memo(function OfferteCard({
                   <Link
                     href={`/projecten/${projectInfo._id}`}
                     onClick={(e) => e.stopPropagation()}
-                    className="text-blue-600 hover:text-blue-700"
+                    className="text-primary hover:text-primary/80"
                   >
                     <FolderKanban className="h-4 w-4" />
                   </Link>
@@ -344,7 +344,7 @@ export const OfferteCard = memo(function OfferteCard({
             <Button
               variant="outline"
               size="sm"
-              className="h-8 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-950/50"
+              className="h-8 text-xs text-primary hover:text-primary hover:bg-accent"
               asChild
               onClick={(e) => e.stopPropagation()}
             >
@@ -357,7 +357,7 @@ export const OfferteCard = memo(function OfferteCard({
             <Button
               variant="outline"
               size="sm"
-              className="h-8 text-xs text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-950/50"
+              className="h-8 text-xs text-status-geaccepteerd-text hover:text-status-geaccepteerd-text hover:bg-status-geaccepteerd"
               asChild
               onClick={(e) => e.stopPropagation()}
             >

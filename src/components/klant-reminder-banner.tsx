@@ -69,18 +69,18 @@ export function KlantReminderBanner({
 
   const bgColor =
     reminder.type === "lead_zonder_offerte"
-      ? "border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/50"
-      : "border-orange-300 bg-orange-50 dark:border-orange-700 dark:bg-orange-950/50";
+      ? "border-status-verzonden-border bg-status-verzonden"
+      : "border-status-in-uitvoering-border bg-status-in-uitvoering";
 
   const textColor =
     reminder.type === "lead_zonder_offerte"
-      ? "text-amber-800 dark:text-amber-200"
-      : "text-orange-800 dark:text-orange-200";
+      ? "text-status-verzonden-text"
+      : "text-status-in-uitvoering-text";
 
   const iconColor =
     reminder.type === "lead_zonder_offerte"
-      ? "text-amber-600 dark:text-amber-400"
-      : "text-orange-600 dark:text-orange-400";
+      ? "text-status-verzonden-dot"
+      : "text-status-in-uitvoering-dot";
 
   return (
     <Card className={`border ${bgColor}`}>

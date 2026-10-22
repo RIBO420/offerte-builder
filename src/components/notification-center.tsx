@@ -55,22 +55,22 @@ function getNotificationIcon(type: string): { icon: React.ElementType; color: st
   if (type.startsWith("offerte_")) {
     switch (type) {
       case "offerte_geaccepteerd":
-        return { icon: Check, color: "text-green-600", bgColor: "bg-green-100 dark:bg-green-900/30" };
+        return { icon: Check, color: "text-status-geaccepteerd-text", bgColor: "bg-status-geaccepteerd" };
       case "offerte_afgewezen":
-        return { icon: XCircle, color: "text-red-600", bgColor: "bg-red-100 dark:bg-red-900/30" };
+        return { icon: XCircle, color: "text-status-afgewezen-text", bgColor: "bg-status-afgewezen" };
       case "offerte_bekeken":
-        return { icon: Eye, color: "text-blue-600", bgColor: "bg-blue-100 dark:bg-blue-900/30" };
+        return { icon: Eye, color: "text-status-voorcalculatie-text", bgColor: "bg-status-voorcalculatie" };
       case "offerte_verzonden":
-        return { icon: Send, color: "text-purple-600", bgColor: "bg-purple-100 dark:bg-purple-900/30" };
+        return { icon: Send, color: "text-status-verzonden-text", bgColor: "bg-status-verzonden" };
       default:
         return { icon: FileText, color: "text-muted-foreground", bgColor: "bg-muted" };
     }
   } else if (type.startsWith("chat_")) {
     return { icon: MessageCircle, color: "text-primary", bgColor: "bg-primary/10" };
   } else if (type.startsWith("project_")) {
-    return { icon: FolderKanban, color: "text-orange-600", bgColor: "bg-orange-100 dark:bg-orange-900/30" };
+    return { icon: FolderKanban, color: "text-status-in-uitvoering-text", bgColor: "bg-status-in-uitvoering" };
   } else if (type.startsWith("system_")) {
-    return { icon: Info, color: "text-indigo-600", bgColor: "bg-indigo-100 dark:bg-indigo-900/30" };
+    return { icon: Info, color: "text-status-definitief-text", bgColor: "bg-status-definitief" };
   }
   return { icon: Bell, color: "text-muted-foreground", bgColor: "bg-muted" };
 }

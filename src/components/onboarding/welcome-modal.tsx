@@ -56,8 +56,8 @@ export function WelcomeModal({ open, onClose, userName }: WelcomeModalProps) {
         showCloseButton={false}
       >
         <DialogHeader className="text-center sm:text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-100 dark:bg-emerald-900/30 motion-safe:animate-in motion-safe:zoom-in-50 motion-safe:duration-300">
-            <Sparkles className="h-8 w-8 text-emerald-600 dark:text-emerald-400" />
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 motion-safe:animate-in motion-safe:zoom-in-50 motion-safe:duration-300">
+            <Sparkles className="h-8 w-8 text-primary" />
           </div>
           <DialogTitle className="text-2xl">
             Welkom{userName ? `, ${userName}` : ""}!
@@ -74,8 +74,8 @@ export function WelcomeModal({ open, onClose, userName }: WelcomeModalProps) {
               key={feature.title}
               className={`flex items-start gap-3 rounded-lg border p-3 bg-muted/30 ${REVEAL_KLASSE}`}
             >
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
-                <feature.icon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                <feature.icon className="h-4 w-4 text-primary" />
               </div>
               <div className="min-w-0">
                 <p className="font-medium text-sm">{feature.title}</p>
@@ -91,7 +91,7 @@ export function WelcomeModal({ open, onClose, userName }: WelcomeModalProps) {
           <Button
             onClick={onClose}
             size="lg"
-            className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700"
+            className="w-full sm:w-auto"
           >
             Aan de slag
             <ArrowRight className="ml-2 h-4 w-4" />

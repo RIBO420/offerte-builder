@@ -66,7 +66,7 @@ export function SaveIndicator({
         role="status"
         aria-live="polite"
         className={cn(
-          "inline-flex items-center gap-1.5 text-xs text-orange-600 dark:text-orange-500",
+          "inline-flex items-center gap-1.5 text-xs text-status-in-uitvoering-text",
           className
         )}
       >
@@ -92,7 +92,7 @@ export function SaveIndicator({
         )}
       >
         <Check
-          className="h-3.5 w-3.5 text-green-600 dark:text-green-500"
+          className="h-3.5 w-3.5 text-status-geaccepteerd-dot"
           aria-hidden="true"
         />
         <span>
@@ -150,13 +150,13 @@ export function CompactSaveIndicator({
       )}
       {!isSaving && isDirty && (
         <Circle
-          className="h-2.5 w-2.5 fill-orange-500 text-orange-500"
+          className="h-2.5 w-2.5 fill-status-in-uitvoering-dot text-status-in-uitvoering-dot"
           aria-hidden="true"
         />
       )}
       {!isSaving && !isDirty && lastSaved && (
         <Check
-          className="h-4 w-4 text-green-600 dark:text-green-500"
+          className="h-4 w-4 text-status-geaccepteerd-dot"
           aria-hidden="true"
         />
       )}

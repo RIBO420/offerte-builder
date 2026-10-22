@@ -20,9 +20,10 @@ function getSignatureColors() {
   }
   const isDark = document.documentElement.classList.contains("dark");
   return {
-    // Use a slightly off-white/off-black for better contrast
-    backgroundColor: isDark ? "rgb(38, 38, 38)" : "rgb(255, 255, 255)",
-    penColor: isDark ? "rgb(245, 245, 245)" : "rgb(0, 0, 0)",
+    // Canvas kent geen CSS-variabelen: dark = hex van --card / --foreground
+    // (warm zwart/warm wit); licht blijft wit met zwarte pen voor de export.
+    backgroundColor: isDark ? "#191915" : "rgb(255, 255, 255)",
+    penColor: isDark ? "#e9e6e0" : "rgb(0, 0, 0)",
   };
 }
 
@@ -137,7 +138,7 @@ export function SignaturePadComponent({
 
   return (
     <div className={cn("space-y-2", className)}>
-      <div className="relative border-2 border-dashed border-muted-foreground/25 rounded-lg bg-background dark:bg-neutral-800">
+      <div className="relative border-2 border-dashed border-muted-foreground/25 rounded-lg bg-background dark:bg-card">
         <canvas
           ref={canvasRef}
           className="w-full h-32 rounded-lg cursor-crosshair touch-none"
@@ -161,7 +162,7 @@ export function SignaturePadComponent({
           Wissen
         </Button>
         {!isEmpty && (
-          <span className="text-sm text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+          <span className="text-sm text-status-geaccepteerd-text flex items-center gap-1">
             <Check className="h-4 w-4" />
             Handtekening gezet
           </span>

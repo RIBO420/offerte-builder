@@ -84,13 +84,13 @@ describe("TextareaWithCount", () => {
     expect(counter).toBeInTheDocument();
   });
 
-  it("applies amber style at >90% capacity", () => {
+  it("applies attention style at >90% capacity", () => {
     // Use controlled value to set exact ratio
     const { container } = render(
       <TextareaWithCount maxLength={100} value={"A".repeat(95)} onChange={() => {}} />
     );
     const counter = container.querySelector("p");
-    expect(counter).toHaveClass("text-amber-500");
+    expect(counter).toHaveClass("text-status-in-uitvoering-text");
   });
 
   it("applies destructive style at 100% capacity", () => {

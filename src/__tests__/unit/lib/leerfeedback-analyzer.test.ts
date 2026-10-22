@@ -242,16 +242,16 @@ describe("analyzeNacalculaties", () => {
 // Confidence levels
 // ============================================================
 describe("getConfidenceColor", () => {
-  it("returns green for hoog", () => {
-    expect(getConfidenceColor("hoog")).toContain("green");
+  it("returns the success token for hoog", () => {
+    expect(getConfidenceColor("hoog")).toContain("status-geaccepteerd");
   });
 
-  it("returns yellow for gemiddeld", () => {
-    expect(getConfidenceColor("gemiddeld")).toContain("yellow");
+  it("returns the waiting token for gemiddeld", () => {
+    expect(getConfidenceColor("gemiddeld")).toContain("status-verzonden");
   });
 
-  it("returns orange for laag", () => {
-    expect(getConfidenceColor("laag")).toContain("orange");
+  it("returns the attention token for laag", () => {
+    expect(getConfidenceColor("laag")).toContain("status-in-uitvoering");
   });
 });
 
@@ -445,15 +445,15 @@ describe("getSuggestionPriority", () => {
 // getSuggestionTypeColor
 // ============================================================
 describe("getSuggestionTypeColor", () => {
-  it("returns red colors for onderschatting", () => {
+  it("returns negative status colors for onderschatting", () => {
     const colors = getSuggestionTypeColor("onderschatting");
-    expect(colors.text).toContain("red");
-    expect(colors.bg).toContain("red");
+    expect(colors.text).toContain("status-vervallen");
+    expect(colors.bg).toContain("status-vervallen");
   });
 
-  it("returns blue colors for overschatting", () => {
+  it("returns info status colors for overschatting", () => {
     const colors = getSuggestionTypeColor("overschatting");
-    expect(colors.text).toContain("blue");
-    expect(colors.bg).toContain("blue");
+    expect(colors.text).toContain("status-voorcalculatie");
+    expect(colors.bg).toContain("status-voorcalculatie");
   });
 });

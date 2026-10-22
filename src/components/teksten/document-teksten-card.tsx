@@ -87,7 +87,7 @@ export function DocumentTekstenCard({
       </CardHeader>
       <CardContent className="space-y-4">
         {ontbrekend.length > 0 && (
-          <p className="flex gap-2 rounded-md border border-amber-300/60 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+          <p className="flex gap-2 rounded-md border border-status-in-uitvoering-border bg-status-in-uitvoering p-3 text-sm text-status-in-uitvoering-text">
             <AlertTriangle className="mt-0.5 size-4 shrink-0" />
             <span>
               Nog in te vullen voordat u kunt versturen: {ontbrekend.join(", ")}.

@@ -38,7 +38,7 @@ export function FunderingsVisualisatie({ spec }: FunderingsVisualisatieProps) {
       </div>
       <div className="rounded-lg border bg-muted/30 p-3">
         {/* Top: bestrating */}
-        <div className="mb-1 flex items-center justify-between rounded-t-md border border-slate-400 bg-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 dark:border-slate-500 dark:bg-slate-700 dark:text-slate-200">
+        <div className="mb-1 flex items-center justify-between rounded-t-md border border-scope-bestrating bg-scope-bestrating/25 px-3 py-1.5 text-xs font-medium text-foreground">
           <span>Bestrating</span>
         </div>
 
@@ -67,7 +67,7 @@ export function FunderingsVisualisatie({ spec }: FunderingsVisualisatieProps) {
                   {tooltip && (
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <button type="button" className="inline-flex rounded-full p-0.5 hover:bg-black/10 dark:hover:bg-white/10">
+                        <button type="button" className="inline-flex rounded-full p-0.5 hover:bg-foreground/10">
                           <Info className="h-3 w-3" />
                         </button>
                       </TooltipTrigger>

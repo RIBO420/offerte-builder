@@ -157,7 +157,7 @@ export function DocumentTekstEditor({
             {voorbeeld.tekst}
           </p>
           {waarden && voorbeeld.ontbrekend.length > 0 && (
-            <p className="text-sm text-amber-600 dark:text-amber-400">
+            <p className="text-sm text-status-in-uitvoering-text">
               Nog niet ingevuld: {voorbeeld.ontbrekend.join(", ")}. Zonder deze
               gegevens kan het document niet verstuurd worden.
             </p>

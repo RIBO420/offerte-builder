@@ -187,8 +187,8 @@ export class ChartErrorBoundary extends React.Component<
               className="flex flex-col items-center justify-center text-center gap-3 bg-muted/30 rounded-lg"
               style={{ height: typeof height === "number" ? `${height}px` : height }}
             >
-              <div className="rounded-full bg-amber-100 dark:bg-amber-900/30 p-2">
-                <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              <div className="rounded-full bg-status-in-uitvoering p-2">
+                <AlertTriangle className="h-5 w-5 text-status-in-uitvoering-text" />
               </div>
               <div className="space-y-1">
                 <p className="font-medium text-sm">Grafiek kon niet worden geladen</p>
@@ -270,10 +270,10 @@ export class PDFErrorBoundary extends React.Component<
   render() {
     if (this.state.hasError) {
       return (
-        <Card className="border-amber-200 dark:border-amber-900/50 bg-amber-50/50 dark:bg-amber-950/20">
+        <Card className="border-status-in-uitvoering-border bg-status-in-uitvoering/50">
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              <FileText className="h-5 w-5 text-status-in-uitvoering-dot" />
               <CardTitle className="text-sm">PDF Fout</CardTitle>
             </div>
             <CardDescription>
@@ -377,7 +377,7 @@ export class DataFetchErrorBoundary extends React.Component<
       if (compact) {
         return (
           <div className="flex items-center gap-2 text-sm text-muted-foreground p-2 rounded-md bg-muted/50">
-            <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0" />
+            <AlertTriangle className="h-4 w-4 text-status-in-uitvoering-dot flex-shrink-0" />
             <span className="flex-1">
               {this.props.dataDescription
                 ? `${this.props.dataDescription} kon niet worden geladen`

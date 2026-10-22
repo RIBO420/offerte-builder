@@ -27,19 +27,19 @@ interface NewDMDialogProps {
 
 /**
  * Deterministic color for avatar initials based on a name string.
- * Returns a Tailwind bg class.
+ * Returns Tailwind bg + text classes: a token tint with the token as letter
+ * colour (works in light and dark). Only the darker chart/scope tokens, so the
+ * initials stay readable on the light tint.
  */
 const AVATAR_COLORS = [
-  "bg-emerald-600",
-  "bg-blue-600",
-  "bg-amber-600",
-  "bg-rose-600",
-  "bg-violet-600",
-  "bg-cyan-600",
-  "bg-orange-600",
-  "bg-teal-600",
-  "bg-indigo-600",
-  "bg-pink-600",
+  "bg-chart-1/15 text-chart-1",
+  "bg-chart-3/15 text-chart-3",
+  "bg-scope-grondwerk/15 text-scope-grondwerk",
+  "bg-scope-specials/15 text-scope-specials",
+  "bg-chart-5/15 text-chart-5",
+  "bg-scope-water/15 text-scope-water",
+  "bg-scope-houtwerk/15 text-scope-houtwerk",
+  "bg-scope-borders/15 text-scope-borders",
 ] as const;
 
 function getAvatarColor(name: string): string {
@@ -178,7 +178,7 @@ export function NewDMDialog({
                     >
                       <Avatar size="default">
                         <AvatarFallback
-                          className={cn(colorClass, "text-white text-xs font-medium")}
+                          className={cn(colorClass, "text-xs font-medium")}
                         >
                           {initials}
                         </AvatarFallback>

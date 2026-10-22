@@ -66,9 +66,9 @@ export const LAAG_TOOLTIPS: Record<string, string> = {
 
 export const LAAG_KLEUREN: Record<string, { bg: string; border: string; text: string }> = {
   gebrokenPuin: {
-    bg: "bg-stone-300 dark:bg-stone-600",
-    border: "border-stone-400 dark:border-stone-500",
-    text: "text-stone-800 dark:text-stone-100",
+    bg: "bg-status-concept",
+    border: "border-status-concept-border",
+    text: "text-status-concept-text",
   },
   zand: {
     bg: "bg-status-verzonden",
@@ -81,8 +81,8 @@ export const LAAG_KLEUREN: Record<string, { bg: string; border: string; text: st
     text: "text-status-in-uitvoering-text",
   },
   stabiliser: {
-    bg: "bg-gray-400 dark:bg-gray-600",
-    border: "border-gray-500 dark:border-gray-500",
-    text: "text-gray-900 dark:text-gray-100",
+    bg: "bg-muted-foreground/30",
+    border: "border-muted-foreground",
+    text: "text-foreground",
   },
 };

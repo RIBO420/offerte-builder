@@ -24,8 +24,8 @@ const sizeClasses = {
 
 const variantClasses = {
   default: "text-foreground",
-  success: "text-green-600 dark:text-green-400",
-  warning: "text-amber-600 dark:text-amber-400",
+  success: "text-status-geaccepteerd-text",
+  warning: "text-status-in-uitvoering-text",
   muted: "text-muted-foreground",
 } as const;
 

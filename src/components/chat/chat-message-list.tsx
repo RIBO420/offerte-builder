@@ -105,12 +105,11 @@ function AnnouncementMessage({ message }: { message: ChatMessage }) {
   return (
     <div
       className={cn(
-        "mx-4 my-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-4",
-        "dark:border-amber-400/20 dark:bg-amber-400/5"
+        "mx-4 my-2 rounded-lg border border-accent-warm/40 bg-accent-warm/10 p-4"
       )}
     >
       <div className="flex items-start gap-3">
-        <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
+        <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent-warm/20 text-foreground">
           <Megaphone className="size-4" />
         </div>
         <div className="flex-1 min-w-0">

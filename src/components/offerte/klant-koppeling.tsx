@@ -683,7 +683,7 @@ export function KlantKoppeling({
         "flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg px-3 py-2.5",
         heeftKlant
           ? "border bg-muted/30"
-          : "border border-dashed border-amber-300 bg-amber-50/60 dark:border-amber-800/70 dark:bg-amber-950/20",
+          : "border border-dashed border-status-in-uitvoering-border bg-status-in-uitvoering/60",
         className
       )}
     >
@@ -692,7 +692,7 @@ export function KlantKoppeling({
           "h-4 w-4 shrink-0",
           heeftKlant
             ? "text-muted-foreground"
-            : "text-amber-700 dark:text-amber-400"
+            : "text-status-in-uitvoering-text"
         )}
         aria-hidden="true"
       />
@@ -710,10 +710,10 @@ export function KlantKoppeling({
           </>
         ) : (
           <>
-            <p className="text-sm leading-tight font-medium text-amber-900 dark:text-amber-200">
+            <p className="text-sm leading-tight font-medium text-status-in-uitvoering-text">
               Nog geen klant — verplicht vóór versturen
             </p>
-            <p className="text-xs leading-tight text-amber-800/80 dark:text-amber-300/80">
+            <p className="text-xs leading-tight text-status-in-uitvoering-text/80">
               Als concept mag de offerte zonder klant bestaan; koppel hem
               voordat je de offerte definitief maakt of verstuurt.
             </p>

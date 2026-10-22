@@ -80,13 +80,11 @@ function ConnectionStatus({ className }: { className?: string }) {
           "transition-colors duration-300",
           // Disconnected: amber/warning
           isDisconnected && [
-            "bg-amber-500 text-amber-950",
-            "dark:bg-amber-600 dark:text-amber-50",
+            "bg-status-in-uitvoering text-status-in-uitvoering-text",
           ],
           // Reconnected: green/success
           showReconnected && [
-            "bg-emerald-500 text-emerald-950",
-            "dark:bg-emerald-600 dark:text-emerald-50",
+            "bg-status-geaccepteerd text-status-geaccepteerd-text",
           ]
         )}
       >

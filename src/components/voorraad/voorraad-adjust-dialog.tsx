@@ -47,10 +47,10 @@ interface VoorraadAdjustDialogProps {
 }
 
 const mutatieTypeConfig: Record<MutatieType, { label: string; icon: React.ComponentType<{ className?: string }>; color: string }> = {
-  inkoop: { label: "Inkoop", icon: TrendingUp, color: "text-green-600" },
-  verbruik: { label: "Verbruik", icon: TrendingDown, color: "text-orange-600" },
-  correctie: { label: "Correctie", icon: RefreshCw, color: "text-blue-600" },
-  retour: { label: "Retour", icon: RotateCcw, color: "text-purple-600" },
+  inkoop: { label: "Inkoop", icon: TrendingUp, color: "text-trend-positive" },
+  verbruik: { label: "Verbruik", icon: TrendingDown, color: "text-status-in-uitvoering-text" },
+  correctie: { label: "Correctie", icon: RefreshCw, color: "text-status-voorcalculatie-text" },
+  retour: { label: "Retour", icon: RotateCcw, color: "text-scope-specials" },
 };
 
 export function VoorraadAdjustDialog({
@@ -193,17 +193,17 @@ export function VoorraadAdjustDialog({
 
             {/* Preview new stock */}
             {hoeveelheid !== 0 && (
-              <div className={`rounded-lg border p-3 ${isUnderMinimum ? "border-red-500 bg-red-50 dark:bg-red-950/20" : "border-green-500 bg-green-50 dark:bg-green-950/20"}`}>
+              <div className={`rounded-lg border p-3 ${isUnderMinimum ? "border-status-vervallen-border bg-status-vervallen" : "border-status-geaccepteerd-border bg-status-geaccepteerd"}`}>
                 <div className="flex justify-between items-center">
                   <span className="text-sm font-medium">
                     Nieuwe voorraad
                   </span>
-                  <span className={`font-bold ${isUnderMinimum ? "text-red-600" : "text-green-600"}`}>
+                  <span className={`font-bold ${isUnderMinimum ? "text-status-vervallen-text" : "text-status-geaccepteerd-text"}`}>
                     {newStock} {item.eenheid}
                   </span>
                 </div>
                 {isUnderMinimum && (
-                  <p className="text-xs text-red-600 mt-1">
+                  <p className="text-xs text-status-vervallen-text mt-1">
                     Let op: Dit is onder de minimum voorraad!
                   </p>
                 )}

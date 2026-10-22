@@ -171,7 +171,7 @@ export const OfferteWorkflowStepper = memo(function OfferteWorkflowStepper({
                     step.state === "current" && "border-primary bg-primary/10 text-primary",
                     step.state === "partially-complete" && "border-primary bg-primary/20 text-primary",
                     step.state === "upcoming" && "border-muted-foreground/30 text-muted-foreground/50",
-                    step.isRejected && "bg-red-500 border-red-500 text-white"
+                    step.isRejected && "bg-destructive border-destructive text-white"
                   )}
                 >
                   {step.state === "completed" ? (
@@ -198,7 +198,7 @@ export const OfferteWorkflowStepper = memo(function OfferteWorkflowStepper({
                     step.state === "completed" && "text-primary",
                     step.state === "current" && "text-primary",
                     step.state === "upcoming" && "text-muted-foreground",
-                    step.isRejected && "text-red-500"
+                    step.isRejected && "text-destructive"
                   )}
                 >
                   {step.isRejected ? "Afgewezen" : step.label}
@@ -229,7 +229,7 @@ export const OfferteWorkflowStepper = memo(function OfferteWorkflowStepper({
                     step.state === "current" && "border-primary bg-primary/10 text-primary",
                     step.state === "partially-complete" && "border-primary bg-primary/20 text-primary",
                     step.state === "upcoming" && "border-muted-foreground/30 text-muted-foreground/50",
-                    step.isRejected && "bg-red-500 border-red-500 text-white"
+                    step.isRejected && "bg-destructive border-destructive text-white"
                   )}
                 >
                   {step.state === "completed" ? (
@@ -245,7 +245,7 @@ export const OfferteWorkflowStepper = memo(function OfferteWorkflowStepper({
                       step.state === "completed" && "text-primary",
                       step.state === "current" && "text-primary",
                       step.state === "upcoming" && "text-muted-foreground",
-                      step.isRejected && "text-red-500"
+                      step.isRejected && "text-destructive"
                     )}
                   >
                     {step.isRejected ? "Afgewezen" : step.label}
@@ -279,7 +279,7 @@ export const OfferteWorkflowStepper = memo(function OfferteWorkflowStepper({
                 className={cn(
                   "h-4 w-4 shrink-0",
                   nextStepInfo.variant === "info"
-                    ? "text-amber-600 dark:text-amber-400"
+                    ? "text-status-in-uitvoering-dot"
                     : "text-primary"
                 )}
               />

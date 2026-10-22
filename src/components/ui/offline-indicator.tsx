@@ -102,13 +102,11 @@ function OfflineIndicator({
           "transition-colors duration-300",
           // Offline state: amber/warning colors
           !isOnline && [
-            "bg-amber-500 text-amber-950",
-            "dark:bg-amber-600 dark:text-amber-50",
+            "bg-status-in-uitvoering text-status-in-uitvoering-text",
           ],
           // Reconnected state: green/success colors
           showReconnected && [
-            "bg-emerald-500 text-emerald-950",
-            "dark:bg-emerald-600 dark:text-emerald-50",
+            "bg-status-geaccepteerd text-status-geaccepteerd-text",
           ]
         )}
       >
@@ -134,8 +132,7 @@ function OfflineIndicator({
             className={cn(
               "ml-1 inline-flex items-center justify-center",
               "min-w-[20px] h-5 px-1.5 rounded-full",
-              "bg-amber-700/20 text-amber-950",
-              "dark:bg-amber-900/30 dark:text-amber-50",
+              "bg-status-in-uitvoering-text/15 text-status-in-uitvoering-text",
               "text-xs font-bold"
             )}
             aria-label={`${pendingChanges} openstaande ${pendingChanges === 1 ? "wijziging" : "wijzigingen"}`}

@@ -24,27 +24,27 @@ function getMargeLevel(percentage: number): MargeLevel {
 function getMargeLevelConfig(level: MargeLevel) {
   const configs = {
     critical: {
-      color: "text-red-500 dark:text-red-400",
-      bgColor: "bg-red-500 dark:bg-red-400",
-      trackColor: "bg-red-100 dark:bg-red-950",
+      color: "text-status-vervallen-text",
+      bgColor: "bg-status-vervallen-dot",
+      trackColor: "bg-status-vervallen",
       label: "Kritiek",
     },
     low: {
-      color: "text-amber-500 dark:text-amber-400",
-      bgColor: "bg-amber-500 dark:bg-amber-400",
-      trackColor: "bg-amber-100 dark:bg-amber-950",
+      color: "text-status-in-uitvoering-text",
+      bgColor: "bg-status-in-uitvoering-dot",
+      trackColor: "bg-status-in-uitvoering",
       label: "Laag",
     },
     good: {
-      color: "text-emerald-500 dark:text-emerald-400",
-      bgColor: "bg-emerald-500 dark:bg-emerald-400",
-      trackColor: "bg-emerald-100 dark:bg-emerald-950",
+      color: "text-status-geaccepteerd-text",
+      bgColor: "bg-status-geaccepteerd-dot",
+      trackColor: "bg-status-geaccepteerd",
       label: "Goed",
     },
     excellent: {
-      color: "text-blue-500 dark:text-blue-400",
-      bgColor: "bg-blue-500 dark:bg-blue-400",
-      trackColor: "bg-blue-100 dark:bg-blue-950",
+      color: "text-primary",
+      bgColor: "bg-primary",
+      trackColor: "bg-primary/15",
       label: "Uitstekend",
     },
   }
@@ -223,17 +223,17 @@ const CircularMargeIndicator = memo(function CircularMargeIndicator({
 
   // Color mapping for SVG stroke
   const strokeColors = {
-    critical: "stroke-red-500 dark:stroke-red-400",
-    low: "stroke-amber-500 dark:stroke-amber-400",
-    good: "stroke-emerald-500 dark:stroke-emerald-400",
-    excellent: "stroke-blue-500 dark:stroke-blue-400",
+    critical: "stroke-status-vervallen-dot",
+    low: "stroke-status-in-uitvoering-dot",
+    good: "stroke-status-geaccepteerd-dot",
+    excellent: "stroke-primary",
   }
 
   const trackColors = {
-    critical: "stroke-red-100 dark:stroke-red-950",
-    low: "stroke-amber-100 dark:stroke-amber-950",
-    good: "stroke-emerald-100 dark:stroke-emerald-950",
-    excellent: "stroke-blue-100 dark:stroke-blue-950",
+    critical: "stroke-status-vervallen",
+    low: "stroke-status-in-uitvoering",
+    good: "stroke-status-geaccepteerd",
+    excellent: "stroke-primary/15",
   }
 
   return (
