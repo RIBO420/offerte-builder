@@ -78,7 +78,7 @@ const BUITEN_STIJL: CSSProperties = {
   ["--muted" as string]: "#f2f2f2",
   ["--muted-foreground" as string]: "#1a1a1a",
   ["--border" as string]: "#000000",
-  ["--primary" as string]: "#166534",
+  ["--primary" as string]: "#3a4a36", // mosgroen (huisstijl)
   ["--primary-foreground" as string]: "#ffffff",
 };
 

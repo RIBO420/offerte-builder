@@ -140,7 +140,7 @@ export function DashboardSkeleton() {
 
       {/* Welcome Header Skeleton */}
       <m.div variants={fadeInUp}>
-        <Card className="bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 dark:from-emerald-950/30 dark:via-green-950/20 dark:to-teal-950/30">
+        <Card className="bg-surface-primair">
           <CardContent className="p-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="space-y-2">

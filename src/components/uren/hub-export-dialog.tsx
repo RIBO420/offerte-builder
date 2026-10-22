@@ -129,7 +129,7 @@ export function ProjectUrenConflicten() {
   const conflicten = useQuery(api.urenRapportage.getProjectUrenConflicten, {});
   const [open, setOpen] = useState(false);
   if (!conflicten?.length) return null;
-  return <details className="rounded-lg border border-amber-300 bg-amber-50/40 p-4 dark:border-amber-800 dark:bg-amber-950/20" onToggle={e => setOpen(e.currentTarget.open)}>
+  return <details className="rounded-lg border border-status-herinnering-border bg-surface-aandacht/40 p-4" onToggle={e => setOpen(e.currentTarget.open)}>
     <summary className="cursor-pointer font-medium">Kies de urenbron voor <span className="tabular-nums">{conflicten.length}</span> {conflicten.length === 1 ? "project" : "projecten"}</summary>
     <p className="mt-2 text-sm text-muted-foreground">Deze projecten bevatten zowel historische projectregistraties als dagsegmenten. Kosten en rapportages wachten op een keuze om dubbeltelling te voorkomen.</p>
     {open && <ul className="divide-y">{conflicten.map(p => <ConflictRij key={p.projectId} conflict={p} />)}</ul>}

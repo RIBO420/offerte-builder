@@ -102,7 +102,7 @@ export function KlantblokKaart({
             is, en hooguit drie regels — de rest staat in het dossier. */}
         {stop.bijzonderheden && (
           <p
-            className="line-clamp-3 text-sm text-amber-700 dark:text-amber-400"
+            className="line-clamp-3 text-sm text-status-herinnering-text"
             title={stop.bijzonderheden}
           >
             {stop.bijzonderheden}

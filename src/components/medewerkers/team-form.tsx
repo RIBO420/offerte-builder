@@ -75,7 +75,7 @@ export function TeamForm({
     resolver: zodResolver(teamFormSchema),
     defaultValues: {
       naam: initialData?.naam || "",
-      kleur: initialData?.kleur || "#4ade80",
+      kleur: initialData?.kleur || "#56724e", // seg-werken: mosgroen-midden (huisstijl)
       beschrijving: initialData?.beschrijving || "",
       leden: (initialData?.leden as string[]) || [],
     },

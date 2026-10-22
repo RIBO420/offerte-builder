@@ -205,11 +205,11 @@ export default function DashboardPage() {
 
             {/* Primary CTA - Uren Registreren */}
             <div className={REVEAL_KLASSE}>
-              <Card className="border-orange-200 dark:border-orange-900/50 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/30">
+              <Card className="border-transparent bg-surface-primair">
                 <CardContent className="p-6">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-500 text-white">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
                         <Clock className="h-6 w-6" aria-hidden="true" />
                       </div>
                       <div>
@@ -251,13 +251,13 @@ export default function DashboardPage() {
                       href={`/projecten/${project._id}`}
                       className="group"
                     >
-                      <Card className="p-4 transition-[box-shadow,border-color] hover:shadow-md hover:border-orange-300 dark:hover:border-orange-800">
+                      <Card className="p-4 transition-[box-shadow,border-color] hover:shadow-md hover:border-primary/40">
                         <div className="flex items-center gap-3 mb-3">
-                          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-900/30">
-                            <FolderKanban className="h-4 w-4 text-orange-600 dark:text-orange-400" aria-hidden="true" />
+                          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
+                            <FolderKanban className="h-4 w-4 text-primary" aria-hidden="true" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm truncate group-hover:text-orange-600 dark:group-hover:text-orange-400 transition-colors" title={project.naam}>
+                            <p className="font-medium text-sm truncate group-hover:text-primary transition-colors" title={project.naam}>
                               {project.naam}
                             </p>
                             <p className="text-xs text-muted-foreground truncate" title={project.klantNaam}>
@@ -265,14 +265,14 @@ export default function DashboardPage() {
                             </p>
                           </div>
                           <div className="text-right">
-                            <p className="text-sm font-medium text-orange-600 dark:text-orange-400">
+                            <p className="text-sm font-medium text-foreground">
                               {project.voortgang === null ? "Urenbron kiezen" : `${project.voortgang}%`}
                             </p>
                           </div>
                         </div>
                         {/* Progress bar - WCAG AA compliant colors */}
                         <div
-                          className="h-1.5 w-full bg-orange-200 dark:bg-orange-900/50 rounded-full overflow-hidden"
+                          className="h-1.5 w-full bg-muted rounded-full overflow-hidden"
                           role="progressbar"
                           aria-valuenow={project.voortgang ?? undefined}
                           aria-valuemin={0}
@@ -280,7 +280,7 @@ export default function DashboardPage() {
                           aria-label={`Projectvoortgang: ${project.voortgang === null ? "Urenbron kiezen" : `${project.voortgang}%`}`}
                         >
                           <div
-                            className="h-full bg-orange-600 rounded-full transition-[width] duration-500 ease-standaard motion-reduce:transition-none"
+                            className="h-full bg-accent-warm rounded-full transition-[width] duration-500 ease-standaard motion-reduce:transition-none"
                             style={{ width: `${project.voortgang ?? 0}%` }}
                           />
                         </div>
@@ -315,39 +315,39 @@ export default function DashboardPage() {
               <h2 className="font-medium text-sm text-muted-foreground mb-3">Snelkoppelingen</h2>
               <div className="grid gap-3 md:grid-cols-2">
                 <Link href="/wagenpark" className="group">
-                  <Card className="p-4 transition-[box-shadow,border-color] hover:shadow-md hover:border-blue-300 dark:hover:border-blue-800">
+                  <Card className="p-4 transition-[box-shadow,border-color] hover:shadow-md hover:border-primary/40">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                        <Truck className="h-5 w-5 text-blue-600 dark:text-blue-400" aria-hidden="true" />
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                        <Truck className="h-5 w-5 text-primary" aria-hidden="true" />
                       </div>
                       <div>
-                        <p className="font-medium text-sm group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                        <p className="font-medium text-sm group-hover:text-primary transition-colors">
                           Wagenpark
                         </p>
                         <p className="text-xs text-muted-foreground">
                           Beheer voertuigen en onderhoud
                         </p>
                       </div>
-                      <ArrowRight className="ml-auto h-4 w-4 text-muted-foreground group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors" aria-hidden="true" />
+                      <ArrowRight className="ml-auto h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" aria-hidden="true" />
                     </div>
                   </Card>
                 </Link>
 
                 <Link href="/instellingen/machines" className="group">
-                  <Card className="p-4 transition-[box-shadow,border-color] hover:shadow-md hover:border-green-300 dark:hover:border-green-800">
+                  <Card className="p-4 transition-[box-shadow,border-color] hover:shadow-md hover:border-primary/40">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100 dark:bg-green-900/30">
-                        <Wrench className="h-5 w-5 text-green-600 dark:text-green-400" aria-hidden="true" />
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                        <Wrench className="h-5 w-5 text-primary" aria-hidden="true" />
                       </div>
                       <div>
-                        <p className="font-medium text-sm group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">
+                        <p className="font-medium text-sm group-hover:text-primary transition-colors">
                           Machinepark
                         </p>
                         <p className="text-xs text-muted-foreground">
                           Bekijk beschikbare machines
                         </p>
                       </div>
-                      <ArrowRight className="ml-auto h-4 w-4 text-muted-foreground group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors" aria-hidden="true" />
+                      <ArrowRight className="ml-auto h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" aria-hidden="true" />
                     </div>
                   </Card>
                 </Link>

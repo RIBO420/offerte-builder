@@ -71,30 +71,30 @@ export function getTasksForScope(scope: string): string[] {
  * Scope colors for visual distinction
  */
 export const scopeColors: Record<string, string> = {
-  grondwerk: "bg-amber-500",
-  bestrating: "bg-slate-500",
-  parkeerplaats: "bg-zinc-600",
-  beregening: "bg-sky-500",
-  borders: "bg-green-500",
-  gras: "bg-emerald-500",
-  houtwerk: "bg-orange-600",
-  water_elektra: "bg-blue-500",
-  specials: "bg-purple-500",
-  gras_onderhoud: "bg-emerald-400",
-  borders_onderhoud: "bg-green-400",
-  heggen_onderhoud: "bg-lime-500",
-  heggen: "bg-lime-500",
-  bomen_onderhoud: "bg-teal-500",
-  bomen: "bg-teal-500",
-  overig_onderhoud: "bg-gray-500",
-  overig: "bg-gray-500",
+  grondwerk: "bg-scope-grondwerk",
+  bestrating: "bg-scope-bestrating",
+  parkeerplaats: "bg-scope-bestrating",
+  beregening: "bg-scope-water",
+  borders: "bg-scope-borders",
+  gras: "bg-scope-gras",
+  houtwerk: "bg-scope-houtwerk",
+  water_elektra: "bg-scope-water",
+  specials: "bg-scope-specials",
+  gras_onderhoud: "bg-scope-gras",
+  borders_onderhoud: "bg-scope-borders",
+  heggen_onderhoud: "bg-scope-borders",
+  heggen: "bg-scope-borders",
+  bomen_onderhoud: "bg-scope-houtwerk",
+  bomen: "bg-scope-houtwerk",
+  overig_onderhoud: "bg-muted-foreground",
+  overig: "bg-muted-foreground",
 };
 
 /**
  * Get color class for a scope
  */
 export function getScopeColor(scope: string): string {
-  return scopeColors[scope] || "bg-gray-400";
+  return scopeColors[scope] || "bg-muted-foreground";
 }
 
 /**

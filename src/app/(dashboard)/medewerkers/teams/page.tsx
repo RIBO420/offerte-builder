@@ -303,8 +303,8 @@ export default function TeamsPage() {
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/10">
-                  <Users className="h-5 w-5 text-blue-500 dark:text-blue-400" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-status-gepland">
+                  <Users className="h-5 w-5 text-status-gepland-text" />
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{totalMembers}</p>
@@ -318,8 +318,8 @@ export default function TeamsPage() {
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/10">
-                  <Users className="h-5 w-5 text-amber-500 dark:text-amber-400" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-status-herinnering">
+                  <Users className="h-5 w-5 text-status-herinnering-text" />
                 </div>
                 <div>
                   <p className="text-2xl font-bold">

@@ -18,13 +18,13 @@ type VerlofAanvraag = {
 };
 
 const TYPE_COLORS: Record<string, string> = {
-  vakantie: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+  vakantie: "bg-status-gepland text-status-gepland-text",
   bijzonder:
-    "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
+    "bg-status-nacalculatie text-status-nacalculatie-text",
   onbetaald:
-    "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
+    "bg-status-in-uitvoering text-status-in-uitvoering-text",
   compensatie:
-    "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+    "bg-status-geaccepteerd text-status-geaccepteerd-text",
 };
 
 // Statuskleuren uit de centrale bron (WS4): zelfde status = zelfde kleur.

@@ -33,9 +33,9 @@ export const AVAILABLE_SCOPES = [
 export type ScopeId = typeof AVAILABLE_SCOPES[number]["id"];
 
 export const SKILL_LEVELS = [
-  { value: "junior", label: "Junior", color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300" },
-  { value: "midlevel", label: "Midlevel", color: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300" },
-  { value: "senior", label: "Senior", color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300" },
+  { value: "junior", label: "Junior", color: "bg-status-gepland text-status-gepland-text" },
+  { value: "midlevel", label: "Midlevel", color: "bg-status-herinnering text-status-herinnering-text" },
+  { value: "senior", label: "Senior", color: "bg-status-geaccepteerd text-status-geaccepteerd-text" },
 ] as const;
 
 export type SkillLevel = "junior" | "midlevel" | "senior";
@@ -245,7 +245,7 @@ export function SkillsSelector({
                     disabled={disabled}
                     title={spec.gecertificeerd ? "Certificering verwijderen" : "Markeer als gecertificeerd"}
                   >
-                    <Award className={`h-3.5 w-3.5 ${spec.gecertificeerd ? "text-green-600" : "text-muted-foreground/50"}`} />
+                    <Award className={`h-3.5 w-3.5 ${spec.gecertificeerd ? "text-status-geaccepteerd-text" : "text-muted-foreground/50"}`} />
                   </Button>
                   <Button
                     type="button"

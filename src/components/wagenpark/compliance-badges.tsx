@@ -43,7 +43,7 @@ function getComplianceStatus(daysLeft: number | null): {
     return {
       status: "critical",
       variant: "destructive",
-      className: "bg-red-500 text-white",
+      className: "bg-status-vervallen text-status-vervallen-text border-status-vervallen-border",
       icon: XCircle,
     };
   }
@@ -52,7 +52,7 @@ function getComplianceStatus(daysLeft: number | null): {
     return {
       status: "critical",
       variant: "destructive",
-      className: "bg-red-500 text-white",
+      className: "bg-status-vervallen text-status-vervallen-text border-status-vervallen-border",
       icon: AlertTriangle,
     };
   }
@@ -61,7 +61,7 @@ function getComplianceStatus(daysLeft: number | null): {
     return {
       status: "warning",
       variant: "secondary",
-      className: "bg-amber-500 text-white",
+      className: "bg-status-herinnering text-status-herinnering-text border-status-herinnering-border",
       icon: AlertTriangle,
     };
   }
@@ -69,7 +69,7 @@ function getComplianceStatus(daysLeft: number | null): {
   return {
     status: "ok",
     variant: "default",
-    className: "bg-green-500 text-white",
+    className: "bg-status-geaccepteerd text-status-geaccepteerd-text border-status-geaccepteerd-border",
     icon: ShieldCheck,
   };
 }
@@ -219,8 +219,9 @@ export function ComplianceWarningBadge({
             variant={isCritical ? "destructive" : "secondary"}
             className={cn(
               "gap-1",
-              isCritical ? "bg-red-500" : "bg-amber-500",
-              "text-white",
+              isCritical
+                ? "bg-status-vervallen text-status-vervallen-text border-status-vervallen-border"
+                : "bg-status-herinnering text-status-herinnering-text border-status-herinnering-border",
               className
             )}
           >

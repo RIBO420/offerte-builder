@@ -482,7 +482,7 @@ function WagenparkPageContent() {
                   <DropdownMenuItem
                     onClick={() => handleToggleStatus(voertuig, "actief")}
                   >
-                    <CheckCircle2 className="mr-2 h-4 w-4 text-green-600" />
+                    <CheckCircle2 className="mr-2 h-4 w-4 text-status-geaccepteerd-text" />
                     Activeren
                   </DropdownMenuItem>
                 )}
@@ -573,10 +573,10 @@ function WagenparkPageContent() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Actief</CardTitle>
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              <CheckCircle2 className="h-4 w-4 text-status-geaccepteerd-text" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">{activeCount}</div>
+              <div className="text-2xl font-bold text-trend-positive">{activeCount}</div>
               <p className="text-xs text-muted-foreground">beschikbaar</p>
             </CardContent>
           </Card>
@@ -584,13 +584,13 @@ function WagenparkPageContent() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Onderhoud</CardTitle>
-              <Wrench className="h-4 w-4 text-amber-500" />
+              <Wrench className="h-4 w-4 text-status-herinnering-text" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-amber-500">{maintenanceCount}</div>
+              <div className="text-2xl font-bold text-status-herinnering-text">{maintenanceCount}</div>
               <p className="text-xs text-muted-foreground">
                 {upcomingOnderhoudCount > 0 && (
-                  <span className="text-amber-600">
+                  <span className="text-status-herinnering-text">
                     +{upcomingOnderhoudCount} gepland
                   </span>
                 )}
@@ -599,26 +599,26 @@ function WagenparkPageContent() {
             </CardContent>
           </Card>
 
-          <Card className={apkWarnings > 0 ? "border-red-200 dark:border-red-900" : ""}>
+          <Card className={apkWarnings > 0 ? "border-status-vervallen-border" : ""}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">APK Bijna Verlopen</CardTitle>
-              <ShieldCheck className={`h-4 w-4 ${apkWarnings > 0 ? "text-red-500" : "text-muted-foreground"}`} />
+              <ShieldCheck className={`h-4 w-4 ${apkWarnings > 0 ? "text-destructive" : "text-muted-foreground"}`} />
             </CardHeader>
             <CardContent>
-              <div className={`text-2xl font-bold ${apkWarnings > 0 ? "text-red-500" : ""}`}>
+              <div className={`text-2xl font-bold ${apkWarnings > 0 ? "text-destructive" : ""}`}>
                 {apkWarnings}
               </div>
               <p className="text-xs text-muted-foreground">binnen 30 dagen</p>
             </CardContent>
           </Card>
 
-          <Card className={verzekeringWarnings > 0 ? "border-red-200 dark:border-red-900" : ""}>
+          <Card className={verzekeringWarnings > 0 ? "border-status-vervallen-border" : ""}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Verzekering</CardTitle>
-              <AlertTriangle className={`h-4 w-4 ${verzekeringWarnings > 0 ? "text-red-500" : "text-muted-foreground"}`} />
+              <AlertTriangle className={`h-4 w-4 ${verzekeringWarnings > 0 ? "text-destructive" : "text-muted-foreground"}`} />
             </CardHeader>
             <CardContent>
-              <div className={`text-2xl font-bold ${verzekeringWarnings > 0 ? "text-red-500" : ""}`}>
+              <div className={`text-2xl font-bold ${verzekeringWarnings > 0 ? "text-destructive" : ""}`}>
                 {verzekeringWarnings}
               </div>
               <p className="text-xs text-muted-foreground">binnen 30 dagen</p>

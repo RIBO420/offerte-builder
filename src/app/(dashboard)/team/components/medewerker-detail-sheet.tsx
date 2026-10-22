@@ -96,10 +96,10 @@ interface MedewerkerDetailSheetProps {
 }
 
 const CONTRACT_TYPES = {
-  fulltime: { label: "Fulltime", color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300" },
-  parttime: { label: "Parttime", color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300" },
-  zzp: { label: "ZZP", color: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300" },
-  seizoen: { label: "Seizoen", color: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300" },
+  fulltime: { label: "Fulltime", color: "bg-status-geaccepteerd text-status-geaccepteerd-text" },
+  parttime: { label: "Parttime", color: "bg-status-gepland text-status-gepland-text" },
+  zzp: { label: "ZZP", color: "bg-status-nacalculatie text-status-nacalculatie-text" },
+  seizoen: { label: "Seizoen", color: "bg-status-herinnering text-status-herinnering-text" },
 };
 
 // Werkdagen with number keys matching schema
@@ -244,8 +244,8 @@ export function MedewerkerDetailSheet({
                   className={cn(
                     "ml-1.5 text-xs",
                     expiredCerts.length > 0
-                      ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
-                      : "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300"
+                      ? "bg-status-vervallen text-status-vervallen-text"
+                      : "bg-status-herinnering text-status-herinnering-text"
                   )}
                 >
                   <AlertTriangle className="h-3 w-3" />
@@ -437,7 +437,7 @@ export function MedewerkerDetailSheet({
                                 </span>
                                 {spec.gecertificeerd && (
                                   <span title="Gecertificeerd">
-                                    <Award className="h-4 w-4 text-green-600" />
+                                    <Award className="h-4 w-4 text-status-geaccepteerd-text" />
                                   </span>
                                 )}
                               </div>
@@ -471,14 +471,14 @@ export function MedewerkerDetailSheet({
               >
                 {/* Warning banner for expired certificates */}
                 {expiredCerts.length > 0 && (
-                  <div className="flex items-center gap-3 p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 rounded-lg">
-                    <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                  <div className="flex items-center gap-3 p-3 bg-status-vervallen border border-status-vervallen-border rounded-lg">
+                    <AlertTriangle className="h-5 w-5 text-status-vervallen-text" />
                     <div>
-                      <p className="font-medium text-sm text-red-800 dark:text-red-300">
+                      <p className="font-medium text-sm text-status-vervallen-text">
                         {expiredCerts.length} certificaat
                         {expiredCerts.length > 1 ? "en" : ""} verlopen
                       </p>
-                      <p className="text-xs text-red-600 dark:text-red-400">
+                      <p className="text-xs text-status-vervallen-text">
                         {expiredCerts.map((c) => c.naam).join(", ")}
                       </p>
                     </div>
@@ -487,14 +487,14 @@ export function MedewerkerDetailSheet({
 
                 {/* Warning banner for expiring certificates */}
                 {expiringCerts.length > 0 && (
-                  <div className="flex items-center gap-3 p-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900 rounded-lg">
-                    <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                  <div className="flex items-center gap-3 p-3 bg-surface-aandacht border border-status-herinnering-border rounded-lg">
+                    <AlertTriangle className="h-5 w-5 text-status-herinnering-text" />
                     <div>
-                      <p className="font-medium text-sm text-amber-800 dark:text-amber-300">
+                      <p className="font-medium text-sm text-status-herinnering-text">
                         {expiringCerts.length} certificaat
                         {expiringCerts.length > 1 ? "en" : ""} bijna verlopen
                       </p>
-                      <p className="text-xs text-amber-600 dark:text-amber-400">
+                      <p className="text-xs text-status-herinnering-text">
                         {expiringCerts.map((c) => c.naam).join(", ")}
                       </p>
                     </div>

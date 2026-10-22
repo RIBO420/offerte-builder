@@ -102,7 +102,7 @@ function VerzuimPageContent() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab}><TabsList>
         <TabsTrigger value="alle">Alle ({tabStats.alle})</TabsTrigger>
-        <TabsTrigger value="actief">Ziek{tabStats.actief > 0 && <Badge variant="default" className="ml-1.5 h-5 min-w-5 px-1 text-xs bg-red-600 hover:bg-red-600">{tabStats.actief}</Badge>}</TabsTrigger>
+        <TabsTrigger value="actief">Ziek{tabStats.actief > 0 && <Badge variant="default" className="ml-1.5 h-5 min-w-5 px-1 text-xs bg-destructive hover:bg-destructive">{tabStats.actief}</Badge>}</TabsTrigger>
         <TabsTrigger value="hersteld">Hersteld ({tabStats.hersteld})</TabsTrigger>
       </TabsList></Tabs>
 
@@ -118,9 +118,9 @@ function VerzuimPageContent() {
               <TableCell>{formatDatum(reg.startDatum)}</TableCell>
               <TableCell>{reg.herstelDatum ? formatDatum(reg.herstelDatum) : "—"}</TableCell>
               <TableCell className="text-right">{reg.dagen}</TableCell>
-              <TableCell>{reg.isActief ? (<Badge variant="outline" className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"><HeartPulse className="h-3 w-3 mr-1" />Ziek</Badge>) : (<Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"><Heart className="h-3 w-3 mr-1" />Hersteld</Badge>)}</TableCell>
+              <TableCell>{reg.isActief ? (<Badge variant="outline" className="bg-status-vervallen text-status-vervallen-text border-status-vervallen-border"><HeartPulse className="h-3 w-3 mr-1" />Ziek</Badge>) : (<Badge variant="outline" className="bg-status-geaccepteerd text-status-geaccepteerd-text border-status-geaccepteerd-border"><Heart className="h-3 w-3 mr-1" />Hersteld</Badge>)}</TableCell>
               <TableCell className="text-right"><div className="flex justify-end gap-1">
-                {reg.isActief && (<Button variant="ghost" size="sm" className="text-green-600 hover:text-green-700 hover:bg-green-100" onClick={() => setHerstelTarget({ id: reg._id as Id<"verzuimregistraties">, naam: reg.medewerkerNaam })}><Heart className="h-4 w-4 mr-1" />Hersteld</Button>)}
+                {reg.isActief && (<Button variant="ghost" size="sm" className="text-status-geaccepteerd-text hover:text-status-geaccepteerd-text hover:bg-status-geaccepteerd" onClick={() => setHerstelTarget({ id: reg._id as Id<"verzuimregistraties">, naam: reg.medewerkerNaam })}><Heart className="h-4 w-4 mr-1" />Hersteld</Button>)}
                 {isAdmin && (<Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => setDeleteTarget(reg._id as Id<"verzuimregistraties">)} title="Verwijderen" aria-label="Verwijderen">{actionLoading === reg._id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}</Button>)}
               </div></TableCell>
             </TableRow>))}</TableBody></Table></div>

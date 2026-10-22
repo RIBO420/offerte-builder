@@ -115,28 +115,28 @@ const HistorieRow = memo(function HistorieRow({
     <div
       className={`border-l-2 pl-4 pb-4 ml-4 relative ${REVEAL_KLASSE} ${
         isRevert
-          ? "border-orange-500"
+          ? "border-status-herinnering-dot"
           : isPositive
-            ? "border-red-500"
-            : "border-blue-500"
+            ? "border-status-vervallen-dot"
+            : "border-status-gepland-dot"
       }`}
     >
       {/* Timeline dot */}
       <div
         className={`absolute -left-[9px] top-0 w-4 h-4 rounded-full border-2 bg-background ${
           isRevert
-            ? "border-orange-500"
+            ? "border-status-herinnering-dot"
             : isPositive
-              ? "border-red-500"
-              : "border-blue-500"
+              ? "border-status-vervallen-dot"
+              : "border-status-gepland-dot"
         }`}
       >
         {isRevert ? (
-          <RotateCcw className="h-2 w-2 text-orange-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+          <RotateCcw className="h-2 w-2 text-status-herinnering-dot absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
         ) : isPositive ? (
-          <TrendingUp className="h-2 w-2 text-red-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+          <TrendingUp className="h-2 w-2 text-status-vervallen-dot absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
         ) : (
-          <TrendingDown className="h-2 w-2 text-blue-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+          <TrendingDown className="h-2 w-2 text-status-gepland-dot absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
         )}
       </div>
 
@@ -155,10 +155,10 @@ const HistorieRow = memo(function HistorieRow({
             variant="outline"
             className={`shrink-0 ${
               isRevert
-                ? "text-orange-600 bg-orange-100 dark:bg-orange-900/30"
+                ? "bg-status-herinnering text-status-herinnering-text"
                 : isPositive
-                  ? "text-red-600 bg-red-100 dark:bg-red-900/30"
-                  : "text-blue-600 bg-blue-100 dark:bg-blue-900/30"
+                  ? "bg-status-vervallen text-status-vervallen-text"
+                  : "bg-status-gepland text-status-gepland-text"
             } border-0`}
           >
             {isPositive ? "+" : ""}
@@ -345,8 +345,8 @@ export const LeerfeedbackHistorieTable = memo(function LeerfeedbackHistorieTable
                   variant="outline"
                   className={`${
                     entry.wijzigingPercentage > 0
-                      ? "text-red-600 bg-red-100 dark:bg-red-900/30"
-                      : "text-blue-600 bg-blue-100 dark:bg-blue-900/30"
+                      ? "bg-status-vervallen text-status-vervallen-text"
+                      : "bg-status-gepland text-status-gepland-text"
                   } border-0`}
                 >
                   {entry.wijzigingPercentage > 0 ? "+" : ""}

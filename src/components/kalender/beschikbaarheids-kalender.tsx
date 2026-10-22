@@ -180,11 +180,11 @@ export function BeschikbaarheidsKalender({
                 geselecteerdIso &&
                   beschikbaarheidMap.get(geselecteerdIso)?.capaciteit ===
                     "beschikbaar"
-                  ? "bg-green-100 text-green-800 border-green-300 dark:bg-green-900/40 dark:text-green-300 dark:border-green-700"
+                  ? "bg-status-geaccepteerd text-status-geaccepteerd-text border-status-geaccepteerd-border"
                   : geselecteerdIso &&
                       beschikbaarheidMap.get(geselecteerdIso)?.capaciteit ===
                         "beperkt"
-                    ? "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-700"
+                    ? "bg-status-herinnering text-status-herinnering-text border-status-herinnering-border"
                     : "bg-secondary text-secondary-foreground"
               )}
               variant="outline"

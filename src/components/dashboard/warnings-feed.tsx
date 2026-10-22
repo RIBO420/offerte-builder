@@ -29,16 +29,16 @@ const TYPE_ICONS: Record<string, React.ElementType> = {
 
 const PRIORITY_STYLES: Record<string, { badge: string; border: string }> = {
   hoog: {
-    badge: "bg-red-500/10 text-red-500 dark:text-red-400 border-red-500/20",
-    border: "border-l-red-500",
+    badge: "bg-status-vervallen text-status-vervallen-text border-status-vervallen-border",
+    border: "border-l-status-vervallen-dot",
   },
   middel: {
-    badge: "bg-amber-500/10 text-amber-500 dark:text-amber-400 border-amber-500/20",
-    border: "border-l-amber-500",
+    badge: "bg-status-herinnering text-status-herinnering-text border-status-herinnering-border",
+    border: "border-l-status-herinnering-dot",
   },
   laag: {
-    badge: "bg-blue-500/10 text-blue-500 dark:text-blue-400 border-blue-500/20",
-    border: "border-l-blue-500",
+    badge: "bg-status-gepland text-status-gepland-text border-status-gepland-border",
+    border: "border-l-status-gepland-dot",
   },
 };
 
@@ -57,7 +57,7 @@ export function WarningsFeed() {
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center gap-2">
-          <AlertTriangle className="h-4 w-4 text-amber-500 dark:text-amber-400" />
+          <AlertTriangle className="h-4 w-4 text-status-herinnering-text" />
           Waarschuwingen ({warnings.length})
         </CardTitle>
       </CardHeader>

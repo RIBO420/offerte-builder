@@ -63,16 +63,16 @@ export function VerzuimStatsCards({ stats, frequentVerzuim, isLoading }: Verzuim
       </div>
 
       {frequentVerzuim.length > 0 && (
-        <Card className="border-yellow-500/50 bg-yellow-50/50 dark:bg-yellow-950/20">
+        <Card className="border-status-herinnering-border bg-surface-aandacht">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2 text-yellow-700 dark:text-yellow-400">
+            <CardTitle className="text-sm font-medium flex items-center gap-2 text-status-herinnering-text">
               <AlertTriangle className="h-4 w-4" />Frequent verzuim — 3+ meldingen in 3 maanden
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
               {frequentVerzuim.map((item) => (
-                <Badge key={item.medewerkerId} variant="outline" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                <Badge key={item.medewerkerId} variant="outline" className="bg-status-herinnering text-status-herinnering-text border-status-herinnering-border">
                   <Users className="h-3 w-3 mr-1" />{item.medewerkerNaam} ({item.aantalMeldingen}x)
                 </Badge>
               ))}

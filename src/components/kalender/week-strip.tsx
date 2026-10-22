@@ -68,9 +68,9 @@ export function WeekStrip({
       </div>
 
       {eersteBeschikbaar && (
-        <div className="flex items-center gap-2 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 px-3 py-2 text-sm">
-          <CheckCircle2 className="size-4 text-green-600 dark:text-green-400 shrink-0" />
-          <span className="text-green-800 dark:text-green-300">
+        <div className="flex items-center gap-2 rounded-lg bg-status-geaccepteerd border border-status-geaccepteerd-border px-3 py-2 text-sm">
+          <CheckCircle2 className="size-4 text-status-geaccepteerd-text shrink-0" />
+          <span className="text-status-geaccepteerd-text">
             <span className="font-medium">Eerste beschikbare datum:</span>{" "}
             {formateerDatumKort(eersteBeschikbaar)}
           </span>

@@ -307,7 +307,7 @@ export function getCertificaatStatus(vervaldatum?: number): {
     return {
       status: "valid",
       label: "Geldig",
-      className: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
+      className: "bg-status-geaccepteerd text-status-geaccepteerd-text",
     };
   }
 
@@ -320,7 +320,7 @@ export function getCertificaatStatus(vervaldatum?: number): {
     return {
       status: "expired",
       label: "Verlopen",
-      className: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
+      className: "bg-status-vervallen text-status-vervallen-text",
     };
   }
 
@@ -328,7 +328,7 @@ export function getCertificaatStatus(vervaldatum?: number): {
     return {
       status: "expiring",
       label: `Verloopt over ${daysUntilExpiry} dagen`,
-      className: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300",
+      className: "bg-status-herinnering text-status-herinnering-text",
     };
   }
 
@@ -336,14 +336,14 @@ export function getCertificaatStatus(vervaldatum?: number): {
     return {
       status: "expiring",
       label: `Verloopt over ${Math.ceil(daysUntilExpiry / 30)} maanden`,
-      className: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300",
+      className: "bg-status-herinnering text-status-herinnering-text",
     };
   }
 
   return {
     status: "valid",
     label: "Geldig",
-    className: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
+    className: "bg-status-geaccepteerd text-status-geaccepteerd-text",
   };
 }
 
@@ -550,7 +550,7 @@ export function CertificaatBadges({ certificaten }: { certificaten?: Certificaat
       {expiredCount > 0 && (
         <Badge
           variant="secondary"
-          className="text-xs bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300"
+          className="text-xs bg-status-vervallen text-status-vervallen-text"
         >
           <AlertTriangle className="h-3 w-3 mr-1" />
           {expiredCount} verlopen
@@ -559,7 +559,7 @@ export function CertificaatBadges({ certificaten }: { certificaten?: Certificaat
       {expiringCount > 0 && (
         <Badge
           variant="secondary"
-          className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-300"
+          className="text-xs bg-status-herinnering text-status-herinnering-text"
         >
           <AlertTriangle className="h-3 w-3 mr-1" />
           {expiringCount} bijna verlopen

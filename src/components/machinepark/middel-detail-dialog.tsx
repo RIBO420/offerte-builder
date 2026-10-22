@@ -202,7 +202,7 @@ export function MiddelDetailDialog({ middel, magBeheren, teams, onClose }: Props
               <p className="text-sm">{MIDDEL_STATUS_LABELS[middel.status]}</p>
             )}
             {middel.status === "kapot" && (
-              <p className="text-xs text-red-600 dark:text-red-400">
+              <p className="text-xs text-destructive">
                 Kapot: het weekbord waarschuwt op gekoppelde team-dagen.
               </p>
             )}

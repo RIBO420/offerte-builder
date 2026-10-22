@@ -90,9 +90,9 @@ export function VoormanDashboard() {
                           )}
                         </div>
                         {lid.heeftUren === null ? <span className="shrink-0 text-[10px] text-muted-foreground">Bron kiezen door kantoor</span> : lid.heeftUren ? (
-                          <CheckCircle2 className="h-3.5 w-3.5 text-green-500 dark:text-green-400 shrink-0" />
+                          <CheckCircle2 className="h-3.5 w-3.5 text-trend-positive shrink-0" />
                         ) : (
-                          <XCircle className="h-3.5 w-3.5 text-red-400 dark:text-red-300 shrink-0" />
+                          <XCircle className="h-3.5 w-3.5 text-destructive shrink-0" />
                         )}
                       </div>
                     ))}

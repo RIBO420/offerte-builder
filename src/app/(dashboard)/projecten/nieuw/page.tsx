@@ -296,9 +296,9 @@ function NieuwProjectPageContent() {
                 </div>
 
                 {voorcalculatieOntbreekt ? (
-                  <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+                  <div className="rounded-lg border border-status-herinnering-border bg-surface-aandacht p-3 text-sm">
                     <p className="font-medium mb-1 flex items-center gap-2">
-                      <AlertCircle className="h-4 w-4 text-amber-600" />
+                      <AlertCircle className="h-4 w-4 text-status-herinnering-text" />
                       Eerst de voorcalculatie
                     </p>
                     <p className="text-muted-foreground">
@@ -323,7 +323,7 @@ function NieuwProjectPageContent() {
                 <div className="space-y-3">
                   {voorcalculatieOntbreekt && offerteId ? (
                     <Button
-                      className="w-full bg-green-600 hover:bg-green-700 text-white"
+                      className="w-full"
                       size="lg"
                       asChild
                     >
@@ -335,7 +335,7 @@ function NieuwProjectPageContent() {
                     </Button>
                   ) : (
                     <Button
-                      className="w-full bg-green-600 hover:bg-green-700 text-white"
+                      className="w-full"
                       onClick={handleCreate}
                       disabled={!offerte || isCreating}
                       size="lg"

@@ -330,7 +330,7 @@ function VerlofPageContent() {
               <TabsTrigger value="aangevraagd">
                 Aangevraagd
                 {stats.aangevraagd > 0 && (
-                  <Badge variant="default" className="ml-1.5 h-5 min-w-5 px-1 text-xs bg-yellow-600 hover:bg-yellow-600">
+                  <Badge variant="default" className="ml-1.5 h-5 min-w-5 px-1 text-xs bg-status-herinnering-dot hover:bg-status-herinnering-dot">
                     {stats.aangevraagd}
                   </Badge>
                 )}
@@ -414,7 +414,7 @@ function VerlofPageContent() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 text-green-600 dark:text-green-400 hover:text-green-700 hover:dark:text-green-300 hover:bg-green-100 hover:dark:bg-green-900"
+                                className="h-8 w-8 text-status-geaccepteerd-text hover:text-status-geaccepteerd-text hover:bg-status-geaccepteerd"
                                 onClick={() =>
                                   handleGoedkeuren(
                                     aanvraag._id as Id<"verlofaanvragen">
@@ -433,7 +433,7 @@ function VerlofPageContent() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 text-red-600 dark:text-red-400 hover:text-red-700 hover:dark:text-red-300 hover:bg-red-100 hover:dark:bg-red-900"
+                                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-status-vervallen"
                                 onClick={() =>
                                   setAfkeurAanvraag(
                                     aanvraag._id as Id<"verlofaanvragen">

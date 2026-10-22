@@ -265,16 +265,16 @@ function createFactuurStyles(t: PdfTheme) {
     correctiesSection: {
       marginBottom: 15,
       padding: 12,
-      backgroundColor: "#fff9e6",
+      backgroundColor: "#faead8", // status-herinnering
       borderRadius: 4,
       borderWidth: 1,
-      borderColor: "#f0e6b3",
+      borderColor: "#ddbe9a", // status-herinnering-border
     },
     correctiesTitle: {
       fontSize: t.typography.bodySize,
       fontFamily: "Helvetica-Bold",
       marginBottom: 8,
-      color: "#996600",
+      color: "#583400", // status-herinnering-text
     },
     correctieRow: {
       flexDirection: "row",
@@ -300,7 +300,7 @@ function createFactuurStyles(t: PdfTheme) {
       fontSize: t.typography.smallSize,
       width: 80,
       textAlign: "right",
-      color: "#dc2626",
+      color: "#a44130", // destructive
     },
     // Totals section
     totalsSection: {
@@ -391,7 +391,7 @@ function createFactuurStyles(t: PdfTheme) {
     notesSection: {
       marginTop: t.spacing.sectionGap,
       padding: 12,
-      backgroundColor: "#f9f9f9",
+      backgroundColor: "#efece7", // status-concept (warm wit)
       borderRadius: 4,
     },
     notesTitle: {

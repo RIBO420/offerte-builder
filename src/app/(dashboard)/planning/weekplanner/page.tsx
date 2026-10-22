@@ -64,13 +64,13 @@ function getWeekNumber(date: Date): number {
 
 // Project colors for visual distinction
 const PROJECT_COLORS = [
-  "bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/50 dark:text-blue-200 dark:border-blue-700",
-  "bg-green-100 text-green-800 border-green-300 dark:bg-green-900/50 dark:text-green-200 dark:border-green-700",
-  "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-900/50 dark:text-amber-200 dark:border-amber-700",
-  "bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-900/50 dark:text-purple-200 dark:border-purple-700",
-  "bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-900/50 dark:text-rose-200 dark:border-rose-700",
-  "bg-cyan-100 text-cyan-800 border-cyan-300 dark:bg-cyan-900/50 dark:text-cyan-200 dark:border-cyan-700",
-  "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-900/50 dark:text-orange-200 dark:border-orange-700",
+  "bg-status-gepland text-status-gepland-text border-status-gepland-border",
+  "bg-status-geaccepteerd text-status-geaccepteerd-text border-status-geaccepteerd-border",
+  "bg-status-herinnering text-status-herinnering-text border-status-herinnering-border",
+  "bg-status-nacalculatie text-status-nacalculatie-text border-status-nacalculatie-border",
+  "bg-status-afgewezen text-status-afgewezen-text border-status-afgewezen-border",
+  "bg-status-concept text-status-concept-text border-status-concept-border",
+  "bg-status-in-uitvoering text-status-in-uitvoering-text border-status-in-uitvoering-border",
 ];
 
 // ============================================

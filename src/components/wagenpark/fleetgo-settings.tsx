@@ -150,14 +150,14 @@ export function FleetGoSettings({
       <CardHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
-              <Truck className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+              <Truck className="h-5 w-5 text-primary" />
             </div>
             <div>
               <CardTitle className="flex items-center gap-2">
                 FleetGo Integratie
                 {isConfigured ? (
-                  <Badge variant="default" className="bg-green-600">
+                  <Badge variant="outline" className="bg-status-geaccepteerd text-status-geaccepteerd-text border-status-geaccepteerd-border">
                     Geconfigureerd
                   </Badge>
                 ) : (
@@ -224,7 +224,7 @@ export function FleetGoSettings({
               {testStatus === "testing" ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : testStatus === "success" ? (
-                <CheckCircle2 className="mr-2 h-4 w-4 text-green-600" />
+                <CheckCircle2 className="mr-2 h-4 w-4 text-status-geaccepteerd-text" />
               ) : testStatus === "error" ? (
                 <XCircle className="mr-2 h-4 w-4 text-destructive" />
               ) : (
@@ -240,12 +240,12 @@ export function FleetGoSettings({
 
         {/* Connection Test Result */}
         {testStatus === "success" && (
-          <Alert className="border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-900/20">
-            <CheckCircle2 className="h-4 w-4 text-green-600" />
-            <AlertTitle className="text-green-800 dark:text-green-200">
+          <Alert className="border-status-geaccepteerd-border bg-status-geaccepteerd">
+            <CheckCircle2 className="h-4 w-4 text-status-geaccepteerd-text" />
+            <AlertTitle className="text-status-geaccepteerd-text">
               Verbinding gelukt
             </AlertTitle>
-            <AlertDescription className="text-green-700 dark:text-green-300">
+            <AlertDescription className="text-status-geaccepteerd-text">
               De API key is geldig en de verbinding met FleetGo is actief.
             </AlertDescription>
           </Alert>
@@ -297,14 +297,14 @@ export function FleetGoSettings({
         </Alert>
 
         {/* Security Note */}
-        <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900 rounded-lg">
+        <div className="p-3 bg-surface-aandacht border border-status-herinnering-border rounded-lg">
           <div className="flex items-start gap-2">
-            <Info className="h-4 w-4 text-amber-600 mt-0.5" />
+            <Info className="h-4 w-4 text-status-herinnering-text mt-0.5" />
             <div className="text-sm">
-              <p className="font-medium text-amber-800 dark:text-amber-200">
+              <p className="font-medium text-status-herinnering-text">
                 Beveiligingsopmerking
               </p>
-              <p className="text-amber-700 dark:text-amber-300 mt-1">
+              <p className="text-status-herinnering-text mt-1">
                 De API key wordt veilig opgeslagen en is alleen zichtbaar voor beheerders.
                 Voor productiegebruik wordt aanbevolen om de key in omgevingsvariabelen
                 op de server op te slaan.

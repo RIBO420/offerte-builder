@@ -201,7 +201,7 @@ function TijdCel({
       onClick={onKlik}
       className={`relative border-l border-t ${grijs ? "bg-muted/50" : "bg-card"} ${
         isOver ? "bg-accent/60" : ""
-      } ${onbemand ? "outline outline-1 -outline-offset-1 outline-amber-400/70" : ""}`}
+      } ${onbemand ? "outline outline-1 -outline-offset-1 outline-status-herinnering-dot/70" : ""}`}
     >
       {children}
     </div>
@@ -317,7 +317,7 @@ const Segment = memo(function Segment({
       <p className="flex gap-1.5 truncate tabular-nums text-muted-foreground">
         <span>{sleepLabel ?? (isEerste ? dagLabel(plan) : korteTijdLabel(plan))}</span>
         {isEerste && urenLabel && (
-          <span className={urenLabel.tekort ? "font-medium text-amber-700 dark:text-amber-300" : ""}>
+          <span className={urenLabel.tekort ? "font-medium text-status-herinnering-text" : ""}>
             {urenLabel.tekst}
           </span>
         )}
@@ -1098,7 +1098,7 @@ export function Tijdbord() {
                                 {mensen} man · {capaciteitLabel(teamId, datum, lijst, mensen)}
                               </span>
                               {lijst.length > 0 && mensen === 0 && (
-                                <span className="font-medium text-amber-700 dark:text-amber-300">onbemand</span>
+                                <span className="font-medium text-status-herinnering-text">onbemand</span>
                               )}
                               {bem?.aangevraagd.map((a) => (
                                 <button

@@ -140,8 +140,8 @@ const ActiviteitRow = memo(function ActiviteitRow({
           variant="outline"
           className={
             isPositive
-              ? "text-red-600 bg-red-100 dark:bg-red-900/30 border-0"
-              : "text-blue-600 bg-blue-100 dark:bg-blue-900/30 border-0"
+              ? "bg-status-vervallen text-status-vervallen-text border-0"
+              : "bg-status-gepland text-status-gepland-text border-0"
           }
         >
           {isPositive ? "+" : ""}
@@ -183,7 +183,7 @@ const ActiviteitRow = memo(function ActiviteitRow({
                   <div className="flex justify-between items-center mt-1">
                     <span className="text-sm">Wijziging:</span>
                     <span
-                      className={`font-medium ${isPositive ? "text-red-600" : "text-blue-600"}`}
+                      className={`font-medium ${isPositive ? "text-status-vervallen-text" : "text-status-gepland-text"}`}
                     >
                       {isPositive ? "+" : ""}
                       {activiteit.wijzigingPercentage}%
@@ -225,8 +225,8 @@ export const NormuurSuggestieCard = memo(function NormuurSuggestieCard({
         <div
           className={`absolute top-0 left-0 w-1 h-full ${
             suggestie.type === "onderschatting"
-              ? "bg-red-500"
-              : "bg-blue-500"
+              ? "bg-status-vervallen-dot"
+              : "bg-status-gepland-dot"
           }`}
         />
         <CardHeader>
@@ -279,14 +279,14 @@ export const NormuurSuggestieCard = memo(function NormuurSuggestieCard({
 
           {/* Warnings */}
           {!validation.valid && (
-            <div className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+            <div className="mb-4 p-3 bg-surface-aandacht rounded-lg border border-status-herinnering-border">
               <div className="flex items-start gap-2">
-                <AlertTriangle className="h-4 w-4 text-yellow-600 mt-0.5" />
+                <AlertTriangle className="h-4 w-4 text-status-herinnering-text mt-0.5" />
                 <div className="text-sm">
-                  <p className="font-medium text-yellow-800 dark:text-yellow-200">
+                  <p className="font-medium text-status-herinnering-text">
                     Let op
                   </p>
-                  <ul className="text-yellow-700 dark:text-yellow-300 list-disc list-inside">
+                  <ul className="text-status-herinnering-text list-disc list-inside">
                     {validation.warnings.map((warning, i) => (
                       <li key={i}>{warning}</li>
                     ))}

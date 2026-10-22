@@ -602,7 +602,7 @@ export function Weekbord() {
           {(context?.materieelWaarschuwingen?.length ?? 0) > 0 && (
             <div
               role="status"
-              className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200"
+              className="rounded-md border border-status-herinnering-border bg-surface-aandacht p-3 text-xs text-status-herinnering-text"
             >
               <p className="mb-1 flex items-center gap-1 font-semibold">
                 <AlertTriangle className="h-3.5 w-3.5" aria-hidden />

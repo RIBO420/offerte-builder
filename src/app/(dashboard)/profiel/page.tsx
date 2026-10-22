@@ -224,7 +224,7 @@ export default function ProfielPage() {
             <div className="relative">
               {/* Pulsing glow effect */}
               <m.div
-                className="absolute inset-0 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 blur-xl"
+                className="absolute inset-0 rounded-2xl bg-primary blur-xl"
                 animate={{
                   opacity: [0.4, 0.7, 0.4],
                   scale: [1, 1.1, 1],
@@ -238,7 +238,7 @@ export default function ProfielPage() {
 
               {/* Icon container */}
               <m.div
-                className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 shadow-lg shadow-emerald-500/30"
+                className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-primary shadow-lg shadow-primary/30"
                 animate={{
                   y: [0, -4, 0],
                 }}
@@ -248,7 +248,7 @@ export default function ProfielPage() {
                   ease: "easeInOut",
                 }}
               >
-                <User className="h-8 w-8 text-white" />
+                <User className="h-8 w-8 text-primary-foreground" />
               </m.div>
             </div>
         </div>
@@ -341,10 +341,10 @@ export default function ProfielPage() {
             </Card>
 
             {/* 2FA Security Card */}
-            <Card className="border-emerald-200 dark:border-emerald-800">
+            <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Shield className="h-5 w-5 text-emerald-600" />
+                  <Shield className="h-5 w-5 text-primary" />
                   Twee-factor authenticatie (2FA)
                 </CardTitle>
                 <CardDescription>
@@ -352,12 +352,12 @@ export default function ProfielPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 p-4">
-                  <p className="text-sm text-emerald-800 dark:text-emerald-200">
+                <div className="rounded-lg bg-surface-primair p-4">
+                  <p className="text-sm text-foreground">
                     Twee-factor authenticatie voegt een extra beveiligingslaag toe aan je account.
                     Naast je wachtwoord heb je dan ook een code van je telefoon nodig om in te loggen.
                   </p>
-                  <p className="text-sm text-emerald-700 dark:text-emerald-300 mt-2">
+                  <p className="text-sm text-muted-foreground mt-2">
                     Je kunt 2FA inschakelen via je accountinstellingen bij Clerk. Klik op je profielfoto
                     rechtsonder en kies &quot;Mijn Profiel&quot; om je beveiligingsinstellingen te beheren.
                   </p>

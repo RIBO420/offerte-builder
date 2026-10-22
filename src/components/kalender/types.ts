@@ -77,27 +77,27 @@ export const CAPACITEIT_CONFIG: Record<
 > = {
   beschikbaar: {
     dagKlasse:
-      "bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900/40 dark:text-green-300 dark:hover:bg-green-900/60",
-    stip: "bg-green-500",
+      "bg-status-geaccepteerd text-status-geaccepteerd-text hover:bg-status-geaccepteerd-border/40",
+    stip: "bg-status-geaccepteerd-dot",
     label: "Beschikbaar",
     icon: CheckCircle2,
-    ringKlasse: "ring-2 ring-green-500 ring-offset-1",
+    ringKlasse: "ring-2 ring-status-geaccepteerd-dot ring-offset-1",
   },
   beperkt: {
     dagKlasse:
-      "bg-amber-100 text-amber-800 hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:hover:bg-amber-900/60",
-    stip: "bg-amber-500",
+      "bg-status-herinnering text-status-herinnering-text hover:bg-status-herinnering-border/40",
+    stip: "bg-status-herinnering-dot",
     label: "Beperkt beschikbaar",
     icon: AlertCircle,
-    ringKlasse: "ring-2 ring-amber-500 ring-offset-1",
+    ringKlasse: "ring-2 ring-status-herinnering-dot ring-offset-1",
   },
   vol: {
     dagKlasse:
-      "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300 cursor-not-allowed opacity-70",
-    stip: "bg-red-500",
+      "bg-status-vervallen text-status-vervallen-text cursor-not-allowed opacity-70",
+    stip: "bg-status-vervallen-dot",
     label: "Volledig bezet",
     icon: XCircle,
-    ringKlasse: "ring-2 ring-red-500 ring-offset-1",
+    ringKlasse: "ring-2 ring-status-vervallen-dot ring-offset-1",
   },
 }
 

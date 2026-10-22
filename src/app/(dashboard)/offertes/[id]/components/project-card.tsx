@@ -35,9 +35,9 @@ export function ProjectCard({ id, offerteStatus, existingProject }: ProjectCardP
       className={cn(
         "transition-[border-color,background-color,box-shadow]",
         existingProject
-          ? "border-green-300 dark:border-green-700 bg-green-50/50 dark:bg-green-950/20 hover:border-green-400 dark:hover:border-green-600 hover:shadow-md"
+          ? "border-status-geaccepteerd-border bg-status-geaccepteerd/50 hover:border-status-geaccepteerd-dot hover:shadow-md"
           : offerteStatus === "geaccepteerd"
-            ? "border-amber-200 dark:border-amber-800 bg-amber-50/30 dark:bg-amber-950/10"
+            ? "border-status-herinnering-border bg-surface-aandacht/40"
             : "border-muted"
       )}
     >
@@ -46,9 +46,9 @@ export function ProjectCard({ id, offerteStatus, existingProject }: ProjectCardP
           <FolderKanban className={cn(
             "h-4 w-4",
             existingProject
-              ? "text-green-600"
+              ? "text-status-geaccepteerd-text"
               : offerteStatus === "geaccepteerd"
-                ? "text-amber-600"
+                ? "text-status-herinnering-text"
                 : "text-muted-foreground"
           )} />
           Project
@@ -75,15 +75,15 @@ export function ProjectCard({ id, offerteStatus, existingProject }: ProjectCardP
             <div className="space-y-2">
               <p className="font-medium text-sm">{existingProject.naam}</p>
               <div className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-green-500" />
-                <span className="text-sm text-green-600 dark:text-green-400">
+                <CheckCircle className="h-4 w-4 text-status-geaccepteerd-text" />
+                <span className="text-sm text-status-geaccepteerd-text">
                   Project actief
                 </span>
               </div>
             </div>
             <Button
               asChild
-              className="w-full bg-green-600 hover:bg-green-700 text-white group"
+              className="w-full group"
             >
               <Link href={`/projecten/${existingProject._id}`}>
                 <FolderKanban className="mr-2 h-4 w-4" />
@@ -100,7 +100,7 @@ export function ProjectCard({ id, offerteStatus, existingProject }: ProjectCardP
             </p>
             <Button
               asChild
-              className="w-full bg-amber-600 hover:bg-amber-700 text-white"
+              className="w-full"
             >
               <Link href={`/projecten/nieuw?offerte=${id}`}>
                 <FolderKanban className="mr-2 h-4 w-4" />
