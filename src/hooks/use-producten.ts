@@ -27,6 +27,7 @@ export function useProducten() {
     eenheid: string;
     leverancier?: string;
     verliespercentage: number;
+    omschrijving?: string;
   }) => {
     if (!user?._id) throw new Error("User not found");
     return createProduct(productData);

@@ -16,6 +16,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -77,6 +78,7 @@ import {
 import { useProducten, useUitgeschakeldeProducten } from "@/hooks/use-producten";
 import { HERO_CATEGORIEEN } from "../../../../convex/lib/heroCategorie";
 import { cn } from "@/lib/utils";
+import { ArtikelBeschrijvingTip } from "./artikel-beschrijving-tip";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { Id } from "../../../../convex/_generated/dataModel";
 import { toast } from "sonner";
@@ -173,6 +175,7 @@ interface Product {
   leverancier?: string;
   verliespercentage: number;
   isActief: boolean;
+  omschrijving?: string;
 }
 
 interface NewProduct {
@@ -183,6 +186,8 @@ interface NewProduct {
   eenheid: string;
   leverancier: string;
   verliespercentage: number;
+  /** Beschrijving die op offerte en factuur onder de regel komt */
+  omschrijving?: string;
 }
 
 // Category icons mapping
@@ -309,14 +314,17 @@ function PrijsboekPageContent() {
 
     setIsSaving(true);
     try {
+      const omschrijving = newProduct.omschrijving?.trim() ?? "";
       if (selectedProduct) {
         await update({
           id: selectedProduct._id,
           ...newProduct,
+          // Leeg maakt de beschrijving leeg (undefined zou hem laten staan)
+          omschrijving,
         });
         toast.success("Product bijgewerkt");
       } else {
-        await create(newProduct);
+        await create({ ...newProduct, omschrijving: omschrijving || undefined });
         toast.success("Product toegevoegd");
       }
       setShowAddDialog(false);
@@ -339,6 +347,7 @@ function PrijsboekPageContent() {
       eenheid: product.eenheid,
       leverancier: product.leverancier || "",
       verliespercentage: product.verliespercentage,
+      omschrijving: product.omschrijving ?? "",
     });
     setShowAddDialog(true);
   };
@@ -369,6 +378,7 @@ function PrijsboekPageContent() {
       eenheid: "stuk",
       leverancier: "",
       verliespercentage: 5,
+      omschrijving: "",
     });
   };
 
@@ -681,6 +691,20 @@ function PrijsboekPageContent() {
                       />
                     </div>
                   </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="product-omschrijving">
+                      Beschrijving (komt op offerte en factuur)
+                    </Label>
+                    <Textarea
+                      id="product-omschrijving"
+                      value={newProduct.omschrijving ?? ""}
+                      onChange={(e) =>
+                        setNewProduct({ ...newProduct, omschrijving: e.target.value })
+                      }
+                      placeholder="Optioneel. Regels die met “- ” beginnen worden een opsomming."
+                      className="max-h-48 min-h-20 text-sm leading-relaxed"
+                    />
+                  </div>
                 </div>
                 <DialogFooter>
                   <Button
@@ -848,7 +872,13 @@ function PrijsboekPageContent() {
                       >
                         <TableCell className="whitespace-normal">
                           <div className="min-w-0">
-                            <p className="font-medium text-pretty">{product.productnaam}</p>
+                            <p className="font-medium text-pretty">
+                              {product.productnaam}
+                              <ArtikelBeschrijvingTip
+                                naam={product.productnaam}
+                                tekst={product.omschrijving}
+                              />
+                            </p>
                             <p className="text-sm text-muted-foreground">
                               per {product.eenheid}
                             </p>
