@@ -42,7 +42,11 @@ export function ArtikelBeschrijvingTip({
         className="max-h-[min(24rem,60vh)] max-w-[min(26rem,calc(100vw-2rem))] space-y-1.5 overflow-y-auto overflow-x-hidden px-3.5 py-2.5 text-left text-xs leading-relaxed font-normal break-words text-pretty"
       >
         {blokken.map((blok, i) =>
-          blok.soort === "alinea" ? (
+          blok.soort === "kop" ? (
+            <p key={i} className="pt-1 font-semibold">
+              {blok.tekst}
+            </p>
+          ) : blok.soort === "alinea" ? (
             <p key={i} className="whitespace-pre-line">
               {blok.regels.join("\n")}
             </p>

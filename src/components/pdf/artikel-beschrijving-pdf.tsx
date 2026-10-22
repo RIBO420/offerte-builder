@@ -6,47 +6,54 @@ import { beschrijvingNaarBlokken } from "./beschrijving-blokken";
 /**
  * Artikelbeschrijving onder een regel, gedeeld door offerte- en factuur-PDF.
  *
- * Bewust een trede rustiger dan de regelnaam: een halve punt kleiner dan de
- * tabelcel, warme grijs uit de huisstijl (6,6:1 op wit), ruime regelafstand.
- * Alinea's houden hun regeleinden; opsommingen krijgen een bolletje met
- * hangende inspringing (goud is geen tekstkleur op licht, dus ook grijs).
- * Geen `wrap={false}`: een lange tekst breekt gewoon over de pagina heen.
+ * Een eigen, rustig blok onder de regelnaam: een dunne gouden lijn links
+ * (goud mag als lijn, niet als tekst) houdt het bij zijn regel. Tekst een
+ * trede kleiner dan de tabelcel in warme grijs, ruime regelafstand en lucht
+ * tussen alinea's. Een kopje ("De prijs is inclusief:") staat in warm zwart,
+ * halfvet; opsommingen krijgen een mosgroen bolletje met hangende
+ * inspringing. Geen `wrap={false}`: lange tekst breekt over de pagina heen.
  */
 function maakStijlen(t: PdfTheme) {
   const grootte = t.typography.smallSize - 0.5;
+  const tekst = {
+    fontFamily: PDF_FONT,
+    fontWeight: 400 as const,
+    fontSize: grootte,
+    lineHeight: 1.5,
+    color: t.colors.muted,
+  };
   return StyleSheet.create({
     wikkel: {
-      marginTop: 3,
+      marginTop: 5,
+      marginBottom: 2,
+      paddingLeft: 8,
+      borderLeftWidth: 1.25,
+      borderLeftColor: t.colors.secondary,
     },
-    alinea: {
-      fontFamily: PDF_FONT,
-      fontWeight: 400,
-      fontSize: grootte,
-      lineHeight: 1.45,
-      color: t.colors.muted,
+    alinea: tekst,
+    kop: {
+      ...tekst,
+      fontWeight: 600,
+      color: t.colors.text,
     },
-    blokTussenruimte: {
-      marginTop: 4,
+    ruimte: {
+      marginTop: 5,
+    },
+    ruimteKlein: {
+      marginTop: 2,
     },
     punt: {
       flexDirection: "row",
       marginTop: 1.5,
-      paddingLeft: 2,
     },
     bolletje: {
+      ...tekst,
       width: 9,
-      fontFamily: PDF_FONT,
-      fontSize: grootte,
-      lineHeight: 1.45,
-      color: t.colors.muted,
+      color: t.colors.primary,
     },
     puntTekst: {
+      ...tekst,
       flex: 1,
-      fontFamily: PDF_FONT,
-      fontWeight: 400,
-      fontSize: grootte,
-      lineHeight: 1.45,
-      color: t.colors.muted,
     },
   });
 }
@@ -70,17 +77,36 @@ export function ArtikelBeschrijvingPdf({
 
   return (
     <View style={s.wikkel}>
-      {blokken.map((blok, i) =>
-        blok.soort === "alinea" ? (
-          <Text
-            key={i}
-            style={i > 0 ? [s.alinea, s.blokTussenruimte] : s.alinea}
-            hyphenationCallback={geenAfbreking}
-          >
-            {blok.regels.join("\n")}
-          </Text>
-        ) : (
-          <View key={i} style={i > 0 ? s.blokTussenruimte : undefined}>
+      {blokken.map((blok, i) => {
+        // Een lijst direct onder zijn kopje: weinig ruimte; verder ruim
+        const vorige = blokken[i - 1];
+        const ruimte =
+          i === 0 ? undefined : vorige?.soort === "kop" ? s.ruimteKlein : s.ruimte;
+        if (blok.soort === "kop") {
+          return (
+            <Text
+              key={i}
+              style={ruimte ? [s.kop, ruimte] : s.kop}
+              hyphenationCallback={geenAfbreking}
+              minPresenceAhead={20}
+            >
+              {blok.tekst}
+            </Text>
+          );
+        }
+        if (blok.soort === "alinea") {
+          return (
+            <Text
+              key={i}
+              style={ruimte ? [s.alinea, ruimte] : s.alinea}
+              hyphenationCallback={geenAfbreking}
+            >
+              {blok.regels.join("\n")}
+            </Text>
+          );
+        }
+        return (
+          <View key={i} style={ruimte}>
             {blok.punten.map((punt, j) => (
               <View key={j} style={s.punt}>
                 <Text style={s.bolletje}>•</Text>
@@ -90,8 +116,8 @@ export function ArtikelBeschrijvingPdf({
               </View>
             ))}
           </View>
-        )
-      )}
+        );
+      })}
     </View>
   );
 }
