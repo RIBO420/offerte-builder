@@ -89,6 +89,21 @@ export const list = query({
   },
 });
 
+// Uitgeschakelde artikelen (verwijderd, of uit de HERO-import met weinig
+// gebruik), zodat kantoor ze in het prijsboek weer kan aanzetten
+export const listUitgeschakeld = query({
+  args: {},
+  handler: async (ctx) => {
+    const orgId = await requireOrgId(ctx);
+    return await ctx.db
+      .query("producten")
+      .withIndex("by_org_actief", (q) =>
+        q.eq("orgId", orgId).eq("isActief", false)
+      )
+      .collect();
+  },
+});
+
 // List products by category for authenticated user
 export const listByCategorie = query({
   args: {

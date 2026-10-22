@@ -68,13 +68,13 @@ import {
   Layers,
   MoreHorizontal,
   Edit,
-  Trash2,
   Loader2,
   FileSpreadsheet,
   AlertCircle,
   CheckCircle,
+  Power,
 } from "lucide-react";
-import { useProducten } from "@/hooks/use-producten";
+import { useProducten, useUitgeschakeldeProducten } from "@/hooks/use-producten";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { Id } from "../../../../convex/_generated/dataModel";
 import { toast } from "sonner";
@@ -208,6 +208,13 @@ function PrijsboekPageContent() {
     delete: deleteProduct,
     importProducts,
   } = useProducten();
+  const uitgeschakeld = useUitgeschakeldeProducten();
+
+  // Actief = wat in de artikelkiezer staat; uitgeschakeld = verwijderd of
+  // weinig gebruikt in HERO, en hier weer aan te zetten
+  const [weergave, setWeergave] = useState<"actief" | "uit">("actief");
+  const zichtbareProducten =
+    weergave === "actief" ? producten : uitgeschakeld.producten;
 
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearchQuery = useDebounce(searchQuery, 300);
@@ -232,10 +239,12 @@ function PrijsboekPageContent() {
     verliespercentage: 5,
   });
 
-  const isLoading = isUserLoading || isProductenLoading;
+  const isLoading =
+    isUserLoading ||
+    (weergave === "actief" ? isProductenLoading : uitgeschakeld.isLoading);
 
   // Filter products (use debounced search value)
-  const filteredProducts = producten.filter((product) => {
+  const filteredProducts = zichtbareProducten.filter((product) => {
     const matchesSearch =
       debouncedSearchQuery === "" ||
       product.productnaam.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
@@ -249,16 +258,30 @@ function PrijsboekPageContent() {
   });
 
   // Get unique categories from actual products
-  const uniqueCategories = [...new Set(producten.map(p => p.categorie))].sort();
+  const uniqueCategories = [
+    ...new Set(zichtbareProducten.map((p) => p.categorie)),
+  ].sort();
 
   const categoryCounts = uniqueCategories.map((cat) => ({
     id: cat,
     naam: cat,
     icon: categoryIcons[cat] || categoryIcons["default"],
-    count: countByCategorie[cat] || 0,
+    count:
+      weergave === "actief"
+        ? countByCategorie[cat] || 0
+        : zichtbareProducten.filter((p) => p.categorie === cat).length,
   }));
 
-  const totalCount = producten.length;
+  const totalCount = zichtbareProducten.length;
+
+  const handleZetAan = async (product: Product) => {
+    try {
+      await update({ id: product._id, isActief: true });
+      toast.success(`${product.productnaam} staat weer in de artikelkiezer`);
+    } catch {
+      toast.error("Aanzetten lukte niet. Probeer het opnieuw.");
+    }
+  };
 
   const handleAddProduct = async () => {
     if (!newProduct.productnaam) {
@@ -307,11 +330,11 @@ function PrijsboekPageContent() {
 
     try {
       await deleteProduct({ id: selectedProduct._id });
-      toast.success("Product verwijderd");
+      toast.success("Artikel uitgezet");
       setShowDeleteDialog(false);
       setSelectedProduct(null);
     } catch (error) {
-      toast.error("Fout bij verwijderen product");
+      toast.error("Uitzetten lukte niet. Probeer het opnieuw.");
       logger.error("Verwijderen product mislukt", error, {
         module: "prijsboek",
       });
@@ -692,9 +715,9 @@ function PrijsboekPageContent() {
           })}
         </div>
 
-        {/* Search */}
-        <div className="flex items-center gap-4">
-          <div className="relative flex-1 max-w-sm">
+        {/* Search + actief/uitgeschakeld */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative min-w-0 flex-1 max-w-sm">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Zoek op productnaam of leverancier..."
@@ -703,7 +726,32 @@ function PrijsboekPageContent() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
+          <Tabs
+            value={weergave}
+            onValueChange={(waarde) => {
+              setWeergave(waarde as "actief" | "uit");
+              setActiveTab("alle");
+            }}
+          >
+            <TabsList>
+              <TabsTrigger value="actief">Actief</TabsTrigger>
+              <TabsTrigger value="uit">
+                Uitgeschakeld
+                {uitgeschakeld.producten.length > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {uitgeschakeld.producten.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
+        {weergave === "uit" && (
+          <p className="text-sm text-muted-foreground">
+            Deze artikelen staan niet in de artikelkiezer van de offerte. Zet een
+            artikel aan om het weer te gebruiken.
+          </p>
+        )}
 
         {/* Tabs & Table */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
@@ -786,23 +834,34 @@ function PrijsboekPageContent() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
+                              {weergave === "uit" && (
+                                <DropdownMenuItem
+                                  onClick={() => handleZetAan(product as Product)}
+                                >
+                                  <Power className="mr-2 h-4 w-4" />
+                                  Aanzetten
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem
                                 onClick={() => handleEditProduct(product as Product)}
                               >
                                 <Edit className="mr-2 h-4 w-4" />
                                 Bewerken
                               </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setSelectedProduct(product as Product);
-                                  setShowDeleteDialog(true);
-                                }}
-                                className="text-destructive"
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Verwijderen
-                              </DropdownMenuItem>
+                              {weergave === "actief" && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      setSelectedProduct(product as Product);
+                                      setShowDeleteDialog(true);
+                                    }}
+                                  >
+                                    <Power className="mr-2 h-4 w-4" />
+                                    Uitzetten
+                                  </DropdownMenuItem>
+                                </>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
@@ -816,14 +875,20 @@ function PrijsboekPageContent() {
                 <CardContent className="flex flex-col items-center justify-center py-12">
                   <BookOpen className="h-12 w-12 text-muted-foreground/50" />
                   <h3 className="mt-4 text-lg font-semibold">
-                    {searchQuery ? "Geen resultaten" : "Geen producten"}
+                    {searchQuery
+                      ? "Geen resultaten"
+                      : weergave === "uit"
+                        ? "Geen uitgeschakelde artikelen"
+                        : "Geen producten"}
                   </h3>
                   <p className="mt-2 text-sm text-muted-foreground text-center max-w-md">
                     {searchQuery
                       ? `Geen producten gevonden voor "${searchQuery}"`
-                      : "Importeer een prijslijst of voeg handmatig producten toe."}
+                      : weergave === "uit"
+                        ? "Alle artikelen staan in de artikelkiezer."
+                        : "Importeer een prijslijst of voeg handmatig producten toe."}
                   </p>
-                  {!searchQuery && (
+                  {!searchQuery && weergave === "actief" && (
                     <div className="mt-6 flex gap-2">
                       <Button
                         variant="outline"
@@ -944,21 +1009,19 @@ function PrijsboekPageContent() {
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Product verwijderen?</AlertDialogTitle>
+            <AlertDialogTitle>Artikel uitzetten?</AlertDialogTitle>
             <AlertDialogDescription>
-              Weet je zeker dat je &quot;{selectedProduct?.productnaam}&quot; wilt
-              verwijderen?
+              &quot;{selectedProduct?.productnaam}&quot; verdwijnt uit de
+              artikelkiezer. Je vindt het terug onder Uitgeschakeld en kunt het
+              daar weer aanzetten.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setSelectedProduct(null)}>
               Annuleren
             </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteProduct}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Verwijderen
+            <AlertDialogAction onClick={handleDeleteProduct}>
+              Uitzetten
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

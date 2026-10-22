@@ -60,6 +60,19 @@ export function useProducten() {
   };
 }
 
+/** Uitgeschakelde artikelen, voor de weergave "Uitgeschakeld" in het prijsboek. */
+export function useUitgeschakeldeProducten() {
+  const { user } = useCurrentUser();
+  const producten = useQuery(
+    api.producten.listUitgeschakeld,
+    user?._id ? {} : "skip"
+  );
+  return {
+    producten: producten ?? [],
+    isLoading: user && producten === undefined,
+  };
+}
+
 // Legacy hook for backward compatibility - uses separate queries
 // Consider migrating to useProducten which uses combined query
 export function useProductenLegacy() {
