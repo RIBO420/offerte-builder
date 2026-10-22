@@ -90,6 +90,8 @@ export const updateVrijeRegels = mutation({
     // Server-side herberekening: regeltotalen én totalen
     const regels = args.regels.map((regel) => ({
       ...regel,
+      // Alleen witruimte = geen beschrijving (de editor bewaart ruwe tekst)
+      artikelBeschrijving: regel.artikelBeschrijving?.trim() || undefined,
       totaal: berekenRegelTotaal(
         regel.hoeveelheid,
         regel.prijsPerEenheid,

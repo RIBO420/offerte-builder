@@ -21,6 +21,7 @@ import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ArtikelPicker } from "./artikel-picker";
 import { MargefactorInfo } from "./margefactor-info";
+import { RegelBeschrijving } from "./regel-beschrijving";
 import {
   berekenHoofdstukSubtotalen,
   berekenRegelTotaal,
@@ -513,6 +514,14 @@ export function VrijeRegelEditor({
                           </span>
                         </div>
                       </div>
+
+                      {/* 3 — wat de klant onder de regel leest (PDF) */}
+                      <RegelBeschrijving
+                        tekst={regel.artikelBeschrijving}
+                        onChange={(artikelBeschrijving) =>
+                          updateRegel(regel.id, { artikelBeschrijving })
+                        }
+                      />
                     </div>
                   );
                 })}

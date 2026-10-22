@@ -92,6 +92,7 @@ function NieuweFactuurContent() {
           btwCode: regel.btwCode,
           scope: regel.scope,
           kortingPercentage: regel.kortingPercentage,
+          artikelBeschrijving: regel.artikelBeschrijving?.trim() || undefined,
         })),
         datumVanDienst: datumVanDienst || undefined,
         notities: notities.trim() || undefined,
