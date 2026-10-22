@@ -51,12 +51,12 @@ export function StatusChangeDialog({
                 ?
               </p>
               {targetStatus === "verzonden" && (
-                <p className="text-amber-600 dark:text-amber-400 font-medium">
+                <p className="text-status-in-uitvoering-text font-medium">
                   Let op: na verzending ontvangt de klant een notificatie. Dit kan niet ongedaan worden gemaakt.
                 </p>
               )}
               {targetStatus === "afgewezen" && (
-                <p className="text-red-600 dark:text-red-400 font-medium">
+                <p className="text-destructive font-medium">
                   Weet u zeker dat u deze offerte als geweigerd wilt markeren?
                 </p>
               )}

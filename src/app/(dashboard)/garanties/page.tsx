@@ -64,7 +64,7 @@ function daysUntil(dateStr: string): number {
 function GarantieStatusBadge({ status, eindDatum }: { status: string; eindDatum: string }) {
   if (status === "verlopen") {
     return (
-      <Badge variant="outline" className="bg-red-200 text-red-800 dark:bg-red-900 dark:text-red-200">
+      <Badge variant="outline" className="bg-status-vervallen text-status-vervallen-text">
         Verlopen
       </Badge>
     );
@@ -72,20 +72,20 @@ function GarantieStatusBadge({ status, eindDatum }: { status: string; eindDatum:
   const days = daysUntil(eindDatum);
   if (days <= 30) {
     return (
-      <Badge variant="outline" className="bg-red-200 text-red-800 dark:bg-red-900 dark:text-red-200">
+      <Badge variant="outline" className="bg-status-vervallen text-status-vervallen-text">
         Verloopt in {days}d
       </Badge>
     );
   }
   if (days <= 180) {
     return (
-      <Badge variant="outline" className="bg-yellow-200 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+      <Badge variant="outline" className="bg-status-in-uitvoering text-status-in-uitvoering-text">
         {Math.ceil(days / 30)} maanden resterend
       </Badge>
     );
   }
   return (
-    <Badge variant="outline" className="bg-green-200 text-green-800 dark:bg-green-900 dark:text-green-200">
+    <Badge variant="outline" className="bg-status-geaccepteerd text-status-geaccepteerd-text">
       Actief
     </Badge>
   );
@@ -349,7 +349,7 @@ export default function GarantiesPage() {
                 <CardTitle className="text-sm font-medium">
                   Actieve garanties
                 </CardTitle>
-                <ShieldCheck className="h-4 w-4 text-green-500" />
+                <ShieldCheck className="h-4 w-4 text-status-geaccepteerd-dot" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stats.actief}</div>
@@ -360,10 +360,10 @@ export default function GarantiesPage() {
                 <CardTitle className="text-sm font-medium">
                   Verloopt binnen 30d
                 </CardTitle>
-                <ShieldAlert className="h-4 w-4 text-yellow-500" />
+                <ShieldAlert className="h-4 w-4 text-status-in-uitvoering-dot" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-yellow-600">
+                <div className="text-2xl font-bold text-status-in-uitvoering-text">
                   {stats.verlopendBinnen30d}
                 </div>
               </CardContent>
@@ -373,10 +373,10 @@ export default function GarantiesPage() {
                 <CardTitle className="text-sm font-medium">
                   Verlopen
                 </CardTitle>
-                <Shield className="h-4 w-4 text-red-500" />
+                <Shield className="h-4 w-4 text-status-vervallen-dot" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-red-600">
+                <div className="text-2xl font-bold text-destructive">
                   {stats.verlopen}
                 </div>
               </CardContent>
@@ -386,7 +386,7 @@ export default function GarantiesPage() {
                 <CardTitle className="text-sm font-medium">
                   Open meldingen
                 </CardTitle>
-                <Wrench className="h-4 w-4 text-blue-500" />
+                <Wrench className="h-4 w-4 text-status-voorcalculatie-dot" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stats.openMeldingen}</div>
@@ -461,7 +461,7 @@ export default function GarantiesPage() {
                       <TableCell>{formatDate(g.eindDatum)}</TableCell>
                       <TableCell>
                         {g.status === "verlopen" ? (
-                          <span className="text-red-600">Verlopen</span>
+                          <span className="text-destructive">Verlopen</span>
                         ) : (
                           <span>
                             {daysUntil(g.eindDatum) > 0

@@ -246,7 +246,7 @@ export default function InkoopDetailPage({
                           isActive
                             ? "border-primary bg-primary text-primary-foreground"
                             : isPast
-                              ? "border-green-500 bg-green-50 text-green-600 dark:bg-green-950"
+                              ? "border-status-geaccepteerd-dot bg-status-geaccepteerd text-status-geaccepteerd-text"
                               : "border-muted bg-muted/50 text-muted-foreground"
                         }`}
                       >
@@ -263,7 +263,7 @@ export default function InkoopDetailPage({
                     {index < Object.keys(STATUS_CONFIG).length - 1 && (
                       <div
                         className={`w-16 h-0.5 mx-2 ${
-                          isPast ? "bg-green-500" : "bg-muted"
+                          isPast ? "bg-status-geaccepteerd-dot" : "bg-muted"
                         }`}
                       />
                     )}

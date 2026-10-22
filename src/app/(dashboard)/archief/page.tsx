@@ -108,7 +108,7 @@ function DeviationBadge({ percentage }: { percentage: number }) {
     );
   }
   return (
-    <Badge variant="outline" className="bg-gray-200 text-gray-800 dark:bg-gray-800 dark:text-gray-200">
+    <Badge variant="outline" className="bg-status-concept text-status-concept-text border-status-concept-border">
       <Minus className="h-3 w-3 mr-1" />
       {percentage.toFixed(1)}%
     </Badge>

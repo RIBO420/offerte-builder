@@ -39,14 +39,14 @@ export function VoorcalculatieCard({ id, offerteStatus, voorcalculatie }: Voorca
         "transition-[border-color,background-color,box-shadow]",
         voorcalculatie
           ? "border-primary/30 bg-primary/5"
-          : "border-amber-200 dark:border-amber-800 bg-amber-50/30 dark:bg-amber-950/10"
+          : "border-status-in-uitvoering-border bg-status-in-uitvoering/30"
       )}
     >
       <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center gap-2">
           <Calculator className={cn(
             "h-4 w-4",
-            voorcalculatie ? "text-primary" : "text-amber-600 dark:text-amber-400"
+            voorcalculatie ? "text-primary" : "text-status-in-uitvoering-dot"
           )} />
           Voorcalculatie
           {voorcalculatie && (
@@ -61,7 +61,7 @@ export function VoorcalculatieCard({ id, offerteStatus, voorcalculatie }: Voorca
           <div className="space-y-4">
             {/* Summary of voorcalculatie */}
             <div className="grid grid-cols-3 gap-4">
-              <div className="text-center p-3 rounded-lg bg-white/50 dark:bg-black/10">
+              <div className="text-center p-3 rounded-lg bg-card">
                 <div className="flex items-center justify-center gap-1 text-muted-foreground mb-1">
                   <Users className="h-3.5 w-3.5" />
                   <span className="text-xs">Team</span>
@@ -69,7 +69,7 @@ export function VoorcalculatieCard({ id, offerteStatus, voorcalculatie }: Voorca
                 <p className="text-2xl font-bold">{voorcalculatie.teamGrootte}</p>
                 <p className="text-xs text-muted-foreground">personen</p>
               </div>
-              <div className="text-center p-3 rounded-lg bg-white/50 dark:bg-black/10">
+              <div className="text-center p-3 rounded-lg bg-card">
                 <div className="flex items-center justify-center gap-1 text-muted-foreground mb-1">
                   <CalendarDays className="h-3.5 w-3.5" />
                   <span className="text-xs">Duur</span>
@@ -77,7 +77,7 @@ export function VoorcalculatieCard({ id, offerteStatus, voorcalculatie }: Voorca
                 <p className="text-2xl font-bold">{voorcalculatie.geschatteDagen}</p>
                 <p className="text-xs text-muted-foreground">dagen</p>
               </div>
-              <div className="text-center p-3 rounded-lg bg-white/50 dark:bg-black/10">
+              <div className="text-center p-3 rounded-lg bg-card">
                 <div className="flex items-center justify-center gap-1 text-muted-foreground mb-1">
                   <Clock className="h-3.5 w-3.5" />
                   <span className="text-xs">Uren</span>
@@ -99,9 +99,9 @@ export function VoorcalculatieCard({ id, offerteStatus, voorcalculatie }: Voorca
           </div>
         ) : (
           <div className="space-y-3">
-            <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-100/50 dark:bg-amber-950/20">
-              <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
-              <p className="text-sm text-amber-800 dark:text-amber-200">
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-status-in-uitvoering">
+              <AlertCircle className="h-4 w-4 text-status-in-uitvoering-dot mt-0.5 shrink-0" />
+              <p className="text-sm text-status-in-uitvoering-text">
                 Vul de voorcalculatie in om de offerte te kunnen verzenden naar de klant.
               </p>
             </div>

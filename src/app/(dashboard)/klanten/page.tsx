@@ -145,11 +145,11 @@ const KLANT_TYPE_LABELS: Record<KlantType, string> = {
 };
 
 const KLANT_TYPE_COLORS: Record<KlantType, string> = {
-  particulier: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  zakelijk: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
-  vve: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
-  gemeente: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
-  overig: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
+  particulier: "bg-chart-3/15 text-chart-3",
+  zakelijk: "bg-chart-1/15 text-chart-1",
+  vve: "bg-chart-5/15 text-chart-5",
+  gemeente: "bg-chart-4/15 text-chart-4",
+  overig: "bg-muted text-muted-foreground",
 };
 
 const ALL_KLANT_TYPES: KlantType[] = ["particulier", "zakelijk", "vve", "gemeente", "overig"];
@@ -775,8 +775,8 @@ function KlantenPageContent() {
                 {/* CRM-005: Opvolgherinnering indicator */}
                 {signaal === "herinnering" && (
                   <span title="Opvolging nodig" className="relative flex h-5 w-5 items-center justify-center">
-                    <Bell className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
-                    <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                    <Bell className="h-3.5 w-3.5 text-status-in-uitvoering-text" />
+                    <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-status-in-uitvoering-dot animate-pulse" />
                   </span>
                 )}
                 {signaal === "taken" && (
@@ -793,8 +793,8 @@ function KlantenPageContent() {
                   <Badge
                     className={`text-[10px] ${
                       klant.clerkUserId
-                        ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                        : "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200"
+                        ? "bg-status-geaccepteerd text-status-geaccepteerd-text"
+                        : "bg-status-verzonden text-status-verzonden-text"
                     }`}
                   >
                     <Globe className="h-3 w-3 mr-0.5" />
@@ -967,7 +967,7 @@ function KlantenPageContent() {
 
                 {klant.portalEnabled ? (
                   <DropdownMenuItem onClick={() => handleDeactivatePortal(klant)}>
-                    <GlobeLock className="mr-2 h-4 w-4 text-green-600" />
+                    <GlobeLock className="mr-2 h-4 w-4 text-status-geaccepteerd-dot" />
                     Portaal deactiveren
                   </DropdownMenuItem>
                 ) : (
@@ -1211,15 +1211,15 @@ function KlantenPageContent() {
 
       {/* CRM-007: Duplicate warning */}
       {duplicates && duplicates.length > 0 && (
-        <div className="rounded-md border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/50 p-3">
+        <div className="rounded-md border border-status-in-uitvoering-border bg-status-in-uitvoering p-3">
           <div className="flex items-start gap-2">
-            <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <AlertTriangle className="h-5 w-5 text-status-in-uitvoering-dot shrink-0 mt-0.5" />
             <div className="space-y-1">
-              <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+              <p className="text-sm font-medium text-status-in-uitvoering-text">
                 Mogelijke duplicaat gevonden
               </p>
               {duplicates.map((dup) => (
-                <div key={dup._id} className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-300">
+                <div key={dup._id} className="flex items-center gap-2 text-sm text-status-in-uitvoering-text">
                   <span>
                     <strong>{dup.naam}</strong>
                     {" — match op "}
@@ -1227,14 +1227,14 @@ function KlantenPageContent() {
                   </span>
                   <Link
                     href={`/klanten/${dup._id}`}
-                    className="text-xs underline hover:text-amber-900 dark:hover:text-amber-100"
+                    className="text-xs underline hover:text-foreground"
                     target="_blank"
                   >
                     Bekijk
                   </Link>
                 </div>
               ))}
-              <p className="text-xs text-amber-600 dark:text-amber-400">
+              <p className="text-xs text-status-in-uitvoering-text">
                 Je kunt alsnog doorgaan als dit geen duplicaat is.
               </p>
             </div>
@@ -1519,7 +1519,7 @@ function KlantenPageContent() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
-              <Globe className="h-5 w-5 text-green-600" />
+              <Globe className="h-5 w-5 text-primary" />
               Klantportaal activeren
             </AlertDialogTitle>
             <AlertDialogDescription asChild>
@@ -1547,7 +1547,7 @@ function KlantenPageContent() {
                   <li>de voortgang en foto&apos;s van zijn projecten</li>
                   <li>documenten en berichten</li>
                 </ul>
-                <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+                <p className="rounded-md border border-status-in-uitvoering-border bg-status-in-uitvoering p-3 text-status-in-uitvoering-text">
                   Er wordt nu <span className="font-medium">nog geen e-mail</span>{" "}
                   verstuurd. De klant kan pas inloggen nadat je hierna
                   afzonderlijk de wachtwoord-uitnodiging verstuurt.

@@ -128,13 +128,13 @@ export const OfferteRow = memo(function OfferteRow({
             className={`flex h-8 w-8 items-center justify-center rounded-lg ${
               offerte.type === "aanleg"
                 ? "bg-primary/10"
-                : "bg-green-100 dark:bg-green-900/30"
+                : "bg-scope-gras/15"
             }`}
           >
             {offerte.type === "aanleg" ? (
               <Shovel className="h-4 w-4 text-primary" />
             ) : (
-              <Trees className="h-4 w-4 text-green-600 dark:text-green-400" />
+              <Trees className="h-4 w-4 text-scope-gras" />
             )}
           </div>
         </TableCell>
@@ -198,7 +198,7 @@ export const OfferteRow = memo(function OfferteRow({
                   <Link
                     href={`/projecten/${projectInfo._id}`}
                     onClick={(e) => e.stopPropagation()}
-                    className="text-blue-600 hover:text-blue-700"
+                    className="text-primary hover:text-primary/80"
                   >
                     <FolderKanban className="h-4 w-4" />
                   </Link>
@@ -213,7 +213,7 @@ export const OfferteRow = memo(function OfferteRow({
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-6 px-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-950/50"
+                className="h-6 px-2 text-xs text-primary hover:text-primary hover:bg-accent"
                 asChild
                 onClick={(e) => e.stopPropagation()}
               >
@@ -226,7 +226,7 @@ export const OfferteRow = memo(function OfferteRow({
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-6 px-2 text-xs text-green-600 hover:text-green-700 hover:bg-green-50 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-950/50"
+                className="h-6 px-2 text-xs text-status-geaccepteerd-text hover:text-status-geaccepteerd-text hover:bg-status-geaccepteerd"
                 asChild
                 onClick={(e) => e.stopPropagation()}
               >
@@ -257,14 +257,14 @@ export const OfferteRow = memo(function OfferteRow({
               </DropdownMenuItem>
               {hasProject ? (
                 <DropdownMenuItem asChild>
-                  <Link href={`/projecten/${projectInfo._id}`} className="text-blue-600">
+                  <Link href={`/projecten/${projectInfo._id}`} className="text-primary">
                     <ExternalLink className="mr-2 h-4 w-4" />
                     Bekijk Project
                   </Link>
                 </DropdownMenuItem>
               ) : offerte.status === "geaccepteerd" ? (
                 <DropdownMenuItem asChild>
-                  <Link href={`/projecten/nieuw?offerte=${offerte._id}`} className="text-green-600">
+                  <Link href={`/projecten/nieuw?offerte=${offerte._id}`} className="text-status-geaccepteerd-text">
                     <FolderKanban className="mr-2 h-4 w-4" />
                     Start Project
                   </Link>
@@ -331,12 +331,12 @@ export const OfferteRow = memo(function OfferteRow({
                   ?
                 </p>
                 {confirmTarget === "verzonden" && (
-                  <p className="text-amber-600 dark:text-amber-400 font-medium">
+                  <p className="text-status-in-uitvoering-text font-medium">
                     Let op: na verzending ontvangt de klant een notificatie. Dit kan niet ongedaan worden gemaakt.
                   </p>
                 )}
                 {confirmTarget === "afgewezen" && (
-                  <p className="text-red-600 dark:text-red-400 font-medium">
+                  <p className="text-destructive font-medium">
                     Weet u zeker dat u deze offerte als afgewezen wilt markeren?
                   </p>
                 )}

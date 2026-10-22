@@ -152,13 +152,13 @@ export function OfferteHeader({
         <div className="flex items-center gap-3">
           <div
             className={`flex h-10 w-10 items-center justify-center rounded-lg ${
-              offerte.type === "aanleg" ? "bg-primary/10" : "bg-green-100 dark:bg-green-900/30"
+              offerte.type === "aanleg" ? "bg-primary/10" : "bg-scope-gras/15"
             }`}
           >
             {offerte.type === "aanleg" ? (
               <Shovel className="h-5 w-5 text-primary" />
             ) : (
-              <Trees className="h-5 w-5 text-green-600 dark:text-green-400" />
+              <Trees className="h-5 w-5 text-scope-gras" />
             )}
           </div>
           <div>
@@ -198,7 +198,7 @@ export function OfferteHeader({
           <Button
             variant="outline"
             onClick={() => setShowNieuweVersieDialog(true)}
-            className="border-amber-500/50 text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950/30"
+            className="border-status-in-uitvoering-border text-status-in-uitvoering-text hover:bg-status-in-uitvoering hover:text-status-in-uitvoering-text"
           >
             <FilePlus2 className="mr-2 h-4 w-4" />
             Nieuwe versie aanmaken
@@ -281,14 +281,14 @@ export function OfferteHeader({
                   onClick={() => onStatusChange("geaccepteerd")}
                   disabled={offerte?.status !== "verzonden"}
                 >
-                  <CheckCircle className="mr-2 h-4 w-4 text-green-600" />
+                  <CheckCircle className="mr-2 h-4 w-4 text-status-geaccepteerd-dot" />
                   Geaccepteerd
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={() => onStatusChange("afgewezen")}
                   disabled={offerte?.status !== "verzonden"}
                 >
-                  <XCircle className="mr-2 h-4 w-4 text-red-600" />
+                  <XCircle className="mr-2 h-4 w-4 text-destructive" />
                   Afgewezen
                 </DropdownMenuItem>
               </DropdownMenuSubContent>
@@ -326,7 +326,7 @@ export function OfferteHeader({
       <AlertDialogContent>
         <AlertDialogHeader>
           <div className="flex items-center gap-2">
-            <ShieldAlert className="h-5 w-5 text-amber-500" />
+            <ShieldAlert className="h-5 w-5 text-status-in-uitvoering-dot" />
             <AlertDialogTitle>Getekende offerte bewerken</AlertDialogTitle>
           </div>
           <AlertDialogDescription className="text-left">
@@ -340,7 +340,6 @@ export function OfferteHeader({
           <AlertDialogCancel>Annuleren</AlertDialogCancel>
           <AlertDialogAction
             onClick={onDuplicate}
-            className="bg-amber-600 hover:bg-amber-700"
           >
             Kopie maken
           </AlertDialogAction>

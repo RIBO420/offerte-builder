@@ -23,7 +23,10 @@ export default function GlobalError({
     });
   }, [error]);
 
-  // Basic inline styles since we can't rely on Tailwind in global-error
+  // Basic inline styles since we can't rely on Tailwind in global-error.
+  // Kleuren zijn de hexwaarden van de huisstijltokens (globals.css), want
+  // CSS-variabelen zijn hier niet geladen: background, foreground,
+  // muted(-foreground), border, destructive en primary (mosgroen).
   // Dark mode is handled via CSS media query in the <style> tag below
   const styles = {
     container: {
@@ -35,34 +38,34 @@ export default function GlobalError({
       gap: "1.5rem",
       padding: "2rem",
       textAlign: "center" as const,
-      backgroundColor: "#fafafa",
+      backgroundColor: "#f5f3f0",
       fontFamily: "system-ui, -apple-system, sans-serif",
     },
     iconContainer: {
       borderRadius: "50%",
-      backgroundColor: "rgba(220, 38, 38, 0.1)",
+      backgroundColor: "rgba(164, 65, 48, 0.1)",
       padding: "1.25rem",
     },
     icon: {
       width: "3.5rem",
       height: "3.5rem",
-      color: "#dc2626",
+      color: "#a44130",
     },
     title: {
       fontSize: "1.75rem",
       fontWeight: "bold" as const,
-      color: "#111827",
+      color: "#0f0f0d",
       margin: 0,
     },
     description: {
-      color: "#6b7280",
+      color: "#5f5d56",
       maxWidth: "28rem",
       margin: "0.5rem 0 0 0",
       lineHeight: 1.6,
     },
     errorId: {
       fontSize: "0.75rem",
-      color: "#9ca3af",
+      color: "#5f5d56",
       marginTop: "0.5rem",
     },
     buttonGroup: {
@@ -84,17 +87,17 @@ export default function GlobalError({
       transition: "all 0.15s ease",
     },
     primaryButton: {
-      backgroundColor: "#111827",
-      color: "white",
+      backgroundColor: "#3a4a36",
+      color: "#f5f3f0",
       border: "none",
     },
     secondaryButton: {
-      backgroundColor: "white",
-      color: "#374151",
-      border: "1px solid #d1d5db",
+      backgroundColor: "#fbfaf7",
+      color: "#0f0f0d",
+      border: "1px solid #d7d2c8",
     },
     detailsContainer: {
-      backgroundColor: "#f3f4f6",
+      backgroundColor: "#ece8e1",
       borderRadius: "0.5rem",
       padding: "1rem",
       maxWidth: "32rem",
@@ -104,46 +107,46 @@ export default function GlobalError({
     detailsTitle: {
       fontSize: "0.75rem",
       fontWeight: 600,
-      color: "#dc2626",
+      color: "#a44130",
       marginBottom: "0.5rem",
     },
     detailsText: {
       fontSize: "0.75rem",
-      color: "#6b7280",
+      color: "#5f5d56",
       whiteSpace: "pre-wrap" as const,
       overflowX: "auto" as const,
       maxHeight: "10rem",
       margin: 0,
     },
     helpSection: {
-      borderTop: "1px solid #e5e7eb",
+      borderTop: "1px solid #e3ded4",
       paddingTop: "1.5rem",
       marginTop: "0.5rem",
       fontSize: "0.875rem",
-      color: "#6b7280",
+      color: "#5f5d56",
     },
     link: {
-      color: "#2563eb",
+      color: "#3a4a36",
       textDecoration: "underline",
     },
   };
 
   const darkModeCSS = `
     @media (prefers-color-scheme: dark) {
-      body { background-color: #0A0A0A !important; }
-      .ge-container { background-color: #0A0A0A !important; }
-      .ge-title { color: #FAFAFA !important; }
-      .ge-description { color: #A1A1AA !important; }
-      .ge-error-id { color: #71717A !important; }
-      .ge-icon-container { background-color: rgba(239, 68, 68, 0.15) !important; }
-      .ge-icon { color: #EF4444 !important; }
-      .ge-btn-primary { background-color: #FAFAFA !important; color: #0A0A0A !important; }
-      .ge-btn-secondary { background-color: #27272A !important; color: #FAFAFA !important; border-color: #3F3F46 !important; }
-      .ge-details { background-color: #18181B !important; }
-      .ge-details-title { color: #EF4444 !important; }
-      .ge-details-text { color: #A1A1AA !important; }
-      .ge-help { border-color: #27272A !important; color: #A1A1AA !important; }
-      .ge-link { color: #60A5FA !important; }
+      body { background-color: #0f0f0d !important; }
+      .ge-container { background-color: #0f0f0d !important; }
+      .ge-title { color: #e9e6e0 !important; }
+      .ge-description { color: #a9a398 !important; }
+      .ge-error-id { color: #a9a398 !important; }
+      .ge-icon-container { background-color: rgba(224, 138, 115, 0.15) !important; }
+      .ge-icon { color: #e08a73 !important; }
+      .ge-btn-primary { background-color: #a3b595 !important; color: #0f0f0d !important; }
+      .ge-btn-secondary { background-color: #22211d !important; color: #e9e6e0 !important; border-color: #2c2b26 !important; }
+      .ge-details { background-color: #191915 !important; }
+      .ge-details-title { color: #e08a73 !important; }
+      .ge-details-text { color: #a9a398 !important; }
+      .ge-help { border-color: #2c2b26 !important; color: #a9a398 !important; }
+      .ge-link { color: #a3b595 !important; }
     }
   `;
 

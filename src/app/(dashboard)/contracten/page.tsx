@@ -175,8 +175,8 @@ function ContractenPageContent() {
                     Actieve contracten
                   </p>
                 </div>
-                <div className="h-10 w-10 rounded-full bg-green-100 dark:bg-green-900/50 flex items-center justify-center">
-                  <FileCheck className="h-5 w-5 text-green-600 dark:text-green-400" />
+                <div className="h-10 w-10 rounded-full bg-status-geaccepteerd flex items-center justify-center">
+                  <FileCheck className="h-5 w-5 text-status-geaccepteerd-text" />
                 </div>
               </div>
             </CardContent>
@@ -193,8 +193,8 @@ function ContractenPageContent() {
                     Maandelijkse waarde
                   </p>
                 </div>
-                <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center">
-                  <Euro className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                <div className="h-10 w-10 rounded-full bg-status-voorcalculatie flex items-center justify-center">
+                  <Euro className="h-5 w-5 text-status-voorcalculatie-text" />
                 </div>
               </div>
             </CardContent>
@@ -211,8 +211,8 @@ function ContractenPageContent() {
                     Verlopend binnen 30 dagen
                   </p>
                 </div>
-                <div className="h-10 w-10 rounded-full bg-orange-100 dark:bg-orange-900/50 flex items-center justify-center">
-                  <CalendarClock className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                <div className="h-10 w-10 rounded-full bg-status-in-uitvoering flex items-center justify-center">
+                  <CalendarClock className="h-5 w-5 text-status-in-uitvoering-text" />
                 </div>
               </div>
             </CardContent>

@@ -45,10 +45,10 @@ function daysUntil(dateStr: string): number {
 }
 
 const prioriteitConfig: Record<string, { label: string; color: string }> = {
-  laag: { label: "Laag", color: "bg-gray-200 text-gray-800 dark:bg-gray-800 dark:text-gray-200" },
-  normaal: { label: "Normaal", color: "bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-200" },
-  hoog: { label: "Hoog", color: "bg-orange-200 text-orange-800 dark:bg-orange-900 dark:text-orange-200" },
-  urgent: { label: "Urgent", color: "bg-red-200 text-red-800 dark:bg-red-900 dark:text-red-200" },
+  laag: { label: "Laag", color: "bg-status-concept text-status-concept-text" },
+  normaal: { label: "Normaal", color: "bg-status-voorcalculatie text-status-voorcalculatie-text" },
+  hoog: { label: "Hoog", color: "bg-status-in-uitvoering text-status-in-uitvoering-text" },
+  urgent: { label: "Urgent", color: "bg-status-vervallen text-status-vervallen-text" },
 };
 
 // Statuskleuren uit de centrale bron (WS4): zelfde status = zelfde kleur.
@@ -167,12 +167,12 @@ export default function GarantieDetailPage({
                   <div
                     className={`absolute left-0 top-0 h-full rounded-full transition-[width,background-color] duration-500 ease-standaard motion-reduce:transition-none ${
                       garantie.status === "verlopen"
-                        ? "bg-red-500"
+                        ? "bg-status-vervallen-dot"
                         : days <= 30
-                        ? "bg-red-500"
+                        ? "bg-status-vervallen-dot"
                         : days <= 180
-                        ? "bg-yellow-500"
-                        : "bg-green-500"
+                        ? "bg-status-in-uitvoering-dot"
+                        : "bg-status-geaccepteerd-dot"
                     }`}
                     style={{ width: `${progressPercent}%` }}
                   />
@@ -300,19 +300,19 @@ export default function GarantieDetailPage({
             <Card
               className={`border-2 ${
                 garantie.status === "verlopen"
-                  ? "border-red-200 dark:border-red-800"
+                  ? "border-status-vervallen-border"
                   : days <= 30
-                  ? "border-red-200 dark:border-red-800"
+                  ? "border-status-vervallen-border"
                   : days <= 180
-                  ? "border-yellow-200 dark:border-yellow-800"
-                  : "border-green-200 dark:border-green-800"
+                  ? "border-status-in-uitvoering-border"
+                  : "border-status-geaccepteerd-border"
               }`}
             >
               <CardContent className="pt-6 text-center">
                 {garantie.status === "verlopen" ? (
                   <>
-                    <ShieldAlert className="h-12 w-12 text-red-500 mx-auto mb-2" />
-                    <p className="text-3xl font-bold text-red-600">Verlopen</p>
+                    <ShieldAlert className="h-12 w-12 text-status-vervallen-dot mx-auto mb-2" />
+                    <p className="text-3xl font-bold text-destructive">Verlopen</p>
                     <p className="text-sm text-muted-foreground mt-1">
                       Garantie is verlopen
                     </p>
@@ -322,10 +322,10 @@ export default function GarantieDetailPage({
                     <ShieldCheck
                       className={`h-12 w-12 mx-auto mb-2 ${
                         days <= 30
-                          ? "text-red-500"
+                          ? "text-status-vervallen-dot"
                           : days <= 180
-                          ? "text-yellow-500"
-                          : "text-green-500"
+                          ? "text-status-in-uitvoering-dot"
+                          : "text-status-geaccepteerd-dot"
                       }`}
                     />
                     <p className="text-3xl font-bold">{days}</p>

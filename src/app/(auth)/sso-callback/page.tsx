@@ -40,7 +40,7 @@ export default function SSOCallbackPage() {
       <div className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-status-verzonden text-status-verzonden-text">
               <Clock className="h-6 w-6" />
             </div>
             <CardTitle className="text-xl">Inloggen duurt langer dan verwacht</CardTitle>
@@ -77,9 +77,10 @@ export default function SSOCallbackPage() {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           {/* Hier staat "Top Tuinen" niet als tekst naast het logo, dus wél een
-              echte alt. Groene drager i.p.v. bg-primary: die is in dark mode
-              bijna wit en dan verdwijnt het witte merkteken erin. */}
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-green-700">
+              echte alt. Drager bg-sidebar-primary i.p.v. bg-primary: die blijft
+              in licht én donker mosgroen, bg-primary wordt in dark mode een
+              lichte olijf waarin het witte merkteken verdwijnt. */}
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-sidebar-primary">
             <TopTuinenLogo variant="wit" size={32} className="h-8 w-8" alt="Top Tuinen" />
           </div>
           <CardTitle className="text-xl">Even geduld...</CardTitle>

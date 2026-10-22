@@ -877,7 +877,7 @@ function NieuwContractContent() {
                   <div
                     className={`p-3 rounded-lg border text-sm ${
                       indexatieVanToepassing
-                        ? "bg-amber-50 border-amber-200 dark:bg-amber-950/30 dark:border-amber-900"
+                        ? "bg-status-in-uitvoering border-status-in-uitvoering-border"
                         : "bg-muted/30"
                     }`}
                   >

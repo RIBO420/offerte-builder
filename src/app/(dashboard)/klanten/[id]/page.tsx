@@ -77,11 +77,11 @@ const klantTypeLabels: Record<KlantType, string> = {
 };
 
 const klantTypeColors: Record<KlantType, string> = {
-  particulier: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  zakelijk: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
-  vve: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
-  gemeente: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
-  overig: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
+  particulier: "bg-chart-3/15 text-chart-3",
+  zakelijk: "bg-chart-1/15 text-chart-1",
+  vve: "bg-chart-5/15 text-chart-5",
+  gemeente: "bg-chart-4/15 text-chart-4",
+  overig: "bg-muted text-muted-foreground",
 };
 
 function formatDate(timestamp: number): string {
@@ -402,13 +402,13 @@ export default function KlantDetailPage({
 
         {/* CRM-008: GDPR Anonymized Banner */}
         {isAnonymized && (
-          <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950">
-            <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+          <div className="flex items-start gap-3 rounded-lg border border-status-in-uitvoering-border bg-status-in-uitvoering p-3">
+            <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-status-in-uitvoering-dot" />
             <div className="text-sm">
-              <p className="font-medium text-amber-800 dark:text-amber-200">
+              <p className="font-medium text-status-in-uitvoering-text">
                 Deze klant is geanonimiseerd conform GDPR
               </p>
-              <p className="text-amber-600 dark:text-amber-400">
+              <p className="text-status-in-uitvoering-text">
                 Persoonsgegevens verwijderd op{" "}
                 {gdprBlockers?.anonymizedAt
                   ? formatDate(gdprBlockers.anonymizedAt)

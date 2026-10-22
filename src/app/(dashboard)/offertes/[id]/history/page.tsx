@@ -93,13 +93,13 @@ const actieIcons: Record<string, typeof History> = {
   teruggedraaid: RotateCcw,
 };
 
-// WCAG AA compliant colors (4.5:1 contrast ratio)
+// Statustokens (bg + -text halen AA in licht én donker)
 const actieColors: Record<string, string> = {
-  aangemaakt: "bg-green-200 text-green-800 dark:bg-green-900 dark:text-green-200",
-  gewijzigd: "bg-blue-200 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  status_gewijzigd: "bg-purple-200 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
-  regels_gewijzigd: "bg-amber-200 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
-  teruggedraaid: "bg-orange-200 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
+  aangemaakt: "bg-status-geaccepteerd text-status-geaccepteerd-text",
+  gewijzigd: "bg-status-voorcalculatie text-status-voorcalculatie-text",
+  status_gewijzigd: "bg-status-verzonden text-status-verzonden-text",
+  regels_gewijzigd: "bg-status-nacalculatie text-status-nacalculatie-text",
+  teruggedraaid: "bg-status-in-uitvoering text-status-in-uitvoering-text",
 };
 
 const statusLabels: Record<string, string> = {

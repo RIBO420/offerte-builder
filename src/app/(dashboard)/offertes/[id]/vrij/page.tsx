@@ -222,7 +222,7 @@ function VrijeOfferteEditor({
       />
 
       {vergrendeld && (
-        <p className="flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-700 dark:bg-amber-950/30 dark:text-amber-300">
+        <p className="flex items-center gap-2 rounded-md border border-status-in-uitvoering-border bg-status-in-uitvoering p-3 text-sm text-status-in-uitvoering-text">
           <Lock className="h-4 w-4 shrink-0" />
           Deze offerte is geaccepteerd en vergrendeld; wijzigingen zijn niet
           mogelijk.

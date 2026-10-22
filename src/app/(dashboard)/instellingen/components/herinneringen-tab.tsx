@@ -114,7 +114,7 @@ export function HerinneringenTab({
     <div className="space-y-4 rounded-lg border p-4">
       <div>
         <p className="flex items-center gap-2 text-sm font-medium">
-          <Bell className="h-4 w-4 text-amber-500 dark:text-amber-400" />
+          <Bell className="h-4 w-4 text-status-herinnering-dot" />
           Handmatig versturen vanaf de factuurpagina
         </p>
         <p className="text-sm text-muted-foreground">
@@ -199,13 +199,13 @@ export function HerinneringenTab({
       {/* Compact schema-voorbeeld van het handmatige traject */}
       <div className="space-y-2">
         {[
-          { dag: 0, label: "Vervaldatum", color: "bg-amber-500 dark:bg-amber-400" },
-          { dag: herinnering1, label: "1e herinnering", color: "bg-amber-400 dark:bg-amber-300" },
-          { dag: herinnering2, label: "2e herinnering", color: "bg-amber-500 dark:bg-amber-400" },
-          { dag: herinnering3, label: "3e herinnering", color: "bg-orange-500 dark:bg-orange-400" },
-          { dag: aanmaning1, label: "1e aanmaning", color: "bg-red-400 dark:bg-red-300" },
-          { dag: aanmaning2, label: "2e aanmaning", color: "bg-red-500 dark:bg-red-400" },
-          { dag: aanmaning3, label: "Ingebrekestelling", color: "bg-red-700 dark:bg-red-500" },
+          { dag: 0, label: "Vervaldatum", color: "bg-status-verzonden-dot" },
+          { dag: herinnering1, label: "1e herinnering", color: "bg-status-herinnering-dot/60" },
+          { dag: herinnering2, label: "2e herinnering", color: "bg-status-herinnering-dot" },
+          { dag: herinnering3, label: "3e herinnering", color: "bg-status-in-uitvoering-dot" },
+          { dag: aanmaning1, label: "1e aanmaning", color: "bg-status-vervallen-dot/60" },
+          { dag: aanmaning2, label: "2e aanmaning", color: "bg-status-vervallen-dot" },
+          { dag: aanmaning3, label: "Ingebrekestelling", color: "bg-destructive" },
         ].map((item, index) => (
           <div key={index} className="flex items-center gap-3">
             <div className={`h-3 w-3 rounded-full ${item.color} shrink-0`} />

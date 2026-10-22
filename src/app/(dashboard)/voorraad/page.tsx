@@ -64,13 +64,13 @@ function getStatusBadge(hoeveelheid: number, minVoorraad: number) {
     );
   } else if (percentage < 150) {
     return (
-      <Badge variant="secondary" className="bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+      <Badge variant="secondary" className="bg-status-in-uitvoering text-status-in-uitvoering-text">
         Bijna minimum
       </Badge>
     );
   } else {
     return (
-      <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+      <Badge variant="secondary" className="bg-status-geaccepteerd text-status-geaccepteerd-text">
         Voldoende
       </Badge>
     );
@@ -229,10 +229,10 @@ function VoorraadPageContent() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Onder Minimum</CardTitle>
-              <TrendingDown className="h-4 w-4 text-red-500" />
+              <TrendingDown className="h-4 w-4 text-status-vervallen-dot" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-red-600">{stats.onderMinimum}</div>
+              <div className="text-2xl font-bold text-destructive">{stats.onderMinimum}</div>
               <p className="text-xs text-muted-foreground">items moeten besteld worden</p>
             </CardContent>
           </Card>
