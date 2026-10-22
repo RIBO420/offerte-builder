@@ -209,6 +209,44 @@ export function berekenFactuurTotalen(
   };
 }
 
+// ── Offerteregel → factuurregel ──────────────────────────────────────────
+
+/** Velden van een offerteregel die de factuur overneemt. */
+export interface OfferteRegelVoorFactuur {
+  id: string;
+  omschrijving: string;
+  eenheid: string;
+  hoeveelheid: number;
+  prijsPerEenheid: number;
+  totaal: number;
+  btwCode?: 9 | 21;
+  artikelBeschrijving?: string;
+}
+
+/** Zelfde vorm: de factuurregel is precies deze subset van de offerteregel. */
+export type FactuurRegelUitOfferte = OfferteRegelVoorFactuur;
+
+/**
+ * Factuurregel uit een offerteregel (facturen.generate): zonder scope/type
+ * (conform schema), mét het btw-tarief per regel en de artikelbeschrijving
+ * die de PDF onder de regel toont. Lege velden komen niet mee.
+ */
+export function offerteRegelNaarFactuurRegel(
+  regel: OfferteRegelVoorFactuur
+): FactuurRegelUitOfferte {
+  const beschrijving = regel.artikelBeschrijving?.trim();
+  return {
+    id: regel.id,
+    omschrijving: regel.omschrijving,
+    eenheid: regel.eenheid,
+    hoeveelheid: regel.hoeveelheid,
+    prijsPerEenheid: regel.prijsPerEenheid,
+    totaal: regel.totaal,
+    ...(regel.btwCode ? { btwCode: regel.btwCode } : {}),
+    ...(beschrijving ? { artikelBeschrijving: beschrijving } : {}),
+  };
+}
+
 // ── Engine-beslissingen (§2.8 punt 2) ────────────────────────────────────
 
 export type Facturatiemodus =

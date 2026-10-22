@@ -190,6 +190,37 @@ describe("artikel-picker vult de regel (PRD §2.5b)", () => {
     expect(r.prijsPerEenheid).toBe(10); // 8 ÷ (1 − 0,20)
     expect(r.margePercentage).toBe(20);
   });
+
+  it("neemt de artikelbeschrijving over: getrimd, HERO-entiteiten leesbaar", () => {
+    const r = productNaarRegel(
+      {
+        _id: "p6",
+        productnaam: "Renovatie gazon",
+        inkoopprijs: 100,
+        omschrijving: "  Wij verzorgen de complete renovatie van uw gazon.\r\n- Verticuteren &amp; bezanden\n  ",
+      },
+      "Gras",
+      "regel-6"
+    );
+    expect(r.artikelBeschrijving).toBe(
+      "Wij verzorgen de complete renovatie van uw gazon.\n- Verticuteren & bezanden"
+    );
+  });
+
+  it("lege of ontbrekende beschrijving → geen artikelBeschrijving op de regel", () => {
+    const leeg = productNaarRegel(
+      { _id: "p7", productnaam: "Split", inkoopprijs: 8, omschrijving: "   \n " },
+      "Bestrating",
+      "regel-7"
+    );
+    const zonder = productNaarRegel(
+      { _id: "p8", productnaam: "Zand", inkoopprijs: 4 },
+      "Bestrating",
+      "regel-8"
+    );
+    expect(leeg.artikelBeschrijving).toBeUndefined();
+    expect(zonder.artikelBeschrijving).toBeUndefined();
+  });
 });
 
 describe("gebruiksteller bij definitief opslaan (niet per klik)", () => {

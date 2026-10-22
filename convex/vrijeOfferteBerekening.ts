@@ -1,4 +1,5 @@
 import { ConvexError } from "convex/values";
+import { schoonHeroTekst } from "./lib/heroCategorie";
 
 /**
  * Pure berekeningsmodule voor de vrije offerte-builder (route 2, PRD §2.5b).
@@ -39,6 +40,8 @@ export interface VrijeRegel {
   prijsOpRegel?: boolean;
   interneNotitie?: string;
   optioneel?: boolean;
+  /** Offertetekst van het artikel (prijsboek), klein onder de regel op de PDF */
+  artikelBeschrijving?: string;
 }
 
 const round2 = (n: number): number => Math.round(n * 100) / 100;
@@ -142,6 +145,19 @@ export interface PickerProduct {
 }
 
 /**
+ * Beschrijving uit het prijsboek klaar voor de regel: HERO-entiteiten
+ * (`&#039;`, `&amp;`) eruit, regeleinden genormaliseerd, buitenste witruimte
+ * weg. Leeg of alleen witruimte → `undefined` (dan geen veld op de regel).
+ */
+export function artikelBeschrijvingVan(
+  omschrijving: string | null | undefined
+): string | undefined {
+  if (!omschrijving) return undefined;
+  const schoon = schoonHeroTekst(omschrijving.replace(/\r\n?/g, "\n"));
+  return schoon.length > 0 ? schoon : undefined;
+}
+
+/**
  * Artikel aanklikken vult de regel direct (PRD §2.5b): naam, eenheid,
  * inkoopprijs en btw-code. Verkoopprijs uit het productbestand als die er is,
  * anders via de meegegeven standaardmarge; prijs-op-regel-artikelen krijgen
@@ -205,6 +221,7 @@ export function productNaarRegel(
     btwCode,
     productId: product._id,
     prijsOpRegel: prijsOpRegel || undefined,
+    artikelBeschrijving: artikelBeschrijvingVan(product.omschrijving),
   };
 }
 

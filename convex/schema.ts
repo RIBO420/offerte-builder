@@ -52,6 +52,9 @@ const offerteRegelValidator = v.object({
   kortingPercentage: v.optional(v.number()), // korting per regel (op verkoop)
   productId: v.optional(v.id("producten")), // herkomst artikel-picker
   prijsOpRegel: v.optional(v.boolean()), // €0-inkoop: geen marge-berekening
+  // Offertetekst uit het prijsboek (producten.omschrijving), aanpasbaar per
+  // regel; de PDF toont hem klein onder de regelnaam
+  artikelBeschrijving: v.optional(v.string()),
 });
 
 export default defineSchema({
@@ -852,6 +855,7 @@ export default defineSchema({
           prijsOpRegel: v.optional(v.boolean()),
           interneNotitie: v.optional(v.string()),
           optioneel: v.optional(v.boolean()),
+          artikelBeschrijving: v.optional(v.string()),
         })
       ),
       notities: v.optional(v.string()),
@@ -1798,6 +1802,8 @@ export default defineSchema({
         // Hoofdstuk + korting uit de vrije regel-editor (§2.5b hergebruikt)
         scope: v.optional(v.string()),
         kortingPercentage: v.optional(v.number()),
+        // Artikelbeschrijving uit de offerte/het prijsboek (PDF onder de regel)
+        artikelBeschrijving: v.optional(v.string()),
       })
     ),
 

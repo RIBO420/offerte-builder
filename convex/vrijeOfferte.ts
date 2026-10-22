@@ -44,6 +44,7 @@ const vrijeRegelValidator = v.object({
   prijsOpRegel: v.optional(v.boolean()),
   interneNotitie: v.optional(v.string()),
   optioneel: v.optional(v.boolean()),
+  artikelBeschrijving: v.optional(v.string()),
 });
 
 /**

@@ -23,6 +23,7 @@ import {
   isGeldigeDocumentOvergang,
   legacyStatusVan,
   mapLegacyStatus,
+  offerteRegelNaarFactuurRegel,
   type BetaalStatus,
   type DocumentStatus,
 } from "./facturatieLogica";
@@ -68,6 +69,7 @@ const regelValidator = v.object({
   btwCode: v.optional(v.union(v.literal(9), v.literal(21))),
   scope: v.optional(v.string()),
   kortingPercentage: v.optional(v.number()),
+  artikelBeschrijving: v.optional(v.string()),
 });
 
 /** Documentstatussen zoals de wachtrij/lijst erop filtert (§2.8). */
@@ -345,16 +347,9 @@ export const generate = mutation({
     const factuurnummer = CONCEPT_FACTUURNUMMER;
 
     // Kopieer regels van offerte (zonder scope en type, conform schema),
-    // met het btw-tarief per regel uit de vrije builder
-    const regels = offerte.regels.map((regel) => ({
-      id: regel.id,
-      omschrijving: regel.omschrijving,
-      eenheid: regel.eenheid,
-      hoeveelheid: regel.hoeveelheid,
-      prijsPerEenheid: regel.prijsPerEenheid,
-      totaal: regel.totaal,
-      ...(regel.btwCode ? { btwCode: regel.btwCode } : {}),
-    }));
+    // met het btw-tarief per regel uit de vrije builder en de
+    // artikelbeschrijving voor onder de regel op de PDF
+    const regels = offerte.regels.map(offerteRegelNaarFactuurRegel);
 
     // Voeg correcties toe op basis van nacalculatie afwijkingen (indien significant)
     const correcties: Array<{ omschrijving: string; bedrag: number }> = [];
@@ -1712,6 +1707,7 @@ export const createCreditnota = mutation({
       totaal: -Math.abs(r.totaal),
       btwCode: r.btwCode,
       scope: r.scope,
+      artikelBeschrijving: r.artikelBeschrijving,
     }));
 
     // Bereken negatieve totalen (uitsplitsing per tarief)

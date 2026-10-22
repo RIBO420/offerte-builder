@@ -78,6 +78,7 @@ import type * as lib_factuurNummer from "../lib/factuurNummer.js";
 import type * as lib_factuurTekst from "../lib/factuurTekst.js";
 import type * as lib_fotoHash from "../lib/fotoHash.js";
 import type * as lib_heroArtikelen from "../lib/heroArtikelen.js";
+import type * as lib_heroCategorie from "../lib/heroCategorie.js";
 import type * as lib_klantBestandenArchief from "../lib/klantBestandenArchief.js";
 import type * as lib_klantNaam from "../lib/klantNaam.js";
 import type * as lib_leadAanvraagTekst from "../lib/leadAanvraagTekst.js";
@@ -284,6 +285,7 @@ declare const fullApi: ApiFromModules<{
   "lib/factuurTekst": typeof lib_factuurTekst;
   "lib/fotoHash": typeof lib_fotoHash;
   "lib/heroArtikelen": typeof lib_heroArtikelen;
+  "lib/heroCategorie": typeof lib_heroCategorie;
   "lib/klantBestandenArchief": typeof lib_klantBestandenArchief;
   "lib/klantNaam": typeof lib_klantNaam;
   "lib/leadAanvraagTekst": typeof lib_leadAanvraagTekst;

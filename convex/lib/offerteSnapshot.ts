@@ -26,6 +26,7 @@ export function snapshotRegels(regels: ReadonlyArray<Regel>) {
     prijsOpRegel: r.prijsOpRegel,
     interneNotitie: r.interneNotitie,
     optioneel: r.optioneel,
+    artikelBeschrijving: r.artikelBeschrijving,
   }));
 }
 

@@ -407,6 +407,7 @@ export const getFactuurVoorPdf = query({
           eenheid: r.eenheid,
           prijsPerEenheid: r.prijsPerEenheid,
           totaal: r.totaal,
+          artikelBeschrijving: r.artikelBeschrijving,
         })),
         // Eigen correcties plus termijnen die op een eindfactuur in mindering komen
         correcties: weergaveCorrecties(factuur),

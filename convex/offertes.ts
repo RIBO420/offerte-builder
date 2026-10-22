@@ -116,6 +116,7 @@ const regelValidator = v.object({
   kortingPercentage: v.optional(v.number()),
   productId: v.optional(v.id("producten")),
   prijsOpRegel: v.optional(v.boolean()),
+  artikelBeschrijving: v.optional(v.string()),
 });
 
 const scopeMargesValidator = v.object({

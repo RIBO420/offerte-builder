@@ -58,6 +58,7 @@ export const getByToken = query({
           type: r.type,
           optioneel: r.optioneel,
           btwCode: r.btwCode,
+          artikelBeschrijving: r.artikelBeschrijving,
         })),
         totalen: {
           ...offerte.totalen,
