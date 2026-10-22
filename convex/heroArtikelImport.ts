@@ -7,7 +7,9 @@
  * Internal: geen gebruiker in de context, dus de org komt als argument mee
  * (uitzondering op regel 9, net als de andere backfills). Idempotent op het
  * HERO-artikelnummer: een tweede run werkt prijzen en teksten bij, maar laat
- * de aan/uit-stand staan die kantoor intussen gekozen heeft.
+ * de aan/uit-stand en een door kantoor gekozen categorie staan. Alleen
+ * artikelen die nog in de startcategorie "HERO" staan krijgen de afgeleide
+ * categorie. Met `allesActief` gaan ook bestaande HERO-artikelen aan.
  */
 import { v } from "convex/values";
 import { internalMutation } from "./_generated/server";
@@ -32,6 +34,8 @@ export const importeer = internalMutation({
     rijen: v.array(heroRijValidator),
     /** Zonder deze vlag telt de import alleen wat hij zou doen. */
     uitvoeren: v.optional(v.boolean()),
+    /** Zet ook bestaande HERO-artikelen aan (nieuwe zijn altijd actief). */
+    allesActief: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const org = await ctx.db.get(args.orgId);
@@ -60,17 +64,16 @@ export const importeer = internalMutation({
     const telling = {
       aangemaakt: 0,
       bijgewerkt: 0,
-      actief: 0,
-      uitWeinigGebruikt: 0,
-      uitDubbeleNaam: 0,
+      aangezet: 0,
+      dubbeleNaam: 0,
       naamBestaatAlInPrijsboek: 0,
     };
+    const perCategorie: Record<string, number> = {};
 
     for (const plan of plannen) {
       if (eigenNamen.has(plan.naamGenormaliseerd)) telling.naamBestaatAlInPrijsboek++;
-      if (plan.isActief) telling.actief++;
-      else if (plan.redenUit === "dubbele_naam") telling.uitDubbeleNaam++;
-      else telling.uitWeinigGebruikt++;
+      if (plan.dubbeleNaam) telling.dubbeleNaam++;
+      perCategorie[plan.categorie] = (perCategorie[plan.categorie] ?? 0) + 1;
 
       const velden = {
         productnaam: plan.productnaam,
@@ -78,7 +81,7 @@ export const importeer = internalMutation({
         verkoopprijs: plan.verkoopprijs,
         eenheid: plan.eenheid,
         btwCode: plan.btwCode,
-        omschrijving: plan.rij.beschrijving?.trim() || undefined,
+        omschrijving: plan.omschrijving,
         gebruiksteller: plan.rij.gebruikt,
         prijsOpRegel: plan.prijsOpRegel,
         naamGenormaliseerd: plan.naamGenormaliseerd,
@@ -88,7 +91,15 @@ export const importeer = internalMutation({
       const bestaand = opNummer.get(plan.rij.artikelnummer);
       if (bestaand) {
         telling.bijgewerkt++;
-        if (args.uitvoeren) await ctx.db.patch(bestaand._id, velden);
+        const aanzetten = args.allesActief === true && !bestaand.isActief;
+        if (aanzetten) telling.aangezet++;
+        if (args.uitvoeren) {
+          await ctx.db.patch(bestaand._id, {
+            ...velden,
+            ...(bestaand.categorie === HERO_CATEGORIE ? { categorie: plan.categorie } : {}),
+            ...(aanzetten ? { isActief: true } : {}),
+          });
+        }
         continue;
       }
 
@@ -97,7 +108,7 @@ export const importeer = internalMutation({
         await ctx.db.insert("producten", {
           ...velden,
           orgId: args.orgId,
-          categorie: HERO_CATEGORIE,
+          categorie: plan.categorie,
           verliespercentage: 0,
           isActief: plan.isActief,
           heroArtikelnummer: plan.rij.artikelnummer,
@@ -110,6 +121,7 @@ export const importeer = internalMutation({
       uitgevoerd: args.uitvoeren === true,
       rijen: args.rijen.length,
       ...telling,
+      perCategorie,
     };
   },
 });

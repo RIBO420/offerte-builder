@@ -5,6 +5,7 @@
  *
  *   node scripts/hero-artikelen-import.mjs "<export.xlsx>" --org <orgId>
  *   node scripts/hero-artikelen-import.mjs "<export.xlsx>" --org <orgId> --uitvoeren
+ *   … --alles-actief   (zet ook bestaande HERO-artikelen aan)
  *   … --prod   (productie; alleen na expliciete go)
  *
  * De export moet de kolommen Artikelnummer, Naam, IP, CP Standaardmarge,
@@ -19,10 +20,11 @@ const bestand = args.find((a) => !a.startsWith("--"));
 const orgIndex = args.indexOf("--org");
 const orgId = orgIndex >= 0 ? args[orgIndex + 1] : undefined;
 const uitvoeren = args.includes("--uitvoeren");
+const allesActief = args.includes("--alles-actief");
 const prod = args.includes("--prod");
 
 if (!bestand || !orgId) {
-  console.error('Gebruik: node scripts/hero-artikelen-import.mjs "<export.xlsx>" --org <orgId> [--uitvoeren] [--prod]');
+  console.error('Gebruik: node scripts/hero-artikelen-import.mjs "<export.xlsx>" --org <orgId> [--uitvoeren] [--alles-actief] [--prod]');
   process.exit(1);
 }
 
@@ -95,7 +97,7 @@ const uitvoer = execFileSync(
     "convex",
     "run",
     "heroArtikelImport:importeer",
-    JSON.stringify({ orgId, rijen, uitvoeren }),
+    JSON.stringify({ orgId, rijen, uitvoeren, allesActief }),
     ...(prod ? ["--prod"] : []),
   ],
   { encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] }

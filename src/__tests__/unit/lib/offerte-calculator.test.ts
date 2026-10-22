@@ -963,18 +963,19 @@ describe("findProduct: calculatorprijzen", () => {
     verkoopprijs: over.verkoopprijs ?? 7.5,
     eenheid: over.eenheid ?? "m²",
     verliespercentage: over.verliespercentage ?? 0,
+    heroArtikelnummer: over.heroArtikelnummer,
   });
 
   it("negeert HERO-artikelen, ook als ze eerder in de lijst staan", () => {
     const lijst = [
-      product({ _id: "hero", productnaam: "Levering vers gesneden graszoden", categorie: "HERO", verkoopprijs: 0 }),
+      product({ _id: "hero", productnaam: "Levering vers gesneden graszoden", categorie: "Gazon", heroArtikelnummer: "1928", verkoopprijs: 0 }),
       product({ _id: "eigen" }),
     ];
     expect(findProduct(lijst, "graszoden")?._id).toBe("eigen");
   });
 
   it("zonder eigen artikel geen match, zodat de vaste fallbackprijs geldt", () => {
-    const lijst = [product({ productnaam: "Levering vers gesneden graszoden", categorie: "HERO" })];
+    const lijst = [product({ productnaam: "Levering vers gesneden graszoden", categorie: "Gazon", heroArtikelnummer: "1928" })];
     expect(findProduct(lijst, "graszoden")).toBeUndefined();
   });
 });

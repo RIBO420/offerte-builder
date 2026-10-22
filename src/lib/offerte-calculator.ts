@@ -28,7 +28,6 @@ import type {
 } from "@/types/offerte";
 
 import { roundToQuarter } from "@/lib/time-utils";
-import { HERO_CATEGORIE } from "../../convex/lib/heroArtikelen";
 // De normbron: één definitie van "hoeveel uur kost dit werk?", gedeeld met de
 // voorcalculatie. Zie convex/lib/normuren.ts voor de definitie zelf.
 import { normurenTotaal } from "@convex/lib/normuren";
@@ -395,6 +394,8 @@ export interface Product {
   verkoopprijs: number;
   eenheid: string;
   verliespercentage: number;
+  /** Gezet bij artikelen uit de HERO-import */
+  heroArtikelnummer?: string;
 }
 
 export interface Instellingen {
@@ -436,15 +437,16 @@ function findNormuur(
 }
 
 // Find product by name (partial match). Artikelen uit de HERO-import tellen
-// niet mee: hun namen zijn offerteregels ("Levering vers gesneden graszoden",
-// vaak prijs op regel) en zouden de calculatorprijs stil op €0 zetten.
+// niet mee (herkend aan het artikelnummer, want de categorie kan kantoor
+// wijzigen): hun namen zijn offerteregels ("Levering vers gesneden
+// graszoden", vaak prijs op regel) en zouden de calculatorprijs stil op €0 zetten.
 export function findProduct(
   producten: Product[],
   searchTerm: string
 ): Product | undefined {
   return producten.find(
     (p) =>
-      p.categorie !== HERO_CATEGORIE &&
+      p.heroArtikelnummer === undefined &&
       p.productnaam.toLowerCase().includes(searchTerm.toLowerCase())
   );
 }

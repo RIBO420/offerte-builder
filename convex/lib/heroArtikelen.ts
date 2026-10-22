@@ -2,10 +2,11 @@
  * HERO-artikelexport → prijsboek (fase 5, docs/hero-nabouw/BESLUITEN.md).
  *
  * Puur en zonder Convex-context, zodat de regels in Vitest vastliggen.
- * De import neemt álle HERO-artikelen over; alleen de herbruikbare staan
- * actief, de rest staat uit en kan kantoor later per artikel aanzetten.
+ * De import neemt álle HERO-artikelen over, allemaal actief (besluit
+ * Ricardo 22-10-2026), ingedeeld in categorieën uit naam en beschrijving.
  */
 import { normaliseerProductnaam } from "../producten";
+import { categorieUitHero, schoonHeroTekst, type HeroCategorie } from "./heroCategorie";
 
 /** Eén rij uit de HERO-artikelexport (Excel, alle kolommen aan). */
 export interface HeroArtikelRij {
@@ -29,6 +30,9 @@ export interface HeroArtikelRij {
 export interface HeroArtikelPlan {
   rij: HeroArtikelRij;
   productnaam: string;
+  /** Beschrijving zonder HTML-entiteiten; leeg = geen */
+  omschrijving?: string;
+  categorie: HeroCategorie;
   naamGenormaliseerd: string;
   eenheid: string;
   btwCode: 9 | 21 | undefined;
@@ -36,14 +40,15 @@ export interface HeroArtikelPlan {
   verkoopprijs: number;
   prijsOpRegel: boolean;
   isActief: boolean;
-  /** Waarom het artikel uit staat; leeg bij actief */
-  redenUit?: "weinig_gebruikt" | "dubbele_naam";
+  /** Dubbele naam: niet het meest gebruikte artikel met deze naam */
+  dubbeleNaam: boolean;
 }
 
-/** Minimaal aantal keer gebruikt in HERO om actief binnen te komen. */
-export const HERO_ACTIEF_VANAF_GEBRUIKT = 2;
-
-/** Categorie in het prijsboek: HERO kent geen categorieën. */
+/**
+ * Categorie van de eerste import (22-10-2026). Wordt bij een volgende import
+ * vervangen door de afgeleide categorie; een door kantoor gekozen categorie
+ * blijft staan.
+ */
 export const HERO_CATEGORIE = "HERO";
 
 const EENHEDEN: Record<string, string> = {
@@ -83,15 +88,15 @@ export function verkoopprijsUitHero(rij: HeroArtikelRij): number {
 }
 
 /**
- * Plan per rij: prijzen, eenheid, btw en of het artikel actief wordt.
- * Bij dubbele namen is het meest gebruikte artikel de hoofdversie (bij
- * gelijk gebruik het hoogste artikelnummer, dus het nieuwste); de andere
- * komen binnen maar staan uit.
+ * Plan per rij: naam, categorie, prijzen, eenheid en btw. Alles wordt actief.
+ * Bij dubbele namen is het meest gebruikte artikel de hoofdversie (bij gelijk
+ * gebruik het hoogste artikelnummer, dus het nieuwste); de andere krijgen
+ * `dubbeleNaam` zodat de telling laat zien hoeveel dubbelen er zijn.
  */
 export function planHeroArtikelen(rijen: HeroArtikelRij[]): HeroArtikelPlan[] {
   const hoofdPerNaam = new Map<string, HeroArtikelRij>();
   for (const rij of rijen) {
-    const sleutel = normaliseerProductnaam(rij.naam);
+    const sleutel = normaliseerProductnaam(schoonHeroTekst(rij.naam));
     if (!sleutel) continue;
     const huidig = hoofdPerNaam.get(sleutel);
     if (
@@ -105,16 +110,19 @@ export function planHeroArtikelen(rijen: HeroArtikelRij[]): HeroArtikelPlan[] {
   }
 
   return rijen
-    .filter((rij) => normaliseerProductnaam(rij.naam).length > 0)
+    .filter((rij) => normaliseerProductnaam(schoonHeroTekst(rij.naam)).length > 0)
     .map((rij) => {
-      const naamGenormaliseerd = normaliseerProductnaam(rij.naam);
+      const productnaam = schoonHeroTekst(rij.naam);
+      const omschrijving = rij.beschrijving ? schoonHeroTekst(rij.beschrijving) : "";
+      const naamGenormaliseerd = normaliseerProductnaam(productnaam);
       const isHoofd = hoofdPerNaam.get(naamGenormaliseerd) === rij;
-      const genoegGebruikt = rij.gebruikt >= HERO_ACTIEF_VANAF_GEBRUIKT;
       const inkoopprijs = afgerond(Math.max(rij.inkoopprijs, 0));
       const verkoopprijs = verkoopprijsUitHero(rij);
       return {
         rij,
-        productnaam: rij.naam.trim(),
+        productnaam,
+        ...(omschrijving ? { omschrijving } : {}),
+        categorie: categorieUitHero(productnaam, omschrijving || undefined),
         naamGenormaliseerd,
         eenheid: eenheidUitHero(rij.eenheid),
         btwCode: btwUitHero(rij.btw),
@@ -122,12 +130,8 @@ export function planHeroArtikelen(rijen: HeroArtikelRij[]): HeroArtikelPlan[] {
         verkoopprijs,
         // Geen inkoop én geen vaste prijs → prijs komt op de offerteregel
         prijsOpRegel: inkoopprijs <= 0 && verkoopprijs <= 0,
-        isActief: isHoofd && genoegGebruikt,
-        redenUit: !isHoofd
-          ? "dubbele_naam"
-          : !genoegGebruikt
-            ? "weinig_gebruikt"
-            : undefined,
+        isActief: true,
+        dubbeleNaam: !isHoofd,
       };
     });
 }
