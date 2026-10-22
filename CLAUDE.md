@@ -11,7 +11,7 @@ ziet (portaal, PDF, mail, publieke configurator) zegt **Top Tuinen**.
 
 ```
 /src/      → Next.js 16 web-app (App Router, React 19, Tailwind v4, shadcn/ui)
-/mobile/   → React Native Expo 54 (NativeWind, Tailwind-v3-syntax, theme in mobile/theme/, primair #4ADE80)
+/mobile/   → React Native Expo 54 (NativeWind, Tailwind-v3-syntax, theme in mobile/theme/, huisstijl: mosgroen #3A4A36 / donker lichte olijf #A3B595)
 /convex/   → Gedeelde serverless backend (schema, auth, ~140 functiebestanden)
 ```
 

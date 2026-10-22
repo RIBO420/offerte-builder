@@ -50,10 +50,10 @@ import {
 
 const STATUS_BADGE_VARIANT: Record<string, string> = {
   beschikbaar:
-    "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
+    "bg-status-geaccepteerd text-status-geaccepteerd-text",
   onderhoud:
-    "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
-  kapot: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+    "bg-status-herinnering text-status-herinnering-text",
+  kapot: "bg-status-vervallen text-status-vervallen-text",
   inactief: "bg-muted text-muted-foreground",
 };
 
@@ -98,7 +98,7 @@ export default function MachineparkPage() {
         {(binnenkort?.length ?? 0) > 0 && (
           <div
             role="status"
-            className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200"
+            className="rounded-md border border-status-herinnering-border bg-surface-aandacht p-3 text-sm text-status-herinnering-text"
           >
             <p className="mb-1 flex items-center gap-1 font-semibold">
               <AlertTriangle className="h-4 w-4" aria-hidden />
@@ -225,7 +225,7 @@ export default function MachineparkPage() {
                             <span
                               className={
                                 rij.vervalBinnenTermijn > 0
-                                  ? "text-xs font-medium text-amber-700 dark:text-amber-300"
+                                  ? "text-xs font-medium text-status-herinnering-text"
                                   : "text-xs text-muted-foreground"
                               }
                             >
@@ -293,7 +293,7 @@ export default function MachineparkPage() {
                             type="color"
                             aria-label={`Kleurcode team ${team.naam}`}
                             className="h-7 w-12 cursor-pointer rounded border bg-transparent disabled:cursor-not-allowed"
-                            value={team.kleur ?? "#94a3b8"}
+                            value={team.kleur ?? "#767168" /* scope-bestrating: warm grijs */}
                             disabled={!magBeheren}
                             onChange={(e) =>
                               setTeamKleur({

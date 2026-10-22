@@ -372,8 +372,8 @@ export function EmailTemplatesTab() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900">
-                <Mail className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-surface-primair">
+                <Mail className="h-5 w-5 text-primary" />
               </div>
               <div>
                 <CardTitle>E-mail Templates</CardTitle>
@@ -609,7 +609,7 @@ export function EmailTemplatesTab() {
                       key={variable}
                       className="flex items-center justify-between gap-1 rounded-md bg-background px-2 py-1.5 text-xs"
                     >
-                      <code className="text-emerald-600 dark:text-emerald-400 font-mono">
+                      <code className="text-primary font-mono">
                         {`{{${variable}}}`}
                       </code>
                       <div className="flex gap-0.5">
@@ -716,7 +716,7 @@ export function EmailTemplatesTab() {
               </div>
 
               {/* Info box */}
-              <div className="flex items-start gap-2 rounded-md bg-blue-50 dark:bg-blue-950/30 p-3 text-xs text-blue-700 dark:text-blue-300">
+              <div className="flex items-start gap-2 rounded-md bg-status-voorcalculatie p-3 text-xs text-status-voorcalculatie-text">
                 <Info className="h-4 w-4 mt-0.5 shrink-0" />
                 <p>
                   Dit is een vereenvoudigd voorbeeld. De daadwerkelijke e-mail
