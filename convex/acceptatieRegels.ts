@@ -44,7 +44,7 @@ export type AcceptatieBesluit =
        * Keten-actie die de status-mutation bij acceptatie uitvoert:
        * - "geen": uitgang bestaat al (werkitem of contract gekoppeld)
        * - "contract_aanmaken": route 1 — concept-contract via createFromOfferte
-       * - "project_aanmaken": aanleg-wizard — eenmalig project (bestaand gedrag)
+       * - "project_aanmaken": aanleg-wizard of vrije offerte — eenmalig project
        */
       actie: "geen" | "contract_aanmaken" | "project_aanmaken";
     }
@@ -52,8 +52,9 @@ export type AcceptatieBesluit =
 
 export const ACCEPTATIE_GEWEIGERD_REDEN =
   "Een offerte kan niet op 'geaccepteerd' zonder ten minste één werkitem " +
-  "(PRD §2.5). Koppel de regels eerst aan een eenmalig project, een losse " +
-  "onderhoudsbeurt of een concept-contract via de koppel-dialoog.";
+  "(PRD §2.5). Maak eerst de voorcalculatie, of koppel de regels aan een " +
+  "eenmalig project, een losse onderhoudsbeurt of een concept-contract via " +
+  "de koppel-dialoog.";
 
 export function beoordeelAcceptatie(
   context: AcceptatieContext
@@ -79,7 +80,15 @@ export function beoordeelAcceptatie(
     return { toegestaan: true, actie: "project_aanmaken" };
   }
 
-  // Route 2 (vrij) of een offerte zonder herleidbare keten: kantoor moet
-  // eerst koppelen. De mutation weigert met een duidelijke fout.
+  // Route 2 (vrij), klantbesluit okt 2026: akkoord op een vrije offerte maakt
+  // automatisch een eenmalig project met alle niet-optionele regels. Kantoor
+  // kan vóór acceptatie nog steeds zelf koppelen (dan "geen" hierboven).
+  if (context.bron === "vrij") {
+    return { toegestaan: true, actie: "project_aanmaken" };
+  }
+
+  // Een wizard-offerte zonder herleidbare keten (aanleg zonder
+  // voorcalculatie, onderhoud zonder bouwstenen): kantoor moet eerst
+  // koppelen. De mutation weigert met een duidelijke fout.
   return { toegestaan: false, reden: ACCEPTATIE_GEWEIGERD_REDEN };
 }

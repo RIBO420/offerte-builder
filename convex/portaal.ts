@@ -475,11 +475,11 @@ export const respondToOfferte = mutation({
     // nooit blokkeren; daarom hergebruikt dit pad de acceptatie-kern
     // (convex/acceptatieKeten.ts):
     // (a) offerte met bouwsteenRegels → automatisch concept-contract (route 1);
-    // (b) aanleg-wizard-offerte → automatisch eenmalig project;
-    // (c) vrije offerte zonder herleidbare koppeling → vangnet: één eenmalig
-    //     project-werkitem met alle regels, titel "Uit offerte [nummer] —
-    //     koppeling controleren"; kantoor herverdeelt later via de
-    //     koppel-dialoog. Deze stap verstuurt bewust geen e-mail.
+    // (b) aanleg-wizard- of vrije offerte → automatisch eenmalig project
+    //     "Klantnaam – werkzaamheden" met een taak per regel;
+    // (c) offerte zonder herleidbare keten → vangnet: hetzelfde eenmalige
+    //     project met alle niet-optionele regels; kantoor herverdeelt later
+    //     via de koppel-dialoog. Deze stap verstuurt bewust geen e-mail.
     if (args.status === "geaccepteerd") {
       const geaccepteerdeOfferte = await ctx.db.get(args.offerteId);
       if (geaccepteerdeOfferte) {

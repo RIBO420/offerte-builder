@@ -61,6 +61,9 @@ export function usePlanning(projectId: Id<"projecten"> | null) {
   const generateFromVoorcalculatieMutation = useMutation(
     api.planningTaken.generateFromVoorcalculatie
   );
+  const generateFromOfferteRegelsMutation = useMutation(
+    api.planningTaken.generateFromOfferteRegels
+  );
   const updateMutation = useMutation(api.planningTaken.update);
   const updateVolgordeMutation = useMutation(api.planningTaken.updateVolgorde);
   const removeMutation = useMutation(api.planningTaken.remove);
@@ -90,6 +93,12 @@ export function usePlanning(projectId: Id<"projecten"> | null) {
     if (!projectId) throw new Error("Project ID is required");
     return generateFromVoorcalculatieMutation({ projectId });
   }, [projectId, generateFromVoorcalculatieMutation]);
+
+  // Taken uit de offerteregels (één per regel) — alleen als er nog geen zijn
+  const generateFromOfferteRegels = useCallback(async () => {
+    if (!projectId) throw new Error("Project ID is required");
+    return generateFromOfferteRegelsMutation({ projectId });
+  }, [projectId, generateFromOfferteRegelsMutation]);
 
   // Update task status
   const updateStatus = useCallback(
@@ -181,6 +190,7 @@ export function usePlanning(projectId: Id<"projecten"> | null) {
 
     // Actions
     generateFromVoorcalculatie,
+    generateFromOfferteRegels,
     updateStatus,
     updateTask,
     updateVolgorde,

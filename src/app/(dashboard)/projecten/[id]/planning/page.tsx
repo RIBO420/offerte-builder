@@ -46,7 +46,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { AlertTriangle, ArrowRight, Loader2, Play, Plus, RefreshCw, Sparkles } from "lucide-react";
+import { AlertTriangle, ArrowRight, ListChecks, Loader2, Play, Plus, RefreshCw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { usePlanning, type TaakStatus } from "@/hooks/use-planning";
 import { TakenLijst } from "@/components/project/taken-lijst";
@@ -87,6 +87,7 @@ export default function PlanningPage({
     summary,
     isLoading,
     generateFromVoorcalculatie,
+    generateFromOfferteRegels,
     updateStatus,
     updateVolgorde,
     removeTask,
@@ -141,6 +142,22 @@ export default function PlanningPage({
       setIsGenerating(false);
     }
   }, [generateFromVoorcalculatie]);
+
+  // Eén taak per offerteregel — de weg voor vrije offertes (geen
+  // voorcalculatie) en voor projecten van vóór de automatische taken.
+  const handleUitRegels = useCallback(async () => {
+    setIsGenerating(true);
+    try {
+      const result = await generateFromOfferteRegels();
+      toast.success(`${result.count} taken uit de offerteregels`);
+    } catch (err) {
+      toast.error("Taken maken lukte niet", {
+        description: err instanceof Error ? err.message : "Onbekende fout",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [generateFromOfferteRegels]);
 
   const handleUpdateStatus = async (taskId: Id<"planningTaken">, status: TaakStatus) => {
     setOptimisticStatusUpdates((prev) => new Map(prev).set(taskId, status));
@@ -281,6 +298,8 @@ export default function PlanningPage({
 
   const taakUren = summary?.totaalUren ?? 0;
   const begroteUren = voorcalculatie?.normUrenTotaal ?? 0;
+  const heeftOfferteRegels =
+    !!project?.offerteId && (offerte?.regels ?? []).some((r) => !r.optioneel);
   // Alleen waarschuwen als beide er zijn en ze op één decimaal verschillen.
   const urenWijkenAf = taakUren > 0 && begroteUren > 0 && getal(taakUren) !== getal(begroteUren);
 
@@ -360,12 +379,14 @@ export default function PlanningPage({
                       <p className="text-sm font-medium">Nog geen taken gepland</p>
                       <p className="max-w-prose text-[13px] text-muted-foreground">
                         {voorcalculatie
-                          ? "Genereer de taken uit de voorcalculatie, of voeg ze zelf toe."
-                          : "Er is nog geen voorcalculatie. Maak die eerst bij de offerte, dan kun je de taken genereren."}
+                          ? "Genereer de taken uit de voorcalculatie of uit de offerteregels, of voeg ze zelf toe."
+                          : heeftOfferteRegels
+                            ? "Maak de taken uit de offerteregels (één taak per regel), of voeg ze zelf toe."
+                            : "Er is nog geen voorcalculatie. Maak die eerst bij de offerte, dan kun je de taken genereren."}
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {voorcalculatie ? (
+                      {voorcalculatie && (
                         <Button variant="outline" onClick={handleGenerate} disabled={isGenerating}>
                           {isGenerating ? (
                             <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" />
@@ -374,7 +395,21 @@ export default function PlanningPage({
                           )}
                           Taken automatisch genereren
                         </Button>
-                      ) : (
+                      )}
+                      {heeftOfferteRegels ? (
+                        <Button
+                          variant={voorcalculatie ? "outline" : "default"}
+                          onClick={handleUitRegels}
+                          disabled={isGenerating}
+                        >
+                          {isGenerating ? (
+                            <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" />
+                          ) : (
+                            <ListChecks className="mr-2 size-4" aria-hidden="true" />
+                          )}
+                          Taken uit de offerteregels
+                        </Button>
+                      ) : voorcalculatie ? null : (
                         project?.offerteId && (
                           <Button asChild>
                             <Link href={`/offertes/${project.offerteId}/voorcalculatie`}>

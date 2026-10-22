@@ -28,6 +28,7 @@ import { logTijdlijnEvent } from "./tijdlijn";
 import { zetTriggerMailKlaar } from "./mailTriggers";
 import { formatDatumNl } from "./conceptMails";
 import { adresRegel, klantFactuurAdres, klantUitvoerAdres } from "./lib/adres";
+import { maakPlanningTakenUitOfferte } from "./lib/planningTakenVoorProject";
 import { begroteUrenVoorRegels } from "./lib/begroteUren";
 import { planMeldingNaWijziging } from "./planningMeldingen";
 
@@ -347,7 +348,7 @@ export const createWerkitem = mutation({
     }
 
     const now = Date.now();
-    return await ctx.db.insert("projecten", {
+    const werkitemId = await ctx.db.insert("projecten", {
       orgId: org._id,
       type: args.type,
       klantId: args.klantId,
@@ -367,6 +368,13 @@ export const createWerkitem = mutation({
       createdAt: now,
       updatedAt: now,
     });
+
+    // Koppel-dialoog: de toegewezen offerteregels worden meteen taken (één
+    // per regel); nooit dubbel, de helper slaat over als er al taken zijn.
+    if (args.offerteId && args.offerteRegelIds && args.offerteRegelIds.length > 0) {
+      await maakPlanningTakenUitOfferte(ctx, werkitemId);
+    }
+    return werkitemId;
   },
 });
 

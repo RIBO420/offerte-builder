@@ -5,6 +5,7 @@ import { requireNotViewer } from "./roles";
 import { Id } from "./_generated/dataModel";
 import { laadDocsMap } from "./lib/batchLoad";
 import { voorcalculatieVanProject, voorcalculatieVanOfferte } from "./lib/voorcalculatieLookup";
+import { maakPlanningTakenUitOfferte } from "./lib/planningTakenVoorProject";
 
 /**
  * Task templates per scope - must match src/lib/planning-templates.ts
@@ -138,6 +139,39 @@ export const generateFromVoorcalculatie = mutation({
       count: createdTasks.length,
       taskIds: createdTasks,
     };
+  },
+});
+
+/**
+ * Taken uit de offerteregels: één taak per (niet-optionele of toegewezen)
+ * regel. Voor projecten zonder voorcalculatie (vrije offertes) en voor
+ * projecten van vóór de automatische taken. Vult alleen aan als er nog
+ * geen taken zijn — overschrijft nooit.
+ */
+export const generateFromOfferteRegels = mutation({
+  args: {
+    projectId: v.id("projecten"),
+  },
+  handler: async (ctx, args) => {
+    await requireNotViewer(ctx);
+    const { project } = await getOwnedProject(ctx, args.projectId);
+
+    if (!project.offerteId) {
+      throw new ConvexError("Dit project heeft geen offerte om taken uit te maken.");
+    }
+    const bestaand = await ctx.db
+      .query("planningTaken")
+      .withIndex("by_project", (q) => q.eq("projectId", args.projectId))
+      .first();
+    if (bestaand) {
+      throw new ConvexError("Dit project heeft al taken.");
+    }
+
+    const count = await maakPlanningTakenUitOfferte(ctx, args.projectId);
+    if (count === 0) {
+      throw new ConvexError("De offerte heeft geen regels om taken van te maken.");
+    }
+    return { count };
   },
 });
 

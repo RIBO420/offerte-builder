@@ -1432,8 +1432,9 @@ export const updateStatus = mutation({
     // Route 1 (bouwsteenRegels): automatisch concept-contract (uitvoering na
     // de status-patch hieronder). Aanleg-wizard: automatisch eenmalig project
     // (voorheen handmatige stap ná acceptatie — mag nu niet meer ontbreken).
-    // Route 2 (vrij): kantoor koppelt éérst werkitems via de koppel-dialoog,
-    // anders weigert deze mutation met een duidelijke fout.
+    // Route 2 (vrij): automatisch eenmalig project met de niet-optionele
+    // regels, tenzij kantoor al werkitems koppelde. Alleen een wizard-offerte
+    // zonder keten-uitgang wordt geweigerd met een duidelijke fout.
     let ketenActie: KetenActie = "geen";
     if (args.status === "geaccepteerd") {
       const besluit = await bepaalAcceptatieBesluit(ctx, oldOfferte);

@@ -6,7 +6,7 @@
  * offertes.updateStatus uitvoert bij de overgang naar "geaccepteerd":
  * - geen acceptatie zonder ten minste één werkitem (beide routes, harde fout)
  * - route 1 (bouwsteenRegels) → automatisch concept-contract
- * - route 2 (vrij) → alleen ná koppeling (werkitem of contract aanwezig)
+ * - route 2 (vrij) → automatisch project, tenzij er al gekoppeld is
  * - aanleg-wizard → project bij acceptatie (bestaand gedrag blijft werken)
  */
 
@@ -28,38 +28,30 @@ const context = (over: Partial<AcceptatieContext> = {}): AcceptatieContext => ({
 });
 
 describe("harde validatie: geen 'geaccepteerd' zonder werkitem", () => {
-  it("weigert een vrije offerte (route 2) zonder koppeling, met duidelijke reden", () => {
-    const besluit = beoordeelAcceptatie(
-      context({ type: "aanleg", bron: "vrij" })
-    );
-    expect(besluit.toegestaan).toBe(false);
-    if (!besluit.toegestaan) {
-      expect(besluit.reden).toBe(ACCEPTATIE_GEWEIGERD_REDEN);
-      expect(besluit.reden).toMatch(/koppel/i);
+  it("weigert een wizard-offerte zonder enige keten-uitgang, met duidelijke reden", () => {
+    for (const type of ["onderhoud", "aanleg"] as const) {
+      const besluit = beoordeelAcceptatie(context({ type }));
+      expect(besluit.toegestaan).toBe(false);
+      if (!besluit.toegestaan) {
+        expect(besluit.reden).toBe(ACCEPTATIE_GEWEIGERD_REDEN);
+        expect(besluit.reden).toMatch(/koppel/i);
+      }
     }
   });
+});
 
-  it("weigert ook een wizard-offerte zonder enige keten-uitgang (route 1 én 2)", () => {
-    expect(
-      beoordeelAcceptatie(context({ type: "onderhoud" })).toegestaan
-    ).toBe(false);
-    expect(
-      beoordeelAcceptatie(context({ type: "aanleg" })).toegestaan
-    ).toBe(false);
+describe("route 2 (vrij): akkoord maakt automatisch een project (klantbesluit okt 2026)", () => {
+  it("een vrije aanleg-offerte zonder koppeling → project aanmaken", () => {
+    expect(beoordeelAcceptatie(context({ type: "aanleg", bron: "vrij" }))).toEqual({
+      toegestaan: true,
+      actie: "project_aanmaken",
+    });
   });
 
-  it("een vrije onderhoud-offerte zonder koppeling wordt geweigerd, ook mét voorcalculatie", () => {
-    const besluit = beoordeelAcceptatie(
-      context({ type: "onderhoud", bron: "vrij", heeftVoorcalculatie: true })
-    );
-    expect(besluit.toegestaan).toBe(false);
-  });
-
-  it("een vrije aanleg-offerte gaat niet via de project-automaat (bron vrij ≠ wizard)", () => {
-    const besluit = beoordeelAcceptatie(
-      context({ type: "aanleg", bron: "vrij", heeftVoorcalculatie: true })
-    );
-    expect(besluit.toegestaan).toBe(false);
+  it("een vrije onderhoud-offerte zonder koppeling of bouwstenen → project aanmaken", () => {
+    expect(
+      beoordeelAcceptatie(context({ type: "onderhoud", bron: "vrij", heeftVoorcalculatie: true }))
+    ).toEqual({ toegestaan: true, actie: "project_aanmaken" });
   });
 });
 

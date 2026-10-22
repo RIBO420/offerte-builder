@@ -17,6 +17,8 @@ import { klantNaam } from "./lib/offerteKlant";
 import { getUserRole, getLinkedMedewerker, requireNotViewer, requireDirectieOrProjectleider } from "./roles";
 import { upgradeKlantPipeline } from "./pipelineHelpers";
 import { heeftVoorcalculatieStap } from "./acceptatieRegels";
+import { projectTitelVoorOfferte } from "./acceptatieKeten";
+import { maakPlanningTakenUitOfferte } from "./lib/planningTakenVoorProject";
 import {
   voorcalculatieVanOfferte,
   voorcalculatieVanProject,
@@ -108,14 +110,18 @@ export const create = mutation({
       throw new ConvexError("Er bestaat al een project voor deze offerte");
     }
 
-    // Use provided name or derive from offerte
+    // Eigen titel, anders "Klantnaam – werkzaamheden" (zelfde regel als de
+    // acceptatie-keten).
     const projectNaam =
-      args.naam || `Project ${offerte.offerteNummer} - ${klantNaam(offerte.klant)}`;
+      args.naam?.trim() || (await projectTitelVoorOfferte(ctx, offerte));
 
     // Create the project with status "gepland" (voorcalculatie is now at offerte level)
     const projectId = await ctx.db.insert("projecten", {
       orgId: org._id,
       offerteId: args.offerteId,
+      // Klant op het project zelf, zodat de projectpagina hem ook zonder
+      // offerte-omweg toont.
+      klantId: offerte.klantId,
       naam: projectNaam,
       status: "gepland",
       createdAt: now,
@@ -145,6 +151,9 @@ export const create = mutation({
         createdAt: now,
       });
     }
+
+    // Eén planningstaak per offerteregel (niet dubbel als er al taken zijn).
+    await maakPlanningTakenUitOfferte(ctx, projectId);
 
     return projectId;
   },
