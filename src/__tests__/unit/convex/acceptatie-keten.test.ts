@@ -133,13 +133,14 @@ describe("aanleg-wizard: project zonder regel-toewijzing", () => {
     expect(project.naam).toBe("Jansen – Grondwerk en gras");
     expect(project.offerteRegelIds).toBeUndefined();
     expect(project.geschatteUren).toBe(40); // totalen.totaalUren uit de mock
-    expect(store.getAll("planningTaken")).toHaveLength(3);
+    // Wizard: alleen de twee arbeidsregels worden een taak, het materiaal niet
+    expect(store.getAll("planningTaken").map((t) => t.taakNaam)).toEqual(["Ontgraven", "Voorbereiding"]);
   });
 });
 
 describe("maakVangnetWerkitem (klant-acceptatie zonder keten)", () => {
   it("maakt één project met de niet-optionele regels, de nieuwe titel en taken", async () => {
-    const { store, ctx, offerte, offerteId, klantId } = maakOfferte({ regels: vrijeRegels });
+    const { store, ctx, offerte, offerteId, klantId } = maakOfferte({ bron: "vrij", regels: vrijeRegels });
 
     await maakVangnetWerkitem(ctx, offerte, now);
 

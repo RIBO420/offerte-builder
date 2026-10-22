@@ -101,6 +101,18 @@ describe("takenUitOfferteRegels", () => {
     expect(taken[0].volgorde).toBe(0);
   });
 
+  it("wizard-offerte (alleenArbeid): alleen arbeidsregels worden een taak", () => {
+    const taken = takenUitOfferteRegels(
+      [
+        regel({ id: "a", type: "materiaal", omschrijving: "Graszoden" }),
+        regel({ id: "b", type: "arbeid", omschrijving: "Graszoden leggen", eenheid: "uur", hoeveelheid: 6 }),
+        regel({ id: "c", type: "machine", omschrijving: "Minigraver" }),
+      ],
+      { alleenArbeid: true }
+    );
+    expect(taken.map((t) => t.taakNaam)).toEqual(["Graszoden leggen"]);
+  });
+
   it("geeft niets bij een offerte zonder regels", () => {
     expect(takenUitOfferteRegels([])).toEqual([]);
   });

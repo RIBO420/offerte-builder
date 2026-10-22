@@ -80,6 +80,8 @@ export function takenUitOfferteRegels(
     regelIds?: ReadonlyArray<string>;
     teamGrootte?: number;
     effectieveUrenPerDag?: number;
+    /** Wizard-offerte: alleen arbeidsregels worden een taak (anders een lange lijst materiaal zonder uren). */
+    alleenArbeid?: boolean;
   } = {}
 ): NieuweTaak[] {
   const teamGrootte =
@@ -91,7 +93,7 @@ export function takenUitOfferteRegels(
   const teamUrenPerDag = teamGrootte * urenPerDag;
 
   const gekozen = regelsVoorTaken(regels, opties.regelIds).filter(
-    (r) => r.omschrijving.trim().length > 0
+    (r) => r.omschrijving.trim().length > 0 && (!opties.alleenArbeid || r.type === "arbeid")
   );
 
   // Stabiel groeperen per hoofdstuk: de volgorde waarin de klant ze ziet.

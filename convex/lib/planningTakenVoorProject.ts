@@ -38,6 +38,7 @@ export async function maakPlanningTakenUitOfferte(
     regelIds: project.offerteRegelIds,
     teamGrootte: voorcalculatie?.teamGrootte,
     effectieveUrenPerDag: voorcalculatie?.effectieveUrenPerDag,
+    alleenArbeid: offerte.bron !== "vrij",
   });
 
   const now = Date.now();
