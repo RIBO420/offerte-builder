@@ -27,6 +27,7 @@ interface OfferteRegel {
   optioneel?: boolean;
   btwCode?: number; // 9 of 21 (vrije builder, PRD §2.5b)
   artikelBeschrijving?: string; // offertetekst uit het prijsboek, klein onder de regel
+  kortingPercentage?: number; // korting per regel (vrije builder)
 }
 
 interface OfferteTotalen {
@@ -45,6 +46,8 @@ interface Offerte {
   offerteNummer: string;
   type: "aanleg" | "onderhoud";
   status: string;
+  /** "vrij" = offerte uit de vrije builder: elke regel los in de PDF */
+  bron?: "wizard" | "vrij";
   // Optioneel: een concept mag sinds de nieuwe entree zonder klant bestaan
   // (convex/lib/offerteKlant.ts). Vóór versturen is hij weer verplicht — dat
   // bewaakt de server, hier zorgen we alleen dat een voorbeeld niet crasht.
@@ -281,6 +284,106 @@ function OmschrijvingCel({ summary, theme: t }: { summary: ScopeSummary; theme: 
   );
 }
 
+/**
+ * Vrije offerte: elke regel los, per hoofdstuk (in de volgorde van de
+ * offerte) met een subtotaal. Onder de regelnaam de artikelbeschrijving.
+ * Arbeid en kleinmateriaal blijven zichtbaar, net als in HERO.
+ */
+function RegelTabel({ regels, theme: t }: { regels: OfferteRegel[]; theme: PdfTheme }) {
+  const s = t.styles;
+  const hoofdstukken: { naam: string; regels: OfferteRegel[] }[] = [];
+  for (const regel of regels) {
+    const naam = regel.scope || "Werkzaamheden";
+    let groep = hoofdstukken.find((h) => h.naam === naam);
+    if (!groep) {
+      groep = { naam, regels: [] };
+      hoofdstukken.push(groep);
+    }
+    groep.regels.push(regel);
+  }
+  const toonHoofdstukken = hoofdstukken.length > 1 || hoofdstukken[0]?.naam !== "Werkzaamheden";
+  const getal = (n: number) =>
+    new Intl.NumberFormat("nl-NL", { maximumFractionDigits: 2 }).format(n);
+  const klein = { fontSize: t.typography.smallSize };
+
+  return (
+    <View style={s.table}>
+      <View style={s.tableHeader} fixed>
+        <Text style={[s.tableHeaderCell, { flex: 5 }]}>Omschrijving</Text>
+        <Text style={[s.tableHeaderCell, { flex: 1.4, textAlign: "right" }]}>Aantal</Text>
+        <Text style={[s.tableHeaderCell, { flex: 1.4, textAlign: "right" }]}>Prijs</Text>
+        <Text style={[s.tableHeaderCell, { flex: 0.8, textAlign: "right" }]}>Btw</Text>
+        <Text style={[s.tableHeaderCell, { flex: 1.5, textAlign: "right" }]}>Totaal</Text>
+      </View>
+      {hoofdstukken.map((h) => {
+        const subtotaal = h.regels.reduce((t2, r) => t2 + r.totaal, 0);
+        return (
+          <View key={h.naam}>
+            {toonHoofdstukken && (
+              <View
+                style={{ paddingTop: 10, paddingBottom: 4, paddingHorizontal: 8 }}
+                minPresenceAhead={40}
+              >
+                <Text style={{ ...PDF_KOP, fontSize: t.typography.bodySize, color: t.colors.primary }}>
+                  {h.naam}
+                </Text>
+              </View>
+            )}
+            {h.regels.map((regel, i) => (
+              <View
+                key={regel.id}
+                style={[i % 2 === 0 ? s.tableRow : s.tableRowAlt, { alignItems: "flex-start" }]}
+                wrap
+              >
+                <View style={{ flex: 5, paddingRight: 8 }}>
+                  <Text
+                    style={[s.tableCell, { fontWeight: 600 }]}
+                    hyphenationCallback={geenAfbreking}
+                  >
+                    {regel.omschrijving}
+                  </Text>
+                  {regel.kortingPercentage ? (
+                    <Text style={[klein, { color: t.colors.muted, marginTop: 2 }]}>
+                      Inclusief {getal(regel.kortingPercentage)}% korting
+                    </Text>
+                  ) : null}
+                  {regel.artikelBeschrijving ? (
+                    <ArtikelBeschrijvingPdf tekst={regel.artikelBeschrijving} theme={t} />
+                  ) : null}
+                </View>
+                <Text style={[s.tableCellRight, { flex: 1.4 }]}>
+                  {getal(regel.hoeveelheid)} {regel.eenheid}
+                </Text>
+                <Text style={[s.tableCellRight, { flex: 1.4 }]}>
+                  {formatCurrency(regel.prijsPerEenheid)}
+                </Text>
+                <Text style={[s.tableCellRight, { flex: 0.8 }]}>
+                  {regel.btwCode ? `${regel.btwCode}%` : ""}
+                </Text>
+                <Text style={[s.tableCellRight, { flex: 1.5 }]}>
+                  {formatCurrency(regel.totaal)}
+                </Text>
+              </View>
+            ))}
+            {toonHoofdstukken && (
+              <View
+                style={{ flexDirection: "row", justifyContent: "flex-end", paddingVertical: 5, paddingHorizontal: 8, borderTopWidth: 0.5, borderTopColor: t.colors.border }}
+              >
+                <Text style={[klein, { color: t.colors.muted, marginRight: 12 }]}>
+                  Subtotaal {h.naam.toLowerCase()}
+                </Text>
+                <Text style={[klein, { color: t.colors.text, fontWeight: 600 }]}>
+                  {formatCurrency(subtotaal)}
+                </Text>
+              </View>
+            )}
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
 export function OffertePDF({ offerte, bedrijfsgegevens, theme, voorwaarden, teksten }: OffertePDFProps) {
   const inleiding = teksten?.inleiding ?? offerte.vrijeTeksten?.aanhef;
   const afsluiting = teksten?.afsluiting ?? offerte.vrijeTeksten?.voorwaarden;
@@ -304,6 +407,7 @@ export function OffertePDF({ offerte, bedrijfsgegevens, theme, voorwaarden, teks
   // Separate standard and optional regels
   const standardRegels = offerte.regels.filter((r) => !r.optioneel);
   const optionalRegels = offerte.regels.filter((r) => r.optioneel);
+  const isVrij = offerte.bron === "vrij";
   const scopeSummaries = summarizeRegelsByScope(standardRegels);
   const optionalScopeSummaries = summarizeRegelsByScope(optionalRegels);
 
@@ -429,8 +533,16 @@ export function OffertePDF({ offerte, bedrijfsgegevens, theme, voorwaarden, teks
           </View>
         )}
 
+        {/* Vrije offerte: elke regel los */}
+        {isVrij && standardRegels.length > 0 && (
+          <View style={s.section}>
+            <Text style={s.sectionTitle} minPresenceAhead={90}>Werkzaamheden</Text>
+            <RegelTabel regels={standardRegels} theme={t} />
+          </View>
+        )}
+
         {/* Werkzaamheden - Customer-friendly summarized view */}
-        {scopeSummaries.length > 0 && (
+        {!isVrij && scopeSummaries.length > 0 && (
           <View style={s.section}>
             <Text style={s.sectionTitle}>Werkzaamheden</Text>
             <View style={s.table}>
@@ -463,8 +575,19 @@ export function OffertePDF({ offerte, bedrijfsgegevens, theme, voorwaarden, teks
           </View>
         )}
 
+        {/* Optionele posten, vrije offerte: elke regel los */}
+        {isVrij && optionalRegels.length > 0 && (
+          <View style={s.section}>
+            <Text style={s.sectionTitle} minPresenceAhead={90}>Optionele werkzaamheden</Text>
+            <Text style={{ fontSize: t.typography.smallSize, color: t.colors.muted, marginBottom: 6 }}>
+              Onderstaande posten zijn optioneel en niet inbegrepen in het totaalbedrag.
+            </Text>
+            <RegelTabel regels={optionalRegels} theme={t} />
+          </View>
+        )}
+
         {/* Optionele posten */}
-        {optionalScopeSummaries.length > 0 && (
+        {!isVrij && optionalScopeSummaries.length > 0 && (
           <View style={s.section}>
             <Text style={s.sectionTitle}>Optionele werkzaamheden</Text>
             <Text style={{ fontSize: t.typography.smallSize, color: t.colors.muted, marginBottom: 6 }}>

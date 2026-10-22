@@ -44,6 +44,7 @@ export const getByToken = query({
         offerteNummer: offerte.offerteNummer,
         type: offerte.type,
         status: offerte.status,
+        bron: offerte.bron,
         klant: offerte.klant,
         algemeenParams: offerte.algemeenParams,
         scopes: offerte.scopes,
@@ -59,6 +60,7 @@ export const getByToken = query({
           optioneel: r.optioneel,
           btwCode: r.btwCode,
           artikelBeschrijving: r.artikelBeschrijving,
+          kortingPercentage: r.kortingPercentage,
         })),
         totalen: {
           ...offerte.totalen,
