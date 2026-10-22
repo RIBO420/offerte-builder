@@ -20,7 +20,7 @@ import { requireNotViewer } from "./roles";
 import {
   aftrekVanFactuur,
   berekenTotalenVoorFactuur,
-  eindfactuurRegels,
+  eindfactuurRegelsVoorOfferte,
   offerteGrondslagPerTarief,
   termijnRegels,
   type FactuurRegelUit,
@@ -319,7 +319,7 @@ export const maakEindfactuur = mutation({
     }
 
     return await maakKetenFactuur(ctx, offerte, org._id, {
-      regels: eindfactuurRegels(offerteGrondslagPerTarief(offerte), offerte.offerteNummer),
+      regels: eindfactuurRegelsVoorOfferte(offerte, offerte.offerteNummer),
       // Zonder schema is dit gewoon de factuur, met de gewone factuurtekst
       documentSoort:
         schema.length > 0

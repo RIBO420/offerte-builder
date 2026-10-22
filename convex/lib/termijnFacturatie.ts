@@ -6,7 +6,9 @@
  * - Een termijnfactuur heeft één regel per btw-tarief:
  *   "Termijn 1 – 50% na gunning van offerte 01400 (21% btw)".
  * - De eindfactuur toont de offerte en trekt de eerdere termijnen per tarief
- *   af. De btw is de restmethode: btw over het hele offertebedrag min de al
+ *   af. Bij een vrije offerte staat elke regel los op de factuur (met de
+ *   artikelbeschrijving); een wizard-offerte blijft één post per tarief, want
+ *   daar zit de marge per scope niet in de regels. De btw is de restmethode: btw over het hele offertebedrag min de al
  *   gefactureerde btw, zodat de som van alle facturen op de cent gelijk is
  *   aan de offerte (acceptatietest 1, offerte 01399).
  */
@@ -55,9 +57,23 @@ export function valideerTermijnschema(stappen: ReadonlyArray<TermijnStap>): stri
   return undefined;
 }
 
+export interface OfferteRegelVoorFacturatie {
+  id?: string;
+  omschrijving?: string;
+  eenheid?: string;
+  hoeveelheid?: number;
+  prijsPerEenheid?: number;
+  totaal: number;
+  btwCode?: 9 | 21;
+  optioneel?: boolean;
+  scope?: string;
+  kortingPercentage?: number;
+  artikelBeschrijving?: string;
+}
+
 export interface OfferteVoorFacturatie {
   bron?: "wizard" | "vrij";
-  regels: ReadonlyArray<{ totaal: number; btwCode?: 9 | 21; optioneel?: boolean }>;
+  regels: ReadonlyArray<OfferteRegelVoorFacturatie>;
   kortingOpTotaal?: number;
   totalen: { totaalExBtw: number; btw: number };
 }
@@ -86,6 +102,9 @@ export interface FactuurRegelUit {
   prijsPerEenheid: number;
   totaal: number;
   btwCode: 9 | 21;
+  scope?: string;
+  kortingPercentage?: number;
+  artikelBeschrijving?: string;
 }
 
 const btwCodeVan = (percentage: number): 9 | 21 => (percentage === 9 ? 9 : 21);
@@ -191,6 +210,57 @@ export function eindfactuurRegels(
       totaal: g.grondslag,
       btwCode: btwCodeVan(g.percentage),
     }));
+}
+
+/**
+ * Regels van de eindfactuur (of de enige factuur). Vrije offerte: elke
+ * niet-optionele regel los, in de volgorde van de offerte, plus per tarief een
+ * kortingsregel als er korting op het totaal is, zodat de netto per tarief
+ * gelijk blijft aan `offerteGrondslagPerTarief`. Wizard: één post per tarief.
+ */
+export function eindfactuurRegelsVoorOfferte(
+  offerte: OfferteVoorFacturatie,
+  offerteNummer: string
+): FactuurRegelUit[] {
+  const grondslag = offerteGrondslagPerTarief(offerte);
+  if (offerte.bron !== "vrij") return eindfactuurRegels(grondslag, offerteNummer);
+
+  const posten = offerte.regels.filter((r) => !r.optioneel);
+  const regels: FactuurRegelUit[] = posten.map((r, i) => ({
+    id: r.id ?? `regel-${i + 1}`,
+    omschrijving: r.omschrijving ?? "",
+    eenheid: r.eenheid ?? "stuk",
+    hoeveelheid: r.hoeveelheid ?? 1,
+    prijsPerEenheid: r.prijsPerEenheid ?? r.totaal,
+    totaal: r.totaal,
+    btwCode: r.btwCode ?? 21,
+    ...(r.scope ? { scope: r.scope } : {}),
+    ...(r.kortingPercentage ? { kortingPercentage: r.kortingPercentage } : {}),
+    ...(r.artikelBeschrijving ? { artikelBeschrijving: r.artikelBeschrijving } : {}),
+  }));
+
+  const meerdereTarieven = grondslag.length > 1;
+  for (const g of grondslag) {
+    const code = btwCodeVan(g.percentage);
+    const somRegels = regels
+      .filter((r) => r.btwCode === code)
+      .reduce((t, r) => t + r.totaal, 0);
+    const verschil = round2(g.grondslag - somRegels);
+    if (verschil !== 0) {
+      regels.push({
+        id: `korting-${g.percentage}`,
+        omschrijving: meerdereTarieven
+          ? `Korting op het totaal (${g.percentage}% btw)`
+          : "Korting op het totaal",
+        eenheid: "post",
+        hoeveelheid: 1,
+        prijsPerEenheid: verschil,
+        totaal: verschil,
+        btwCode: code,
+      });
+    }
+  }
+  return regels;
 }
 
 // ── Totalen van elke factuur (één ingang) ─────────────────────────────────

@@ -13,6 +13,7 @@ import {
   aftrekVanFactuur,
   berekenEindfactuurTotalen,
   eindfactuurRegels,
+  eindfactuurRegelsVoorOfferte,
   offerteGrondslagPerTarief,
   termijnRegels,
   valideerTermijnschema,
@@ -115,5 +116,60 @@ describe("wizard-offerte (één tarief)", () => {
     expect(
       offerteGrondslagPerTarief({ regels: [], totalen: { totaalExBtw: 1000, btw: 210 } })
     ).toEqual([{ percentage: 21, grondslag: 1000, bedrag: 210 }]);
+  });
+});
+
+describe("eindfactuur: regels los, niet gebundeld", () => {
+  const regel = (over: Record<string, unknown>) => ({
+    omschrijving: "Graszoden",
+    eenheid: "m²",
+    hoeveelheid: 10,
+    prijsPerEenheid: 10,
+    totaal: 100,
+    btwCode: 21 as const,
+    ...over,
+  });
+
+  it("vrije offerte: elke regel apart, met beschrijving, hoofdstuk en volgorde", () => {
+    const regels = eindfactuurRegelsVoorOfferte(
+      {
+        bron: "vrij",
+        regels: [
+          regel({ id: "a", scope: "Gazon", artikelBeschrijving: "Vers gesneden" }),
+          regel({ id: "b", omschrijving: "Haagplant", totaal: 50, prijsPerEenheid: 5, btwCode: 9 }),
+          regel({ id: "c", optioneel: true }),
+        ],
+        totalen: { totaalExBtw: 150, btw: 25.5 },
+      },
+      "01400"
+    );
+    expect(regels.map((r) => r.id)).toEqual(["a", "b"]);
+    expect(regels[0]).toMatchObject({ omschrijving: "Graszoden", hoeveelheid: 10, scope: "Gazon", artikelBeschrijving: "Vers gesneden" });
+    expect(regels[1].btwCode).toBe(9);
+  });
+
+  it("korting op het totaal komt als kortingsregel per tarief; netto per tarief blijft gelijk", () => {
+    const offerte = {
+      bron: "vrij" as const,
+      regels: [regel({ id: "a", totaal: 300 }), regel({ id: "b", totaal: 100, btwCode: 9 as const })],
+      kortingOpTotaal: 40,
+      totalen: { totaalExBtw: 360, btw: 0 },
+    };
+    const regels = eindfactuurRegelsVoorOfferte(offerte, "01400");
+    const kortingen = regels.filter((r) => r.id.startsWith("korting"));
+    expect(kortingen.map((k) => k.totaal)).toEqual([-10, -30]);
+    for (const g of offerteGrondslagPerTarief(offerte)) {
+      const som = regels.filter((r) => r.btwCode === g.percentage).reduce((t, r) => t + r.totaal, 0);
+      expect(Math.round(som * 100) / 100).toBe(g.grondslag);
+    }
+  });
+
+  it("wizard-offerte blijft één post per tarief (marge zit niet in de regels)", () => {
+    const regels = eindfactuurRegelsVoorOfferte(
+      { bron: "wizard", regels: [regel({}), regel({})], totalen: { totaalExBtw: 500, btw: 105 } },
+      "01400"
+    );
+    expect(regels).toHaveLength(1);
+    expect(regels[0].omschrijving).toContain("offerte 01400");
   });
 });
