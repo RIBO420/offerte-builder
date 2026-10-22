@@ -9,6 +9,7 @@ import {
   StyleSheet,
 } from "@react-pdf/renderer";
 import { getDefaultTheme } from "@/components/pdf/pdf-theme";
+import { PDF_KOP } from "@/components/pdf/pdf-fonts";
 import type { PdfTheme } from "@/components/pdf/pdf-theme";
 import type { Bedrijfsgegevens } from "@/types/offerte";
 
@@ -121,20 +122,20 @@ function createFactuurStyles(t: PdfTheme) {
     },
     logoTextTop: {
       fontSize: Math.round(t.header.logoSize / 6),
-      fontFamily: "Helvetica-Bold",
+      ...PDF_KOP,
       color: "#ffffff",
       textAlign: "center",
     },
     logoTextTuinen: {
       fontSize: Math.round(t.header.logoSize / 8.5),
-      fontFamily: "Helvetica-Bold",
+      ...PDF_KOP,
       color: "#ffffff",
       textAlign: "center",
       letterSpacing: 2,
     },
     companyName: {
       fontSize: t.typography.headerSize - 2,
-      fontFamily: "Helvetica-Bold",
+      ...PDF_KOP,
       color: t.colors.primary,
       marginBottom: 4,
     },
@@ -152,7 +153,7 @@ function createFactuurStyles(t: PdfTheme) {
     },
     factuurTitle: {
       fontSize: 24,
-      fontFamily: "Helvetica-Bold",
+      ...PDF_KOP,
       color: t.colors.text,
       letterSpacing: 2,
     },
@@ -177,7 +178,7 @@ function createFactuurStyles(t: PdfTheme) {
     metaValue: {
       flex: 1,
       fontSize: t.typography.bodySize,
-      fontFamily: "Helvetica-Bold",
+      ...PDF_KOP,
     },
     // Client address block
     addressSection: {
@@ -188,7 +189,7 @@ function createFactuurStyles(t: PdfTheme) {
     },
     addressTitle: {
       fontSize: t.typography.smallSize,
-      fontFamily: "Helvetica-Bold",
+      ...PDF_KOP,
       color: t.colors.muted,
       marginBottom: 6,
       textTransform: "uppercase",
@@ -200,7 +201,7 @@ function createFactuurStyles(t: PdfTheme) {
     },
     addressName: {
       fontSize: t.typography.titleSize - 1,
-      fontFamily: "Helvetica-Bold",
+      ...PDF_KOP,
       marginBottom: 4,
     },
     // Line items table
@@ -217,7 +218,7 @@ function createFactuurStyles(t: PdfTheme) {
     },
     tableHeaderCell: {
       fontSize: t.typography.smallSize,
-      fontFamily: "Helvetica-Bold",
+      ...PDF_KOP,
       color: t.table.headerStyle === "underlined" ? t.colors.text : "#ffffff",
     },
     tableRow: {
@@ -272,7 +273,7 @@ function createFactuurStyles(t: PdfTheme) {
     },
     correctiesTitle: {
       fontSize: t.typography.bodySize,
-      fontFamily: "Helvetica-Bold",
+      ...PDF_KOP,
       marginBottom: 8,
       color: "#583400", // status-herinnering-text
     },
@@ -337,12 +338,12 @@ function createFactuurStyles(t: PdfTheme) {
     },
     totalsFinalLabel: {
       fontSize: t.typography.titleSize,
-      fontFamily: "Helvetica-Bold",
+      ...PDF_KOP,
       color: "#ffffff",
     },
     totalsFinalValue: {
       fontSize: t.typography.titleSize,
-      fontFamily: "Helvetica-Bold",
+      ...PDF_KOP,
       color: "#ffffff",
       textAlign: "right",
     },
@@ -357,7 +358,7 @@ function createFactuurStyles(t: PdfTheme) {
     },
     paymentTitle: {
       fontSize: t.typography.titleSize - 1,
-      fontFamily: "Helvetica-Bold",
+      ...PDF_KOP,
       marginBottom: 10,
       color: t.colors.primary,
     },
@@ -373,11 +374,11 @@ function createFactuurStyles(t: PdfTheme) {
     paymentValue: {
       flex: 1,
       fontSize: t.typography.bodySize,
-      fontFamily: "Helvetica-Bold",
+      ...PDF_KOP,
     },
     paymentIban: {
       fontSize: t.typography.titleSize,
-      fontFamily: "Helvetica-Bold",
+      ...PDF_KOP,
       color: t.colors.primary,
       letterSpacing: 1,
     },
@@ -396,7 +397,7 @@ function createFactuurStyles(t: PdfTheme) {
     },
     notesTitle: {
       fontSize: t.typography.bodySize,
-      fontFamily: "Helvetica-Bold",
+      ...PDF_KOP,
       marginBottom: 6,
       color: t.colors.muted,
     },
