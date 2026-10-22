@@ -145,7 +145,8 @@ export interface PickerProduct {
  * Artikel aanklikken vult de regel direct (PRD §2.5b): naam, eenheid,
  * inkoopprijs en btw-code. Verkoopprijs uit het productbestand als die er is,
  * anders via de meegegeven standaardmarge; prijs-op-regel-artikelen krijgen
- * bewust €0 en geen marge (kantoor vult de prijs op de regel in).
+ * bewust €0 en geen marge (kantoor vult de prijs op de regel in). Een
+ * artikel zonder inkoop maar met een vaste verkoopprijs neemt die prijs mee.
  */
 export function productNaarRegel(
   product: PickerProduct,
@@ -153,11 +154,24 @@ export function productNaarRegel(
   regelId: string,
   standaardMargePercentage?: number
 ): VrijeRegel {
+  // Vaste prijs zonder inkoop (bv. een uurtarief uit HERO): de verkoopprijs
+  // komt wel op de regel, maar er valt geen marge te berekenen.
+  const vasteVerkoopprijs =
+    product.prijsOpRegel !== true &&
+    isPrijsOpRegel(product.inkoopprijs) &&
+    product.verkoopprijs !== undefined &&
+    product.verkoopprijs > 0
+      ? product.verkoopprijs
+      : undefined;
   const prijsOpRegel =
-    product.prijsOpRegel === true || isPrijsOpRegel(product.inkoopprijs);
-  const inkoop = prijsOpRegel ? undefined : product.inkoopprijs;
+    vasteVerkoopprijs === undefined &&
+    (product.prijsOpRegel === true || isPrijsOpRegel(product.inkoopprijs));
+  const inkoop =
+    prijsOpRegel || vasteVerkoopprijs !== undefined
+      ? undefined
+      : product.inkoopprijs;
 
-  let verkoop = 0;
+  let verkoop = vasteVerkoopprijs ?? 0;
   let marge: number | undefined;
   if (!prijsOpRegel && inkoop !== undefined) {
     if (product.verkoopprijs !== undefined && product.verkoopprijs > 0) {

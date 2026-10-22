@@ -156,6 +156,30 @@ describe("artikel-picker vult de regel (PRD §2.5b)", () => {
     expect(r.inkoopprijsPerEenheid).toBeUndefined();
   });
 
+  it("vaste verkoopprijs zonder inkoop (HERO-uurtarief) komt op de regel, zonder marge", () => {
+    const r = productNaarRegel(
+      { _id: "p4", productnaam: "Tuinonderhoud per uur", eenheid: "uur", inkoopprijs: 0, verkoopprijs: 60 },
+      "Onderhoud",
+      "regel-4",
+      20
+    );
+    expect(r.prijsPerEenheid).toBe(60);
+    expect(r.totaal).toBe(60);
+    expect(r.margePercentage).toBeUndefined();
+    expect(r.inkoopprijsPerEenheid).toBeUndefined();
+    expect(r.prijsOpRegel).toBeUndefined();
+  });
+
+  it("expliciet prijs-op-regel wint van een verkoopprijs", () => {
+    const r = productNaarRegel(
+      { _id: "p5", productnaam: "Stelpost", inkoopprijs: 0, verkoopprijs: 60, prijsOpRegel: true },
+      "Specials",
+      "regel-5"
+    );
+    expect(r.prijsOpRegel).toBe(true);
+    expect(r.prijsPerEenheid).toBe(0);
+  });
+
   it("zonder verkoopprijs in het bestand: standaardmarge bepaalt de verkoopprijs", () => {
     const r = productNaarRegel(
       { _id: "p3", productnaam: "Split 25kg", inkoopprijs: 8 },

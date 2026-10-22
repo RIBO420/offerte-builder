@@ -91,9 +91,13 @@ export function ArtikelPicker({ open, onOpenChange, onSelect }: ArtikelPickerPro
                   )}
                 </span>
                 <span className="shrink-0 text-sm tabular-nums">
-                  {product.prijsOpRegel || !product.inkoopprijs
+                  {product.prijsOpRegel === true
                     ? "prijs op regel"
-                    : formatCurrency(product.inkoopprijs)}
+                    : product.inkoopprijs
+                      ? formatCurrency(product.inkoopprijs)
+                      : product.verkoopprijs
+                        ? formatCurrency(product.verkoopprijs)
+                        : "prijs op regel"}
                 </span>
               </button>
             ))

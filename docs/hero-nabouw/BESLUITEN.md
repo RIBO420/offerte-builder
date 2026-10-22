@@ -99,6 +99,17 @@ Wat Ricardo besloten heeft op basis van de stukken in deze map. Bij strijd met e
       "prijsaanvraag" als extra tekst (K9). Geen eigen nummerreeks: ze dragen het
       offerte-/ordernummer. Meetdocument en brief niet gebouwd (geen vraag).
 
+14. **Artikelen uit HERO (fase 5, 22-10-2026).** Alle artikelen uit de HERO-export gaan
+    het prijsboek in (categorie "HERO", met `heroArtikelnummer` als herkenning bij een
+    tweede import). Verkoopprijs = prijslijst **Standaardmarge** (IP × 1,40; in onze
+    marge-semantiek 28,6%); zonder inkoopprijs is VK1 de vaste prijs, die nu ook op de
+    offerteregel komt. **Actief** zijn alleen artikelen die ≥ 2× gebruikt zijn; bij
+    dubbele namen alleen de meest gebruikte. De rest staat uit en kan kantoor per artikel
+    aanzetten. Een herhaalde import werkt prijzen bij maar raakt de aan/uit-stand niet.
+    → `convex/lib/heroArtikelen.ts`, `convex/heroArtikelImport.ts`,
+    `scripts/hero-artikelen-import.mjs`. Prijslijst "Romeo Savelberg" (IP × 1,67) niet
+    overgenomen.
+
 ## Fasering
 
 | Fase | Inhoud | Stand |

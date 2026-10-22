@@ -503,6 +503,9 @@ export default defineSchema({
     // Genormaliseerde naam (lowercase, enkele spaties) voor ontdubbeling
     // en idempotente import (match op genormaliseerde naam + leverancier)
     naamGenormaliseerd: v.optional(v.string()),
+    // Artikelnummer uit HERO (fase 5-import): herkenningssleutel voor een
+    // herhaalde import, ook bij artikelen met dezelfde naam
+    heroArtikelnummer: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
