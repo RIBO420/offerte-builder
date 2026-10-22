@@ -377,11 +377,10 @@ export function AppSidebar() {
           <SidebarMenuItem className="flex h-12 items-center">
             <SidebarMenuButton size="lg" asChild>
               <Link href="/dashboard">
-                {/* Groene drager onder het witte merkteken: bg-sidebar is licht
-                    in light mode, daar zou wit op wit verdwijnen. Bewust een
-                    vaste groentint en niet bg-primary — die is in dark mode
-                    juist bijna wit. */}
-                <div className="flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg bg-green-700">
+                {/* Mosgroene drager onder het witte merkteken (huisstijl):
+                    `sidebar-primary` blijft mosgroen in licht en donker, waar
+                    `primary` in de zijbalk champagne is. */}
+                <div className="flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary">
                   {/* Boven de vouw op élke dashboardpagina: zonder `priority`
                       meldt Next dit merkteken als LCP-element zonder
                       voorrang. */}

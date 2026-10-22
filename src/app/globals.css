@@ -98,12 +98,14 @@ body {
   --ease-standaard: cubic-bezier(0.2, 0, 0, 1);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  /* Klantdossier-v7-typografie (17 aug 2026): Instrument Sans als werkpaard,
-     Outfit voor koppen/namen/bedragen — de halfschreef is eruit. */
-  --font-sans: var(--font-instrument-sans);
-  --font-mono: var(--font-geist-mono);
-  /* Display (Outfit) — paginakoppen en heldcijfers (WS3/WS6/WS10) */
+  /* Huisstijl (okt 2026): Outfit is de vaste letter voor alles — tekst,
+     koppen, knoppen, codes. Geen aparte mono meer (max. twee families):
+     codes en bedragen krijgen tabelcijfers via `font-mono` hieronder.
+     Playfair Display alleen voor grote, sfeervolle koppen (`font-sfeer`). */
+  --font-sans: var(--font-outfit);
+  --font-mono: var(--font-outfit);
   --font-display: var(--font-outfit);
+  --font-sfeer: var(--font-playfair);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-scope-grondwerk: var(--scope-grondwerk);
@@ -289,14 +291,18 @@ body {
 
   --radius: 0.625rem;
 
-  /* "Loof & Leem" — licht: warm groenige neutrals, één merkgroen (hue 152), nooit puur wit/zwart */
+  /* Huisstijl (gids 18 okt 2026): warm wit draagt de informatie, warm zwart en
+     mosgroen dragen het ontwerp, zacht goud is accent. Statustinten staan los
+     van mosgroen (139°) en goud (93°): succes 158°, wachten 72°, actief 58°,
+     negatief 27°, informatie 250°. Bron: docs/design (DESIGN.md).
+     Oudere commentaren hieronder over "Loof & Leem" beschrijven de vorige stand. */
   /* UI-les 6 (17 aug): de groene waas eraf. Neutrale werkvlakken met een
      nauwelijks meetbare groenzweem (chroma ≤0.004); groen is voortaan van
      betekenisvolle vlakken (surface-primair, primary, statussen) — niet van
      de achtergrond. Het prototype-ijkpunt: paper #FAFAF8, kaarten wit. */
-  --background: oklch(0.982 0.002 140);      /* vrijwel neutraal off-white */
-  --foreground: oklch(0.19 0.01 150);
-  --card: oklch(0.997 0.001 140);
+  --background: oklch(0.965 0.005 78);      /* vrijwel neutraal off-white */
+  --foreground: oklch(0.168 0.004 107);
+  --card: oklch(0.985 0.004 91);
   --card-foreground: var(--foreground);
   /* Werkstroomvlakken (SectiePaneel gewicht="primair"): de enige oppervlakken
      die écht van de pagina afstappen. `--card` scheelt 1,05:1 van
@@ -323,52 +329,52 @@ body {
      Aandacht #f4e0bc: vs `--background` 1,23:1 · vs `--card` 1,28:1 ·
      `--foreground` 14,3:1 · `--muted-foreground` 5,73:1 · `--destructive`
      4,17:1. Alle tekstwaarden liggen hóger dan op de oude salietint. */
-  --surface-primair: oklch(0.912 0.045 148);
-  --surface-aandacht: oklch(0.915 0.050 82);
-  --popover: oklch(0.997 0.001 140);
+  --surface-primair: oklch(0.895 0.035 139);
+  --surface-aandacht: oklch(0.895 0.045 75);
+  --popover: oklch(0.985 0.004 91);
   --popover-foreground: var(--foreground);
-  --primary: oklch(0.44 0.11 152);           /* loofgroen — knoppen, actief, links */
-  --primary-foreground: oklch(0.98 0.01 145);
-  --secondary: oklch(0.955 0.004 140);
-  --secondary-foreground: oklch(0.25 0.02 150);
-  --muted: oklch(0.957 0.003 140);
-  --muted-foreground: oklch(0.45 0.015 150);
-  --accent: oklch(0.945 0.014 145);          /* salie-hover, gedempt */
-  --accent-foreground: oklch(0.24 0.04 150);
-  --accent-warm: oklch(0.68 0.13 60);        /* terracotta — voortgang/attentie */
-  --destructive: oklch(0.55 0.20 27);
-  --border: oklch(0.905 0.006 140);
-  --input: oklch(0.905 0.006 140);
-  --ring: oklch(0.60 0.11 152);              /* focusring ≥3:1 op background */
-  --chart-1: oklch(0.55 0.13 152);  /* groen */
-  --chart-2: oklch(0.62 0.12 60);   /* terracotta */
-  --chart-3: oklch(0.55 0.09 245);  /* steenblauw */
-  --chart-4: oklch(0.72 0.13 90);   /* oker */
-  --chart-5: oklch(0.50 0.08 175);  /* mosteal */
-  --sidebar: oklch(0.985 0.002 140);         /* vrijwel wit, zoals het prototype */
-  --sidebar-foreground: oklch(0.25 0.015 150);
-  --sidebar-primary: var(--primary);
-  --sidebar-primary-foreground: var(--primary-foreground);
-  --sidebar-accent: oklch(0.93 0.02 145);
-  --sidebar-accent-foreground: oklch(0.24 0.04 150);
-  --sidebar-border: oklch(0.90 0.012 140);
-  --sidebar-ring: var(--ring);
+  --primary: oklch(0.389 0.039 139);           /* mosgroen — knoppen, actief, links (huisstijlgids okt 2026) */
+  --primary-foreground: oklch(0.965 0.005 78);
+  --secondary: oklch(0.932 0.010 82);
+  --secondary-foreground: oklch(0.247 0.008 95);
+  --muted: oklch(0.932 0.010 82);
+  --muted-foreground: oklch(0.478 0.011 94);
+  --accent: oklch(0.920 0.014 85);          /* champagnetint — hover */
+  --accent-foreground: oklch(0.168 0.004 107);
+  --accent-warm: oklch(0.640 0.074 92);        /* zacht goud — accent (vandaag, voortgang); niet als tekst op licht */
+  --destructive: oklch(0.507 0.135 32);
+  --border: oklch(0.902 0.015 85);
+  --input: oklch(0.865 0.015 85);
+  --ring: oklch(0.455 0.045 139);              /* focusring ≥3:1 op background */
+  --chart-1: oklch(0.455 0.045 139);  /* groen */
+  --chart-2: oklch(0.684 0.069 93);   /* terracotta */
+  --chart-3: oklch(0.539 0.042 247);  /* steenblauw */
+  --chart-4: oklch(0.621 0.125 62);   /* oker */
+  --chart-5: oklch(0.560 0.100 158);  /* mosteal */
+  --sidebar: oklch(0.168 0.004 107);         /* warm zwart: de zijbalk draagt het merk, ook in licht */
+  --sidebar-foreground: oklch(0.871 0.013 82);
+  --sidebar-primary: oklch(0.389 0.039 139);
+  --sidebar-primary-foreground: oklch(0.965 0.005 78);
+  --sidebar-accent: oklch(0.260 0.009 98);
+  --sidebar-accent-foreground: oklch(0.965 0.005 78);
+  --sidebar-border: oklch(0.263 0.011 99);
+  --sidebar-ring: oklch(0.790 0.042 79);
 
   /* Scope kleuren - tuin thematiek */
-  --scope-grondwerk: oklch(0.55 0.12 85);      /* Aarde/bruin */
-  --scope-bestrating: oklch(0.55 0.02 250);    /* Steen/grijs */
-  --scope-borders: oklch(0.45 0.15 145);       /* Bosgroen */
-  --scope-gras: oklch(0.65 0.2 130);           /* Helder gras groen */
-  --scope-houtwerk: oklch(0.5 0.12 55);        /* Warm hout */
-  --scope-water: oklch(0.55 0.15 230);         /* Blauw water */
-  --scope-specials: oklch(0.55 0.2 300);       /* Paars specials */
+  --scope-grondwerk: oklch(0.52 0.08 72);      /* Aarde/bruin */
+  --scope-bestrating: oklch(0.55 0.015 85);    /* Steen/grijs */
+  --scope-borders: oklch(0.48 0.07 139);       /* Bosgroen */
+  --scope-gras: oklch(0.58 0.1 135);           /* Helder gras groen */
+  --scope-houtwerk: oklch(0.5 0.08 55);        /* Warm hout */
+  --scope-water: oklch(0.55 0.08 235);         /* Blauw water */
+  --scope-specials: oklch(0.52 0.08 330);       /* Paars specials */
 
   /* Trend kleuren */
   /* L 0.52 i.p.v. 0.6: op de licht-achtergrond (L 0.982) haalde 0.6 maar
      ~3,5:1 — onder AA voor de kleine trendtekst. Gemeten na WS10-sweep. */
-  --trend-positive: oklch(0.52 0.17 145);      /* Groen */
-  --trend-negative: oklch(0.52 0.19 25);       /* Rood */
-  --trend-neutral: oklch(0.5 0 0);             /* Grijs */
+  --trend-positive: oklch(0.5 0.1 158);      /* Groen */
+  --trend-negative: oklch(0.5 0.13 27);       /* Rood */
+  --trend-neutral: oklch(0.5 0.008 85);             /* Grijs */
 
   /* Status kleuren — Loof & Leem-receptuur light:
      bg L0.93 C0.045 · text L0.32 C0.10 · border L0.75 C0.08 · dot L0.55 C0.16 (op de status-hue)
@@ -376,140 +382,140 @@ body {
      financieel 160 · analyse 175 · negatief 30 */
 
   /* Offerte */
-  --status-concept: oklch(0.93 0.008 150);      /* Neutraal - concept */
-  --status-concept-text: oklch(0.32 0.01 150);
-  --status-concept-border: oklch(0.75 0.01 150);
-  --status-concept-dot: oklch(0.55 0.01 150);
+  --status-concept: oklch(0.945 0.008 85);      /* Neutraal - concept */
+  --status-concept-text: oklch(0.36 0.01 85);
+  --status-concept-border: oklch(0.82 0.01 85);
+  --status-concept-dot: oklch(0.56 0.01 85);
 
-  --status-voorcalculatie: oklch(0.93 0.045 245);  /* Steenblauw - informatie */
-  --status-voorcalculatie-text: oklch(0.32 0.10 245);
-  --status-voorcalculatie-border: oklch(0.75 0.08 245);
-  --status-voorcalculatie-dot: oklch(0.55 0.16 245);
+  --status-voorcalculatie: oklch(0.945 0.03 250);  /* Steenblauw - informatie */
+  --status-voorcalculatie-text: oklch(0.36 0.085 250);
+  --status-voorcalculatie-border: oklch(0.82 0.06 250);
+  --status-voorcalculatie-dot: oklch(0.56 0.12 250);
 
-  --status-verzonden: oklch(0.93 0.045 85);     /* Oker - onderweg/wachten */
-  --status-verzonden-text: oklch(0.32 0.10 85);
-  --status-verzonden-border: oklch(0.75 0.08 85);
-  --status-verzonden-dot: oklch(0.55 0.16 85);
+  --status-verzonden: oklch(0.945 0.03 72);     /* Oker - onderweg/wachten */
+  --status-verzonden-text: oklch(0.36 0.085 72);
+  --status-verzonden-border: oklch(0.82 0.06 72);
+  --status-verzonden-dot: oklch(0.56 0.12 72);
 
-  --status-geaccepteerd: oklch(0.93 0.045 152); /* Merkgroen - succes */
-  --status-geaccepteerd-text: oklch(0.32 0.10 152);
-  --status-geaccepteerd-border: oklch(0.75 0.08 152);
-  --status-geaccepteerd-dot: oklch(0.55 0.16 152);
+  --status-geaccepteerd: oklch(0.945 0.03 158); /* Merkgroen - succes */
+  --status-geaccepteerd-text: oklch(0.36 0.085 158);
+  --status-geaccepteerd-border: oklch(0.82 0.06 158);
+  --status-geaccepteerd-dot: oklch(0.56 0.12 158);
 
-  --status-afgewezen: oklch(0.93 0.045 30);     /* Terracottarood - negatief */
-  --status-afgewezen-text: oklch(0.32 0.10 30);
-  --status-afgewezen-border: oklch(0.75 0.08 30);
-  --status-afgewezen-dot: oklch(0.55 0.16 30);
+  --status-afgewezen: oklch(0.945 0.03 27);     /* Terracottarood - negatief */
+  --status-afgewezen-text: oklch(0.36 0.085 27);
+  --status-afgewezen-border: oklch(0.82 0.06 27);
+  --status-afgewezen-dot: oklch(0.56 0.12 27);
 
   /* Project */
-  --status-gepland: oklch(0.93 0.045 245);      /* Steenblauw - gepland (paars vervalt) */
-  --status-gepland-text: oklch(0.32 0.10 245);
-  --status-gepland-border: oklch(0.75 0.08 245);
-  --status-gepland-dot: oklch(0.55 0.16 245);
+  --status-gepland: oklch(0.945 0.03 250);      /* Steenblauw - gepland (paars vervalt) */
+  --status-gepland-text: oklch(0.36 0.085 250);
+  --status-gepland-border: oklch(0.82 0.06 250);
+  --status-gepland-dot: oklch(0.56 0.12 250);
 
-  --status-in-uitvoering: oklch(0.93 0.045 70); /* Amber - actief/uitvoering (cyaan vervalt) */
-  --status-in-uitvoering-text: oklch(0.32 0.10 70);
-  --status-in-uitvoering-border: oklch(0.75 0.08 70);
-  --status-in-uitvoering-dot: oklch(0.55 0.16 70);
+  --status-in-uitvoering: oklch(0.945 0.03 58); /* Amber - actief/uitvoering (cyaan vervalt) */
+  --status-in-uitvoering-text: oklch(0.36 0.085 58);
+  --status-in-uitvoering-border: oklch(0.82 0.06 58);
+  --status-in-uitvoering-dot: oklch(0.56 0.12 58);
 
-  --status-afgerond: oklch(0.93 0.045 152);     /* Merkgroen - succes */
-  --status-afgerond-text: oklch(0.32 0.10 152);
-  --status-afgerond-border: oklch(0.75 0.08 152);
-  --status-afgerond-dot: oklch(0.55 0.16 152);
+  --status-afgerond: oklch(0.945 0.03 158);     /* Merkgroen - succes */
+  --status-afgerond-text: oklch(0.36 0.085 158);
+  --status-afgerond-border: oklch(0.82 0.06 158);
+  --status-afgerond-dot: oklch(0.56 0.12 158);
 
-  --status-nacalculatie: oklch(0.93 0.045 175); /* Mosteal - analyse */
-  --status-nacalculatie-text: oklch(0.32 0.10 175);
-  --status-nacalculatie-border: oklch(0.75 0.08 175);
-  --status-nacalculatie-dot: oklch(0.55 0.16 175);
+  --status-nacalculatie: oklch(0.945 0.03 200); /* Mosteal - analyse */
+  --status-nacalculatie-text: oklch(0.36 0.085 200);
+  --status-nacalculatie-border: oklch(0.82 0.06 200);
+  --status-nacalculatie-dot: oklch(0.56 0.12 200);
 
-  --status-gefactureerd: oklch(0.93 0.045 160); /* Diepgroen - financieel afgerond */
-  --status-gefactureerd-text: oklch(0.32 0.10 160);
-  --status-gefactureerd-border: oklch(0.75 0.08 160);
-  --status-gefactureerd-dot: oklch(0.55 0.16 160);
+  --status-gefactureerd: oklch(0.945 0.03 175); /* Diepgroen - financieel afgerond */
+  --status-gefactureerd-text: oklch(0.36 0.085 175);
+  --status-gefactureerd-border: oklch(0.82 0.06 175);
+  --status-gefactureerd-dot: oklch(0.56 0.12 175);
 
   /* Factuur */
-  --status-definitief: oklch(0.93 0.045 215);   /* Leisteenblauw - vastgesteld document (eigen tint naast 245) */
-  --status-definitief-text: oklch(0.32 0.10 215);
-  --status-definitief-border: oklch(0.75 0.08 215);
-  --status-definitief-dot: oklch(0.55 0.16 215);
+  --status-definitief: oklch(0.945 0.03 225);   /* Leisteenblauw - vastgesteld document (eigen tint naast 245) */
+  --status-definitief-text: oklch(0.36 0.085 225);
+  --status-definitief-border: oklch(0.82 0.06 225);
+  --status-definitief-dot: oklch(0.56 0.12 225);
 
-  --status-betaald: oklch(0.93 0.045 152);      /* Merkgroen - succes */
-  --status-betaald-text: oklch(0.32 0.10 152);
-  --status-betaald-border: oklch(0.75 0.08 152);
-  --status-betaald-dot: oklch(0.55 0.16 152);
+  --status-betaald: oklch(0.945 0.03 158);      /* Merkgroen - succes */
+  --status-betaald-text: oklch(0.36 0.085 158);
+  --status-betaald-border: oklch(0.82 0.06 158);
+  --status-betaald-dot: oklch(0.56 0.12 158);
 
-  --status-herinnering: oklch(0.93 0.045 85);   /* Oker - wachten */
-  --status-herinnering-text: oklch(0.32 0.10 85);
-  --status-herinnering-border: oklch(0.75 0.08 85);
-  --status-herinnering-dot: oklch(0.55 0.16 85);
+  --status-herinnering: oklch(0.945 0.03 72);   /* Oker - wachten */
+  --status-herinnering-text: oklch(0.36 0.085 72);
+  --status-herinnering-border: oklch(0.82 0.06 72);
+  --status-herinnering-dot: oklch(0.56 0.12 72);
 
-  --status-vervallen: oklch(0.93 0.045 30);     /* Terracottarood - negatief */
-  --status-vervallen-text: oklch(0.32 0.10 30);
-  --status-vervallen-border: oklch(0.75 0.08 30);
-  --status-vervallen-dot: oklch(0.55 0.16 30);
+  --status-vervallen: oklch(0.945 0.03 27);     /* Terracottarood - negatief */
+  --status-vervallen-text: oklch(0.36 0.085 27);
+  --status-vervallen-border: oklch(0.82 0.06 27);
+  --status-vervallen-dot: oklch(0.56 0.12 27);
 
   /* Lead-kanban */
-  --lead-nieuw: oklch(0.93 0.045 245);          /* Steenblauw - informatie */
-  --lead-nieuw-text: oklch(0.32 0.10 245);
-  --lead-nieuw-border: oklch(0.75 0.08 245);
-  --lead-nieuw-dot: oklch(0.55 0.16 245);
+  --lead-nieuw: oklch(0.945 0.03 250);          /* Steenblauw - informatie */
+  --lead-nieuw-text: oklch(0.36 0.085 250);
+  --lead-nieuw-border: oklch(0.82 0.06 250);
+  --lead-nieuw-dot: oklch(0.56 0.12 250);
 
-  --lead-contact: oklch(0.93 0.045 85);         /* Oker - onderweg */
-  --lead-contact-text: oklch(0.32 0.10 85);
-  --lead-contact-border: oklch(0.75 0.08 85);
-  --lead-contact-dot: oklch(0.55 0.16 85);
+  --lead-contact: oklch(0.945 0.03 72);         /* Oker - onderweg */
+  --lead-contact-text: oklch(0.36 0.085 72);
+  --lead-contact-border: oklch(0.82 0.06 72);
+  --lead-contact-dot: oklch(0.56 0.12 72);
 
-  --lead-offerte: oklch(0.93 0.045 70);         /* Amber - offerte verstuurd */
-  --lead-offerte-text: oklch(0.32 0.10 70);
-  --lead-offerte-border: oklch(0.75 0.08 70);
-  --lead-offerte-dot: oklch(0.55 0.16 70);
+  --lead-offerte: oklch(0.945 0.03 58);         /* Amber - offerte verstuurd */
+  --lead-offerte-text: oklch(0.36 0.085 58);
+  --lead-offerte-border: oklch(0.82 0.06 58);
+  --lead-offerte-dot: oklch(0.56 0.12 58);
 
-  --lead-gewonnen: oklch(0.93 0.045 152);       /* Merkgroen - succes */
-  --lead-gewonnen-text: oklch(0.32 0.10 152);
-  --lead-gewonnen-border: oklch(0.75 0.08 152);
-  --lead-gewonnen-dot: oklch(0.55 0.16 152);
+  --lead-gewonnen: oklch(0.945 0.03 158);       /* Merkgroen - succes */
+  --lead-gewonnen-text: oklch(0.36 0.085 158);
+  --lead-gewonnen-border: oklch(0.82 0.06 158);
+  --lead-gewonnen-dot: oklch(0.56 0.12 158);
 
-  --lead-verloren: oklch(0.93 0.045 30);        /* Terracottarood - negatief */
-  --lead-verloren-text: oklch(0.32 0.10 30);
-  --lead-verloren-border: oklch(0.75 0.08 30);
-  --lead-verloren-dot: oklch(0.55 0.16 30);
+  --lead-verloren: oklch(0.945 0.03 27);        /* Terracottarood - negatief */
+  --lead-verloren-text: oklch(0.36 0.085 27);
+  --lead-verloren-border: oklch(0.82 0.06 27);
+  --lead-verloren-dot: oklch(0.56 0.12 27);
 
   /* Meldingen — statuskolommen */
-  --melding-nieuw: oklch(0.93 0.045 245);       /* Steenblauw - informatie */
-  --melding-nieuw-text: oklch(0.32 0.10 245);
-  --melding-nieuw-border: oklch(0.75 0.08 245);
-  --melding-nieuw-dot: oklch(0.55 0.16 245);
+  --melding-nieuw: oklch(0.945 0.03 250);       /* Steenblauw - informatie */
+  --melding-nieuw-text: oklch(0.36 0.085 250);
+  --melding-nieuw-border: oklch(0.82 0.06 250);
+  --melding-nieuw-dot: oklch(0.56 0.12 250);
 
-  --melding-in-behandeling: oklch(0.93 0.045 85); /* Oker - wachten */
-  --melding-in-behandeling-text: oklch(0.32 0.10 85);
-  --melding-in-behandeling-border: oklch(0.75 0.08 85);
-  --melding-in-behandeling-dot: oklch(0.55 0.16 85);
+  --melding-in-behandeling: oklch(0.945 0.03 72); /* Oker - wachten */
+  --melding-in-behandeling-text: oklch(0.36 0.085 72);
+  --melding-in-behandeling-border: oklch(0.82 0.06 72);
+  --melding-in-behandeling-dot: oklch(0.56 0.12 72);
 
-  --melding-wacht-op-derden: oklch(0.93 0.045 70); /* Amber */
-  --melding-wacht-op-derden-text: oklch(0.32 0.10 70);
-  --melding-wacht-op-derden-border: oklch(0.75 0.08 70);
-  --melding-wacht-op-derden-dot: oklch(0.55 0.16 70);
+  --melding-wacht-op-derden: oklch(0.945 0.03 58); /* Amber */
+  --melding-wacht-op-derden-text: oklch(0.36 0.085 58);
+  --melding-wacht-op-derden-border: oklch(0.82 0.06 58);
+  --melding-wacht-op-derden-dot: oklch(0.56 0.12 58);
 
-  --melding-opgelost: oklch(0.93 0.045 152);    /* Merkgroen - succes */
-  --melding-opgelost-text: oklch(0.32 0.10 152);
-  --melding-opgelost-border: oklch(0.75 0.08 152);
-  --melding-opgelost-dot: oklch(0.55 0.16 152);
+  --melding-opgelost: oklch(0.945 0.03 158);    /* Merkgroen - succes */
+  --melding-opgelost-text: oklch(0.36 0.085 158);
+  --melding-opgelost-border: oklch(0.82 0.06 158);
+  --melding-opgelost-dot: oklch(0.56 0.12 158);
 
   /* Meldingen — typebadges */
-  --melding-serviceverzoek: oklch(0.93 0.045 245); /* Steenblauw - servicemelding */
-  --melding-serviceverzoek-text: oklch(0.32 0.10 245);
-  --melding-serviceverzoek-border: oklch(0.75 0.08 245);
-  --melding-serviceverzoek-dot: oklch(0.55 0.16 245);
+  --melding-serviceverzoek: oklch(0.945 0.03 250); /* Steenblauw - servicemelding */
+  --melding-serviceverzoek-text: oklch(0.36 0.085 250);
+  --melding-serviceverzoek-border: oklch(0.82 0.06 250);
+  --melding-serviceverzoek-dot: oklch(0.56 0.12 250);
 
-  --melding-klacht: oklch(0.93 0.045 70);       /* Amber - aandacht */
-  --melding-klacht-text: oklch(0.32 0.10 70);
-  --melding-klacht-border: oklch(0.75 0.08 70);
-  --melding-klacht-dot: oklch(0.55 0.16 70);
+  --melding-klacht: oklch(0.945 0.03 58);       /* Amber - aandacht */
+  --melding-klacht-text: oklch(0.36 0.085 58);
+  --melding-klacht-border: oklch(0.82 0.06 58);
+  --melding-klacht-dot: oklch(0.56 0.12 58);
 
-  --melding-schade: oklch(0.93 0.045 30);       /* Terracottarood - negatief */
-  --melding-schade-text: oklch(0.32 0.10 30);
-  --melding-schade-border: oklch(0.75 0.08 30);
-  --melding-schade-dot: oklch(0.55 0.16 30);
+  --melding-schade: oklch(0.945 0.03 27);       /* Terracottarood - negatief */
+  --melding-schade-text: oklch(0.36 0.085 27);
+  --melding-schade-border: oklch(0.82 0.06 27);
+  --melding-schade-dot: oklch(0.56 0.12 27);
 
   /* Dagbalk-categorieën (urenpagina WS-B)
      Vijf families, allemaal op de Loof & Leem-as, allemaal vól genoeg om naast
@@ -526,12 +532,12 @@ body {
      reistijd #5b7fb4 3,08:1 · pauze #c6ccc5 1,42:1 (draagt geen tekst) ·
      indirect #8ba07d 2,04:1 · gat #eee2c8 1,15:1. De balk zelf heeft een
      1px rand, dus ook het lichtste blok blijft afgebakend. */
-  --seg-werken: oklch(0.55 0.13 152);
-  --seg-reistijd: oklch(0.55 0.10 245);
-  --seg-pauze: oklch(0.80 0.012 145);
-  --seg-indirect: oklch(0.63 0.055 140);
-  --seg-gat: oklch(0.90 0.045 85);
-  --seg-gat-streep: oklch(0.84 0.075 85);
+  --seg-werken: oklch(0.52 0.065 139);
+  --seg-reistijd: oklch(0.55 0.075 250);
+  --seg-pauze: oklch(0.82 0.01 85);
+  --seg-indirect: oklch(0.7 0.04 95);
+  --seg-gat: oklch(0.92 0.035 72);
+  --seg-gat-streep: oklch(0.84 0.06 72);
 
   /* Shadow tokens */
   --shadow-card-hover: 0 8px 25px -5px oklch(0 0 0 / 0.1), 0 4px 10px -5px oklch(0 0 0 / 0.04);
@@ -541,12 +547,12 @@ body {
 }
 
 .dark {
-  /* "Bosavond" — groengetint donker, geen puur zwart */
+  /* Donker: warm zwart (#0F0F0D) als basis, lichte olijf als knopkleur. */
   /* UI-les 6: ook donker vrijwel neutraal — de groene waas zat hier nog
      sterker (chroma 0.012–0.015). Groen blijft van betekenisvolle vlakken. */
-  --background: oklch(0.17 0.005 150);
-  --foreground: oklch(0.95 0.004 140);
-  --card: oklch(0.215 0.006 150);
+  --background: oklch(0.168 0.004 107);
+  --foreground: oklch(0.926 0.009 85);
+  --card: oklch(0.212 0.008 107);
   --card-foreground: var(--foreground);
   /* Zie licht: dezelfde twee vlakken, andere kant op — lichter dan
      `--background`. Gemeten donker — primair #1c2b20: vs `--background`
@@ -554,206 +560,236 @@ body {
      `--destructive` 5,09:1. Aandacht #302513: vs `--background` 1,27:1 ·
      `--foreground` 13,0:1 · `--muted-foreground` 6,09:1. Beide dus ruim
      boven AA, en beide een stap sterker dan de oude grijsgroene 1,26:1. */
-  --surface-primair: oklch(0.272 0.030 152);
-  --surface-aandacht: oklch(0.272 0.034 80);
-  --popover: oklch(0.215 0.006 150);
+  --surface-primair: oklch(0.285 0.030 139);
+  --surface-aandacht: oklch(0.285 0.035 72);
+  --popover: oklch(0.212 0.008 107);
   --popover-foreground: var(--foreground);
-  --primary: oklch(0.78 0.15 152);           /* #4ADE80-familie, deelt merk met mobiel */
-  --primary-foreground: oklch(0.17 0.05 152);
-  --secondary: oklch(0.29 0.006 150);
-  --secondary-foreground: oklch(0.95 0.01 140);
-  --muted: oklch(0.26 0.006 150);
-  --muted-foreground: oklch(0.72 0.015 145);
-  --accent: oklch(0.30 0.016 150);
-  --accent-foreground: oklch(0.95 0.01 140);
-  --accent-warm: oklch(0.75 0.13 60);
-  --destructive: oklch(0.70 0.19 25);
-  --border: oklch(0.30 0.007 150);           /* kleur i.p.v. wit-alpha */
-  --input: oklch(0.28 0.007 150);
-  --ring: oklch(0.65 0.13 152);
-  --chart-1: oklch(0.72 0.15 152);
-  --chart-2: oklch(0.72 0.13 60);
-  --chart-3: oklch(0.68 0.10 245);
-  --chart-4: oklch(0.80 0.13 90);
-  --chart-5: oklch(0.65 0.09 175);
-  --sidebar: oklch(0.195 0.006 150);
-  --sidebar-foreground: oklch(0.90 0.01 140);
-  --sidebar-primary: var(--primary);         /* paarsblauw vervalt */
-  --sidebar-primary-foreground: var(--primary-foreground);
-  --sidebar-accent: oklch(0.27 0.02 150);
-  --sidebar-accent-foreground: oklch(0.95 0.01 140);
-  --sidebar-border: oklch(0.28 0.015 150);
-  --sidebar-ring: var(--ring);
+  --primary: oklch(0.750 0.049 132);           /* lichte olijf: mosgroen haalt op warm zwart maar 2:1 */
+  --primary-foreground: oklch(0.168 0.004 107);
+  --secondary: oklch(0.247 0.008 95);
+  --secondary-foreground: oklch(0.926 0.009 85);
+  --muted: oklch(0.247 0.008 95);
+  --muted-foreground: oklch(0.717 0.017 83);
+  --accent: oklch(0.280 0.009 98);
+  --accent-foreground: oklch(0.926 0.009 85);
+  --accent-warm: oklch(0.684 0.069 93);
+  --destructive: oklch(0.718 0.111 36);
+  --border: oklch(0.288 0.009 98);           /* kleur i.p.v. wit-alpha */
+  --input: oklch(0.300 0.008 95);
+  --ring: oklch(0.750 0.049 132);
+  --chart-1: oklch(0.750 0.049 132);
+  --chart-2: oklch(0.790 0.042 79);
+  --chart-3: oklch(0.660 0.040 247);
+  --chart-4: oklch(0.720 0.120 63);
+  --chart-5: oklch(0.701 0.096 158);
+  --sidebar: oklch(0.139 0.002 107);
+  --sidebar-foreground: oklch(0.871 0.013 82);
+  --sidebar-primary: oklch(0.389 0.039 139);         /* paarsblauw vervalt */
+  --sidebar-primary-foreground: oklch(0.965 0.005 78);
+  --sidebar-accent: oklch(0.235 0.008 95);
+  --sidebar-accent-foreground: oklch(0.965 0.005 78);
+  --sidebar-border: oklch(0.235 0.008 95);
+  --sidebar-ring: oklch(0.790 0.042 79);
 
   /* Scope kleuren - tuin thematiek (lichter voor dark mode: +0.1 L) */
-  --scope-grondwerk: oklch(0.65 0.12 85);      /* Aarde/bruin */
-  --scope-bestrating: oklch(0.65 0.02 250);    /* Steen/grijs */
-  --scope-borders: oklch(0.55 0.15 145);       /* Bosgroen */
-  --scope-gras: oklch(0.75 0.2 130);           /* Helder gras groen */
-  --scope-houtwerk: oklch(0.6 0.12 55);        /* Warm hout */
-  --scope-water: oklch(0.65 0.15 230);         /* Blauw water */
-  --scope-specials: oklch(0.65 0.2 300);       /* Paars specials */
+  --scope-grondwerk: oklch(0.64 0.08 72);      /* Aarde/bruin */
+  --scope-bestrating: oklch(0.67 0.015 85);    /* Steen/grijs */
+  --scope-borders: oklch(0.6 0.07 139);       /* Bosgroen */
+  --scope-gras: oklch(0.7 0.1 135);           /* Helder gras groen */
+  --scope-houtwerk: oklch(0.62 0.08 55);        /* Warm hout */
+  --scope-water: oklch(0.67 0.08 235);         /* Blauw water */
+  --scope-specials: oklch(0.64 0.08 330);       /* Paars specials */
 
   /* Trend kleuren (lichter voor dark mode: +0.1 L) */
-  --trend-positive: oklch(0.7 0.2 145);        /* Groen */
-  --trend-negative: oklch(0.7 0.2 25);         /* Rood */
-  --trend-neutral: oklch(0.6 0 0);             /* Grijs */
+  --trend-positive: oklch(0.72 0.09 158);        /* Groen */
+  --trend-negative: oklch(0.72 0.11 27);         /* Rood */
+  --trend-neutral: oklch(0.65 0.008 85);             /* Grijs */
 
   /* Status kleuren — Loof & Leem-receptuur dark:
      bg L0.26 C0.05 · text L0.85 C0.09 · border L0.42 C0.08 · dot L0.68 C0.14 (op de status-hue) */
 
   /* Offerte */
-  --status-concept: oklch(0.26 0.008 150);
-  --status-concept-text: oklch(0.85 0.01 150);
-  --status-concept-border: oklch(0.42 0.01 150);
-  --status-concept-dot: oklch(0.68 0.01 150);
+  --status-concept: oklch(0.25 0.008 85);
+  --status-concept-text: oklch(0.85 0.01 85);
+  --status-concept-border: oklch(0.4 0.01 85);
+  --status-concept-dot: oklch(0.7 0.01 85);
 
-  --status-voorcalculatie: oklch(0.26 0.05 245);
-  --status-voorcalculatie-text: oklch(0.85 0.09 245);
-  --status-voorcalculatie-border: oklch(0.42 0.08 245);
-  --status-voorcalculatie-dot: oklch(0.68 0.14 245);
+  --status-voorcalculatie: oklch(0.25 0.035 250);
+  --status-voorcalculatie-text: oklch(0.85 0.07 250);
+  --status-voorcalculatie-border: oklch(0.4 0.06 250);
+  --status-voorcalculatie-dot: oklch(0.7 0.11 250);
 
-  --status-verzonden: oklch(0.26 0.05 85);
-  --status-verzonden-text: oklch(0.85 0.09 85);
-  --status-verzonden-border: oklch(0.42 0.08 85);
-  --status-verzonden-dot: oklch(0.68 0.14 85);
+  --status-verzonden: oklch(0.25 0.035 72);
+  --status-verzonden-text: oklch(0.85 0.07 72);
+  --status-verzonden-border: oklch(0.4 0.06 72);
+  --status-verzonden-dot: oklch(0.7 0.11 72);
 
-  --status-geaccepteerd: oklch(0.26 0.05 152);
-  --status-geaccepteerd-text: oklch(0.85 0.09 152);
-  --status-geaccepteerd-border: oklch(0.42 0.08 152);
-  --status-geaccepteerd-dot: oklch(0.68 0.14 152);
+  --status-geaccepteerd: oklch(0.25 0.035 158);
+  --status-geaccepteerd-text: oklch(0.85 0.07 158);
+  --status-geaccepteerd-border: oklch(0.4 0.06 158);
+  --status-geaccepteerd-dot: oklch(0.7 0.11 158);
 
-  --status-afgewezen: oklch(0.26 0.05 30);
-  --status-afgewezen-text: oklch(0.85 0.09 30);
-  --status-afgewezen-border: oklch(0.42 0.08 30);
-  --status-afgewezen-dot: oklch(0.68 0.14 30);
+  --status-afgewezen: oklch(0.25 0.035 27);
+  --status-afgewezen-text: oklch(0.85 0.07 27);
+  --status-afgewezen-border: oklch(0.4 0.06 27);
+  --status-afgewezen-dot: oklch(0.7 0.11 27);
 
   /* Project */
-  --status-gepland: oklch(0.26 0.05 245);
-  --status-gepland-text: oklch(0.85 0.09 245);
-  --status-gepland-border: oklch(0.42 0.08 245);
-  --status-gepland-dot: oklch(0.68 0.14 245);
+  --status-gepland: oklch(0.25 0.035 250);
+  --status-gepland-text: oklch(0.85 0.07 250);
+  --status-gepland-border: oklch(0.4 0.06 250);
+  --status-gepland-dot: oklch(0.7 0.11 250);
 
-  --status-in-uitvoering: oklch(0.26 0.05 70);
-  --status-in-uitvoering-text: oklch(0.85 0.09 70);
-  --status-in-uitvoering-border: oklch(0.42 0.08 70);
-  --status-in-uitvoering-dot: oklch(0.68 0.14 70);
+  --status-in-uitvoering: oklch(0.25 0.035 58);
+  --status-in-uitvoering-text: oklch(0.85 0.07 58);
+  --status-in-uitvoering-border: oklch(0.4 0.06 58);
+  --status-in-uitvoering-dot: oklch(0.7 0.11 58);
 
-  --status-afgerond: oklch(0.26 0.05 152);
-  --status-afgerond-text: oklch(0.85 0.09 152);
-  --status-afgerond-border: oklch(0.42 0.08 152);
-  --status-afgerond-dot: oklch(0.68 0.14 152);
+  --status-afgerond: oklch(0.25 0.035 158);
+  --status-afgerond-text: oklch(0.85 0.07 158);
+  --status-afgerond-border: oklch(0.4 0.06 158);
+  --status-afgerond-dot: oklch(0.7 0.11 158);
 
-  --status-nacalculatie: oklch(0.26 0.05 175);
-  --status-nacalculatie-text: oklch(0.85 0.09 175);
-  --status-nacalculatie-border: oklch(0.42 0.08 175);
-  --status-nacalculatie-dot: oklch(0.68 0.14 175);
+  --status-nacalculatie: oklch(0.25 0.035 200);
+  --status-nacalculatie-text: oklch(0.85 0.07 200);
+  --status-nacalculatie-border: oklch(0.4 0.06 200);
+  --status-nacalculatie-dot: oklch(0.7 0.11 200);
 
-  --status-gefactureerd: oklch(0.26 0.05 160);
-  --status-gefactureerd-text: oklch(0.85 0.09 160);
-  --status-gefactureerd-border: oklch(0.42 0.08 160);
-  --status-gefactureerd-dot: oklch(0.68 0.14 160);
+  --status-gefactureerd: oklch(0.25 0.035 175);
+  --status-gefactureerd-text: oklch(0.85 0.07 175);
+  --status-gefactureerd-border: oklch(0.4 0.06 175);
+  --status-gefactureerd-dot: oklch(0.7 0.11 175);
 
   /* Factuur */
-  --status-definitief: oklch(0.26 0.05 215);
-  --status-definitief-text: oklch(0.85 0.09 215);
-  --status-definitief-border: oklch(0.42 0.08 215);
-  --status-definitief-dot: oklch(0.68 0.14 215);
+  --status-definitief: oklch(0.25 0.035 225);
+  --status-definitief-text: oklch(0.85 0.07 225);
+  --status-definitief-border: oklch(0.4 0.06 225);
+  --status-definitief-dot: oklch(0.7 0.11 225);
 
-  --status-betaald: oklch(0.26 0.05 152);
-  --status-betaald-text: oklch(0.85 0.09 152);
-  --status-betaald-border: oklch(0.42 0.08 152);
-  --status-betaald-dot: oklch(0.68 0.14 152);
+  --status-betaald: oklch(0.25 0.035 158);
+  --status-betaald-text: oklch(0.85 0.07 158);
+  --status-betaald-border: oklch(0.4 0.06 158);
+  --status-betaald-dot: oklch(0.7 0.11 158);
 
-  --status-herinnering: oklch(0.26 0.05 85);
-  --status-herinnering-text: oklch(0.85 0.09 85);
-  --status-herinnering-border: oklch(0.42 0.08 85);
-  --status-herinnering-dot: oklch(0.68 0.14 85);
+  --status-herinnering: oklch(0.25 0.035 72);
+  --status-herinnering-text: oklch(0.85 0.07 72);
+  --status-herinnering-border: oklch(0.4 0.06 72);
+  --status-herinnering-dot: oklch(0.7 0.11 72);
 
-  --status-vervallen: oklch(0.26 0.05 30);
-  --status-vervallen-text: oklch(0.85 0.09 30);
-  --status-vervallen-border: oklch(0.42 0.08 30);
-  --status-vervallen-dot: oklch(0.68 0.14 30);
+  --status-vervallen: oklch(0.25 0.035 27);
+  --status-vervallen-text: oklch(0.85 0.07 27);
+  --status-vervallen-border: oklch(0.4 0.06 27);
+  --status-vervallen-dot: oklch(0.7 0.11 27);
 
   /* Lead-kanban */
-  --lead-nieuw: oklch(0.26 0.05 245);
-  --lead-nieuw-text: oklch(0.85 0.09 245);
-  --lead-nieuw-border: oklch(0.42 0.08 245);
-  --lead-nieuw-dot: oklch(0.68 0.14 245);
+  --lead-nieuw: oklch(0.25 0.035 250);
+  --lead-nieuw-text: oklch(0.85 0.07 250);
+  --lead-nieuw-border: oklch(0.4 0.06 250);
+  --lead-nieuw-dot: oklch(0.7 0.11 250);
 
-  --lead-contact: oklch(0.26 0.05 85);
-  --lead-contact-text: oklch(0.85 0.09 85);
-  --lead-contact-border: oklch(0.42 0.08 85);
-  --lead-contact-dot: oklch(0.68 0.14 85);
+  --lead-contact: oklch(0.25 0.035 72);
+  --lead-contact-text: oklch(0.85 0.07 72);
+  --lead-contact-border: oklch(0.4 0.06 72);
+  --lead-contact-dot: oklch(0.7 0.11 72);
 
-  --lead-offerte: oklch(0.26 0.05 70);
-  --lead-offerte-text: oklch(0.85 0.09 70);
-  --lead-offerte-border: oklch(0.42 0.08 70);
-  --lead-offerte-dot: oklch(0.68 0.14 70);
+  --lead-offerte: oklch(0.25 0.035 58);
+  --lead-offerte-text: oklch(0.85 0.07 58);
+  --lead-offerte-border: oklch(0.4 0.06 58);
+  --lead-offerte-dot: oklch(0.7 0.11 58);
 
-  --lead-gewonnen: oklch(0.26 0.05 152);
-  --lead-gewonnen-text: oklch(0.85 0.09 152);
-  --lead-gewonnen-border: oklch(0.42 0.08 152);
-  --lead-gewonnen-dot: oklch(0.68 0.14 152);
+  --lead-gewonnen: oklch(0.25 0.035 158);
+  --lead-gewonnen-text: oklch(0.85 0.07 158);
+  --lead-gewonnen-border: oklch(0.4 0.06 158);
+  --lead-gewonnen-dot: oklch(0.7 0.11 158);
 
-  --lead-verloren: oklch(0.26 0.05 30);
-  --lead-verloren-text: oklch(0.85 0.09 30);
-  --lead-verloren-border: oklch(0.42 0.08 30);
-  --lead-verloren-dot: oklch(0.68 0.14 30);
+  --lead-verloren: oklch(0.25 0.035 27);
+  --lead-verloren-text: oklch(0.85 0.07 27);
+  --lead-verloren-border: oklch(0.4 0.06 27);
+  --lead-verloren-dot: oklch(0.7 0.11 27);
 
   /* Meldingen — statuskolommen */
-  --melding-nieuw: oklch(0.26 0.05 245);
-  --melding-nieuw-text: oklch(0.85 0.09 245);
-  --melding-nieuw-border: oklch(0.42 0.08 245);
-  --melding-nieuw-dot: oklch(0.68 0.14 245);
+  --melding-nieuw: oklch(0.25 0.035 250);
+  --melding-nieuw-text: oklch(0.85 0.07 250);
+  --melding-nieuw-border: oklch(0.4 0.06 250);
+  --melding-nieuw-dot: oklch(0.7 0.11 250);
 
-  --melding-in-behandeling: oklch(0.26 0.05 85);
-  --melding-in-behandeling-text: oklch(0.85 0.09 85);
-  --melding-in-behandeling-border: oklch(0.42 0.08 85);
-  --melding-in-behandeling-dot: oklch(0.68 0.14 85);
+  --melding-in-behandeling: oklch(0.25 0.035 72);
+  --melding-in-behandeling-text: oklch(0.85 0.07 72);
+  --melding-in-behandeling-border: oklch(0.4 0.06 72);
+  --melding-in-behandeling-dot: oklch(0.7 0.11 72);
 
-  --melding-wacht-op-derden: oklch(0.26 0.05 70);
-  --melding-wacht-op-derden-text: oklch(0.85 0.09 70);
-  --melding-wacht-op-derden-border: oklch(0.42 0.08 70);
-  --melding-wacht-op-derden-dot: oklch(0.68 0.14 70);
+  --melding-wacht-op-derden: oklch(0.25 0.035 58);
+  --melding-wacht-op-derden-text: oklch(0.85 0.07 58);
+  --melding-wacht-op-derden-border: oklch(0.4 0.06 58);
+  --melding-wacht-op-derden-dot: oklch(0.7 0.11 58);
 
-  --melding-opgelost: oklch(0.26 0.05 152);
-  --melding-opgelost-text: oklch(0.85 0.09 152);
-  --melding-opgelost-border: oklch(0.42 0.08 152);
-  --melding-opgelost-dot: oklch(0.68 0.14 152);
+  --melding-opgelost: oklch(0.25 0.035 158);
+  --melding-opgelost-text: oklch(0.85 0.07 158);
+  --melding-opgelost-border: oklch(0.4 0.06 158);
+  --melding-opgelost-dot: oklch(0.7 0.11 158);
 
   /* Meldingen — typebadges */
-  --melding-serviceverzoek: oklch(0.26 0.05 245);
-  --melding-serviceverzoek-text: oklch(0.85 0.09 245);
-  --melding-serviceverzoek-border: oklch(0.42 0.08 245);
-  --melding-serviceverzoek-dot: oklch(0.68 0.14 245);
+  --melding-serviceverzoek: oklch(0.25 0.035 250);
+  --melding-serviceverzoek-text: oklch(0.85 0.07 250);
+  --melding-serviceverzoek-border: oklch(0.4 0.06 250);
+  --melding-serviceverzoek-dot: oklch(0.7 0.11 250);
 
-  --melding-klacht: oklch(0.26 0.05 70);
-  --melding-klacht-text: oklch(0.85 0.09 70);
-  --melding-klacht-border: oklch(0.42 0.08 70);
-  --melding-klacht-dot: oklch(0.68 0.14 70);
+  --melding-klacht: oklch(0.25 0.035 58);
+  --melding-klacht-text: oklch(0.85 0.07 58);
+  --melding-klacht-border: oklch(0.4 0.06 58);
+  --melding-klacht-dot: oklch(0.7 0.11 58);
 
-  --melding-schade: oklch(0.26 0.05 30);
-  --melding-schade-text: oklch(0.85 0.09 30);
-  --melding-schade-border: oklch(0.42 0.08 30);
-  --melding-schade-dot: oklch(0.68 0.14 30);
+  --melding-schade: oklch(0.25 0.035 27);
+  --melding-schade-text: oklch(0.85 0.07 27);
+  --melding-schade-border: oklch(0.4 0.06 27);
+  --melding-schade-dot: oklch(0.7 0.11 27);
 
   /* Dagbalk-categorieën — dark blijft volwaardig: dezelfde vijf families, maar
      lichter dan `--card` (0.215) i.p.v. donkerder, zodat de blokken oplichten
      in plaats van gaten in het paneel te lijken. Pauze en het gat blijven de
      stilste twee, ook hier. */
-  --seg-werken: oklch(0.66 0.14 152);
-  --seg-reistijd: oklch(0.62 0.10 245);
-  --seg-pauze: oklch(0.44 0.012 145);
-  --seg-indirect: oklch(0.52 0.05 140);
-  --seg-gat: oklch(0.37 0.045 85);
-  --seg-gat-streep: oklch(0.45 0.065 85);
+  --seg-werken: oklch(0.66 0.07 139);
+  --seg-reistijd: oklch(0.62 0.075 250);
+  --seg-pauze: oklch(0.42 0.01 85);
+  --seg-indirect: oklch(0.52 0.04 95);
+  --seg-gat: oklch(0.34 0.035 72);
+  --seg-gat-streep: oklch(0.42 0.055 72);
 
   /* Dark mode shadows - subtler */
   --shadow-card-hover: 0 8px 25px -5px oklch(0 0 0 / 0.3), 0 4px 10px -5px oklch(0 0 0 / 0.2);
   --shadow-card-elevated: 0 10px 40px -10px oklch(0 0 0 / 0.4), 0 4px 15px -5px oklch(0 0 0 / 0.25);
   --shadow-dropdown: 0 4px 20px -2px oklch(0 0 0 / 0.35), 0 2px 8px -2px oklch(0 0 0 / 0.25);
   --shadow-modal: 0 20px 60px -15px oklch(0 0 0 / 0.5), 0 10px 30px -10px oklch(0 0 0 / 0.35);
+}
+
+/* ============================================================
+   Zijbalk-tokenscope (huisstijl okt 2026)
+   De zijbalk is warm zwart in licht én donker. Componenten erin gebruiken
+   ook gewone tokens (text-muted-foreground, bg-primary, bg-surface-primair);
+   die krijgen hier hun donkere tegenhanger, zodat niets wegvalt op zwart.
+   Actief = champagne (tekst en badge), het logovlak = mosgroen
+   (`bg-sidebar-primary`). Gemeten op #0F0F0D: muted 6,7:1 · champagne 9,9:1.
+   ============================================================ */
+[data-slot="sidebar"] {
+  --foreground: oklch(0.925 0.008 80);
+  --muted-foreground: oklch(0.680 0.014 85);
+  --muted: oklch(0.225 0.008 95);
+  --secondary: oklch(0.250 0.008 95);
+  --secondary-foreground: oklch(0.925 0.008 80);
+  --accent: oklch(0.250 0.008 95);
+  --accent-foreground: oklch(0.962 0.005 78);
+  --border: oklch(0.240 0.008 100);
+  --primary: oklch(0.789 0.038 78);
+  --primary-foreground: oklch(0.168 0.004 107);
+  --surface-primair: oklch(0.789 0.038 78 / 0.14);
+  --destructive: oklch(0.720 0.110 35);
+  --ring: oklch(0.789 0.038 78);
+}
+
+/* `font-mono` is Outfit geworden (max. twee families); codes en bedragen
+   houden hun vaste cijferbreedte via tabelcijfers. */
+.font-mono {
+  font-variant-numeric: tabular-nums;
 }
 
 @layer base {
@@ -1142,45 +1178,11 @@ body {
    ============================================================ */
 
 .portal {
-  --background: #f8faf8;
-  --foreground: #1a2e1a;
-  --card: #ffffff;
-  --card-foreground: #1a2e1a;
-  --popover: #ffffff;
-  --popover-foreground: #1a2e1a;
-  --primary: #4ade80;            /* mobiel merkgroen */
-  --primary-foreground: #0a0f0a;
-  --secondary: #e8f5e8;
-  --secondary-foreground: #1a2e1a;
-  --muted: #f3f4f6;
-  --muted-foreground: #6b7280;
-  --accent: #e8f5e8;             /* hover-vlak licht */
-  --accent-foreground: #1a2e1a;
-  --accent-warm: #f59e0b;        /* attentie (facturen openstaand) */
-  --border: #e5e7eb;
-  --input: #e5e7eb;
-  --ring: #4ade80;
-  --portal-info: #60a5fa;        /* informatief (steenblauw-familie) */
+  /* Huisstijl okt 2026: het portaal volgt de app-tokens (warm wit, mosgroen,
+     goud als accent). Alleen de informatieve tint is portaal-eigen. */
+  --portal-info: oklch(0.55 0.075 250);
 }
 
 .dark .portal {
-  --background: #0a0f0a;
-  --foreground: #e8f5e8;
-  --card: #1a2e1a;
-  --card-foreground: #e8f5e8;
-  --popover: #1a2e1a;
-  --popover-foreground: #e8f5e8;
-  --primary: #4ade80;
-  --primary-foreground: #0a0f0a;
-  --secondary: #2a3e2a;
-  --secondary-foreground: #e8f5e8;
-  --muted: #111a11;
-  --muted-foreground: #9ca3af;
-  --accent: #1a2e1a;             /* hover-vlak donker */
-  --accent-foreground: #e8f5e8;
-  --accent-warm: #f59e0b;
-  --border: #2a3e2a;
-  --input: #2a3e2a;
-  --ring: #4ade80;
-  --portal-info: #60a5fa;
+  --portal-info: oklch(0.72 0.075 250);
 }

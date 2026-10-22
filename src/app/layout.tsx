@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist_Mono, Instrument_Sans, Outfit } from "next/font/google";
+import { Outfit, Playfair_Display } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { nlNL } from "@clerk/localizations";
 import { ConvexClientProvider } from "@/components/providers/convex-client-provider";
@@ -12,26 +12,20 @@ import { ChunkReloadHandler } from "@/components/chunk-reload-handler";
 import { MotionProvider } from "@/components/providers/motion-provider";
 import "./globals.css";
 
-// Interface-font (klantdossier-v7-typografie, keuze Ricardo 17 aug 2026):
-// Instrument Sans als werkpaard voor alle lopende tekst en UI.
-const instrumentSans = Instrument_Sans({
-  variable: "--font-instrument-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-  // Mono is een niche-font (kentekens, codes, sneltoetsen) — niet preloaden (O12).
-  preload: false,
-});
-
-// Display-font voor paginakoppen, namen en heldcijfers: Outfit, via
-// --font-outfit → --font-display in globals.css. Koppen staan op vrijwel elk
-// scherm boven de vouw, dus dit font wél gewoon preloaden.
+// Huisstijlgids (18 okt 2026): Outfit is de vaste huisstijlletter voor alles —
+// tekst, koppen, knoppen en codes. Variabel font: één bestand voor alle diktes.
 const outfit = Outfit({
   variable: "--font-outfit",
   subsets: ["latin"],
+});
+
+// Playfair Display alleen voor grote, sfeervolle koppen (inloggen, portaal).
+// Staat op weinig schermen, dus niet preloaden.
+const playfair = Playfair_Display({
+  variable: "--font-playfair",
+  subsets: ["latin"],
+  weight: ["400"],
+  preload: false,
 });
 
 export const metadata: Metadata = {
@@ -81,7 +75,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
   viewportFit: "cover",
-  themeColor: "#10b981",
+  themeColor: "#0F0F0D",
 };
 
 export default function RootLayout({
@@ -95,7 +89,7 @@ export default function RootLayout({
     <ClerkProvider localization={nlNL} signInUrl="/" telemetry={{ disabled: true }}>
       <html lang="nl" data-scroll-behavior="smooth" suppressHydrationWarning>
         <body
-          className={`${instrumentSans.variable} ${geistMono.variable} ${outfit.variable} font-sans antialiased`}
+          className={`${outfit.variable} ${playfair.variable} font-sans antialiased`}
         >
           <SkipLink />
           <ChunkReloadHandler />
