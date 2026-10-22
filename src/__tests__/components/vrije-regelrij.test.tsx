@@ -8,7 +8,7 @@
  * 3. de rij mag stapelen, maar nooit zijwaarts scrollen (harde regel 1).
  */
 import { describe, it, expect, vi, beforeAll } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within, fireEvent } from "@testing-library/react";
 
 beforeAll(() => {
   const proto = Element.prototype as unknown as Record<string, unknown>;
@@ -120,5 +120,31 @@ describe("vrije regelrij", () => {
     expect(within(rij).getByText("Regeltotaal").parentElement?.className).toContain(
       "@max-[40rem]/regel:w-full"
     );
+  });
+});
+
+describe("vrije regelrij — verslepen", () => {
+  it("heeft per regel één sleepgreep met eigen naam; de velden blijven gewoon invulbaar", () => {
+    const onChange = vi.fn();
+    render(
+      <VrijeRegelEditor
+        regels={[basisRegel, { ...basisRegel, id: "r2", omschrijving: "Tegels 60x60" }]}
+        onChange={onChange}
+      />
+    );
+    const grepen = screen.getAllByRole("button", { name: /^Versleep regel/ });
+    expect(grepen.map((g) => g.getAttribute("aria-label"))).toEqual([
+      "Versleep regel Vlonder douglas",
+      "Versleep regel Tegels 60x60",
+    ]);
+    // De greep is via het toetsenbord bereikbaar
+    expect(grepen[0].tabIndex).toBe(0);
+
+    const [eersteRij] = screen.getAllByTestId("vrije-regel");
+    fireEvent.change(within(eersteRij).getByLabelText("Omschrijving"), {
+      target: { value: "Vlonder hardhout" },
+    });
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange.mock.calls[0][0][0].omschrijving).toBe("Vlonder hardhout");
   });
 });

@@ -23,6 +23,12 @@ import { ArtikelPicker } from "./artikel-picker";
 import { MargefactorInfo } from "./margefactor-info";
 import { RegelBeschrijving } from "./regel-beschrijving";
 import {
+  RegelSleepContext,
+  SorteerbaarHoofdstuk,
+  SorteerbareRegel,
+} from "./sorteerbare-regels";
+import { verplaatsRegel } from "./verplaats-regel";
+import {
   berekenHoofdstukSubtotalen,
   berekenRegelTotaal,
   margeUitVerkoopprijs,
@@ -269,287 +275,312 @@ export function VrijeRegelEditor({
     onChange(regels.filter((r) => r.id !== id));
   };
 
+  /** Slepen: volgorde van de array = volgorde op offerte, PDF en factuur */
+  const verplaats = (actieveId: string, overId: string | null, doelHoofdstuk: string) => {
+    const nieuw = verplaatsRegel(regels, actieveId, overId, doelHoofdstuk, hoofdstukken);
+    const ongewijzigd =
+      nieuw.length === regels.length &&
+      nieuw.every((r, i) => r.id === regels[i].id && r.scope === regels[i].scope);
+    if (!ongewijzigd) onChange(nieuw);
+  };
+
   return (
     <div className="space-y-4">
-      {hoofdstukken.map((hoofdstuk) => {
-        const hoofdstukRegels = regels.filter((r) => r.scope === hoofdstuk);
-        return (
-          <Card key={hoofdstuk} className="gap-0 overflow-hidden py-0">
-            <CardHeader className="border-b bg-muted/30 px-4 py-2.5 [.border-b]:pb-2.5">
-              <CardTitle className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-sm">
-                <span className="tracking-tight">{hoofdstuk}</span>
-                <span className="text-xs font-normal text-muted-foreground tabular-nums">
-                  Subtotaal{" "}
-                  <span className="font-medium text-foreground">
-                    {formatCurrency(subtotalen.get(hoofdstuk) ?? 0)}
-                  </span>
-                </span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              {hoofdstukRegels.length === 0 && (
-                <p className="px-4 py-3 text-sm text-muted-foreground">
-                  Nog geen regels in dit hoofdstuk.
-                </p>
-              )}
-              {/* Regels als lijst met haarlijnen: een doos-in-een-doos per regel
-                  gaf zeven randen boven elkaar en géén hiërarchie. */}
-              <div className="divide-y">
-                {hoofdstukRegels.map((regel) => {
-                  const geenMarge =
-                    regel.prijsOpRegel === true ||
-                    isPrijsOpRegel(regel.inkoopprijsPerEenheid);
-                  return (
-                    <div
-                      key={regel.id}
-                      // @container/regel: dezelfde rij staat in de brede
-                      // offertekolom én in de smalle factuur-opzet.
-                      className="@container/regel px-4 py-3"
-                      data-testid="vrije-regel"
+      <RegelSleepContext regels={regels} onVerplaats={verplaats}>
+        {hoofdstukken.map((hoofdstuk) => {
+          const hoofdstukRegels = regels.filter((r) => r.scope === hoofdstuk);
+          return (
+            <SorteerbaarHoofdstuk
+              key={hoofdstuk}
+              hoofdstuk={hoofdstuk}
+              regelIds={hoofdstukRegels.map((r) => r.id)}
+            >
+              <Card className="gap-0 overflow-hidden py-0">
+                <CardHeader className="border-b bg-muted/30 px-4 py-2.5 [.border-b]:pb-2.5">
+                  <CardTitle className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-sm">
+                    <span className="tracking-tight">{hoofdstuk}</span>
+                    <span className="text-xs font-normal text-muted-foreground tabular-nums">
+                      Subtotaal{" "}
+                      <span className="font-medium text-foreground">
+                        {formatCurrency(subtotalen.get(hoofdstuk) ?? 0)}
+                      </span>
+                    </span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {hoofdstukRegels.length === 0 && (
+                    <p className="px-4 py-3 text-sm text-muted-foreground">
+                      Nog geen regels in dit hoofdstuk.
+                    </p>
+                  )}
+                  {/* Regels als lijst met haarlijnen: een doos-in-een-doos per regel
+                      gaf zeven randen boven elkaar en géén hiërarchie. */}
+                  <div className="divide-y">
+                    {hoofdstukRegels.map((regel) => {
+                      const geenMarge =
+                        regel.prijsOpRegel === true ||
+                        isPrijsOpRegel(regel.inkoopprijsPerEenheid);
+                      return (
+                        <SorteerbareRegel
+                          key={regel.id}
+                          id={regel.id}
+                          hoofdstuk={hoofdstuk}
+                          naam={regel.omschrijving}
+                          // @container/regel: dezelfde rij staat in de brede
+                          // offertekolom én in de smalle factuur-opzet.
+                          className="@container/regel bg-card px-4 py-3"
+                        >
+                          {(greep) => (
+                            <>
+                              {/* 1 — wát je levert. De omschrijving is de regel, dus die
+                                  krijgt de breedte en het enige niet-gedempte gewicht.
+                                  De greep ervoor is het enige sleeppunt. */}
+                              <div className="flex flex-wrap items-center gap-2">
+                                {greep}
+                                <Input
+                                  value={regel.omschrijving}
+                                  onChange={(e) =>
+                                    updateRegel(regel.id, {
+                                      omschrijving: e.target.value,
+                                    })
+                                  }
+                                  placeholder="Omschrijving"
+                                  aria-label="Omschrijving"
+                                  className="h-10 min-w-[11rem] flex-1 text-sm font-medium sm:h-9"
+                                />
+                                <Select
+                                  value={regel.type}
+                                  onValueChange={(type) =>
+                                    updateRegel(regel.id, {
+                                      type: type as VrijeRegel["type"],
+                                      eenheid: type === "arbeid" ? "uur" : regel.eenheid,
+                                    })
+                                  }
+                                >
+                                  <SelectTrigger
+                                    size="sm"
+                                    className="w-[8.5rem] @max-[24rem]/regel:flex-1"
+                                    aria-label="Soort regel"
+                                  >
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="materiaal">Materiaal</SelectItem>
+                                    <SelectItem value="arbeid">Arbeid</SelectItem>
+                                    <SelectItem value="machine">Machine</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                {regel.productId ? (
+                                  <span
+                                    className="grid size-9 shrink-0 place-items-center text-muted-foreground"
+                                    title="Uit het prijsboek"
+                                  >
+                                    <BookmarkCheck className="h-4 w-4" aria-label="Uit het prijsboek" />
+                                  </span>
+                                ) : (
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => opslaanInPrijsboek(regel)}
+                                    disabled={!regel.omschrijving.trim() || opslaand === regel.id}
+                                    aria-label="Opslaan in prijsboek"
+                                    title="Opslaan in prijsboek"
+                                    className="shrink-0 text-muted-foreground"
+                                  >
+                                    <BookmarkPlus className="h-4 w-4" />
+                                  </Button>
+                                )}
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => verwijderRegel(regel.id)}
+                                  aria-label="Regel verwijderen"
+                                  className="shrink-0 text-muted-foreground hover:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+
+                              {/* 2 — wat het kost. Eén rustige strook i.p.v. zeven
+                                  losse clusters; het totaal sluit hem rechts af. */}
+                              <div className="mt-2 flex flex-wrap items-end gap-x-4 gap-y-2.5 rounded-md bg-muted/40 px-3 py-2.5">
+                                {/* aantal × eenheid horen bij elkaar: kleinere tussenruimte */}
+                                <div className="flex items-end gap-1.5">
+                                  <Cel label="Aantal" breedte="w-[4.75rem]">
+                                    <NumberInput
+                                      value={regel.hoeveelheid}
+                                      onChange={(hoeveelheid) =>
+                                        updateRegel(regel.id, { hoeveelheid })
+                                      }
+                                      min={0}
+                                      showStepper={false}
+                                      className={GETAL_VELD}
+                                      aria-label="Aantal"
+                                    />
+                                  </Cel>
+                                  <Cel label="Eenheid" breedte="w-[5.25rem]">
+                                    <Input
+                                      value={regel.eenheid}
+                                      onChange={(e) =>
+                                        updateRegel(regel.id, {
+                                          eenheid: e.target.value,
+                                        })
+                                      }
+                                      aria-label="Eenheid"
+                                      className="h-10 text-sm sm:h-9"
+                                    />
+                                  </Cel>
+                                </div>
+
+                                <div className="flex flex-wrap items-end gap-x-2.5 gap-y-2.5">
+                                  <Cel label="Inkoop €" breedte="w-[6rem]">
+                                    <NumberInput
+                                      value={regel.inkoopprijsPerEenheid ?? 0}
+                                      onChange={(inkoop) => wijzigInkoop(regel, inkoop)}
+                                      min={0}
+                                      step={0.01}
+                                      showStepper={false}
+                                      className={GETAL_VELD}
+                                      aria-label="Inkoopprijs per eenheid"
+                                    />
+                                  </Cel>
+                                  <Cel
+                                    label="Marge %"
+                                    breedte="w-[5.75rem]"
+                                    uitleg={<MargefactorInfo />}
+                                  >
+                                    {geenMarge ? (
+                                      // Geen inkoopprijs → geen marge. "prijs op regel"
+                                      // paste niet in het veld en werd afgekapt; de
+                                      // uitleg staat nu in de tooltip van het veld.
+                                      <Input
+                                        value="n.v.t."
+                                        readOnly
+                                        disabled
+                                        title="Prijs op regel — zonder inkoopprijs valt er geen marge te berekenen"
+                                        aria-label="Marge niet beschikbaar: prijs op regel"
+                                        className="h-10 text-right text-sm sm:h-9"
+                                      />
+                                    ) : (
+                                      <NumberInput
+                                        value={regel.margePercentage ?? 0}
+                                        onChange={(marge) => wijzigMarge(regel, marge)}
+                                        min={0}
+                                        max={99.9}
+                                        step={0.1}
+                                        showStepper={false}
+                                        className={GETAL_VELD}
+                                        aria-label="Marge percentage"
+                                      />
+                                    )}
+                                  </Cel>
+                                  <Cel label="Verkoop €" breedte="w-[6rem]" nadruk>
+                                    <NumberInput
+                                      value={regel.prijsPerEenheid}
+                                      onChange={(verkoop) =>
+                                        wijzigVerkoop(regel, verkoop)
+                                      }
+                                      min={0}
+                                      step={0.01}
+                                      showStepper={false}
+                                      className={GETAL_VELD}
+                                      aria-label="Verkoopprijs per eenheid"
+                                    />
+                                  </Cel>
+                                  <Cel label="Korting %" breedte="w-[5.75rem]">
+                                    <NumberInput
+                                      value={regel.kortingPercentage ?? 0}
+                                      onChange={(korting) =>
+                                        updateRegel(regel.id, {
+                                          kortingPercentage:
+                                            korting > 0 ? korting : undefined,
+                                        })
+                                      }
+                                      min={0}
+                                      max={100}
+                                      showStepper={false}
+                                      className={GETAL_VELD}
+                                      aria-label="Korting percentage per regel"
+                                    />
+                                  </Cel>
+                                  <Cel label="Btw" breedte="w-[5rem]">
+                                    <Select
+                                      value={String(regel.btwCode ?? 21)}
+                                      onValueChange={(code) =>
+                                        updateRegel(regel.id, {
+                                          btwCode: Number(code) as 9 | 21,
+                                        })
+                                      }
+                                    >
+                                      <SelectTrigger
+                                        size="sm"
+                                        className="w-full"
+                                        aria-label="Btw-code"
+                                      >
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="9">9%</SelectItem>
+                                        <SelectItem value="21">21%</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </Cel>
+                                </div>
+
+                                {/* De uitkomst van de keten, in dezelfde strook. Past
+                                    hij er niet naast, dan wordt het een eigen regel
+                                    mét scheidingslijn — nooit zijwaarts scrollen. */}
+                                <div className="ml-auto flex flex-col items-end gap-1.5 @max-[40rem]/regel:w-full @max-[40rem]/regel:flex-row @max-[40rem]/regel:items-center @max-[40rem]/regel:justify-between @max-[40rem]/regel:gap-2 @max-[40rem]/regel:border-t @max-[40rem]/regel:border-border/70 @max-[40rem]/regel:pt-2">
+                                  <span className={cn(CEL_LABEL, "text-muted-foreground")}>
+                                    Regeltotaal
+                                  </span>
+                                  <span className="flex h-10 items-center text-[15px] font-semibold tabular-nums sm:h-9">
+                                    {formatCurrency(regel.totaal)}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* 3 — wat de klant onder de regel leest (PDF) */}
+                              <RegelBeschrijving
+                                tekst={regel.artikelBeschrijving}
+                                onChange={(artikelBeschrijving) =>
+                                  updateRegel(regel.id, { artikelBeschrijving })
+                                }
+                              />
+                            </>
+                          )}
+                        </SorteerbareRegel>
+                      );
+                    })}
+                  </div>
+                  <div className="flex flex-wrap gap-2 border-t px-4 py-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPickerHoofdstuk(hoofdstuk)}
                     >
-                      {/* 1 — wát je levert. De omschrijving is de regel, dus die
-                          krijgt de breedte en het enige niet-gedempte gewicht. */}
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Input
-                          value={regel.omschrijving}
-                          onChange={(e) =>
-                            updateRegel(regel.id, {
-                              omschrijving: e.target.value,
-                            })
-                          }
-                          placeholder="Omschrijving"
-                          aria-label="Omschrijving"
-                          className="h-10 min-w-[11rem] flex-1 text-sm font-medium sm:h-9"
-                        />
-                        <Select
-                          value={regel.type}
-                          onValueChange={(type) =>
-                            updateRegel(regel.id, {
-                              type: type as VrijeRegel["type"],
-                              eenheid: type === "arbeid" ? "uur" : regel.eenheid,
-                            })
-                          }
-                        >
-                          <SelectTrigger
-                            size="sm"
-                            className="w-[8.5rem] @max-[24rem]/regel:flex-1"
-                            aria-label="Soort regel"
-                          >
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="materiaal">Materiaal</SelectItem>
-                            <SelectItem value="arbeid">Arbeid</SelectItem>
-                            <SelectItem value="machine">Machine</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        {regel.productId ? (
-                          <span
-                            className="grid size-9 shrink-0 place-items-center text-muted-foreground"
-                            title="Uit het prijsboek"
-                          >
-                            <BookmarkCheck className="h-4 w-4" aria-label="Uit het prijsboek" />
-                          </span>
-                        ) : (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => opslaanInPrijsboek(regel)}
-                            disabled={!regel.omschrijving.trim() || opslaand === regel.id}
-                            aria-label="Opslaan in prijsboek"
-                            title="Opslaan in prijsboek"
-                            className="shrink-0 text-muted-foreground"
-                          >
-                            <BookmarkPlus className="h-4 w-4" />
-                          </Button>
-                        )}
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => verwijderRegel(regel.id)}
-                          aria-label="Regel verwijderen"
-                          className="shrink-0 text-muted-foreground hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-
-                      {/* 2 — wat het kost. Eén rustige strook i.p.v. zeven
-                          losse clusters; het totaal sluit hem rechts af. */}
-                      <div className="mt-2 flex flex-wrap items-end gap-x-4 gap-y-2.5 rounded-md bg-muted/40 px-3 py-2.5">
-                        {/* aantal × eenheid horen bij elkaar: kleinere tussenruimte */}
-                        <div className="flex items-end gap-1.5">
-                          <Cel label="Aantal" breedte="w-[4.75rem]">
-                            <NumberInput
-                              value={regel.hoeveelheid}
-                              onChange={(hoeveelheid) =>
-                                updateRegel(regel.id, { hoeveelheid })
-                              }
-                              min={0}
-                              showStepper={false}
-                              className={GETAL_VELD}
-                              aria-label="Aantal"
-                            />
-                          </Cel>
-                          <Cel label="Eenheid" breedte="w-[5.25rem]">
-                            <Input
-                              value={regel.eenheid}
-                              onChange={(e) =>
-                                updateRegel(regel.id, {
-                                  eenheid: e.target.value,
-                                })
-                              }
-                              aria-label="Eenheid"
-                              className="h-10 text-sm sm:h-9"
-                            />
-                          </Cel>
-                        </div>
-
-                        <div className="flex flex-wrap items-end gap-x-2.5 gap-y-2.5">
-                          <Cel label="Inkoop €" breedte="w-[6rem]">
-                            <NumberInput
-                              value={regel.inkoopprijsPerEenheid ?? 0}
-                              onChange={(inkoop) => wijzigInkoop(regel, inkoop)}
-                              min={0}
-                              step={0.01}
-                              showStepper={false}
-                              className={GETAL_VELD}
-                              aria-label="Inkoopprijs per eenheid"
-                            />
-                          </Cel>
-                          <Cel
-                            label="Marge %"
-                            breedte="w-[5.75rem]"
-                            uitleg={<MargefactorInfo />}
-                          >
-                            {geenMarge ? (
-                              // Geen inkoopprijs → geen marge. "prijs op regel"
-                              // paste niet in het veld en werd afgekapt; de
-                              // uitleg staat nu in de tooltip van het veld.
-                              <Input
-                                value="n.v.t."
-                                readOnly
-                                disabled
-                                title="Prijs op regel — zonder inkoopprijs valt er geen marge te berekenen"
-                                aria-label="Marge niet beschikbaar: prijs op regel"
-                                className="h-10 text-right text-sm sm:h-9"
-                              />
-                            ) : (
-                              <NumberInput
-                                value={regel.margePercentage ?? 0}
-                                onChange={(marge) => wijzigMarge(regel, marge)}
-                                min={0}
-                                max={99.9}
-                                step={0.1}
-                                showStepper={false}
-                                className={GETAL_VELD}
-                                aria-label="Marge percentage"
-                              />
-                            )}
-                          </Cel>
-                          <Cel label="Verkoop €" breedte="w-[6rem]" nadruk>
-                            <NumberInput
-                              value={regel.prijsPerEenheid}
-                              onChange={(verkoop) =>
-                                wijzigVerkoop(regel, verkoop)
-                              }
-                              min={0}
-                              step={0.01}
-                              showStepper={false}
-                              className={GETAL_VELD}
-                              aria-label="Verkoopprijs per eenheid"
-                            />
-                          </Cel>
-                          <Cel label="Korting %" breedte="w-[5.75rem]">
-                            <NumberInput
-                              value={regel.kortingPercentage ?? 0}
-                              onChange={(korting) =>
-                                updateRegel(regel.id, {
-                                  kortingPercentage:
-                                    korting > 0 ? korting : undefined,
-                                })
-                              }
-                              min={0}
-                              max={100}
-                              showStepper={false}
-                              className={GETAL_VELD}
-                              aria-label="Korting percentage per regel"
-                            />
-                          </Cel>
-                          <Cel label="Btw" breedte="w-[5rem]">
-                            <Select
-                              value={String(regel.btwCode ?? 21)}
-                              onValueChange={(code) =>
-                                updateRegel(regel.id, {
-                                  btwCode: Number(code) as 9 | 21,
-                                })
-                              }
-                            >
-                              <SelectTrigger
-                                size="sm"
-                                className="w-full"
-                                aria-label="Btw-code"
-                              >
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="9">9%</SelectItem>
-                                <SelectItem value="21">21%</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </Cel>
-                        </div>
-
-                        {/* De uitkomst van de keten, in dezelfde strook. Past
-                            hij er niet naast, dan wordt het een eigen regel
-                            mét scheidingslijn — nooit zijwaarts scrollen. */}
-                        <div className="ml-auto flex flex-col items-end gap-1.5 @max-[40rem]/regel:w-full @max-[40rem]/regel:flex-row @max-[40rem]/regel:items-center @max-[40rem]/regel:justify-between @max-[40rem]/regel:gap-2 @max-[40rem]/regel:border-t @max-[40rem]/regel:border-border/70 @max-[40rem]/regel:pt-2">
-                          <span className={cn(CEL_LABEL, "text-muted-foreground")}>
-                            Regeltotaal
-                          </span>
-                          <span className="flex h-10 items-center text-[15px] font-semibold tabular-nums sm:h-9">
-                            {formatCurrency(regel.totaal)}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* 3 — wat de klant onder de regel leest (PDF) */}
-                      <RegelBeschrijving
-                        tekst={regel.artikelBeschrijving}
-                        onChange={(artikelBeschrijving) =>
-                          updateRegel(regel.id, { artikelBeschrijving })
-                        }
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="flex flex-wrap gap-2 border-t px-4 py-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPickerHoofdstuk(hoofdstuk)}
-                >
-                  <Package className="mr-2 h-4 w-4" />
-                  Artikel uit bestand
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => voegVrijeRegelToe(hoofdstuk)}
-                >
-                  <PenLine className="mr-2 h-4 w-4" />
-                  Vrije regel
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        );
-      })}
+                      <Package className="mr-2 h-4 w-4" />
+                      Artikel uit bestand
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => voegVrijeRegelToe(hoofdstuk)}
+                    >
+                      <PenLine className="mr-2 h-4 w-4" />
+                      Vrije regel
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </SorteerbaarHoofdstuk>
+          );
+        })}
+      </RegelSleepContext>
 
       <div className="flex gap-2">
         <Input
