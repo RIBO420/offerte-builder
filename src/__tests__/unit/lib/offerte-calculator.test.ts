@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import {
   calculateOfferteRegels,
   calculateTotals,
+  findProduct,
   type CalculationContext,
   type OfferteCalculationInput,
   type Normuur,
@@ -950,5 +951,30 @@ describe("Offerte Calculator - Combined Scopes", () => {
     const totaalUrenGoed = regelsGoed.filter(r => r.type === "arbeid").reduce((sum, r) => sum + r.hoeveelheid, 0);
 
     expect(totaalUrenBeperkt).toBeGreaterThan(totaalUrenGoed);
+  });
+});
+
+describe("findProduct: calculatorprijzen", () => {
+  const product = (over: Partial<Product>): Product => ({
+    _id: over._id ?? "p",
+    productnaam: over.productnaam ?? "Graszoden",
+    categorie: over.categorie ?? "Gras",
+    inkoopprijs: over.inkoopprijs ?? 5,
+    verkoopprijs: over.verkoopprijs ?? 7.5,
+    eenheid: over.eenheid ?? "m²",
+    verliespercentage: over.verliespercentage ?? 0,
+  });
+
+  it("negeert HERO-artikelen, ook als ze eerder in de lijst staan", () => {
+    const lijst = [
+      product({ _id: "hero", productnaam: "Levering vers gesneden graszoden", categorie: "HERO", verkoopprijs: 0 }),
+      product({ _id: "eigen" }),
+    ];
+    expect(findProduct(lijst, "graszoden")?._id).toBe("eigen");
+  });
+
+  it("zonder eigen artikel geen match, zodat de vaste fallbackprijs geldt", () => {
+    const lijst = [product({ productnaam: "Levering vers gesneden graszoden", categorie: "HERO" })];
+    expect(findProduct(lijst, "graszoden")).toBeUndefined();
   });
 });
