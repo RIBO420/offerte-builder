@@ -13,6 +13,7 @@ import {
   Section,
   Text,
 } from "@react-email/components";
+import { kleur, kopBalk, letter, woordmerk } from "@/emails/huisstijl";
 
 interface DatumOptie {
   datum: string; // ISO date string
@@ -207,71 +208,62 @@ export function BevestigingEmail({
 
 // Styles
 const main = {
-  backgroundColor: "#f6f9fc",
-  fontFamily:
-    '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Ubuntu, sans-serif',
+  backgroundColor: kleur.achtergrond,
+  fontFamily: letter,
 };
 
 const container = {
-  backgroundColor: "#ffffff",
+  backgroundColor: kleur.warmWit,
   margin: "0 auto",
   maxWidth: "600px",
 };
 
-const header = {
-  backgroundColor: "#16a34a",
-  padding: "24px 32px",
-};
+const header = kopBalk;
 
-const logo = {
-  color: "#ffffff",
-  fontSize: "24px",
-  fontWeight: "700" as const,
-  margin: "0",
-};
+const logo = woordmerk;
 
 const content = {
   padding: "32px",
 };
 
 const h1 = {
-  color: "#1f2937",
+  color: kleur.tekst,
   fontSize: "24px",
   fontWeight: "600" as const,
   margin: "0 0 24px",
 };
 
 const h2 = {
-  color: "#1f2937",
+  color: kleur.tekst,
   fontSize: "18px",
   fontWeight: "600" as const,
   margin: "0 0 12px",
 };
 
 const greeting = {
-  color: "#374151",
+  color: kleur.tekst,
   fontSize: "16px",
   lineHeight: "24px",
   margin: "0 0 16px",
 };
 
 const paragraph = {
-  color: "#4b5563",
+  color: kleur.tekstZacht,
   fontSize: "15px",
   lineHeight: "24px",
   margin: "0 0 16px",
 };
 
 const detailsBox = {
-  backgroundColor: "#f9fafb",
-  border: "1px solid #e5e7eb",
+  backgroundColor: kleur.kaart,
+  border: `1px solid ${kleur.lijn}`,
   borderRadius: "8px",
   padding: "20px",
   margin: "0 0 24px",
 };
 
 const detailLabel = {
-  color: "#6b7280",
+  color: kleur.tekstZacht,
   fontSize: "12px",
   fontWeight: "500" as const,
   textTransform: "uppercase" as const,
@@ -279,7 +271,7 @@ const detailLabel = {
 };
 
 const detailValue = {
-  color: "#1f2937",
+  color: kleur.tekst,
   fontSize: "15px",
   lineHeight: "22px",
   margin: "0",
@@ -290,7 +282,7 @@ const procesSection = {
 };
 
 const procesHeading = {
-  color: "#1f2937",
+  color: kleur.tekst,
   fontSize: "16px",
   fontWeight: "600" as const,
   margin: "0 0 16px",
@@ -303,12 +295,12 @@ const procesStap = {
 };
 
 const stapNummer = {
-  backgroundColor: "#16a34a",
+  backgroundColor: kleur.mos,
   borderRadius: "50%",
-  color: "#ffffff",
+  color: kleur.warmWit,
   display: "inline-block" as const,
   fontSize: "13px",
-  fontWeight: "700" as const,
+  fontWeight: "600" as const,
   height: "24px",
   lineHeight: "24px",
   margin: "0 12px 0 0",
@@ -318,14 +310,14 @@ const stapNummer = {
 };
 
 const stapTekst = {
-  color: "#4b5563",
+  color: kleur.tekstZacht,
   fontSize: "14px",
   lineHeight: "22px",
   margin: "0",
 };
 
 const divider = {
-  borderColor: "#e5e7eb",
+  borderColor: kleur.lijn,
   margin: "24px 0",
 };
 
@@ -338,29 +330,29 @@ const datumOptieContainer = {
 };
 
 const datumOptieInner = {
-  backgroundColor: "#f9fafb",
-  border: "1px solid #e5e7eb",
+  backgroundColor: kleur.kaart,
+  border: `1px solid ${kleur.lijn}`,
   borderRadius: "8px",
   padding: "16px 20px",
 };
 
 const datumTekst = {
-  color: "#1f2937",
+  color: kleur.tekst,
   fontSize: "15px",
   lineHeight: "22px",
   margin: "0 0 12px",
 };
 
 const tijdslotTekst = {
-  color: "#16a34a",
+  color: kleur.mos,
   fontSize: "14px",
   fontWeight: "500" as const,
 };
 
 const datumButton = {
-  backgroundColor: "#16a34a",
+  backgroundColor: kleur.mos,
   borderRadius: "6px",
-  color: "#ffffff",
+  color: kleur.warmWit,
   display: "inline-block" as const,
   fontSize: "14px",
   fontWeight: "600" as const,
@@ -369,29 +361,29 @@ const datumButton = {
 };
 
 const calendlyTekst = {
-  color: "#6b7280",
+  color: kleur.tekstZacht,
   fontSize: "13px",
   lineHeight: "20px",
   margin: "16px 0 0",
 };
 
 const link = {
-  color: "#16a34a",
+  color: kleur.mos,
   textDecoration: "underline",
 };
 
 const signoff = {
-  color: "#4b5563",
+  color: kleur.tekstZacht,
   fontSize: "15px",
   lineHeight: "24px",
   margin: "0 0 16px",
 };
 
 const disclaimer = {
-  backgroundColor: "#fef9c3",
-  border: "1px solid #fde047",
+  backgroundColor: kleur.wachtVlak,
+  border: `1px solid ${kleur.wachtLijn}`,
   borderRadius: "6px",
-  color: "#713f12",
+  color: kleur.wachtTekst,
   fontSize: "12px",
   lineHeight: "18px",
   margin: "0",
@@ -399,20 +391,20 @@ const disclaimer = {
 };
 
 const footer = {
-  backgroundColor: "#f9fafb",
-  borderTop: "1px solid #e5e7eb",
+  backgroundColor: kleur.achtergrond,
+  borderTop: `1px solid ${kleur.lijn}`,
   padding: "24px 32px",
 };
 
 const footerText = {
-  color: "#6b7280",
+  color: kleur.tekstZacht,
   fontSize: "13px",
   margin: "0",
   textAlign: "center" as const,
 };
 
 const footerLink = {
-  color: "#16a34a",
+  color: kleur.mos,
   textDecoration: "none",
 };
 

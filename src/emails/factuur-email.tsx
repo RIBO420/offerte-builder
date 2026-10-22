@@ -14,6 +14,7 @@ import {
   Section,
   Text,
 } from "@react-email/components";
+import { kleur, kopBalk, letter, woordmerk } from "@/emails/huisstijl";
 
 interface FactuurEmailProps {
   klantNaam: string;
@@ -328,72 +329,63 @@ export function FactuurHerinneringEmail({
 
 // Styles
 const main = {
-  backgroundColor: "#f6f9fc",
-  fontFamily:
-    '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Ubuntu, sans-serif',
+  backgroundColor: kleur.achtergrond,
+  fontFamily: letter,
 };
 
 const container = {
-  backgroundColor: "#ffffff",
+  backgroundColor: kleur.warmWit,
   margin: "0 auto",
   maxWidth: "600px",
 };
 
-const header = {
-  backgroundColor: "#16a34a",
-  padding: "24px 32px",
-};
+const header = kopBalk;
 
-const logo = {
-  color: "#ffffff",
-  fontSize: "24px",
-  fontWeight: "700" as const,
-  margin: "0",
-};
+const logo = woordmerk;
 
 const content = {
   padding: "32px",
 };
 
 const h1 = {
-  color: "#1f2937",
+  color: kleur.tekst,
   fontSize: "24px",
   fontWeight: "600" as const,
   margin: "0 0 24px",
 };
 
 const greeting = {
-  color: "#374151",
+  color: kleur.tekst,
   fontSize: "16px",
   lineHeight: "24px",
   margin: "0 0 16px",
 };
 
 const paragraph = {
-  color: "#4b5563",
+  color: kleur.tekstZacht,
   fontSize: "15px",
   lineHeight: "24px",
   margin: "0 0 16px",
 };
 
 const detailsBox = {
-  backgroundColor: "#f9fafb",
-  border: "1px solid #e5e7eb",
+  backgroundColor: kleur.kaart,
+  border: `1px solid ${kleur.lijn}`,
   borderRadius: "8px",
   padding: "20px",
   margin: "24px 0",
 };
 
 const detailsBoxWarning = {
-  backgroundColor: "#fef3c7",
-  border: "1px solid #f59e0b",
+  backgroundColor: kleur.wachtVlak,
+  border: `1px solid ${kleur.wachtLijn}`,
   borderRadius: "8px",
   padding: "20px",
   margin: "24px 0",
 };
 
 const detailLabel = {
-  color: "#6b7280",
+  color: kleur.tekstZacht,
   fontSize: "12px",
   fontWeight: "500" as const,
   textTransform: "uppercase" as const,
@@ -401,70 +393,70 @@ const detailLabel = {
 };
 
 const detailValue = {
-  color: "#1f2937",
+  color: kleur.tekst,
   fontSize: "16px",
   fontWeight: "600" as const,
   margin: "0",
 };
 
 const overdueValue = {
-  color: "#dc2626",
+  color: kleur.negatief,
   fontSize: "16px",
-  fontWeight: "700" as const,
+  fontWeight: "600" as const,
   margin: "0",
 };
 
 const divider = {
-  borderColor: "#e5e7eb",
+  borderColor: kleur.lijn,
   margin: "16px 0",
 };
 
 const totalLabel = {
-  color: "#1f2937",
+  color: kleur.tekst,
   fontSize: "16px",
   fontWeight: "600" as const,
   margin: "0",
 };
 
 const totalValue = {
-  color: "#16a34a",
+  color: kleur.mos,
   fontSize: "24px",
-  fontWeight: "700" as const,
+  fontWeight: "600" as const,
   margin: "0",
 };
 
 const totalValueWarning = {
-  color: "#dc2626",
+  color: kleur.negatief,
   fontSize: "24px",
-  fontWeight: "700" as const,
+  fontWeight: "600" as const,
   margin: "0",
 };
 
 const paymentBox = {
-  backgroundColor: "#f0fdf4",
-  border: "1px solid #bbf7d0",
+  backgroundColor: kleur.mosVlak,
+  border: `1px solid ${kleur.mosLijn}`,
   borderRadius: "8px",
   padding: "20px",
   margin: "24px 0",
 };
 
 const paymentTitle = {
-  color: "#166534",
+  color: kleur.mos,
   fontSize: "16px",
   fontWeight: "600" as const,
   margin: "0 0 12px",
 };
 
 const paymentText = {
-  color: "#4b5563",
+  color: kleur.tekstZacht,
   fontSize: "14px",
   lineHeight: "22px",
   margin: "0 0 16px",
 };
 
 const ibanBox = {
-  backgroundColor: "#ffffff",
-  border: "1px solid #d1fae5",
+  backgroundColor: kleur.kaart,
+  border: `1px solid ${kleur.mosLijn}`,
   borderRadius: "6px",
   padding: "16px",
 };
@@ -474,7 +466,7 @@ const ibanColumn = {
 };
 
 const ibanLabel = {
-  color: "#6b7280",
+  color: kleur.tekstZacht,
   fontSize: "11px",
   fontWeight: "500" as const,
   textTransform: "uppercase" as const,
@@ -482,48 +474,48 @@ const ibanLabel = {
 };
 
 const ibanValue = {
-  color: "#1f2937",
+  color: kleur.tekst,
   fontSize: "16px",
-  fontWeight: "700" as const,
+  fontWeight: "600" as const,
   fontFamily: "monospace",
   margin: "0",
 };
 
 const referenceText = {
-  color: "#374151",
+  color: kleur.tekst,
   fontSize: "13px",
   margin: "12px 0 0",
 };
 
 const signoff = {
-  color: "#4b5563",
+  color: kleur.tekstZacht,
   fontSize: "15px",
   lineHeight: "24px",
   margin: "24px 0 0",
 };
 
 const footer = {
-  backgroundColor: "#f9fafb",
-  borderTop: "1px solid #e5e7eb",
+  backgroundColor: kleur.achtergrond,
+  borderTop: `1px solid ${kleur.lijn}`,
   padding: "24px 32px",
 };
 
 const footerText = {
-  color: "#6b7280",
+  color: kleur.tekstZacht,
   fontSize: "13px",
   margin: "0",
   textAlign: "center" as const,
 };
 
 const footerLegal = {
-  color: "#9ca3af",
+  color: kleur.tekstZwak,
   fontSize: "11px",
   margin: "8px 0 0",
   textAlign: "center" as const,
 };
 
 const footerLink = {
-  color: "#16a34a",
+  color: kleur.mos,
   textDecoration: "none",
 };
 

@@ -12,6 +12,7 @@ import {
   Section,
   Text,
 } from "@react-email/components";
+import { kleur, knop, kopBalk, letter, woordmerk } from "@/emails/huisstijl";
 
 interface PortaalUitnodigingEmailProps {
   klantNaam: string;
@@ -114,64 +115,55 @@ export function PortaalUitnodigingEmail({
 
 // Styles
 const main = {
-  backgroundColor: "#f6f9fc",
-  fontFamily:
-    '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Ubuntu, sans-serif',
+  backgroundColor: kleur.achtergrond,
+  fontFamily: letter,
 };
 
 const container = {
-  backgroundColor: "#ffffff",
+  backgroundColor: kleur.warmWit,
   margin: "0 auto",
   maxWidth: "600px",
 };
 
-const header = {
-  backgroundColor: "#16a34a",
-  padding: "24px 32px",
-};
+const header = kopBalk;
 
-const logo = {
-  color: "#ffffff",
-  fontSize: "24px",
-  fontWeight: "700" as const,
-  margin: "0",
-};
+const logo = woordmerk;
 
 const content = {
   padding: "32px",
 };
 
 const h1 = {
-  color: "#1f2937",
+  color: kleur.tekst,
   fontSize: "24px",
   fontWeight: "600" as const,
   margin: "0 0 24px",
 };
 
 const greeting = {
-  color: "#374151",
+  color: kleur.tekst,
   fontSize: "16px",
   lineHeight: "24px",
   margin: "0 0 16px",
 };
 
 const paragraph = {
-  color: "#4b5563",
+  color: kleur.tekstZacht,
   fontSize: "15px",
   lineHeight: "24px",
   margin: "0 0 16px",
 };
 
 const featureBox = {
-  backgroundColor: "#f0fdf4",
-  border: "1px solid #bbf7d0",
+  backgroundColor: kleur.mosVlak,
+  border: `1px solid ${kleur.mosLijn}`,
   borderRadius: "8px",
   padding: "16px 20px",
   margin: "16px 0 24px",
 };
 
 const featureItem = {
-  color: "#166534",
+  color: kleur.mos,
   fontSize: "14px",
   lineHeight: "28px",
   margin: "0",
@@ -183,51 +175,42 @@ const ctaSection = {
   margin: "24px 0",
 };
 
-const ctaButton = {
-  backgroundColor: "#16a34a",
-  borderRadius: "6px",
-  color: "#ffffff",
-  display: "inline-block",
-  fontSize: "16px",
-  fontWeight: "600" as const,
-  padding: "14px 32px",
-  textDecoration: "none",
-};
+const ctaButton = knop;
 
 const smallText = {
-  color: "#9ca3af",
+  color: kleur.tekstZwak,
   fontSize: "13px",
   lineHeight: "20px",
   margin: "16px 0 0",
 };
 
 const divider = {
-  borderColor: "#e5e7eb",
+  borderColor: kleur.lijn,
   margin: "24px 0",
 };
 
 const signoff = {
-  color: "#4b5563",
+  color: kleur.tekstZacht,
   fontSize: "15px",
   lineHeight: "24px",
   margin: "0",
 };
 
 const footer = {
-  backgroundColor: "#f9fafb",
-  borderTop: "1px solid #e5e7eb",
+  backgroundColor: kleur.achtergrond,
+  borderTop: `1px solid ${kleur.lijn}`,
   padding: "24px 32px",
 };
 
 const footerText = {
-  color: "#6b7280",
+  color: kleur.tekstZacht,
   fontSize: "13px",
   margin: "0",
   textAlign: "center" as const,
 };
 
 const footerLink = {
-  color: "#16a34a",
+  color: kleur.mos,
   textDecoration: "none",
 };
 

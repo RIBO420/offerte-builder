@@ -14,6 +14,7 @@ import {
   Section,
   Text,
 } from "@react-email/components";
+import { kleur, kopBalk, letter, woordmerk } from "@/emails/huisstijl";
 
 interface AanmaningEmailProps {
   klantNaam: string;
@@ -47,9 +48,10 @@ const typeConfig = {
       "Ondanks onze eerdere herinnering hebben wij nog geen betaling ontvangen voor onderstaande factuur. Wij verzoeken u vriendelijk om het openstaande bedrag zo spoedig mogelijk te voldoen.",
     afsluiting:
       "Mocht u de betaling inmiddels hebben voldaan, dan kunt u dit schrijven als niet verzonden beschouwen. Bij vragen kunt u uiteraard contact met ons opnemen.",
-    headerColor: "#f59e0b", // amber
-    boxBg: "#fef3c7",
-    boxBorder: "#f59e0b",
+    // Kopbalk blijft warm zwart; de accentlijn eronder kleurt mee met de ernst.
+    accentKleur: kleur.wachtAccent,
+    boxBg: kleur.wachtVlak,
+    boxBorder: kleur.wachtLijn,
   },
   tweede_aanmaning: {
     titel: "2e Aanmaning",
@@ -58,9 +60,9 @@ const typeConfig = {
       "Tot onze spijt moeten wij constateren dat, ondanks onze eerdere aanmaning, de betaling van onderstaande factuur nog steeds niet is ontvangen. Wij verzoeken u met klem het openstaande bedrag binnen 7 dagen te voldoen.",
     afsluiting:
       "Indien wij binnen 7 dagen geen betaling hebben ontvangen, zijn wij genoodzaakt verdere stappen te ondernemen. Dit kan leiden tot buitengerechtelijke incassokosten die voor uw rekening komen.",
-    headerColor: "#ea580c", // orange
-    boxBg: "#fff7ed",
-    boxBorder: "#ea580c",
+    accentKleur: kleur.actiefAccent,
+    boxBg: kleur.actiefVlak,
+    boxBorder: kleur.actiefLijn,
   },
   ingebrekestelling: {
     titel: "Ingebrekestelling",
@@ -69,9 +71,9 @@ const typeConfig = {
       "Ondanks herhaaldelijke aanmaningen hebben wij tot op heden geen betaling ontvangen voor onderstaande factuur. Bij deze stellen wij u formeel in gebreke conform artikel 6:82 van het Burgerlijk Wetboek.",
     afsluiting:
       "Indien het volledige bedrag niet binnen 14 dagen na dagtekening van deze brief op onze rekening is bijgeschreven, zien wij ons genoodzaakt de vordering uit handen te geven aan een incassobureau. Alle hiermee gepaard gaande kosten, waaronder buitengerechtelijke incassokosten conform het Besluit vergoeding voor buitengerechtelijke incassokosten, komen volledig voor uw rekening.",
-    headerColor: "#dc2626", // red
-    boxBg: "#fef2f2",
-    boxBorder: "#dc2626",
+    accentKleur: kleur.negatief,
+    boxBg: kleur.negatiefVlak,
+    boxBorder: kleur.negatiefLijn,
   },
 };
 
@@ -101,7 +103,7 @@ export function AanmaningEmail({
       <Body style={main}>
         <Container style={container}>
           {/* Header */}
-          <Section style={{ ...header, backgroundColor: config.headerColor }}>
+          <Section style={{ ...header, borderBottom: `4px solid ${config.accentKleur}` }}>
             <Heading style={logo}>{bedrijfsnaam}</Heading>
           </Section>
 
@@ -222,55 +224,47 @@ export function AanmaningEmail({
 
 // Styles
 const main = {
-  backgroundColor: "#f6f9fc",
-  fontFamily:
-    '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Ubuntu, sans-serif',
+  backgroundColor: kleur.achtergrond,
+  fontFamily: letter,
 };
 
 const container = {
-  backgroundColor: "#ffffff",
+  backgroundColor: kleur.warmWit,
   margin: "0 auto",
   maxWidth: "600px",
 };
 
-const header = {
-  padding: "24px 32px",
-};
+const header = kopBalk;
 
-const logo = {
-  color: "#ffffff",
-  fontSize: "24px",
-  fontWeight: "700" as const,
-  margin: "0",
-};
+const logo = woordmerk;
 
 const content = {
   padding: "32px",
 };
 
 const h1 = {
-  color: "#1f2937",
+  color: kleur.tekst,
   fontSize: "24px",
   fontWeight: "600" as const,
   margin: "0 0 24px",
 };
 
 const greeting = {
-  color: "#374151",
+  color: kleur.tekst,
   fontSize: "16px",
   lineHeight: "24px",
   margin: "0 0 16px",
 };
 
 const paragraph = {
-  color: "#4b5563",
+  color: kleur.tekstZacht,
   fontSize: "15px",
   lineHeight: "24px",
   margin: "0 0 16px",
 };
 
 const detailLabel = {
-  color: "#6b7280",
+  color: kleur.tekstZacht,
   fontSize: "12px",
   fontWeight: "500" as const,
   textTransform: "uppercase" as const,
@@ -278,56 +272,56 @@ const detailLabel = {
 };
 
 const detailValue = {
-  color: "#1f2937",
+  color: kleur.tekst,
   fontSize: "16px",
   fontWeight: "600" as const,
   margin: "0",
 };
 
 const overdueValue = {
-  color: "#dc2626",
+  color: kleur.negatief,
   fontSize: "16px",
-  fontWeight: "700" as const,
+  fontWeight: "600" as const,
   margin: "0",
 };
 
 const divider = {
-  borderColor: "#e5e7eb",
+  borderColor: kleur.lijn,
   margin: "16px 0",
 };
 
 const totalLabel = {
-  color: "#1f2937",
+  color: kleur.tekst,
   fontSize: "16px",
   fontWeight: "600" as const,
   margin: "0",
 };
 
 const totalValueDanger = {
-  color: "#dc2626",
+  color: kleur.negatief,
   fontSize: "24px",
-  fontWeight: "700" as const,
+  fontWeight: "600" as const,
   margin: "0",
 };
 
 const paymentBox = {
-  backgroundColor: "#f9fafb",
-  border: "1px solid #e5e7eb",
+  backgroundColor: kleur.kaart,
+  border: `1px solid ${kleur.lijn}`,
   borderRadius: "8px",
   padding: "20px",
   margin: "24px 0",
 };
 
 const paymentTitle = {
-  color: "#374151",
+  color: kleur.tekst,
   fontSize: "16px",
   fontWeight: "600" as const,
   margin: "0 0 12px",
 };
 
 const ibanBox = {
-  backgroundColor: "#ffffff",
-  border: "1px solid #e5e7eb",
+  backgroundColor: kleur.kaart,
+  border: `1px solid ${kleur.lijn}`,
   borderRadius: "6px",
   padding: "16px",
 };
@@ -337,7 +331,7 @@ const ibanColumn = {
 };
 
 const ibanLabel = {
-  color: "#6b7280",
+  color: kleur.tekstZacht,
   fontSize: "11px",
   fontWeight: "500" as const,
   textTransform: "uppercase" as const,
@@ -345,48 +339,48 @@ const ibanLabel = {
 };
 
 const ibanValue = {
-  color: "#1f2937",
+  color: kleur.tekst,
   fontSize: "16px",
-  fontWeight: "700" as const,
+  fontWeight: "600" as const,
   fontFamily: "monospace",
   margin: "0",
 };
 
 const referenceText = {
-  color: "#374151",
+  color: kleur.tekst,
   fontSize: "13px",
   margin: "12px 0 0",
 };
 
 const signoff = {
-  color: "#4b5563",
+  color: kleur.tekstZacht,
   fontSize: "15px",
   lineHeight: "24px",
   margin: "24px 0 0",
 };
 
 const footerSection = {
-  backgroundColor: "#f9fafb",
-  borderTop: "1px solid #e5e7eb",
+  backgroundColor: kleur.achtergrond,
+  borderTop: `1px solid ${kleur.lijn}`,
   padding: "24px 32px",
 };
 
 const footerText = {
-  color: "#6b7280",
+  color: kleur.tekstZacht,
   fontSize: "13px",
   margin: "0",
   textAlign: "center" as const,
 };
 
 const footerLegal = {
-  color: "#9ca3af",
+  color: kleur.tekstZwak,
   fontSize: "11px",
   margin: "8px 0 0",
   textAlign: "center" as const,
 };
 
 const footerLink = {
-  color: "#16a34a",
+  color: kleur.mos,
   textDecoration: "none",
 };
 
