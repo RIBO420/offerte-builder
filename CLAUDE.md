@@ -89,8 +89,10 @@ Feature-notities (klantTaken, Places/TT-006, klant-import): → docs/dev/convex-
 ## Designprogramma (aug 2026)
 
 Goedgekeurd masterplan met 10 werkstromen, volgordeketens en keuzepunten:
-`docs/design/plannen/masterplan.md` (bronplannen ernaast). Richting: "Vakwerk in het
-groen" / "Loof & Leem"-tokens, licht-eerst, dark blijft volwaardig.
+`docs/design/plannen/masterplan.md` (bronplannen ernaast). **Sinds okt 2026 geldt de
+huisstijlgids van de klant** (Outfit, warm zwart/warm wit, mosgroen, goud als accent,
+zwarte zijbalk): regels en tokens in `docs/design/huisstijl.md` — die gaat voor op
+"Loof & Leem" in oudere plannen.
 
 ## Stand (5 okt 2026)
 

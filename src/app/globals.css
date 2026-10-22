@@ -294,7 +294,7 @@ body {
   /* Huisstijl (gids 18 okt 2026): warm wit draagt de informatie, warm zwart en
      mosgroen dragen het ontwerp, zacht goud is accent. Statustinten staan los
      van mosgroen (139°) en goud (93°): succes 158°, wachten 72°, actief 58°,
-     negatief 27°, informatie 250°. Bron: docs/design (DESIGN.md).
+     negatief 27°, informatie 250°. Regels: docs/design/huisstijl.md.
      Oudere commentaren hieronder over "Loof & Leem" beschrijven de vorige stand. */
   /* UI-les 6 (17 aug): de groene waas eraf. Neutrale werkvlakken met een
      nauwelijks meetbare groenzweem (chroma ≤0.004); groen is voortaan van
