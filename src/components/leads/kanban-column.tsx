@@ -79,6 +79,7 @@ export function KanbanColumn({
             lead={lead}
             onClick={onLeadClick}
             onDelete={onLeadDelete}
+            toonKlantLink={id === "gewonnen"}
           />
         ))}
         {leads.length === 0 && (

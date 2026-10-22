@@ -632,7 +632,8 @@ describe("Auto-events (kanaal systeem) vanuit bestaande mutations", () => {
       .filter((e) => e.eventType === "lead_gewonnen");
     expect(entries).toHaveLength(1);
     expect(entries[0].klantId).toBe(resultaat.klantId);
-    expect(entries[0].werkitemId).toBe(resultaat.werkitemId);
+    // Geen project bij promotie, dus geen werkitem op het event
+    expect(entries[0].werkitemId).toBeUndefined();
     expect(entries[0].tekst).toContain("AAN-2026-042");
     // Tenant-scope: de entry hangt aan de organisatie.
     expect(entries[0].orgId).toBe(orgId);

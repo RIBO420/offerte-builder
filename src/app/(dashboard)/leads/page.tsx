@@ -3,7 +3,9 @@
 /**
  * Leads-pagina (PRD §1.3): eigen menu-item voor de lead-funnel (kanban-bord),
  * gescheiden van /klanten (bestaande klanten). Lead → kolom Gewonnen =
- * promotie naar klantrecord + eerste werkitem (configuratorAanvragen.markGewonnen).
+ * promotie naar klantrecord (configuratorAanvragen.markGewonnen); de lead blijft
+ * in die kolom staan met een link naar de klant. Een project ontstaat pas bij
+ * akkoord op de offerte.
  */
 
 import { PaginaReveal } from "@/components/pagina-reveal";

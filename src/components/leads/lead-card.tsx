@@ -5,7 +5,8 @@ import { CSS } from "@dnd-kit/utilities";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { nl } from "@/lib/date-locale";
-import { MapPin, Archive } from "lucide-react";
+import Link from "next/link";
+import { MapPin, Archive, ArrowUpRight } from "lucide-react";
 import type { Doc } from "../../../convex/_generated/dataModel";
 
 // ============================================
@@ -60,9 +61,14 @@ interface LeadCardProps {
   lead: Lead;
   onClick?: (lead: Lead) => void;
   onDelete?: (lead: Lead) => void;
+  /**
+   * Gewonnen leads blijven op het bord staan (klantbesluit okt 2026); de
+   * kaart linkt dan door naar de klant die eruit ontstond.
+   */
+  toonKlantLink?: boolean;
 }
 
-export function LeadCard({ lead, onClick, onDelete }: LeadCardProps) {
+export function LeadCard({ lead, onClick, onDelete, toonKlantLink = false }: LeadCardProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
       id: lead._id,
@@ -165,6 +171,19 @@ export function LeadCard({ lead, onClick, onDelete }: LeadCardProps) {
         </span>
         <span className="text-xs text-muted-foreground">{relativeDate}</span>
       </div>
+
+      {toonKlantLink && lead.gekoppeldKlantId && (
+        <Link
+          href={`/klanten/${lead.gekoppeldKlantId}`}
+          // Niet slepen of de lead openen: deze link gaat naar de klant.
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+          className="mt-2 inline-flex items-center gap-1 rounded-sm text-xs font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          Naar klant
+          <ArrowUpRight className="size-3.5" aria-hidden="true" />
+        </Link>
+      )}
     </div>
   );
 }

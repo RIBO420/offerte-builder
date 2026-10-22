@@ -7,7 +7,6 @@ import {
   mapOldStatus,
   effectieveLeadStatus,
   isActieveLead,
-  isGepromoveerdeLead,
   promoveerLead,
   vindKlantVoorLead,
   // Alias: de mutation hieronder heet óók maakKlantUitLead (dat is de naam die
@@ -343,10 +342,9 @@ export const listByPipeline = query({
     for (const lead of vanEigenOrg(allLeads, orgId)) {
       // Gearchiveerde leads niet tonen op het bord (§5.2)
       if (lead.isArchived) continue;
-      // PRD §1.3: een gepromoveerde lead (gewonnen + gekoppeld klantrecord)
-      // wórdt de klant en verdwijnt van het bord; de historie blijft
-      // bereikbaar vanaf de klant (getLeadVoorKlant).
-      if (isGepromoveerdeLead(lead)) continue;
+      // Klantbesluit okt 2026: een gewonnen lead (ook mét gekoppeld
+      // klantrecord) blijft zichtbaar in de kolom Gewonnen; de kaart linkt
+      // naar de klant. Voorheen verdween hij hier en stond Gewonnen altijd op 0.
       const pipelineStatus = lead.pipelineStatus ?? mapOldStatus(lead.status);
       grouped[pipelineStatus].push(lead);
     }
@@ -846,10 +844,9 @@ export const updatePipelineStatus = mutation({
  * De kern (promoveerLead, convex/leadsKlantenHelpers.ts) is idempotent en:
  * - matcht bestaande klanten case-insensitief via de by_email-index
  *   (geen ongeïndexeerde full-table scan meer);
- * - maakt géén dubbel record: de lead wórdt de klant en verdwijnt van het
- *   bord (listByPipeline filtert gepromoveerde leads), historie blijft
- *   bereikbaar vanaf de klant (getLeadVoorKlant);
- * - maakt direct het eerste werkitem aan (type "project", status "gepland").
+ * - maakt géén dubbel record: de lead wórdt de klant en blijft in de kolom
+ *   Gewonnen staan (met link naar de klant);
+ * - maakt géén project: dat ontstaat bij akkoord op de offerte.
  */
 export const markGewonnen = mutation({
   args: {
@@ -973,9 +970,8 @@ async function legKlantKoppelingVast(
  * sep 2026 uitsluitend oude data — `updatePipelineStatus` weigert "gewonnen",
  * dus nieuwe gewonnen leads lopen altijd langs promoveerLead. Weigeren zou
  * kantoor met zo'n oude lead laten zitten die nergens meer heen kan; in plaats
- * daarvan loopt de koppeling via promoveerLead met déze klant — werkitem en
- * promotielog erbij, zodat de lead niet anders is dan een lead die via
- * markGewonnen ging.
+ * daarvan loopt de koppeling via promoveerLead met déze klant — promotielog
+ * erbij, zodat de lead niet anders is dan een lead die via markGewonnen ging.
  */
 export const koppelKlant = mutation({
   args: {
@@ -990,7 +986,7 @@ export const koppelKlant = mutation({
 
     // Idempotent: dezelfde klant nogmaals koppelen logt niets dubbel.
     if (lead.gekoppeldKlantId?.toString() === args.klantId.toString()) {
-      return { klantId: args.klantId, alGekoppeld: true, werkitemId: null };
+      return { klantId: args.klantId, alGekoppeld: true, gepromoveerd: false };
     }
 
     // Bij een gewonnen lead ís de klant de lead (PRD §1.3): omhangen zou het
@@ -1004,13 +1000,13 @@ export const koppelKlant = mutation({
     await klantVanEigenOrg(ctx, args.klantId, orgId);
 
     if (effectieveLeadStatus(lead) === "gewonnen") {
-      const { werkitemId } = await promoveerLead(ctx, lead, currentUser, orgId, args.klantId);
-      return { klantId: args.klantId, alGekoppeld: false, werkitemId };
+      await promoveerLead(ctx, lead, currentUser, orgId, args.klantId);
+      return { klantId: args.klantId, alGekoppeld: false, gepromoveerd: true };
     }
 
     await legKlantKoppelingVast(ctx, lead, args.klantId, currentUser, orgId, false);
 
-    return { klantId: args.klantId, alGekoppeld: false, werkitemId: null };
+    return { klantId: args.klantId, alGekoppeld: false, gepromoveerd: false };
   },
 });
 

@@ -15,8 +15,9 @@
  *    lifecycle-event via upgradeKlantPipeline). Bestaande "lead"-klanten worden
  *    gesaneerd door convex/migrations/saneerLeadsKlanten.ts (stadium wordt geleegd).
  * 4. Eén waarheid per fase: klanten met het legacy-stadium "lead" tellen niet mee
- *    in de Klanten-lijst/teller; gepromoveerde leads verdwijnen van het leads-bord
- *    (het lead-record blijft bestaan als historie, bereikbaar vanaf de klant via
+ *    in de Klanten-lijst/teller. Gepromoveerde leads blijven sinds okt 2026 op het
+ *    leads-bord in de kolom Gewonnen staan, met een link naar de klant (het
+ *    lead-record is ook bereikbaar vanaf de klant via
  *    `configuratorAanvragen.getLeadVoorKlant`).
  *
  * De functies hier zijn bewust puur (of nemen een ctx-parameter) zodat ze
@@ -83,9 +84,9 @@ export function isActieveLead(lead: LeadVelden): boolean {
 }
 
 /**
- * PRD §1.3 "de lead wórdt de klant": na promotie (gewonnen + gekoppeld
- * klantrecord) verdwijnt de lead van het bord. Historie/foto's/activiteiten
- * blijven bereikbaar vanaf de klant (getLeadVoorKlant).
+ * PRD §1.3 "de lead wórdt de klant": promotie = gewonnen + gekoppeld
+ * klantrecord. Bepaalt de idempotentie van promoveerLead; de lead blijft
+ * zichtbaar in de kolom Gewonnen (klantbesluit okt 2026).
  */
 export function isGepromoveerdeLead(lead: LeadVelden): boolean {
   return effectieveLeadStatus(lead) === "gewonnen" && lead.gekoppeldKlantId !== undefined;
@@ -226,7 +227,6 @@ export async function maakKlantUitLead(
 
 export type PromotieResultaat = {
   klantId: Id<"klanten">;
-  werkitemId: Id<"projecten"> | null;
   nieuweKlant: boolean;
   alGepromoveerd: boolean;
 };
@@ -235,18 +235,19 @@ export type PromotieResultaat = {
  * Promoveer een lead naar klant (PRD §1.3): de lead wórdt de klant.
  *
  * - Idempotent: een al gepromoveerde lead (gewonnen + gekoppeldKlantId) is een
- *   no-op die het bestaande klantrecord teruggeeft — geen dubbel werkitem.
+ *   no-op die het bestaande klantrecord teruggeeft.
  * - Case-insensitieve klant-match via de by_email-index op genormaliseerd
  *   e-mailadres (geen ongeïndexeerde full-table scan meer).
  * - Geen dubbele records: bestaat de klant al, dan wordt gekoppeld; anders
  *   wordt het klantrecord uit de lead-gegevens aangemaakt (zónder het
  *   deprecated "lead"-stadium; tenancy = de organisatie van de promoverende
  *   kantoor-gebruiker, zoals klanten.create).
- * - Direct een eerste werkitem (type "project", status "gepland") — de
- *   werkitems-laag uit B1 (convex/werkitems.ts); offerte volgt later vanuit
- *   de wizard met deze klant.
+ * - Géén project meer (klantbesluit okt 2026): een project ontstaat pas bij
+ *   akkoord op de offerte (convex/acceptatieKeten.ts), met de titel
+ *   "Klantnaam – werkzaamheden". Voorheen kwam hier een project met de hele
+ *   aanvraagtekst als naam.
  * - Het lead-record krijgt gekoppeldKlantId + pipelineStatus "gewonnen" en
- *   verdwijnt daarmee van het bord (isGepromoveerdeLead); historie blijft.
+ *   blijft in de kolom Gewonnen staan, met een link naar de klant.
  * - `gekozenKlantId`: een door kantoor aangewezen klant (koppelKlant op een
  *   legacy-gewonnen lead zonder koppeling) gaat vóór de e-mail-match; de
  *   aanroeper heeft die klant al op tenancy gecontroleerd.
@@ -258,11 +259,10 @@ export async function promoveerLead(
   orgId: Id<"organisaties">,
   gekozenKlantId?: Id<"klanten">
 ): Promise<PromotieResultaat> {
-  // Idempotentie: promotie is al gebeurd — geen tweede klant/werkitem.
+  // Idempotentie: promotie is al gebeurd — geen tweede klant.
   if (isGepromoveerdeLead(lead) && lead.gekoppeldKlantId) {
     return {
       klantId: lead.gekoppeldKlantId,
-      werkitemId: null,
       nieuweKlant: false,
       alGepromoveerd: true,
     };
@@ -285,27 +285,15 @@ export async function promoveerLead(
     nieuweKlant = true;
   }
 
-  // 3. Direct het eerste werkitem aanmaken (PRD §1.3; conventie werkitems.ts:
-  //    createWerkitem — type "project", status "gepland", adres = klantadres).
-  const werkitemId = await ctx.db.insert("projecten", {
-    orgId,
-    type: "project",
-    klantId,
-    naam: lead.omschrijving?.trim() || `Aanvraag ${lead.referentie}`,
-    status: "gepland",
-    adres: lead.klantAdres?.trim() || undefined,
-    createdAt: now,
-    updatedAt: now,
-  });
-
-  // 4. Lead afronden: gewonnen + koppeling → verdwijnt van het bord, historie blijft.
+  // 3. Lead afronden: gewonnen + koppeling. Geen project: dat ontstaat bij
+  //    akkoord op de offerte (acceptatieKeten).
   await ctx.db.patch(lead._id, {
     pipelineStatus: "gewonnen",
     gekoppeldKlantId: klantId,
     updatedAt: now,
   });
 
-  // 4b. De oorspronkelijke aanvraag (tekst + foto's) naar het dossier —
+  // 4. De oorspronkelijke aanvraag (tekst + foto's) naar het dossier —
   //     idempotent, dus een eerder gekoppelde lead krijgt geen dubbele regel.
   await neemAanvraagOverInDossier(ctx, lead, klantId, orgId, {
     id: currentUser._id,
@@ -317,12 +305,11 @@ export async function promoveerLead(
     leadId: lead._id,
     type: "status_wijziging",
     beschrijving: nieuweKlant
-      ? "Lead gewonnen: gepromoveerd naar nieuw klantrecord met eerste werkitem"
-      : "Lead gewonnen: gekoppeld aan bestaande klant met eerste werkitem",
+      ? "Lead gewonnen: gepromoveerd naar nieuw klantrecord"
+      : "Lead gewonnen: gekoppeld aan bestaande klant",
     gebruikerId: currentUser._id,
     metadata: {
       gekoppeldKlantId: klantId,
-      werkitemId,
       nieuweKlant,
     },
     createdAt: now,
@@ -334,15 +321,14 @@ export async function promoveerLead(
     orgId,
     klantId,
     eventType: "lead_gewonnen",
-    werkitemId,
     auteurId: currentUser._id,
     auteurNaam: currentUser.name,
     tekst: `Lead ${lead.referentie} gewonnen — gepromoveerd naar ${
       nieuweKlant ? "nieuw klantrecord" : "bestaande klant"
-    } met eerste werkitem`,
+    }`,
   });
 
-  return { klantId, werkitemId, nieuweKlant, alGepromoveerd: false };
+  return { klantId, nieuweKlant, alGepromoveerd: false };
 }
 
 // ─── Aanvraag overnemen in het klantdossier ─────────────────────────────────

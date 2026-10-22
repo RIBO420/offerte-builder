@@ -8,7 +8,8 @@
  *    alleen echte klanten — gearchiveerde records en het deprecated
  *    "lead"-stadium tellen nergens mee.
  * 2. Promotie Lead → Gewonnen (promoveerLead): case-insensitieve klant-match,
- *    geen dubbel record, eerste werkitem, correcte tenancy en idempotentie.
+ *    geen dubbel record, géén project (dat ontstaat bij akkoord op de
+ *    offerte), correcte tenancy en idempotentie.
  *
  * Er wordt niets gemaild of gepusht: promoveerLead raakt geen scheduler en de
  * mock-ctx gebruikt uitsluitend een in-memory store (convex-mock.ts).
@@ -263,7 +264,7 @@ describe("Promotie Lead → Gewonnen (promoveerLead)", () => {
     expect(klanten[0].pipelineStatus).toBeUndefined();
   });
 
-  it("maakt direct een eerste werkitem aan (type project, status gepland)", async () => {
+  it("maakt géén project aan: dat ontstaat pas bij akkoord op de offerte", async () => {
     const { store, ctx, user, orgId } = maakPromotieContext();
     const leadId = store.insert("configuratorAanvragen", maakLead());
 
@@ -274,17 +275,12 @@ describe("Promotie Lead → Gewonnen (promoveerLead)", () => {
       orgId as Id<"organisaties">
     );
 
-    const werkitems = store.getAll("projecten");
-    expect(werkitems).toHaveLength(1);
-    expect(werkitems[0]._id).toBe(resultaat.werkitemId);
-    expect(werkitems[0].type).toBe("project");
-    expect(werkitems[0].status).toBe("gepland");
-    expect(werkitems[0].klantId).toBe(resultaat.klantId);
-    expect(werkitems[0].orgId).toBe(orgId);
-    expect(werkitems[0].naam).toBe("Aanvraag CFG-20260701-0001");
+    expect(store.getAll("projecten")).toHaveLength(0);
+    expect(resultaat).not.toHaveProperty("werkitemId");
+    expect(resultaat.alGepromoveerd).toBe(false);
   });
 
-  it("rondt het lead-record af: gewonnen + koppeling → van het bord, historie blijft", async () => {
+  it("rondt het lead-record af: gewonnen + koppeling, historie blijft", async () => {
     const { store, ctx, user, orgId } = maakPromotieContext();
     const leadId = store.insert("configuratorAanvragen", maakLead());
 
@@ -298,20 +294,20 @@ describe("Promotie Lead → Gewonnen (promoveerLead)", () => {
     const lead = getLead(store, leadId);
     expect(lead.pipelineStatus).toBe("gewonnen");
     expect(lead.gekoppeldKlantId).toBe(resultaat.klantId);
-    // Gepromoveerde lead verdwijnt van het bord (filter in listByPipeline)…
+    // Gepromoveerd (gewonnen + koppeling)…
     expect(
       isGepromoveerdeLead(lead as { status: string; pipelineStatus?: "gewonnen"; gekoppeldKlantId?: Id<"klanten"> })
     ).toBe(true);
-    // …maar de historie blijft: activiteit gelogd met klant- en werkitem-verwijzing
+    // …en de historie: activiteit gelogd met klantverwijzing
     const activiteiten = store.getAll("leadActiviteiten");
     expect(activiteiten).toHaveLength(1);
     expect(activiteiten[0].leadId).toBe(leadId);
     const metadata = activiteiten[0].metadata as Record<string, unknown>;
     expect(metadata.gekoppeldKlantId).toBe(resultaat.klantId);
-    expect(metadata.werkitemId).toBe(resultaat.werkitemId);
+    expect(metadata.werkitemId).toBeUndefined();
   });
 
-  it("is idempotent: een tweede promotie maakt geen dubbele klant of werkitem", async () => {
+  it("is idempotent: een tweede promotie maakt geen dubbele klant", async () => {
     const { store, ctx, user, orgId } = maakPromotieContext();
     const leadId = store.insert("configuratorAanvragen", maakLead());
 
@@ -330,9 +326,8 @@ describe("Promotie Lead → Gewonnen (promoveerLead)", () => {
 
     expect(tweede.alGepromoveerd).toBe(true);
     expect(tweede.klantId).toBe(eerste.klantId);
-    expect(tweede.werkitemId).toBeNull();
     expect(store.getAll("klanten")).toHaveLength(1);
-    expect(store.getAll("projecten")).toHaveLength(1);
+    expect(store.getAll("projecten")).toHaveLength(0);
     expect(store.getAll("leadActiviteiten")).toHaveLength(1);
   });
 
@@ -381,8 +376,8 @@ describe("Promotie Lead → Gewonnen (promoveerLead)", () => {
     expect(resultaat.klantId).toBe(klantId);
     expect(resultaat.nieuweKlant).toBe(false);
     expect(store.getAll("klanten")).toHaveLength(1);
-    // Eerste werkitem hoort wél aangemaakt te worden bij de promotie zelf
-    expect(store.getAll("projecten")).toHaveLength(1);
+    // Geen project bij promotie (klantbesluit okt 2026)
+    expect(store.getAll("projecten")).toHaveLength(0);
   });
 });
 
@@ -434,6 +429,33 @@ describe("Leads zijn org-gescoopt", () => {
 
     expect(referenties).toContain("CFG-EIGEN");
     expect(referenties).not.toContain("CFG-VREEMD");
+  });
+});
+
+// ─── 5b. Gewonnen leads blijven op het bord (klantbesluit okt 2026) ──────────
+
+describe("Gewonnen leads op het bord", () => {
+  it("toont een gepromoveerde lead in de kolom Gewonnen, met zijn klant", async () => {
+    const store = new MockConvexStore();
+    const orgId = seedMockOrganisatie(store);
+    store.insert("users", createMockUser({ role: "directie" }));
+    const klantId = store.insert("klanten", maakKlant({ orgId }));
+    const gewonnenId = store.insert(
+      "configuratorAanvragen",
+      maakLead({ referentie: "CFG-GEWONNEN", pipelineStatus: "gewonnen", gekoppeldKlantId: klantId as Id<"klanten"> })
+    );
+    store.patch(gewonnenId, { orgId });
+    const openId = store.insert("configuratorAanvragen", maakLead({ referentie: "CFG-OPEN" }));
+    store.patch(openId, { orgId });
+
+    const bord = (await handlerVan(listByPipeline)(createMockCtx(store), {})) as Record<
+      string,
+      Array<{ referentie: string; gekoppeldKlantId?: string }>
+    >;
+
+    expect(bord.gewonnen.map((l) => l.referentie)).toEqual(["CFG-GEWONNEN"]);
+    expect(bord.gewonnen[0].gekoppeldKlantId).toBe(klantId);
+    expect(Object.values(bord).flat()).toHaveLength(2);
   });
 });
 
@@ -530,7 +552,7 @@ describe("Klant koppelen vanuit een open lead", () => {
     const resultaat = (await koppelKlantH(ctx, { id: leadId, klantId })) as {
       klantId: string;
       alGekoppeld: boolean;
-      werkitemId: string | null;
+      gepromoveerd: boolean;
     };
 
     const lead = getLead(store, leadId);
@@ -540,12 +562,9 @@ describe("Klant koppelen vanuit een open lead", () => {
     expect(resultaat.alGekoppeld).toBe(false);
     // De gekozen klant, geen nieuw record via de e-mail-match
     expect(store.getAll("klanten")).toHaveLength(1);
-    // Het promotiepad: eerste werkitem bij die klant + promotielog
-    const werkitems = store.getAll("projecten");
-    expect(werkitems).toHaveLength(1);
-    expect(werkitems[0].klantId).toBe(klantId);
-    expect(werkitems[0].orgId).toBe(orgId);
-    expect(resultaat.werkitemId).toBe(werkitems[0]._id);
+    // Het promotiepad: promotielog, maar géén project
+    expect(resultaat.gepromoveerd).toBe(true);
+    expect(store.getAll("projecten")).toHaveLength(0);
     const activiteiten = store.getAll("leadActiviteiten");
     expect(activiteiten).toHaveLength(1);
     expect(activiteiten[0].type).toBe("status_wijziging");

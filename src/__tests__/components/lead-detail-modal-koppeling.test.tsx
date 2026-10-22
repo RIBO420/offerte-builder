@@ -7,8 +7,8 @@
  *    loopt, het item is disabled en toont een spinner.
  * 3. **De klantbadge sluit het modal.** Wie via de badge naar het dossier gaat
  *    en terugnavigeert, ziet het bord zonder oud modal.
- * 4. **Legacy-gewonnen lead: de toast noemt het werkitem.** koppelKlant
- *    promoveert dan via promoveerLead en geeft een werkitemId terug.
+ * 4. **Legacy-gewonnen lead: de toast noemt de promotie.** koppelKlant
+ *    promoveert dan via promoveerLead (zonder project) en meldt gepromoveerd.
  * 5. **De kop is reactief.** Het bord geeft een momentopname mee; het modal
  *    leest de lead zelf live. Komt er een verse lead binnen mét klant, dan
  *    verschijnt de badge zonder dat de prop verandert.
@@ -118,7 +118,7 @@ beforeEach(() => {
 describe("Koppelen via de duplicaatbanner", () => {
   it("is bezet zolang koppelKlant loopt: disabled, spinner, geen dubbele aanroep", async () => {
     const gebruiker = userEvent.setup();
-    const { belofte, los } = uitgesteld<{ werkitemId: null }>();
+    const { belofte, los } = uitgesteld<{ gepromoveerd: boolean }>();
     koppelKlant.mockReturnValue(belofte);
 
     render(<LeadDetailModal lead={maakLead()} open onClose={vi.fn()} />);
@@ -138,15 +138,15 @@ describe("Koppelen via de duplicaatbanner", () => {
       klantId: "klanten:k1",
     });
 
-    los({ werkitemId: null });
+    los({ gepromoveerd: false });
     await waitFor(() => expect(knop).not.toBeDisabled());
     expect(knop.querySelector(".animate-spin")).toBeNull();
     expect(showSuccessToast).toHaveBeenCalledWith("Klant gekoppeld aan deze lead");
   });
 
-  it("noemt het werkitem als een legacy-gewonnen lead bij koppelen gepromoveerd is", async () => {
+  it("meldt het als een legacy-gewonnen lead bij koppelen gepromoveerd is", async () => {
     const gebruiker = userEvent.setup();
-    koppelKlant.mockResolvedValue({ werkitemId: "projecten:w1" });
+    koppelKlant.mockResolvedValue({ gepromoveerd: true });
 
     render(
       <LeadDetailModal
@@ -160,7 +160,7 @@ describe("Koppelen via de duplicaatbanner", () => {
 
     await waitFor(() =>
       expect(showSuccessToast).toHaveBeenCalledWith(
-        "Klant gekoppeld en eerste werkitem aangemaakt"
+        "Klant gekoppeld, de lead staat bij Gewonnen"
       )
     );
   });

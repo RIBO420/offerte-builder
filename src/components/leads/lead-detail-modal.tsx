@@ -608,14 +608,14 @@ export function LeadDetailModal({
 
     setIsKoppelen(true);
     try {
-      const { werkitemId } = await koppelKlant({ id: lead._id, klantId });
+      const { gepromoveerd } = await koppelKlant({ id: lead._id, klantId });
       setKlantZoekOpen(false);
       setKlantZoekterm("");
       // Een legacy-gewonnen lead zonder klant wordt bij koppelen meteen
-      // gepromoveerd (eerste werkitem erbij); zeg dat er dan ook bij.
+      // gepromoveerd; een project komt pas bij akkoord op de offerte.
       showSuccessToast(
-        werkitemId
-          ? "Klant gekoppeld en eerste werkitem aangemaakt"
+        gepromoveerd
+          ? "Klant gekoppeld, de lead staat bij Gewonnen"
           : "Klant gekoppeld aan deze lead"
       );
     } catch (error) {
