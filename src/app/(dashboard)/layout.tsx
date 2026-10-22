@@ -89,8 +89,8 @@ function DashboardShellSkeleton() {
           ))}
         </div>
       </div>
-      {/* Contentvlak in dezelfde inset-stijl als SidebarInset */}
-      <main className="relative flex w-full min-w-0 flex-1 flex-col bg-background md:m-2 md:ml-0 md:rounded-xl md:shadow-sm">
+      {/* Contentvlak zoals SidebarInset bij variant "sidebar": tot de rand */}
+      <main className="relative flex w-full min-w-0 flex-1 flex-col bg-background">
         <div
           className="flex flex-1 flex-col gap-6 p-4 md:p-8"
           role="status"

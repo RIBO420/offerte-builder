@@ -330,7 +330,7 @@ body {
      `--foreground` 14,3:1 · `--muted-foreground` 5,73:1 · `--destructive`
      4,17:1. Alle tekstwaarden liggen hóger dan op de oude salietint. */
   --surface-primair: oklch(0.895 0.035 139);
-  --surface-aandacht: oklch(0.895 0.045 75);
+  --surface-aandacht: oklch(0.900 0.036 82);
   --popover: oklch(0.985 0.004 91);
   --popover-foreground: var(--foreground);
   --primary: oklch(0.389 0.039 139);           /* mosgroen — knoppen, actief, links (huisstijlgids okt 2026) */

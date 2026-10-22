@@ -368,7 +368,9 @@ export function AppSidebar() {
     // anders niets over en moest je hem uitklappen om te zien waar je heen kon.
     // Nu blijft er een smalle balk met alleen de iconen staan; de labels zitten
     // in de tooltips die de menu-items al meekregen.
-    <Sidebar variant="inset" collapsible="icon" aria-label="Hoofdnavigatie">
+    // Huisstijl: alleen de zijbalk is warm zwart; de inhoud loopt tot de rand
+    // (geen "inset"-lijst van zwart rondom de pagina).
+    <Sidebar variant="sidebar" collapsible="icon" aria-label="Hoofdnavigatie">
       <SidebarHeader>
         <SidebarMenu>
           {/* Vaste rijhoogte: de lg-knop is uitgeklapt 48px maar ingeklapt
