@@ -63,13 +63,13 @@ const scopeLabels: Record<string, string> = {
 function getStatusConfig(status: string) {
   switch (status) {
     case "geaccepteerd":
-      return { label: "Geaccepteerd", className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800" };
+      return { label: "Geaccepteerd", className: "bg-status-geaccepteerd text-status-geaccepteerd-text border-status-geaccepteerd-border" };
     case "afgewezen":
-      return { label: "Afgewezen", className: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800" };
+      return { label: "Afgewezen", className: "bg-destructive/10 text-destructive border-destructive/30" };
     case "verzonden":
-      return { label: "Wacht op reactie", className: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800" };
+      return { label: "Wacht op reactie", className: "bg-status-herinnering text-status-herinnering-text border-status-herinnering-border" };
     default:
-      return { label: status, className: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400" };
+      return { label: status, className: "bg-muted text-foreground" };
   }
 }
 
@@ -198,10 +198,10 @@ export default function PortaalOfferteDetailPage({
   if (offerte === null) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+        <h2 className="text-lg font-semibold text-foreground">
           Offerte niet gevonden
         </h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+        <p className="text-sm text-muted-foreground mt-1">
           Deze offerte bestaat niet of u heeft geen toegang.
         </p>
         <Button asChild variant="outline" className="mt-4">
@@ -228,14 +228,14 @@ export default function PortaalOfferteDetailPage({
           </Button>
           <div>
             <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              <h1 className="text-2xl font-semibold text-foreground">
                 {offerte.offerteNummer}
               </h1>
               <Badge className={cn("border", statusConfig.className)}>
                 {statusConfig.label}
               </Badge>
             </div>
-            <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400 mt-1">
+            <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
               <span className="flex items-center gap-1">
                 <FileText className="h-3.5 w-3.5" />
                 {offerte.type === "onderhoud" ? "Onderhoud" : "Aanleg"}
@@ -254,28 +254,28 @@ export default function PortaalOfferteDetailPage({
         <Card className={cn(
           "border",
           offerte.customerResponse.status === "geaccepteerd"
-            ? "border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20"
-            : "border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20"
+            ? "border-status-geaccepteerd-border bg-status-geaccepteerd"
+            : "border-destructive/30 bg-destructive/5"
         )}>
           <CardContent className="p-4 flex items-center gap-3">
             {offerte.customerResponse.status === "geaccepteerd" ? (
-              <CheckCircle className="h-5 w-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <CheckCircle className="h-5 w-5 text-status-geaccepteerd-dot shrink-0" />
             ) : (
-              <XCircle className="h-5 w-5 text-red-600 dark:text-red-400 shrink-0" />
+              <XCircle className="h-5 w-5 text-destructive shrink-0" />
             )}
             <div>
               <p className={cn(
                 "font-medium text-sm",
                 offerte.customerResponse.status === "geaccepteerd"
-                  ? "text-emerald-800 dark:text-emerald-300"
-                  : "text-red-800 dark:text-red-300"
+                  ? "text-status-geaccepteerd-text"
+                  : "text-destructive"
               )}>
                 {offerte.customerResponse.status === "geaccepteerd"
                   ? "U heeft deze offerte geaccepteerd"
                   : "U heeft deze offerte afgewezen"}
               </p>
               {offerte.customerResponse.respondedAt && (
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                <p className="text-xs text-muted-foreground mt-0.5">
                   {formatDate(offerte.customerResponse.respondedAt)}
                 </p>
               )}
@@ -287,34 +287,34 @@ export default function PortaalOfferteDetailPage({
       {/* Line items grouped by scope */}
       <Card className="border border-border bg-card">
         <CardHeader>
-          <CardTitle className="text-lg text-gray-900 dark:text-white">
+          <CardTitle className="text-lg text-foreground">
             Specificatie
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           {Object.entries(regelsByScope).map(([scope, regels]) => (
             <div key={scope}>
-              <h3 className="font-semibold text-sm text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+              <h3 className="font-semibold text-sm text-foreground mb-3 flex items-center gap-2">
                 <span className="inline-block w-2 h-2 rounded-full bg-primary" />
                 {scopeLabels[scope] ?? scope}
               </h3>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-gray-100 dark:border-gray-800 text-left">
+                    <tr className="border-b border-border text-left">
                       {optionalRegels.length > 0 && (
                         <th className="pb-2 pr-2 w-8" />
                       )}
-                      <th className="pb-2 pr-4 text-gray-500 dark:text-gray-400 font-medium">
+                      <th className="pb-2 pr-4 text-muted-foreground font-medium">
                         Omschrijving
                       </th>
-                      <th className="pb-2 pr-4 text-gray-500 dark:text-gray-400 font-medium text-right">
+                      <th className="pb-2 pr-4 text-muted-foreground font-medium text-right">
                         Aantal
                       </th>
-                      <th className="pb-2 pr-4 text-gray-500 dark:text-gray-400 font-medium text-right">
+                      <th className="pb-2 pr-4 text-muted-foreground font-medium text-right">
                         Prijs
                       </th>
-                      <th className="pb-2 text-gray-500 dark:text-gray-400 font-medium text-right">
+                      <th className="pb-2 text-muted-foreground font-medium text-right">
                         Totaal
                       </th>
                     </tr>
@@ -331,7 +331,7 @@ export default function PortaalOfferteDetailPage({
                         <tr
                           key={regel.id ?? index}
                           className={cn(
-                            "border-b border-gray-50 dark:border-gray-800/50 last:border-0",
+                            "border-b border-border last:border-0",
                             isOptional && !isSelected && canRespond && "opacity-50"
                           )}
                         >
@@ -348,24 +348,24 @@ export default function PortaalOfferteDetailPage({
                               )}
                             </td>
                           )}
-                          <td className="py-2.5 pr-4 text-gray-900 dark:text-white">
+                          <td className="py-2.5 pr-4 text-foreground">
                             {regel.omschrijving}
                             {isOptional && (
                               <Badge
                                 variant="outline"
-                                className="ml-2 text-[10px] px-1.5 py-0 border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-400"
+                                className="ml-2 text-[10px] px-1.5 py-0 border-status-herinnering-border text-status-herinnering-text"
                               >
                                 Optioneel
                               </Badge>
                             )}
                           </td>
-                          <td className="py-2.5 pr-4 text-right text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                          <td className="py-2.5 pr-4 text-right text-muted-foreground whitespace-nowrap">
                             {regel.hoeveelheid} {regel.eenheid}
                           </td>
-                          <td className="py-2.5 pr-4 text-right text-gray-600 dark:text-gray-400 whitespace-nowrap">
+                          <td className="py-2.5 pr-4 text-right text-muted-foreground whitespace-nowrap">
                             {formatCurrency(regel.prijsPerEenheid)}
                           </td>
-                          <td className="py-2.5 text-right font-medium text-gray-900 dark:text-white whitespace-nowrap">
+                          <td className="py-2.5 text-right font-medium text-foreground whitespace-nowrap">
                             {formatCurrency(lineTotal)}
                           </td>
                         </tr>
@@ -382,16 +382,16 @@ export default function PortaalOfferteDetailPage({
             <>
               <Separator />
               <div className="space-y-2">
-                <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
+                <div className="flex justify-between text-sm text-muted-foreground">
                   <span>Subtotaal (excl. BTW)</span>
                   <span>{formatCurrency(offerte.totalen.totaalExBtw)}</span>
                 </div>
-                <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
+                <div className="flex justify-between text-sm text-muted-foreground">
                   <span>BTW (21%)</span>
                   <span>{formatCurrency(offerte.totalen.btw)}</span>
                 </div>
                 <Separator />
-                <div className="flex justify-between text-lg font-bold text-gray-900 dark:text-white">
+                <div className="flex justify-between text-lg font-semibold text-foreground">
                   <span>Totaal (incl. BTW)</span>
                   <span>{formatCurrency(offerte.totalen.totaalInclBtw)}</span>
                 </div>
@@ -405,12 +405,12 @@ export default function PortaalOfferteDetailPage({
       {offerte.notities && (
         <Card className="border border-border bg-card">
           <CardHeader>
-            <CardTitle className="text-lg text-gray-900 dark:text-white">
+            <CardTitle className="text-lg text-foreground">
               Opmerkingen
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap">
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap">
               {offerte.notities}
             </p>
           </CardContent>
@@ -421,7 +421,7 @@ export default function PortaalOfferteDetailPage({
       {canRespond && (
         <Card className="border border-border bg-card">
           <CardHeader>
-            <CardTitle className="text-lg text-gray-900 dark:text-white flex items-center gap-2">
+            <CardTitle className="text-lg text-foreground flex items-center gap-2">
               <PenTool className="h-5 w-5 text-primary" />
               Uw reactie
             </CardTitle>
@@ -431,7 +431,7 @@ export default function PortaalOfferteDetailPage({
             <div className="space-y-2">
               <label
                 htmlFor="comment"
-                className="text-sm font-medium text-gray-700 dark:text-gray-300"
+                className="text-sm font-medium text-foreground"
               >
                 Opmerking (optioneel)
               </label>
@@ -447,7 +447,7 @@ export default function PortaalOfferteDetailPage({
 
             {/* Signature pad */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="text-sm font-medium text-foreground">
                 Handtekening (verplicht bij acceptatie)
               </label>
               <SignaturePadComponent
@@ -473,7 +473,7 @@ export default function PortaalOfferteDetailPage({
                 variant="outline"
                 onClick={() => setShowRejectDialog(true)}
                 disabled={isSubmitting}
-                className="border-red-200 text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20 flex-1"
+                className="border-destructive/30 text-destructive hover:bg-destructive/5 flex-1"
               >
                 <XCircle className="h-4 w-4 mr-2" />
                 Offerte afwijzen
@@ -496,7 +496,7 @@ export default function PortaalOfferteDetailPage({
           <div className="space-y-2">
             <label
               htmlFor="reject-comment"
-              className="text-sm font-medium text-gray-700 dark:text-gray-300"
+              className="text-sm font-medium text-foreground"
             >
               Reden (optioneel)
             </label>

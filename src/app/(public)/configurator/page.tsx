@@ -44,13 +44,16 @@ export default function ConfiguratorIndexPage() {
     <div className="container max-w-4xl mx-auto px-4 py-10 sm:py-14">
       {/* Kop */}
       <div className="text-center mb-10 sm:mb-12">
-        <p className="text-sm font-medium tracking-wide uppercase text-primary mb-3">
+        <p className="text-xs font-semibold tracking-[0.16em] uppercase text-primary mb-4">
           Vrijblijvend en direct een prijsindicatie
         </p>
-        <h2 className="font-display text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
+        {/* Sfeerkop in Playfair (huisstijl); goud alleen als lijntje, niet
+            als tekst op licht. */}
+        <h2 className="font-sfeer text-4xl sm:text-5xl font-normal leading-[1.1] text-foreground text-balance">
           Waar kunnen we u mee helpen?
         </h2>
-        <p className="text-muted-foreground mt-3 max-w-xl mx-auto">
+        <div aria-hidden="true" className="mx-auto mt-5 h-0.5 w-14 bg-accent-warm" />
+        <p className="text-muted-foreground mt-5 max-w-xl mx-auto">
           Kies een dienst, vertel ons over uw tuin en u ziet meteen wat het
           ongeveer kost. Daarna nemen wij persoonlijk contact met u op.
         </p>

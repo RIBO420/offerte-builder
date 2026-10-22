@@ -38,13 +38,13 @@ export default function PortaalError({
     <div className="flex items-center justify-center py-12">
       <div className="w-full max-w-md rounded-xl border border-border bg-card p-6">
         <div className="flex flex-col items-center text-center">
-          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
-            <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" />
+          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
+            <AlertTriangle className="h-6 w-6 text-destructive" />
           </div>
           <h2 className="text-lg font-semibold text-foreground">
             Er is iets misgegaan
           </h2>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          <p className="mt-1 text-sm text-muted-foreground">
             Deze pagina kon niet worden geladen. Probeer het opnieuw — blijft
             het misgaan, neem dan contact op met Top Tuinen.
           </p>
@@ -52,13 +52,13 @@ export default function PortaalError({
 
         {/* Technische details alleen lokaal: een klant heeft niets aan een stacktrace. */}
         {process.env.NODE_ENV === "development" && (
-          <pre className="mt-4 max-h-32 overflow-auto rounded-lg bg-muted p-3 text-xs whitespace-pre-wrap text-gray-600 dark:text-gray-400">
+          <pre className="mt-4 max-h-32 overflow-auto rounded-lg bg-muted p-3 text-xs whitespace-pre-wrap text-muted-foreground">
             {error.name}: {error.message}
           </pre>
         )}
 
         {error.digest && (
-          <p className="mt-4 text-center text-xs text-gray-400 dark:text-gray-500">
+          <p className="mt-4 text-center text-xs text-muted-foreground">
             Referentie: {error.digest}
           </p>
         )}

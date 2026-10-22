@@ -60,12 +60,12 @@ function KoppelenContent() {
 
   if (!token) {
     return (
-      <div className="max-w-md mx-auto text-center p-8 bg-white rounded-xl border border-gray-200 shadow-lg">
-        <XCircle className="h-10 w-10 text-red-500 mx-auto mb-4" />
-        <h2 className="text-lg font-semibold text-[#1a2e1a] mb-2">
+      <div className="max-w-md mx-auto text-center p-8 bg-card rounded-xl border border-border shadow-lg">
+        <XCircle className="h-10 w-10 text-destructive mx-auto mb-4" />
+        <h2 className="text-lg font-semibold text-foreground mb-2">
           Ongeldige link
         </h2>
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-muted-foreground">
           Deze koppelings-link is ongeldig. Neem contact op met het bedrijf.
         </p>
       </div>
@@ -73,36 +73,36 @@ function KoppelenContent() {
   }
 
   return (
-    <div className="max-w-md mx-auto text-center p-8 bg-white rounded-xl border border-gray-200 shadow-lg">
+    <div className="max-w-md mx-auto text-center p-8 bg-card rounded-xl border border-border shadow-lg">
       {(status === "waiting" || status === "linking") && (
         <>
           <LaadIndicator formaat="sectie" className="mb-4 min-h-0" />
-          <h2 className="text-lg font-semibold text-[#1a2e1a] mb-2">
+          <h2 className="text-lg font-semibold text-foreground mb-2">
             Account koppelen...
           </h2>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-muted-foreground">
             Uw account wordt gekoppeld aan uw klantprofiel. Even geduld.
           </p>
         </>
       )}
       {status === "success" && (
         <>
-          <CheckCircle className="h-10 w-10 text-[#4ADE80] mx-auto mb-4" />
-          <h2 className="text-lg font-semibold text-[#1a2e1a] mb-2">
+          <CheckCircle className="h-10 w-10 text-primary mx-auto mb-4" />
+          <h2 className="text-lg font-semibold text-foreground mb-2">
             Account gekoppeld!
           </h2>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-muted-foreground">
             U wordt doorgestuurd naar uw portaal...
           </p>
         </>
       )}
       {status === "error" && (
         <>
-          <XCircle className="h-10 w-10 text-red-500 mx-auto mb-4" />
-          <h2 className="text-lg font-semibold text-[#1a2e1a] mb-2">
+          <XCircle className="h-10 w-10 text-destructive mx-auto mb-4" />
+          <h2 className="text-lg font-semibold text-foreground mb-2">
             Koppeling mislukt
           </h2>
-          <p className="text-sm text-red-600">{error}</p>
+          <p className="text-sm text-destructive">{error}</p>
         </>
       )}
     </div>

@@ -9,16 +9,16 @@ interface ActivityItem {
 }
 
 const dotColors = {
-  offerte: "bg-[#4ADE80]",
-  factuur: "bg-[#F59E0B]",
-  bericht: "bg-[#60A5FA]",
+  offerte: "bg-primary",
+  factuur: "bg-status-herinnering-dot",
+  bericht: "bg-status-gepland-dot",
 };
 
 export function PortaalActivityFeed({ items }: { items: ActivityItem[] }) {
   if (items.length === 0) {
     return (
-      <Card className="p-6 bg-white dark:bg-[#1a2e1a] border-gray-200 dark:border-[#2a3e2a]">
-        <p className="text-sm text-gray-500 dark:text-gray-400">
+      <Card className="p-6 bg-card border-border">
+        <p className="text-sm text-muted-foreground">
           Geen recente activiteit.
         </p>
       </Card>
@@ -26,9 +26,9 @@ export function PortaalActivityFeed({ items }: { items: ActivityItem[] }) {
   }
 
   return (
-    <Card className="bg-white dark:bg-[#1a2e1a] border-gray-200 dark:border-[#2a3e2a]">
+    <Card className="bg-card border-border">
       <div className="p-5 pb-3">
-        <h3 className="text-[15px] font-semibold text-[#1a2e1a] dark:text-white">
+        <h3 className="text-[15px] font-semibold text-foreground">
           Recente activiteit
         </h3>
       </div>
@@ -37,13 +37,13 @@ export function PortaalActivityFeed({ items }: { items: ActivityItem[] }) {
           <div
             key={`${item.type}-${item.id}`}
             className={`flex items-start gap-3 py-3 ${
-              i < items.length - 1 ? "border-b border-gray-100 dark:border-[#2a3e2a]" : ""
+              i < items.length - 1 ? "border-b border-border" : ""
             }`}
           >
             <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${dotColors[item.type]}`} />
             <div>
-              <p className="text-sm text-gray-800 dark:text-gray-200">{item.title}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+              <p className="text-sm text-foreground">{item.title}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
                 {item.subtitle} &middot;{" "}
                 {new Date(item.date).toLocaleDateString("nl-NL", {
                   day: "numeric",

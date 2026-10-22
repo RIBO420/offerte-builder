@@ -26,15 +26,15 @@ interface FieldProps {
 export function Field({ label, error, children, verplicht = true, hulptekst }: FieldProps) {
   return (
     <div className="space-y-1.5">
-      <Label className={cn("text-sm font-medium", error && "text-red-600")}>
+      <Label className={cn("text-sm font-medium", error && "text-destructive")}>
         {label}
-        {verplicht && <span className="text-red-500 ml-1">*</span>}
+        {verplicht && <span className="text-destructive ml-1">*</span>}
       </Label>
       {children}
       {hulptekst && !error && (
         <p className="text-xs text-muted-foreground">{hulptekst}</p>
       )}
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );
 }
@@ -49,11 +49,11 @@ export function PoortWaarschuwing({ breedte }: { breedte: string }) {
 
   if (waarde < 60) {
     return (
-      <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg text-sm">
-        <XCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+      <div className="flex items-start gap-3 p-4 bg-destructive/5 border border-destructive/30 rounded-lg text-sm">
+        <XCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
         <div>
-          <p className="font-semibold text-red-800">Te smal voor onze machines</p>
-          <p className="text-red-700 mt-0.5">
+          <p className="font-semibold text-destructive">Te smal voor onze machines</p>
+          <p className="text-destructive mt-0.5">
             Helaas kunnen wij hier niet werken met onze machines bij een poortbreedte
             van minder dan 60 cm. Neem contact met ons op voor een maatwerkoplossing.
           </p>
@@ -63,11 +63,11 @@ export function PoortWaarschuwing({ breedte }: { breedte: string }) {
   }
 
   return (
-    <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-lg text-sm">
-      <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+    <div className="flex items-start gap-3 p-4 bg-status-herinnering border border-status-herinnering-border rounded-lg text-sm">
+      <AlertTriangle className="h-5 w-5 text-status-herinnering-dot flex-shrink-0 mt-0.5" />
       <div>
-        <p className="font-semibold text-amber-800">Let op: handmatig werk vereist</p>
-        <p className="text-amber-700 mt-0.5">
+        <p className="font-semibold text-status-herinnering-text">Let op: handmatig werk vereist</p>
+        <p className="text-status-herinnering-text mt-0.5">
           Bij een poortbreedte van minder dan 80 cm kunnen niet al onze machines
           worden ingezet. Er is een toeslag van 25% van toepassing voor extra
           handmatig werk.
@@ -111,7 +111,7 @@ export function StapKlantgegevens({
           placeholder="Jan de Vries"
           value={data.naam}
           onChange={(e) => onChange("naam", e.target.value)}
-          className={cn(errors.naam && "border-red-400 focus-visible:ring-red-400")}
+          className={cn(errors.naam && "border-destructive focus-visible:ring-destructive")}
         />
       </Field>
 
@@ -125,7 +125,7 @@ export function StapKlantgegevens({
             placeholder="jan@email.nl"
             value={data.email}
             onChange={(e) => onChange("email", e.target.value)}
-            className={cn(errors.email && "border-red-400 focus-visible:ring-red-400")}
+            className={cn(errors.email && "border-destructive focus-visible:ring-destructive")}
           />
         </Field>
         <Field label="Telefoonnummer" error={errors.telefoon}>
@@ -136,7 +136,7 @@ export function StapKlantgegevens({
             placeholder="06-12345678"
             value={data.telefoon}
             onChange={(e) => onChange("telefoon", e.target.value)}
-            className={cn(errors.telefoon && "border-red-400 focus-visible:ring-red-400")}
+            className={cn(errors.telefoon && "border-destructive focus-visible:ring-destructive")}
           />
         </Field>
       </div>
@@ -149,7 +149,7 @@ export function StapKlantgegevens({
           placeholder="Tuinstraat 12"
           value={data.adres}
           onChange={(e) => onChange("adres", e.target.value)}
-          className={cn(errors.adres && "border-red-400 focus-visible:ring-red-400")}
+          className={cn(errors.adres && "border-destructive focus-visible:ring-destructive")}
         />
       </Field>
 
@@ -162,7 +162,7 @@ export function StapKlantgegevens({
             placeholder="1234 AB"
             value={data.postcode}
             onChange={(e) => onChange("postcode", e.target.value)}
-            className={cn(errors.postcode && "border-red-400 focus-visible:ring-red-400")}
+            className={cn(errors.postcode && "border-destructive focus-visible:ring-destructive")}
           />
         </Field>
         <div className="col-span-1 sm:col-span-2">
@@ -173,7 +173,7 @@ export function StapKlantgegevens({
               placeholder="Echt"
               value={data.plaats}
               onChange={(e) => onChange("plaats", e.target.value)}
-              className={cn(errors.plaats && "border-red-400 focus-visible:ring-red-400")}
+              className={cn(errors.plaats && "border-destructive focus-visible:ring-destructive")}
             />
           </Field>
         </div>

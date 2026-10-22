@@ -32,7 +32,7 @@ export function StapKlantgegevens({
           placeholder="Jan de Vries"
           value={data.naam}
           onChange={(e) => onChange("naam", e.target.value)}
-          className={cn(errors.naam && "border-red-400 focus-visible:ring-red-400")}
+          className={cn(errors.naam && "border-destructive focus-visible:ring-destructive")}
         />
       </Field>
 
@@ -45,7 +45,7 @@ export function StapKlantgegevens({
             placeholder="jan@email.nl"
             value={data.email}
             onChange={(e) => onChange("email", e.target.value)}
-            className={cn(errors.email && "border-red-400 focus-visible:ring-red-400")}
+            className={cn(errors.email && "border-destructive focus-visible:ring-destructive")}
           />
         </Field>
         <Field label="Telefoonnummer" error={errors.telefoon}>
@@ -57,7 +57,7 @@ export function StapKlantgegevens({
             value={data.telefoon}
             onChange={(e) => onChange("telefoon", e.target.value)}
             className={cn(
-              errors.telefoon && "border-red-400 focus-visible:ring-red-400"
+              errors.telefoon && "border-destructive focus-visible:ring-destructive"
             )}
           />
         </Field>
@@ -70,7 +70,7 @@ export function StapKlantgegevens({
           placeholder="Tuinstraat 12"
           value={data.adres}
           onChange={(e) => onChange("adres", e.target.value)}
-          className={cn(errors.adres && "border-red-400 focus-visible:ring-red-400")}
+          className={cn(errors.adres && "border-destructive focus-visible:ring-destructive")}
         />
       </Field>
 
@@ -83,7 +83,7 @@ export function StapKlantgegevens({
             value={data.postcode}
             onChange={(e) => onChange("postcode", e.target.value)}
             className={cn(
-              errors.postcode && "border-red-400 focus-visible:ring-red-400"
+              errors.postcode && "border-destructive focus-visible:ring-destructive"
             )}
           />
         </Field>
@@ -96,7 +96,7 @@ export function StapKlantgegevens({
               value={data.plaats}
               onChange={(e) => onChange("plaats", e.target.value)}
               className={cn(
-                errors.plaats && "border-red-400 focus-visible:ring-red-400"
+                errors.plaats && "border-destructive focus-visible:ring-destructive"
               )}
             />
           </Field>

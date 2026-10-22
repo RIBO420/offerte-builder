@@ -18,33 +18,33 @@ function getWerkitemStatusConfig(status: string) {
     case "nacalculatie_compleet":
       return {
         label: status === "uitgevoerd" ? "Uitgevoerd" : "Afgerond",
-        className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800",
+        className: "bg-status-geaccepteerd text-status-geaccepteerd-text border-status-geaccepteerd-border",
       };
     case "deels_uitgevoerd":
       return {
         label: "Deels uitgevoerd",
-        className: "bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-400 border-sky-200 dark:border-sky-800",
+        className: "bg-status-gepland text-status-gepland-text border-status-gepland-border",
       };
     case "in_uitvoering":
       return {
         label: "In uitvoering",
-        className: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800",
+        className: "bg-status-herinnering text-status-herinnering-text border-status-herinnering-border",
       };
     case "vervallen":
       return {
         label: "Vervallen",
-        className: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-700",
+        className: "bg-muted text-foreground border-border",
       };
     case "gepland":
     case "voorcalculatie":
       return {
         label: "Gepland",
-        className: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-800",
+        className: "bg-status-gepland text-status-gepland-text border-status-gepland-border",
       };
     default:
       return {
         label: status,
-        className: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400",
+        className: "bg-muted text-foreground",
       };
   }
 }
@@ -93,10 +93,10 @@ export default function PortaalWerkzaamhedenPage() {
           <FolderOpen className="h-6 w-6 text-primary" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-2xl font-semibold text-foreground">
             Werkzaamheden
           </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
+          <p className="text-sm text-muted-foreground">
             Uw projecten en onderhoudsbeurten
           </p>
         </div>
@@ -106,13 +106,13 @@ export default function PortaalWerkzaamhedenPage() {
         <WerkitemsSkeleton />
       ) : werkitems.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="rounded-full bg-gray-100 dark:bg-gray-800 p-4 mb-4">
-            <Inbox className="h-8 w-8 text-gray-400" />
+          <div className="rounded-full bg-muted p-4 mb-4">
+            <Inbox className="h-8 w-8 text-muted-foreground" />
           </div>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+          <h2 className="text-lg font-semibold text-foreground">
             Geen werkzaamheden
           </h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 max-w-sm">
+          <p className="text-sm text-muted-foreground mt-1 max-w-sm">
             Er zijn nog geen geplande projecten of onderhoudsbeurten. Zodra er
             iets voor u wordt ingepland, verschijnt het hier.
           </p>
@@ -138,20 +138,20 @@ export default function PortaalWerkzaamhedenPage() {
                         )}
                       </div>
                       <div className="min-w-0">
-                        <h3 className="font-semibold text-gray-900 dark:text-white truncate">
+                        <h3 className="font-semibold text-foreground truncate">
                           {item.naam}
                         </h3>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                        <p className="text-xs text-muted-foreground mt-0.5">
                           {isBeurt ? "Onderhoudsbeurt" : "Project"}
                         </p>
                         {item.geplandeStart && (
-                          <p className="text-sm text-gray-600 dark:text-gray-300 mt-1 flex items-center gap-1.5">
+                          <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1.5">
                             <CalendarDays className="h-3.5 w-3.5 text-primary" />
                             Gepland op {formatGeplandeDatum(item.geplandeStart)}
                           </p>
                         )}
                         {item.adres && (
-                          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 flex items-center gap-1.5 truncate">
+                          <p className="text-sm text-muted-foreground mt-0.5 flex items-center gap-1.5 truncate">
                             <MapPin className="h-3.5 w-3.5 shrink-0" />
                             {item.adres}
                           </p>

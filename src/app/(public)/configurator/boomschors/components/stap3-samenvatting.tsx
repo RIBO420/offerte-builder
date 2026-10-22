@@ -142,8 +142,8 @@ export function Stap3Samenvatting({
 
           {/* Totaal */}
           <div className="flex items-center justify-between">
-            <p className="font-bold text-base">Totaal (incl. BTW)</p>
-            <p className="font-bold text-lg text-primary">
+            <p className="font-semibold text-base">Totaal (incl. BTW)</p>
+            <p className="font-semibold text-lg text-primary">
               {berekening.heeftBezorgMaatwerk
                 ? "Op aanvraag"
                 : formatEuro(berekening.totaal)}
@@ -151,7 +151,7 @@ export function Stap3Samenvatting({
           </div>
 
           {berekening.heeftBezorgMaatwerk && (
-            <p className="text-xs text-amber-600 bg-amber-50 rounded-lg p-2 mt-1">
+            <p className="text-xs text-status-herinnering-dot bg-status-herinnering rounded-lg p-2 mt-1">
               De bezorgkosten voor uw locatie worden nader bepaald. Wij nemen
               contact met u op voor een definitieve prijs.
             </p>

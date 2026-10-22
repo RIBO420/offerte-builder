@@ -28,18 +28,18 @@ export default function PortaalDocumentenPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl md:text-2xl font-bold text-foreground">
+        <h1 className="text-xl md:text-2xl font-semibold text-foreground">
           Documenten
         </h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+        <p className="text-sm text-muted-foreground mt-1">
           Download uw offertes en facturen als PDF.
         </p>
       </div>
 
       {!hasDocuments ? (
         <Card className="p-8 bg-card border-border text-center">
-          <Download className="h-8 w-8 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
-          <p className="text-sm text-gray-500 dark:text-gray-400">
+          <Download className="h-8 w-8 text-muted-foreground/60 mx-auto mb-3" />
+          <p className="text-sm text-muted-foreground">
             Er zijn nog geen documenten beschikbaar.
           </p>
         </Card>
@@ -68,10 +68,10 @@ export default function PortaalDocumentenPage() {
                     }`}
                   >
                     <div>
-                      <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                      <p className="text-sm font-medium text-foreground">
                         {offerte.offerteNummer}
                       </p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                      <p className="text-xs text-muted-foreground mt-0.5">
                         {offerte.type === "aanleg" ? "Aanleg" : "Onderhoud"} &middot;{" "}
                         {new Date(offerte.createdAt).toLocaleDateString("nl-NL", {
                           day: "numeric",
@@ -124,10 +124,10 @@ export default function PortaalDocumentenPage() {
                     }`}
                   >
                     <div>
-                      <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                      <p className="text-sm font-medium text-foreground">
                         {factuur.factuurnummer}
                       </p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                      <p className="text-xs text-muted-foreground mt-0.5">
                         {new Date(factuur.createdAt).toLocaleDateString("nl-NL", {
                           day: "numeric",
                           month: "long",

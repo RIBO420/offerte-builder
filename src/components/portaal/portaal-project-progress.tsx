@@ -51,13 +51,13 @@ function getStatusColor(status: ProjectStatus): {
   switch (status) {
     case "afgerond":
     case "opgeleverd":
-      return { bg: "bg-emerald-100 dark:bg-emerald-900/30", text: "text-emerald-700 dark:text-emerald-400", icon: CheckCircle };
+      return { bg: "bg-status-geaccepteerd", text: "text-status-geaccepteerd-text", icon: CheckCircle };
     case "in_uitvoering":
-      return { bg: "bg-amber-100 dark:bg-amber-900/30", text: "text-amber-700 dark:text-amber-400", icon: Loader2 };
+      return { bg: "bg-status-herinnering", text: "text-status-herinnering-text", icon: Loader2 };
     case "voorcalculatie":
-      return { bg: "bg-blue-100 dark:bg-blue-900/30", text: "text-blue-700 dark:text-blue-400", icon: Clock };
+      return { bg: "bg-status-gepland", text: "text-status-gepland-text", icon: Clock };
     default:
-      return { bg: "bg-gray-100 dark:bg-gray-800", text: "text-gray-500 dark:text-gray-400", icon: Circle };
+      return { bg: "bg-muted", text: "text-muted-foreground", icon: Circle };
   }
 }
 
@@ -96,7 +96,7 @@ export function PortaalProjectProgress({
           <p className={cn("font-semibold text-sm", statusConfig.text)}>
             {getStatusLabel(status)}
           </p>
-          <p className="text-xs text-gray-500 dark:text-gray-400">
+          <p className="text-xs text-muted-foreground">
             {progressPercent}% voltooid
           </p>
         </div>
@@ -104,9 +104,9 @@ export function PortaalProjectProgress({
 
       {/* Progress bar */}
       <div className="relative">
-        <div className="h-2 w-full rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
+        <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
           <div
-            className="h-full rounded-full bg-[#4ADE80] transition-[width] duration-500 ease-standaard motion-reduce:transition-none"
+            className="h-full rounded-full bg-accent-warm transition-[width] duration-500 ease-standaard motion-reduce:transition-none"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
@@ -119,17 +119,17 @@ export function PortaalProjectProgress({
               <div key={step} className="flex flex-col items-center">
                 <div
                   className={cn(
-                    "w-3 h-3 rounded-full border-2 -mt-[18px] bg-white dark:bg-[#0a0f0a]",
-                    isPast && "border-[#4ADE80] bg-[#4ADE80] dark:bg-[#4ADE80]",
-                    isCurrent && "border-[#4ADE80]",
-                    !isPast && !isCurrent && "border-gray-300 dark:border-gray-600"
+                    "w-3 h-3 rounded-full border-2 -mt-[18px] bg-card",
+                    isPast && "border-accent-warm bg-accent-warm",
+                    isCurrent && "border-accent-warm",
+                    !isPast && !isCurrent && "border-input"
                   )}
                 />
                 <span className={cn(
                   "text-[10px] mt-1 hidden sm:block",
                   isCurrent
-                    ? "text-gray-900 dark:text-white font-medium"
-                    : "text-gray-500 dark:text-gray-400"
+                    ? "text-foreground font-medium"
+                    : "text-muted-foreground"
                 )}>
                   {getStatusLabel(step)}
                 </span>
@@ -145,7 +145,7 @@ export function PortaalProjectProgress({
           {scopes.map((scope) => (
             <span
               key={scope}
-              className="inline-flex items-center rounded-md bg-[#4ADE80]/10 px-2 py-0.5 text-xs font-medium text-[#2a7a2a] dark:text-[#4ADE80]"
+              className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
             >
               {scopeLabels[scope] ?? scope}
             </span>

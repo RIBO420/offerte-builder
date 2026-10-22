@@ -23,26 +23,26 @@ export default function ConfiguratorLayout({
 }) {
   return (
     // WS9: de klantkant is altijd licht — .cfg-licht pint het lichte
-    // "Loof & Leem"-palet, ook wanneer <html> de .dark-klasse draagt.
+    // huisstijlpalet (warm wit, mosgroen), ook wanneer <html> .dark draagt.
     <div className="cfg-licht cfg-veldpatroon min-h-screen flex flex-col">
       {/* Header */}
       <header className="border-b border-border bg-card/90 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
         <div className="container max-w-4xl mx-auto px-4 py-4 flex items-center gap-3">
-          {/* Groene drager onder het witte merkteken (wit-op-licht is onzichtbaar). */}
+          {/* Mosgroene cirkel onder het witte merkteken (wit-op-licht is onzichtbaar). */}
           <Link
             href="/configurator"
             className="flex items-center gap-3 group"
             aria-label="Naar het overzicht van onze diensten"
           >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary shadow-sm">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary">
               <TopTuinenLogo variant="wit" size={28} className="h-7 w-7" />
             </div>
             <div>
-              <h1 className="font-display text-lg font-semibold text-foreground leading-tight group-hover:text-primary transition-colors">
+              <h1 className="font-display text-base font-semibold uppercase tracking-[0.12em] text-foreground leading-tight group-hover:text-primary transition-colors">
                 Top Tuinen
               </h1>
-              <p className="text-xs text-primary font-medium tracking-wide uppercase">
-                Online Configurator
+              <p className="mt-0.5 text-[11px] text-muted-foreground tracking-[0.16em] uppercase">
+                Online configurator
               </p>
             </div>
           </Link>
@@ -60,10 +60,10 @@ export default function ConfiguratorLayout({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
             <div>
               <div className="flex items-center gap-2 mb-3">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-primary">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary">
                   <TopTuinenLogo variant="wit" size={20} className="h-5 w-5" />
                 </div>
-                <span className="font-semibold text-foreground">Top Tuinen</span>
+                <span className="font-semibold uppercase tracking-[0.12em] text-sm text-foreground">Top Tuinen</span>
               </div>
               <p className="text-sm text-muted-foreground leading-relaxed">
                 Uw specialist in tuinaanleg, gazonleggen en tuinonderhoud.

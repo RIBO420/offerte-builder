@@ -256,12 +256,12 @@ function Timeline({ status }: { status: Status }) {
                 )}
               >
                 {isKlaar ? (
-                  <CheckCircle2 className="h-4 w-4 text-white" />
+                  <CheckCircle2 className="h-4 w-4 text-primary-foreground" />
                 ) : isHuidig ? (
                   stap.key === "afgekeurd" ? (
-                    <XCircle className="h-4 w-4 text-white" />
+                    <XCircle className="h-4 w-4 text-primary-foreground" />
                   ) : (
-                    <div className="h-2.5 w-2.5 rounded-full bg-white" />
+                    <div className="h-2.5 w-2.5 rounded-full bg-card" />
                   )
                 ) : (
                   <div className="h-2.5 w-2.5 rounded-full bg-muted-foreground/40" />
@@ -320,7 +320,7 @@ function AanvraagKaart({ aanvraag }: { aanvraag: Aanvraag }) {
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 Referentienummer
               </p>
-              <p className="text-xl font-bold font-mono text-foreground">
+              <p className="text-xl font-semibold font-mono text-foreground">
                 {aanvraag.referentie}
               </p>
             </div>
@@ -425,7 +425,7 @@ function AanvraagKaart({ aanvraag }: { aanvraag: Aanvraag }) {
                             Definitieve prijs
                           </span>
                         </div>
-                        <span className="font-bold text-primary text-base">
+                        <span className="font-semibold text-primary text-base">
                           {formatPrijs(aanvraag.definitievePrijs)}
                         </span>
                       </div>
@@ -581,7 +581,7 @@ function StatusPageContent() {
     <div className="container max-w-3xl mx-auto py-8 px-4">
       {/* Paginatitel */}
       <div className="mb-8 text-center">
-        <h2 className="text-2xl sm:text-3xl font-bold text-foreground">
+        <h2 className="text-2xl sm:text-3xl font-semibold text-foreground">
           Aanvraagstatus opzoeken
         </h2>
         <p className="text-muted-foreground mt-2 max-w-lg mx-auto text-sm sm:text-base">

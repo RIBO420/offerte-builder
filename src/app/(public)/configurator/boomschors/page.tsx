@@ -229,7 +229,7 @@ export default function BoomschorsConfiguratorPage() {
             <div className="mb-6 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
               <div className="text-sm">
                 <span className="text-muted-foreground">Geschatte prijs: </span>
-                <span className="font-bold text-primary">
+                <span className="font-semibold text-primary">
                   {formatEuro(berekening.totaal)}
                 </span>
                 <span className="text-muted-foreground text-xs">

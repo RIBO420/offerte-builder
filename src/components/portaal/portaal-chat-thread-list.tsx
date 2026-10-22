@@ -45,11 +45,11 @@ export function PortaalChatThreadList({
   if (threads.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full p-6 text-center">
-        <MessageSquare className="h-8 w-8 text-gray-300 dark:text-gray-600 mb-3" />
-        <p className="text-sm text-gray-500 dark:text-gray-400">
+        <MessageSquare className="h-8 w-8 text-muted-foreground/60 mb-3" />
+        <p className="text-sm text-muted-foreground">
           Nog geen gesprekken.
         </p>
-        <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+        <p className="text-xs text-muted-foreground mt-1">
           Gesprekken verschijnen hier wanneer er berichten zijn over uw offertes of projecten.
         </p>
       </div>
@@ -75,9 +75,9 @@ export function PortaalChatThreadList({
               className={cn(
                 "w-full text-left px-3 py-3 rounded-lg transition-colors",
                 isActive
-                  ? "bg-[#e8f5e8] dark:bg-[#1a2e1a] border-l-3 border-[#4ADE80]"
-                  : "hover:bg-gray-50 dark:hover:bg-[#111a11]",
-                hasUnread && !isActive && "bg-gray-50 dark:bg-[#111a11]"
+                  ? "bg-accent border-l-3 border-primary"
+                  : "hover:bg-muted/50",
+                hasUnread && !isActive && "bg-muted/50"
               )}
             >
               <div className="flex items-center justify-between mb-1">
@@ -85,20 +85,20 @@ export function PortaalChatThreadList({
                   className={cn(
                     "text-sm",
                     hasUnread
-                      ? "font-semibold text-[#1a2e1a] dark:text-white"
-                      : "font-medium text-gray-700 dark:text-gray-300"
+                      ? "font-semibold text-foreground"
+                      : "font-medium text-foreground/80"
                   )}
                 >
                   {label}
                 </span>
                 <div className="flex items-center gap-2">
                   {hasUnread && (
-                    <Badge className="bg-[#4ADE80] text-black text-[10px] h-[18px] min-w-[18px] flex items-center justify-center rounded-full px-1">
+                    <Badge className="bg-primary text-primary-foreground text-[10px] h-[18px] min-w-[18px] flex items-center justify-center rounded-full px-1">
                       {thread.unreadByKlant}
                     </Badge>
                   )}
                   {thread.lastMessageAt && (
-                    <span className="text-[11px] text-gray-400 dark:text-gray-500">
+                    <span className="text-[11px] text-muted-foreground">
                       {formatRelativeTime(thread.lastMessageAt)}
                     </span>
                   )}
@@ -109,8 +109,8 @@ export function PortaalChatThreadList({
                   className={cn(
                     "text-xs truncate",
                     hasUnread
-                      ? "text-gray-600 dark:text-gray-300"
-                      : "text-gray-400 dark:text-gray-500"
+                      ? "text-foreground/80"
+                      : "text-muted-foreground"
                   )}
                 >
                   {thread.lastMessagePreview}

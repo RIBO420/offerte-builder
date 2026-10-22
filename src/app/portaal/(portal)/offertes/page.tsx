@@ -42,10 +42,10 @@ export default function PortaalOffertesPage() {
           <FileText className="h-6 w-6 text-primary" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-2xl font-semibold text-foreground">
             Offertes
           </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
+          <p className="text-sm text-muted-foreground">
             Bekijk en reageer op uw offertes
           </p>
         </div>
@@ -55,13 +55,13 @@ export default function PortaalOffertesPage() {
         <OffertesSkeleton />
       ) : offertes.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="rounded-full bg-gray-100 dark:bg-gray-800 p-4 mb-4">
-            <Inbox className="h-8 w-8 text-gray-400" />
+          <div className="rounded-full bg-muted p-4 mb-4">
+            <Inbox className="h-8 w-8 text-muted-foreground" />
           </div>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+          <h2 className="text-lg font-semibold text-foreground">
             Geen offertes
           </h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 max-w-sm">
+          <p className="text-sm text-muted-foreground mt-1 max-w-sm">
             Er zijn nog geen offertes voor u beschikbaar. Zodra Top Tuinen een
             offerte opstelt, verschijnt deze hier.
           </p>

@@ -21,18 +21,18 @@ export function Field({
       <Label
         className={cn(
           "text-sm font-medium",
-          error && "text-red-600"
+          error && "text-destructive"
         )}
       >
         {label}
-        {verplicht && <span className="text-red-500 ml-1">*</span>}
+        {verplicht && <span className="text-destructive ml-1">*</span>}
       </Label>
       {children}
       {hulptekst && !error && (
         <p className="text-xs text-muted-foreground">{hulptekst}</p>
       )}
       {error && (
-        <p className="text-xs text-red-600">{error}</p>
+        <p className="text-xs text-destructive">{error}</p>
       )}
     </div>
   );

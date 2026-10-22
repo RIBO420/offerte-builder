@@ -214,7 +214,7 @@ export function StapPrijsoverzicht({
           <button
             type="button"
             onClick={() => onStartdatumChange(undefined)}
-            className="text-xs text-muted-foreground hover:text-red-600 underline underline-offset-2 transition-colors"
+            className="text-xs text-muted-foreground hover:text-destructive underline underline-offset-2 transition-colors"
           >
             Datum wissen
           </button>

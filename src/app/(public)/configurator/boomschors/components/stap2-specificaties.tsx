@@ -104,7 +104,7 @@ export function Stap2Specificaties({ specificaties, onChange, errors }: Stap2Pro
                   <p className="text-xs text-muted-foreground mt-1">
                     {info.beschrijving}
                   </p>
-                  <p className="text-sm font-bold text-primary mt-2">
+                  <p className="text-sm font-semibold text-primary mt-2">
                     {formatEuro(prijs)}/m³
                   </p>
                 </div>
@@ -192,7 +192,7 @@ export function Stap2Specificaties({ specificaties, onChange, errors }: Stap2Pro
                 U heeft{" "}
                 <span
                   className={cn(
-                    "font-bold",
+                    "font-semibold",
                     m3Nodig < 1 ? "text-destructive" : "text-primary"
                   )}
                 >
@@ -247,7 +247,7 @@ export function Stap2Specificaties({ specificaties, onChange, errors }: Stap2Pro
               <p className="text-xs text-muted-foreground mt-1">
                 U haalt de boomschors zelf op bij ons depot.
               </p>
-              <p className="text-sm font-bold text-green-600 mt-2">Gratis</p>
+              <p className="text-sm font-semibold text-primary mt-2">Gratis</p>
             </div>
           </label>
 
@@ -273,7 +273,7 @@ export function Stap2Specificaties({ specificaties, onChange, errors }: Stap2Pro
               <p className="text-xs text-muted-foreground mt-1">
                 Wij leveren bij u thuis met een containerwagen.
               </p>
-              <p className="text-sm font-bold text-primary mt-2">
+              <p className="text-sm font-semibold text-primary mt-2">
                 Prijs op basis van afstand
               </p>
             </div>
@@ -306,19 +306,19 @@ export function Stap2Specificaties({ specificaties, onChange, errors }: Stap2Pro
             </div>
 
             {bezorgInfo && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+              <div className="rounded-xl border border-status-herinnering-border bg-status-herinnering p-4">
                 <div className="flex items-start gap-3">
-                  <TruckIcon className="size-4 text-amber-600 shrink-0 mt-0.5" />
+                  <TruckIcon className="size-4 text-status-herinnering-dot shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-sm font-medium text-amber-900">
+                    <p className="text-sm font-medium text-status-herinnering-text">
                       Geschatte bezorgkosten ({bezorgInfo.label})
                     </p>
                     {bezorgInfo.type === "prijs" ? (
-                      <p className="text-lg font-bold text-amber-700 mt-0.5">
+                      <p className="text-lg font-semibold text-status-herinnering-text mt-0.5">
                         {formatEuro(bezorgInfo.prijs)}
                       </p>
                     ) : (
-                      <p className="text-sm text-amber-700 mt-0.5">
+                      <p className="text-sm text-status-herinnering-text mt-0.5">
                         Neem contact met ons op voor een maatwerkprijs.
                       </p>
                     )}

@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { TopTuinenLogo } from "@/components/ui/top-tuinen-logo";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -36,7 +37,7 @@ export function PortaalNav({ unreadMessages, mobileOpen, onMobileClose }: Portaa
 
   // Desktop horizontal nav
   const desktopNav = (
-    <nav className="hidden md:flex bg-white dark:bg-[#1a2e1a] border-b border-gray-200 dark:border-[#2a3e2a] px-6">
+    <nav className="hidden md:flex bg-card border-b border-border px-6">
       {navItems.map((item) => {
         const isActive = pathname.startsWith(item.href);
         return (
@@ -46,13 +47,13 @@ export function PortaalNav({ unreadMessages, mobileOpen, onMobileClose }: Portaa
             className={cn(
               "flex items-center gap-2 px-4 py-3 text-sm transition-colors border-b-2",
               isActive
-                ? "text-[#1a2e1a] dark:text-[#4ADE80] border-[#4ADE80] font-semibold"
-                : "text-gray-500 dark:text-gray-400 border-transparent hover:text-gray-700 dark:hover:text-gray-300"
+                ? "text-foreground border-accent-warm font-semibold"
+                : "text-muted-foreground border-transparent hover:text-foreground"
             )}
           >
             {item.label}
             {item.badgeKey === "messages" && unreadMessages && unreadMessages > 0 ? (
-              <Badge className="bg-[#4ADE80] text-black text-[10px] h-[18px] min-w-[18px] flex items-center justify-center rounded-full px-1">
+              <Badge className="bg-primary text-primary-foreground text-[10px] h-[18px] min-w-[18px] flex items-center justify-center rounded-full px-1">
                 {unreadMessages}
               </Badge>
             ) : null}
@@ -73,18 +74,20 @@ export function PortaalNav({ unreadMessages, mobileOpen, onMobileClose }: Portaa
       )}
       <div
         className={cn(
-          "fixed top-0 left-0 h-full w-72 max-w-[calc(100vw-3rem)] bg-[#1a2e1a] z-50 transform transition-transform duration-200 md:hidden",
+          "fixed top-0 left-0 h-full w-72 max-w-[calc(100vw-3rem)] bg-sidebar z-50 transform transition-transform duration-200 md:hidden",
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="flex items-center justify-between p-4 border-b border-[#2a3e2a]">
+        <div className="flex items-center justify-between p-4 border-b border-sidebar-border">
           <div className="flex items-center gap-2">
-            <div className="bg-[#4ADE80] w-7 h-7 rounded-md flex items-center justify-center font-bold text-black text-xs">
-              TT
-            </div>
-            <span className="text-white font-semibold text-sm">Top Tuinen</span>
+            <span className="grid size-8 shrink-0 place-items-center rounded-full bg-sidebar-primary">
+              <TopTuinenLogo variant="wit" size={24} className="size-5" />
+            </span>
+            <span className="text-sidebar-accent-foreground font-semibold text-sm uppercase tracking-[0.12em]">
+              Top Tuinen
+            </span>
           </div>
-          <button onClick={onMobileClose} className="text-gray-400 hover:text-white">
+          <button onClick={onMobileClose} className="text-sidebar-foreground hover:text-sidebar-accent-foreground">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -100,14 +103,14 @@ export function PortaalNav({ unreadMessages, mobileOpen, onMobileClose }: Portaa
                 className={cn(
                   "flex items-center gap-3 px-5 py-3.5 text-sm transition-colors",
                   isActive
-                    ? "text-[#4ADE80] font-semibold border-l-3 border-[#4ADE80]"
-                    : "text-gray-300 hover:text-white"
+                    ? "text-sidebar-accent-foreground font-semibold border-l-3 border-accent-warm bg-sidebar-accent"
+                    : "text-sidebar-foreground hover:text-sidebar-accent-foreground"
                 )}
               >
                 <Icon className="h-4 w-4" />
                 {item.label}
                 {item.badgeKey === "messages" && unreadMessages && unreadMessages > 0 ? (
-                  <Badge className="bg-[#4ADE80] text-black text-[10px] h-[18px] ml-auto">
+                  <Badge className="bg-sidebar-primary text-sidebar-primary-foreground text-[10px] h-[18px] ml-auto">
                     {unreadMessages}
                   </Badge>
                 ) : null}

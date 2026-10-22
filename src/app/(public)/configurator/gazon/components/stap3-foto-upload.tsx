@@ -46,33 +46,33 @@ export function StapFotoUpload() {
       </div>
 
       {/* Instructies */}
-      <Card className="border-blue-100 bg-blue-50/50">
+      <Card className="border-status-gepland-border bg-status-gepland/50">
         <CardContent className="pt-5 pb-5">
           <div className="flex items-start gap-3">
-            <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+            <Info className="h-5 w-5 text-status-gepland-dot flex-shrink-0 mt-0.5" />
             <div className="space-y-2">
-              <p className="text-sm font-semibold text-blue-900">Tips voor goede foto&#39;s</p>
-              <ul className="text-sm text-blue-800 space-y-1 list-none">
+              <p className="text-sm font-semibold text-status-gepland-text">Tips voor goede foto&#39;s</p>
+              <ul className="text-sm text-status-gepland-text space-y-1 list-none">
                 <li className="flex items-start gap-2">
-                  <span className="text-blue-500 font-bold">1.</span>
+                  <span className="text-status-gepland-dot font-semibold">1.</span>
                   Maak een overzichtsfoto van de gehele tuin
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-blue-500 font-bold">2.</span>
+                  <span className="text-status-gepland-dot font-semibold">2.</span>
                   Foto van de poort / doorgang naar de tuin
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-blue-500 font-bold">3.</span>
+                  <span className="text-status-gepland-dot font-semibold">3.</span>
                   Foto&#39;s van de huidige ondergrond (gras, tegels, e.d.)
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-blue-500 font-bold">4.</span>
+                  <span className="text-status-gepland-dot font-semibold">4.</span>
                   Eventuele probleemgebieden (waterplassen, kale plekken)
                 </li>
               </ul>
               <a
                 href="#"
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-700 hover:text-blue-900 underline underline-offset-2 mt-1"
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-status-gepland-text hover:text-status-gepland-text underline underline-offset-2 mt-1"
                 onClick={(e) => e.preventDefault()}
               >
                 Bekijk hoe u correct opmeet
@@ -83,9 +83,9 @@ export function StapFotoUpload() {
         </CardContent>
       </Card>
 
-      <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-100 rounded-lg">
-        <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
-        <p className="text-sm text-amber-800">
+      <div className="flex items-start gap-3 p-4 bg-status-herinnering border border-status-herinnering-border rounded-lg">
+        <AlertTriangle className="h-4 w-4 text-status-herinnering-dot flex-shrink-0 mt-0.5" />
+        <p className="text-sm text-status-herinnering-text">
           <span className="font-semibold">Let op:</span> De foto&#39;s zijn niet verplicht
           voor het indienen van uw aanvraag, maar helpen ons bij een nauwkeurigere
           beoordeling en snellere afhandeling.

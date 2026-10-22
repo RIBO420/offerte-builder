@@ -56,7 +56,7 @@ export function StapGazonSpecs({
             onChange={(e) => onChange("oppervlakte", e.target.value)}
             className={cn(
               "max-w-36",
-              errors.oppervlakte && "border-red-400 focus-visible:ring-red-400"
+              errors.oppervlakte && "border-destructive focus-visible:ring-destructive"
             )}
           />
           <span className="text-sm text-muted-foreground">m²</span>
@@ -65,8 +65,8 @@ export function StapGazonSpecs({
 
       {/* Type gras */}
       <div className="space-y-3">
-        <Label className={cn("text-sm font-medium", errors.typeGras && "text-red-600")}>
-          Type gras <span className="text-red-500">*</span>
+        <Label className={cn("text-sm font-medium", errors.typeGras && "text-destructive")}>
+          Type gras <span className="text-destructive">*</span>
         </Label>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {(Object.entries(TYPE_GRAS_CONFIG) as [TypeGras, typeof TYPE_GRAS_CONFIG[TypeGras]][]).map(
@@ -102,14 +102,14 @@ export function StapGazonSpecs({
           )}
         </div>
         {errors.typeGras && (
-          <p className="text-xs text-red-600">{errors.typeGras}</p>
+          <p className="text-xs text-destructive">{errors.typeGras}</p>
         )}
       </div>
 
       {/* Ondergrond */}
       <div className="space-y-3">
-        <Label className={cn("text-sm font-medium", errors.ondergrond && "text-red-600")}>
-          Huidige ondergrond <span className="text-red-500">*</span>
+        <Label className={cn("text-sm font-medium", errors.ondergrond && "text-destructive")}>
+          Huidige ondergrond <span className="text-destructive">*</span>
         </Label>
         <div className="space-y-2">
           {(Object.entries(ONDERGROND_CONFIG) as [Ondergrond, typeof ONDERGROND_CONFIG[Ondergrond]][]).map(
@@ -121,7 +121,7 @@ export function StapGazonSpecs({
                 className={cn(
                   "w-full text-left px-4 py-3 rounded-lg border-2 transition-[color,background-color,border-color,box-shadow] cursor-pointer hover:shadow-sm flex items-start justify-between gap-4",
                   data.ondergrond === type
-                    ? "border-green-500 bg-green-50 shadow-sm"
+                    ? "border-primary bg-surface-primair shadow-sm"
                     : "border-border hover:border-muted-foreground/40 bg-card"
                 )}
               >
@@ -133,7 +133,7 @@ export function StapGazonSpecs({
                   {config.toeslag && (
                     <Badge
                       variant="outline"
-                      className="text-xs text-amber-700 border-amber-300 bg-amber-50"
+                      className="text-xs text-status-herinnering-text border-status-herinnering-border bg-status-herinnering"
                     >
                       Toeslag
                     </Badge>
@@ -144,7 +144,7 @@ export function StapGazonSpecs({
                     </span>
                   )}
                   {config.tarief === 0 && (
-                    <span className="text-xs font-medium text-green-700">
+                    <span className="text-xs font-medium text-primary">
                       Inbegrepen
                     </span>
                   )}
@@ -154,7 +154,7 @@ export function StapGazonSpecs({
           )}
         </div>
         {errors.ondergrond && (
-          <p className="text-xs text-red-600">{errors.ondergrond}</p>
+          <p className="text-xs text-destructive">{errors.ondergrond}</p>
         )}
       </div>
 
@@ -198,7 +198,7 @@ export function StapGazonSpecs({
 
         {/* Opsluitbanden meters — alleen zichtbaar als toggle aan */}
         {data.opsluitbanden && (
-          <div className="ml-4 pl-4 border-l-2 border-green-200">
+          <div className="ml-4 pl-4 border-l-2 border-primary/25">
             <Field label="Aantal strekkende meters" error={errors.opsluitbandenMeters}>
               <div className="flex items-center gap-3">
                 <Input
@@ -212,7 +212,7 @@ export function StapGazonSpecs({
                   className={cn(
                     "max-w-36",
                     errors.opsluitbandenMeters &&
-                      "border-red-400 focus-visible:ring-red-400"
+                      "border-destructive focus-visible:ring-destructive"
                   )}
                 />
                 <span className="text-sm text-muted-foreground">m</span>
@@ -244,7 +244,7 @@ export function StapGazonSpecs({
             className={cn(
               "max-w-36",
               (errors.poortbreedte || isTeSmall) &&
-                "border-red-400 focus-visible:ring-red-400"
+                "border-destructive focus-visible:ring-destructive"
             )}
           />
           <span className="text-sm text-muted-foreground">cm</span>

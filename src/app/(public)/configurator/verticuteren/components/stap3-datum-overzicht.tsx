@@ -181,7 +181,7 @@ export function StapDatumPrijs({
       {/* Kalender */}
       <div className="space-y-2">
         <p className="text-sm font-medium text-foreground">
-          Gewenste datum <span className="text-red-500">*</span>
+          Gewenste datum <span className="text-destructive">*</span>
         </p>
         <BeschikbaarheidsKalender
           mode="selectie"
@@ -191,7 +191,7 @@ export function StapDatumPrijs({
           geblokkeerdeDagen={[0, 6]}
         />
         {errors.gewensteDatum && (
-          <p className="text-xs text-red-600">
+          <p className="text-xs text-destructive">
             {errors.gewensteDatum}
           </p>
         )}

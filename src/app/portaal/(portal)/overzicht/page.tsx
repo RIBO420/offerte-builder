@@ -30,10 +30,13 @@ export default function PortaalOverzichtPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl md:text-2xl font-bold text-foreground">
+        {/* Grootste sfeerkop van het portaal: Playfair (huisstijl), met het
+            gouden lijntje als accent. */}
+        <h1 className="font-sfeer text-3xl md:text-4xl font-normal leading-tight text-foreground text-balance">
           Welkom, {overzicht.klantNaam}
         </h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+        <div aria-hidden="true" className="mt-3 h-0.5 w-12 bg-accent-warm" />
+        <p className="text-sm text-muted-foreground mt-3">
           Hier vindt u een overzicht van uw tuinprojecten bij Top Tuinen.
         </p>
       </div>

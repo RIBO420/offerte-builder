@@ -88,11 +88,11 @@ export function SuccessDialog({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <div className="flex flex-col items-center text-center gap-4 py-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
-              <CheckCircle2 className="h-9 w-9 text-green-600" />
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-surface-primair">
+              <CheckCircle2 className="h-9 w-9 text-primary" />
             </div>
             <div>
-              <DialogTitle className="text-xl font-bold">
+              <DialogTitle className="text-xl font-semibold">
                 Bedankt voor uw aanvraag!
               </DialogTitle>
               <DialogDescription className="mt-3 text-sm leading-relaxed">
@@ -112,45 +112,45 @@ export function SuccessDialog({
               <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">
                 Uw referentienummer
               </p>
-              <p className="text-lg font-bold text-green-700 font-mono mt-0.5">
+              <p className="text-lg font-semibold text-primary font-mono mt-0.5">
                 {referentie}
               </p>
             </div>
             {/* Decoratief blad — bewust laag contrast, dus in dark mode juist een donkere tint */}
-            <Leaf className="h-8 w-8 text-green-200" />
+            <Leaf className="h-8 w-8 text-primary/25" />
           </div>
 
           <ul className="space-y-2 text-sm text-muted-foreground">
             <li className="flex items-start gap-2">
-              <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
+              <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
               Uw aanvraag is ontvangen en geregistreerd
             </li>
             <li className="flex items-start gap-2">
-              <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
+              <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
               Wij nemen contact met u op voor een afspraak ter plaatse
             </li>
             <li className="flex items-start gap-2">
-              <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
+              <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
               Na inspectie ontvangt u een definitieve offerte
             </li>
           </ul>
 
           {/* Aanbetaling sectie */}
-          <div className="rounded-lg border-2 border-dashed border-green-200 bg-green-50/50 p-4 space-y-3">
+          <div className="rounded-lg border-2 border-dashed border-primary/20 bg-surface-primair/50 p-4 space-y-3">
             <div className="flex items-center gap-2">
-              <CreditCard className="h-4 w-4 text-green-700" />
-              <p className="text-sm font-semibold text-green-900">
+              <CreditCard className="h-4 w-4 text-primary" />
+              <p className="text-sm font-semibold text-primary">
                 Aanbetaling (optioneel)
               </p>
             </div>
-            <p className="text-xs text-green-800 leading-relaxed">
+            <p className="text-xs text-primary leading-relaxed">
               Betaal €{AANBETALING_BEDRAG} aanbetaling om uw aanvraag prioriteit te
               geven. Uw aanvraag wordt dan direct behandeld.
             </p>
             <Button
               onClick={startAanbetaling}
               disabled={aanbetaalBezig}
-              className="w-full bg-green-600 hover:bg-green-700 text-white font-medium"
+              className="w-full font-medium"
               size="sm"
             >
               {aanbetaalBezig ? (

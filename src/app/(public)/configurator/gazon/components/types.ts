@@ -66,21 +66,21 @@ export const TYPE_GRAS_CONFIG: Record<
     prijsIndicatie: "€12–15 / m²",
     tarief: 14,
     // WS9: de configurator is altijd licht (.cfg-licht) — geen dark:-varianten.
-    kleur: "border-green-500 bg-green-50",
+    kleur: "border-primary bg-surface-primair",
   },
   inzaaien: {
     label: "Inzaaien",
     uitleg: "Voordeliger optie met een groeitijd van 4–8 weken. Ideaal voor grote oppervlakken.",
     prijsIndicatie: "€5–8 / m²",
     tarief: 6,
-    kleur: "border-lime-500 bg-lime-50",
+    kleur: "border-primary bg-surface-primair",
   },
   kunstgras: {
     label: "Kunstgras",
     uitleg: "Onderhoudsvrij en altijd groen. Ideaal voor gezinnen met kinderen of huisdieren.",
     prijsIndicatie: "€35–60 / m²",
     tarief: 45,
-    kleur: "border-emerald-500 bg-emerald-50",
+    kleur: "border-primary bg-surface-primair",
   },
 };
 

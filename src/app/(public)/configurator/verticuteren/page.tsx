@@ -300,9 +300,9 @@ export default function VerticuterenConfiguratorPage() {
 
       {/* Globale submit-fout */}
       {errors.submit && (
-        <div className="mb-4 flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg text-sm">
-          <XCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-          <p className="text-red-800">{errors.submit}</p>
+        <div className="mb-4 flex items-start gap-3 p-4 bg-destructive/5 border border-destructive/30 rounded-lg text-sm">
+          <XCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+          <p className="text-destructive">{errors.submit}</p>
         </div>
       )}
 
@@ -433,7 +433,7 @@ export default function VerticuterenConfiguratorPage() {
       {/* Info onderaan stap 1 en 2 */}
       {huidigStap < 3 && (
         <div className="mt-6 flex items-start gap-2 text-xs text-muted-foreground">
-          <Leaf className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-green-500" />
+          <Leaf className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-primary" />
           <p>
             Uw gegevens worden veilig opgeslagen en uitsluitend gebruikt voor de
             verwerking van uw aanvraag.

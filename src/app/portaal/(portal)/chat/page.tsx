@@ -20,10 +20,10 @@ export default function PortaalChatPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl md:text-2xl font-bold text-foreground">
+        <h1 className="text-xl md:text-2xl font-semibold text-foreground">
           Berichten
         </h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+        <p className="text-sm text-muted-foreground mt-1">
           Communiceer direct met Top Tuinen over uw offertes en projecten.
         </p>
       </div>

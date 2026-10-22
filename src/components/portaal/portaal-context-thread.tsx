@@ -55,26 +55,26 @@ export function PortaalContextThread({
   };
 
   return (
-    <Card className="border border-gray-200 dark:border-[#2a3e2a] bg-white dark:bg-[#1a2e1a]">
+    <Card className="border border-border bg-card">
       <CardHeader>
-        <CardTitle className="text-lg text-gray-900 dark:text-white flex items-center gap-2">
-          <MessageSquare className="h-5 w-5 text-[#4ADE80]" />
+        <CardTitle className="text-lg text-foreground flex items-center gap-2">
+          <MessageSquare className="h-5 w-5 text-primary" />
           Berichten over {werkitemId ? "deze werkzaamheden" : "deze melding"}
         </CardTitle>
       </CardHeader>
       <CardContent>
         {threadId === undefined ? (
           <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
         ) : threadId === null ? (
           <div className="flex flex-col items-center justify-center py-8 text-center">
-            <p className="text-sm text-gray-500 dark:text-gray-400 max-w-sm">
+            <p className="text-sm text-muted-foreground max-w-sm">
               Heeft u een vraag of opmerking? Start een gesprek — wij reageren
               zo snel mogelijk.
             </p>
             <Button
-              className="mt-4 bg-[#4ADE80] hover:bg-[#3BC96F] text-black"
+              className="mt-4"
               onClick={handleStart}
               disabled={opening}
             >
@@ -87,7 +87,7 @@ export function PortaalContextThread({
             </Button>
           </div>
         ) : (
-          <div className="h-[420px] border border-gray-200 dark:border-[#2a3e2a] rounded-lg overflow-hidden">
+          <div className="h-[420px] border border-border rounded-lg overflow-hidden">
             <PortaalChatMessages threadId={threadId} messages={messages} />
           </div>
         )}

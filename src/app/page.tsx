@@ -170,11 +170,15 @@ export default function SignInPage() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-background lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(480px,600px)]">
-      {/* Merkvlak: in licht en donker hetzelfde avondgroen. Op mobiel een
-          compacte band boven het formulier, op desktop de linkerhelft. */}
-      <section className="relative isolate flex min-h-[248px] flex-col overflow-hidden bg-[oklch(0.24_0.05_152)] px-6 pb-8 pt-6 text-[oklch(0.98_0.01_145)] sm:px-10 lg:min-h-dvh lg:px-14 lg:pb-12 lg:pt-12">
-        {/* Sfeerfoto (dezelfde als in de configurator) met een groen verloop
-            erover: bovenaan donker genoeg voor de witte tekst. */}
+      {/* Merkvlak ("werfbord", huisstijlgids okt 2026): warm zwart in licht én
+          donker. Het leent daarom de zijbalktokens, die in beide thema's warm
+          zwart (`sidebar`) en mosgroen (`sidebar-primary`) blijven. Op mobiel
+          een compacte band boven het formulier, op desktop de linkerhelft. */}
+      <section className="relative isolate flex min-h-[248px] flex-col overflow-hidden bg-sidebar text-sidebar-accent-foreground lg:min-h-dvh">
+        {/* Sfeerfoto (dezelfde als in de configurator) onder een verloop van
+            warm zwart: links vrijwel dicht voor de tekst, rechts laat het de
+            foto zien. Op mobiel loopt de tekst over de volle breedte, dus daar
+            een dichter verloop van boven naar beneden. */}
         <Image
           src="/images/configurator/gazon.webp"
           alt=""
@@ -185,28 +189,46 @@ export default function SignInPage() {
         />
         <div
           aria-hidden="true"
-          className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,oklch(0.20_0.05_152/0.92)_0%,oklch(0.22_0.05_152/0.72)_38%,oklch(0.24_0.05_152/0.25)_70%,oklch(0.20_0.05_152/0.55)_100%)] lg:bg-[linear-gradient(180deg,oklch(0.20_0.05_152/0.88)_0%,oklch(0.22_0.05_152/0.62)_42%,oklch(0.24_0.05_152/0.08)_72%,oklch(0.20_0.05_152/0.35)_100%)]"
+          className="absolute inset-0 -z-10 bg-linear-to-b from-sidebar/92 via-sidebar/80 to-sidebar/65 lg:bg-linear-to-r lg:from-sidebar/96 lg:via-sidebar/70 lg:to-sidebar/15"
         />
-        <div className="relative z-10 flex items-center gap-3">
-          <TopTuinenLogo variant="wit" size={36} className="size-8 lg:size-9" priority />
-          <span className="font-display text-base font-semibold tracking-tight lg:text-lg">
-            Top Tuinen OS
+
+        <div className="relative z-10 flex flex-1 flex-col px-6 pb-8 pt-6 sm:px-10 lg:px-14 lg:pb-12 lg:pt-12">
+          <div className="flex items-center gap-3">
+            <span className="grid size-10 shrink-0 place-items-center rounded-full bg-sidebar-primary lg:size-12">
+              <TopTuinenLogo variant="wit" size={36} className="size-7 lg:size-8" priority />
+            </span>
+            <span className="flex flex-col gap-1">
+              <span className="text-[15px] font-semibold uppercase leading-none tracking-[0.12em] lg:text-base">
+                Top Tuinen
+              </span>
+              <span className="text-[10px] font-normal uppercase leading-none tracking-[0.24em] text-[#C9B89D] lg:text-[11px]">
+                Complete tuinaanleg
+              </span>
+            </span>
+          </div>
+
+          <div className="mt-6 max-w-[540px] lg:my-auto lg:py-12">
+            <p className="hidden text-[13px] font-semibold uppercase tracking-[0.16em] text-accent-warm lg:block">
+              Top Tuinen OS
+            </p>
+            <p className="font-sfeer text-[26px] font-normal leading-[1.12] text-balance sm:text-3xl lg:mt-5 lg:text-[clamp(44px,4.2vw,60px)] lg:leading-[1.06]">
+              Hier werken we aan een mooiere buitenruimte.
+            </p>
+            <div aria-hidden="true" className="mt-7 hidden h-0.5 w-14 bg-accent-warm lg:block" />
+            <p className="mt-7 hidden max-w-[440px] text-[17px] leading-relaxed text-sidebar-foreground text-pretty lg:block">
+              Offertes, planning, uren en facturen van Top Tuinen op één plek. Voor
+              kantoor, de ploeg buiten en onze klanten.
+            </p>
+          </div>
+        </div>
+
+        {/* Voetstrook: alleen op desktop; de mobiele band blijft compact. */}
+        <div className="relative z-10 hidden items-center justify-between gap-4 bg-sidebar-primary px-14 py-4 text-[13px] lg:flex">
+          <span className="font-semibold tracking-[0.04em] text-sidebar-primary-foreground">
+            top-tuinen.nl
           </span>
+          <span className="tracking-[0.08em] text-[#C9B89D]">Born · Zuid-Limburg</span>
         </div>
-
-        <div className="relative z-10 mt-6 max-w-[520px] lg:mt-[min(16vh,128px)]">
-          <p className="hidden text-[13px] font-medium uppercase tracking-[0.08em] text-[oklch(0.85_0.08_148)] lg:block">
-            Hoveniers&shy;software
-          </p>
-          <p className="font-display text-2xl font-semibold leading-[1.1] tracking-tight text-balance sm:text-3xl lg:mt-4 lg:text-[52px] lg:leading-[1.05] lg:tracking-[-0.02em]">
-            Vakwerk in het groen, van offerte tot oplevering.
-          </p>
-          <p className="mt-5 hidden max-w-[440px] text-[17px] leading-relaxed text-[oklch(0.88_0.03_148)] text-pretty lg:block">
-            Offertes, planning, uren en facturen van Top Tuinen op één plek. Voor
-            kantoor, de ploeg buiten en onze klanten.
-          </p>
-        </div>
-
       </section>
 
       {/* Formulier */}

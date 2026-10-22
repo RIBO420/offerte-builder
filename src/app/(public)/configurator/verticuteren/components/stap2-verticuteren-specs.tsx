@@ -58,7 +58,7 @@ export function StapVerticuterenSpecs({
             onChange={(e) => onChange("oppervlakte", e.target.value)}
             className={cn(
               "max-w-36",
-              errors.oppervlakte && "border-red-400 focus-visible:ring-red-400"
+              errors.oppervlakte && "border-destructive focus-visible:ring-destructive"
             )}
           />
           <span className="text-sm text-muted-foreground">m²</span>
@@ -70,11 +70,11 @@ export function StapVerticuterenSpecs({
         <Label
           className={cn(
             "text-sm font-medium",
-            errors.conditie && "text-red-600"
+            errors.conditie && "text-destructive"
           )}
         >
           Huidige conditie van het gazon{" "}
-          <span className="text-red-500">*</span>
+          <span className="text-destructive">*</span>
         </Label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {(
@@ -121,7 +121,7 @@ export function StapVerticuterenSpecs({
                     className={cn(
                       "text-xs flex-shrink-0 mt-0.5",
                       data.conditie === conditie
-                        ? "border-green-500 text-green-700"
+                        ? "border-status-geaccepteerd-dot text-status-geaccepteerd-text"
                         : "border-border text-muted-foreground"
                     )}
                   >
@@ -133,7 +133,7 @@ export function StapVerticuterenSpecs({
           ))}
         </div>
         {errors.conditie && (
-          <p className="text-xs text-red-600">
+          <p className="text-xs text-destructive">
             {errors.conditie}
           </p>
         )}
@@ -186,8 +186,8 @@ export function StapVerticuterenSpecs({
           className={cn(
             "flex items-center justify-between p-4 rounded-lg border-2 transition-colors",
             data.bemesting
-              ? "border-green-400 bg-green-50"
-              : "border-green-200 bg-green-50/40"
+              ? "border-primary bg-surface-primair"
+              : "border-primary/25 bg-surface-primair/40"
           )}
         >
           <div className="flex-1 pr-4">
@@ -195,7 +195,7 @@ export function StapVerticuterenSpecs({
               <p className="text-sm font-medium text-foreground">
                 Bemesting toevoegen
               </p>
-              <Badge className="text-xs bg-green-600 hover:bg-green-600 text-white border-0">
+              <Badge className="text-xs bg-primary hover:bg-primary text-primary-foreground border-0">
                 Aanbevolen
               </Badge>
             </div>
@@ -233,7 +233,7 @@ export function StapVerticuterenSpecs({
             className={cn(
               "max-w-36",
               (errors.poortbreedte || isTeSmall) &&
-                "border-red-400 focus-visible:ring-red-400"
+                "border-destructive focus-visible:ring-destructive"
             )}
           />
           <span className="text-sm text-muted-foreground">cm</span>

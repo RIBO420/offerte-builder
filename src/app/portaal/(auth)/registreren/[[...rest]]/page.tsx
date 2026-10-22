@@ -16,11 +16,11 @@ function RegistrationContent() {
 
   if (!token) {
     return (
-      <div className="max-w-md mx-auto text-center p-8 bg-white rounded-xl border border-gray-200">
-        <h2 className="text-lg font-semibold text-[#1a2e1a] mb-2">
+      <div className="max-w-md mx-auto text-center p-8 bg-card rounded-xl border border-border">
+        <h2 className="text-lg font-semibold text-foreground mb-2">
           Ongeldige registratielink
         </h2>
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-muted-foreground">
           U kunt alleen registreren via een uitnodiging van Top Tuinen.
           Neem contact op als u een uitnodiging verwacht.
         </p>
@@ -31,17 +31,17 @@ function RegistrationContent() {
   // If already signed in (e.g. as admin), offer to sign out first
   if (isSignedIn) {
     return (
-      <div className="max-w-md mx-auto text-center p-8 bg-white rounded-xl border border-gray-200">
-        <h2 className="text-lg font-semibold text-[#1a2e1a] mb-2">
+      <div className="max-w-md mx-auto text-center p-8 bg-card rounded-xl border border-border">
+        <h2 className="text-lg font-semibold text-foreground mb-2">
           U bent al ingelogd
         </h2>
-        <p className="text-sm text-gray-600 mb-4">
+        <p className="text-sm text-muted-foreground mb-4">
           U bent momenteel ingelogd met een ander account. Om een nieuw
           klantenportaal-account aan te maken, moet u eerst uitloggen.
         </p>
         <button
           onClick={handleSignOut}
-          className="px-4 py-2 bg-[#4ADE80] hover:bg-[#22c55e] text-black font-medium rounded-lg transition-colors"
+          className="px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-lg transition-colors"
         >
           Uitloggen en registreren
         </button>
@@ -56,7 +56,7 @@ function RegistrationContent() {
       forceRedirectUrl={`/portaal/koppelen?token=${token}`}
       appearance={{
         elements: {
-          formButtonPrimary: "bg-[#4ADE80] hover:bg-[#22c55e] text-black",
+          formButtonPrimary: "bg-primary hover:bg-primary/90 text-primary-foreground",
           card: "shadow-lg",
         },
       }}

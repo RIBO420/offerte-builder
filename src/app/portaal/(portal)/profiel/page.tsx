@@ -160,10 +160,10 @@ export default function PortaalProfielPage() {
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
-        <h1 className="text-xl md:text-2xl font-bold text-foreground">
+        <h1 className="text-xl md:text-2xl font-semibold text-foreground">
           Mijn profiel
         </h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+        <p className="text-sm text-muted-foreground mt-1">
           Beheer uw persoonlijke gegevens en beveiligingsinstellingen.
         </p>
       </div>
@@ -184,7 +184,7 @@ export default function PortaalProfielPage() {
             <div className="space-y-1.5">
               <Label
                 htmlFor="profiel-naam"
-                className="text-xs text-gray-500 dark:text-gray-400"
+                className="text-xs text-muted-foreground"
               >
                 Naam
               </Label>
@@ -206,10 +206,10 @@ export default function PortaalProfielPage() {
             <div className="space-y-1.5">
               <Label
                 htmlFor="profiel-email"
-                className="text-xs text-gray-500 dark:text-gray-400"
+                className="text-xs text-muted-foreground"
               >
                 E-mailadres{" "}
-                <span className="text-[10px] text-gray-500">
+                <span className="text-[10px] text-muted-foreground">
                   (niet wijzigbaar)
                 </span>
               </Label>
@@ -217,14 +217,14 @@ export default function PortaalProfielPage() {
                 id="profiel-email"
                 value={profiel.email}
                 disabled
-                className="bg-muted border-border text-sm text-gray-500 cursor-not-allowed"
+                className="bg-muted border-border text-sm text-muted-foreground cursor-not-allowed"
               />
             </div>
           </div>
           <div className="space-y-1.5">
             <Label
               htmlFor="profiel-telefoon"
-              className="text-xs text-gray-500 dark:text-gray-400"
+              className="text-xs text-muted-foreground"
             >
               Telefoon
             </Label>
@@ -246,7 +246,7 @@ export default function PortaalProfielPage() {
           <div className="space-y-1.5">
             <Label
               htmlFor="profiel-adres"
-              className="text-xs text-gray-500 dark:text-gray-400"
+              className="text-xs text-muted-foreground"
             >
               Adres
             </Label>
@@ -269,7 +269,7 @@ export default function PortaalProfielPage() {
             <div className="space-y-1.5">
               <Label
                 htmlFor="profiel-postcode"
-                className="text-xs text-gray-500 dark:text-gray-400"
+                className="text-xs text-muted-foreground"
               >
                 Postcode
               </Label>
@@ -291,7 +291,7 @@ export default function PortaalProfielPage() {
             <div className="space-y-1.5">
               <Label
                 htmlFor="profiel-plaats"
-                className="text-xs text-gray-500 dark:text-gray-400"
+                className="text-xs text-muted-foreground"
               >
                 Plaats
               </Label>
@@ -324,7 +324,7 @@ export default function PortaalProfielPage() {
               <span className="text-sm text-primary">Opgeslagen!</span>
             )}
             {melding === "geen-wijzigingen" && (
-              <span className="text-sm text-gray-500 dark:text-gray-400">
+              <span className="text-sm text-muted-foreground">
                 Geen wijzigingen
               </span>
             )}
@@ -346,18 +346,18 @@ export default function PortaalProfielPage() {
                 <h2 className="text-[15px] font-semibold text-foreground">
                   Weergave
                 </h2>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                <p className="text-xs text-muted-foreground mt-0.5">
                   {theme === "light" ? "Licht thema actief" : "Donker thema actief"}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Sun className="h-3.5 w-3.5 text-gray-500" />
+              <Sun className="h-3.5 w-3.5 text-muted-foreground" />
               <Switch
                 checked={theme === "dark"}
                 onCheckedChange={toggleTheme}
               />
-              <Moon className="h-3.5 w-3.5 text-gray-500" />
+              <Moon className="h-3.5 w-3.5 text-muted-foreground" />
             </div>
           </div>
         </div>
@@ -372,7 +372,7 @@ export default function PortaalProfielPage() {
               Beveiliging
             </h2>
           </div>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+          <p className="text-xs text-muted-foreground mt-1">
             Beheer uw wachtwoord en tweefactorauthenticatie (2FA).
           </p>
         </div>

@@ -15,21 +15,27 @@ export function PortaalHeader({ klantNaam, onMenuToggle }: PortaalHeaderProps) {
   const { theme, toggleTheme } = usePortaalTheme();
 
   return (
-    <header className="bg-[#1a2e1a] dark:bg-[#0a150a] px-4 md:px-6 py-3 flex items-center justify-between">
+    // Warm zwarte merkbalk in beide thema's (huisstijl okt 2026): de
+    // zijbalktokens blijven warm zwart en mosgroen, ook in licht.
+    <header className="bg-sidebar px-4 md:px-6 py-3 flex items-center justify-between">
       <div className="flex items-center gap-3">
         <Button
           variant="ghost"
           size="icon"
-          className="md:hidden text-white hover:bg-[#2a3e2a]"
+          className="md:hidden text-sidebar-accent-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
           onClick={onMenuToggle}
           aria-label="Menu openen"
         >
           <Menu className="h-5 w-5" />
         </Button>
-        {/* De balk is in beide thema's donkergroen, dus altijd de witte variant. */}
-        <TopTuinenLogo variant="wit" size={32} className="w-8 h-8 shrink-0" priority />
-        <span className="text-white font-semibold text-base">Top Tuinen</span>
-        <span className="text-[#4ADE80] text-xs opacity-70 hidden sm:inline">
+        {/* Witte boom in een mosgroene cirkel, met het woordmerk ernaast. */}
+        <span className="grid size-9 shrink-0 place-items-center rounded-full bg-sidebar-primary">
+          <TopTuinenLogo variant="wit" size={28} className="size-6" priority />
+        </span>
+        <span className="text-sidebar-accent-foreground font-semibold text-sm uppercase tracking-[0.12em]">
+          Top Tuinen
+        </span>
+        <span className="text-sidebar-foreground/70 text-[11px] uppercase tracking-[0.16em] hidden sm:inline">
           Klantenportaal
         </span>
       </div>
@@ -39,7 +45,7 @@ export function PortaalHeader({ klantNaam, onMenuToggle }: PortaalHeaderProps) {
           variant="ghost"
           size="icon"
           onClick={toggleTheme}
-          className="text-gray-300 hover:text-white hover:bg-[#2a3e2a]"
+          className="text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent"
           aria-label={theme === "light" ? "Donker thema activeren" : "Licht thema activeren"}
         >
           {theme === "light" ? (
@@ -49,7 +55,7 @@ export function PortaalHeader({ klantNaam, onMenuToggle }: PortaalHeaderProps) {
           )}
         </Button>
         {klantNaam && (
-          <span className="text-gray-300 text-sm hidden sm:inline">
+          <span className="text-sidebar-foreground text-sm hidden sm:inline">
             {klantNaam}
           </span>
         )}

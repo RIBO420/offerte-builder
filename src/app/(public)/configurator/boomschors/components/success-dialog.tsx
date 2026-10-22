@@ -83,8 +83,8 @@ export function SuccessDialog({
       <DialogContent showCloseButton={false} className="sm:max-w-md text-center">
         <DialogHeader>
           <div className="flex justify-center mb-2">
-            <div className="size-16 rounded-full bg-green-100 flex items-center justify-center">
-              <CheckCircle2Icon className="size-8 text-green-600" />
+            <div className="size-16 rounded-full bg-surface-primair flex items-center justify-center">
+              <CheckCircle2Icon className="size-8 text-primary" />
             </div>
           </div>
           <DialogTitle className="text-center text-xl">

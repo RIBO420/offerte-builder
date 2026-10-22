@@ -97,28 +97,28 @@ function BedanktMetReferentie({ referentie, betaald }: BedanktMetReferentieProps
 
   return (
     <div className="container max-w-2xl mx-auto px-4 py-12">
-      <Card className="border-green-200 shadow-lg overflow-hidden">
+      <Card className="border-primary/20 shadow-lg overflow-hidden">
         {/* Groene top-banner */}
-        <div className="h-2 bg-gradient-to-r from-green-500 to-green-600" />
+        <div className="h-2 bg-accent-warm" />
 
         <CardHeader className="pt-10 pb-6 text-center space-y-4">
           {/* Vinkje met pulse animatie */}
           <div className="flex justify-center">
             <div className="relative inline-flex">
-              <span className="absolute inset-0 rounded-full bg-green-200 animate-ping opacity-60" />
+              <span className="absolute inset-0 rounded-full bg-primary/20 animate-ping opacity-60" />
               <CheckCircle2
-                className="relative h-16 w-16 text-green-600"
+                className="relative h-16 w-16 text-primary"
                 strokeWidth={1.5}
               />
             </div>
           </div>
 
           <div className="space-y-1">
-            <CardTitle className="text-2xl sm:text-3xl font-bold text-foreground">
+            <CardTitle className="text-2xl sm:text-3xl font-semibold text-foreground">
               Bedankt voor uw aanvraag!
             </CardTitle>
             {betaald && (
-              <p className="text-green-700 font-medium text-base">
+              <p className="text-primary font-medium text-base">
                 Uw aanbetaling is ontvangen
               </p>
             )}
@@ -129,9 +129,9 @@ function BedanktMetReferentie({ referentie, betaald }: BedanktMetReferentieProps
           {/* Referentienummer */}
           <div className="flex flex-col items-center gap-2">
             <p className="text-sm text-muted-foreground">Uw referentienummer</p>
-            <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-5 py-3">
-              <FileText className="h-4 w-4 text-green-600 flex-shrink-0" />
-              <span className="text-lg font-mono font-bold tracking-widest text-green-800">
+            <div className="flex items-center gap-2 bg-surface-primair border border-primary/20 rounded-lg px-5 py-3">
+              <FileText className="h-4 w-4 text-primary flex-shrink-0" />
+              <span className="text-lg font-mono font-semibold tracking-widest text-primary">
                 {referentie}
               </span>
             </div>
@@ -149,7 +149,7 @@ function BedanktMetReferentie({ referentie, betaald }: BedanktMetReferentieProps
                   variant={betalingStatusVariant(aanvraag.betalingStatus)}
                   className={cn(
                     aanvraag.betalingStatus === "betaald" &&
-                      "bg-green-100 text-green-800 border-green-200 hover:bg-green-100"
+                      "bg-surface-primair text-primary border-primary/20 hover:bg-surface-primair"
                   )}
                 >
                   {betalingStatusLabel(aanvraag.betalingStatus)}
@@ -177,13 +177,13 @@ function BedanktMetReferentie({ referentie, betaald }: BedanktMetReferentieProps
                 return (
                   <li key={index} className="flex gap-4">
                     <div className="flex-shrink-0 mt-0.5">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 text-green-700 font-bold text-sm">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-primair text-primary font-semibold text-sm">
                         {index + 1}
                       </div>
                     </div>
                     <div className="flex-1 space-y-0.5">
                       <div className="flex items-center gap-2">
-                        <Icon className="h-4 w-4 text-green-600 flex-shrink-0" />
+                        <Icon className="h-4 w-4 text-primary flex-shrink-0" />
                         <p className="font-medium text-foreground text-sm">
                           {stap.titel}
                         </p>
@@ -202,7 +202,7 @@ function BedanktMetReferentie({ referentie, betaald }: BedanktMetReferentieProps
 
           {/* Acties */}
           <div className="flex flex-col sm:flex-row gap-3">
-            <Button asChild className="flex-1 bg-green-600 hover:bg-green-700 text-white">
+            <Button asChild className="flex-1">
               <Link href={`/configurator/status?ref=${referentie}`}>
                 Volg uw aanvraag
                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -232,21 +232,21 @@ function BedanktMetReferentie({ referentie, betaald }: BedanktMetReferentieProps
 function BedanktGeneriek() {
   return (
     <div className="container max-w-2xl mx-auto px-4 py-12">
-      <Card className="border-green-200 shadow-lg overflow-hidden">
-        <div className="h-2 bg-gradient-to-r from-green-500 to-green-600" />
+      <Card className="border-primary/20 shadow-lg overflow-hidden">
+        <div className="h-2 bg-accent-warm" />
 
         <CardHeader className="pt-10 pb-6 text-center space-y-4">
           <div className="flex justify-center">
             <div className="relative inline-flex">
-              <span className="absolute inset-0 rounded-full bg-green-200 animate-ping opacity-60" />
+              <span className="absolute inset-0 rounded-full bg-primary/20 animate-ping opacity-60" />
               <CheckCircle2
-                className="relative h-16 w-16 text-green-600"
+                className="relative h-16 w-16 text-primary"
                 strokeWidth={1.5}
               />
             </div>
           </div>
           <div className="space-y-1">
-            <CardTitle className="text-2xl sm:text-3xl font-bold text-foreground">
+            <CardTitle className="text-2xl sm:text-3xl font-semibold text-foreground">
               Bedankt!
             </CardTitle>
             <p className="text-muted-foreground text-base">
@@ -268,13 +268,13 @@ function BedanktGeneriek() {
                 return (
                   <li key={index} className="flex gap-4">
                     <div className="flex-shrink-0 mt-0.5">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-100 text-green-700 font-bold text-sm">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-primair text-primary font-semibold text-sm">
                         {index + 1}
                       </div>
                     </div>
                     <div className="flex-1 space-y-0.5">
                       <div className="flex items-center gap-2">
-                        <Icon className="h-4 w-4 text-green-600 flex-shrink-0" />
+                        <Icon className="h-4 w-4 text-primary flex-shrink-0" />
                         <p className="font-medium text-foreground text-sm">
                           {stap.titel}
                         </p>

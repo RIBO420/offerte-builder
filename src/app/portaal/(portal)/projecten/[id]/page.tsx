@@ -50,22 +50,22 @@ function getProjectStatusConfig(status: string) {
     case "opgeleverd":
       return {
         label: status === "afgerond" ? "Afgerond" : "Opgeleverd",
-        className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800",
+        className: "bg-status-geaccepteerd text-status-geaccepteerd-text border-status-geaccepteerd-border",
       };
     case "in_uitvoering":
       return {
         label: "In uitvoering",
-        className: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800",
+        className: "bg-status-herinnering text-status-herinnering-text border-status-herinnering-border",
       };
     case "voorcalculatie":
       return {
         label: "Voorcalculatie",
-        className: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-800",
+        className: "bg-status-gepland text-status-gepland-text border-status-gepland-border",
       };
     default:
       return {
         label: status,
-        className: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400",
+        className: "bg-muted text-foreground",
       };
   }
 }
@@ -110,10 +110,10 @@ export default function PortaalProjectDetailPage({
   if (project === null) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+        <h2 className="text-lg font-semibold text-foreground">
           Project niet gevonden
         </h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+        <p className="text-sm text-muted-foreground mt-1">
           Dit project bestaat niet of u heeft geen toegang.
         </p>
         <Button asChild variant="outline" className="mt-4">
@@ -139,23 +139,23 @@ export default function PortaalProjectDetailPage({
         </Button>
         <div>
           <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            <h1 className="text-2xl font-semibold text-foreground">
               {project.naam}
             </h1>
             <Badge className={cn("border", statusConfig.className)}>
               {statusConfig.label}
             </Badge>
           </div>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+          <p className="text-xs text-muted-foreground mt-0.5">
             {project.type === "onderhoudsbeurt" ? "Onderhoudsbeurt" : "Project"}
           </p>
-          <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400 mt-1 flex-wrap">
+          <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1 flex-wrap">
             <span className="flex items-center gap-1">
               <Calendar className="h-3.5 w-3.5" />
               Aangemaakt op {formatDate(project.createdAt)}
             </span>
             {project.geplandeStart && (
-              <span className="flex items-center gap-1 text-gray-700 dark:text-gray-300">
+              <span className="flex items-center gap-1 text-foreground">
                 <CalendarDays className="h-3.5 w-3.5 text-primary" />
                 Gepland op {formatGeplandeDatum(project.geplandeStart)}
               </span>
@@ -173,7 +173,7 @@ export default function PortaalProjectDetailPage({
       {/* Progress */}
       <Card className="border border-border bg-card">
         <CardHeader>
-          <CardTitle className="text-lg text-gray-900 dark:text-white flex items-center gap-2">
+          <CardTitle className="text-lg text-foreground flex items-center gap-2">
             <FolderOpen className="h-5 w-5 text-primary" />
             Voortgang
           </CardTitle>
@@ -192,7 +192,7 @@ export default function PortaalProjectDetailPage({
       {/* Quick actions */}
       <Card className="border border-border bg-card">
         <CardHeader>
-          <CardTitle className="text-lg text-gray-900 dark:text-white">
+          <CardTitle className="text-lg text-foreground">
             Snelle acties
           </CardTitle>
         </CardHeader>

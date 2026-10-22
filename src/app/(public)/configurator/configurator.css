@@ -2,74 +2,79 @@
    WS9 — Publieke configurator: gedwongen licht merkthema.
 
    De configurator is het visitekaartje naar de klant en is dus
-   altijd licht ("Vakwerk in het groen"), ook als de bezoeker een
-   donker OS-thema heeft (next-themes zet dan `.dark` op <html>).
-   Dit blok pint de licht-waarden van het "Loof & Leem"-palet uit
-   globals.css op een scope-klasse; omdat `@theme inline` de
-   utilities naar `var(--token)` laat wijzen, winnen deze waarden
-   binnen de subtree van `.cfg-licht`. De configurator-bestanden
-   gebruiken bewust géén `dark:`-varianten meer.
+   altijd licht, ook als de bezoeker een donker OS-thema heeft
+   (next-themes zet dan `.dark` op <html>). Dit blok pint de
+   licht-waarden van het huisstijlpalet (gids okt 2026: warm wit,
+   warm zwart, mosgroen, zacht goud) uit globals.css :root op een
+   scope-klasse; omdat `@theme inline` de utilities naar
+   `var(--token)` laat wijzen, winnen deze waarden binnen de
+   subtree van `.cfg-licht`. De configurator-bestanden gebruiken
+   bewust géén `dark:`-varianten.
 
-   Dit bestand wordt uitsluitend door configurator/layout.tsx
-   geïmporteerd en raakt globals.css niet (WS4 draait parallel).
+   Houd deze waarden gelijk aan globals.css :root.
    ============================================================ */
 
 .cfg-licht {
   color-scheme: light;
 
-  --background: oklch(0.982 0.006 140);
-  --foreground: oklch(0.19 0.015 150);
-  --card: oklch(0.998 0.003 140);
+  --background: oklch(0.965 0.005 78);   /* warm wit */
+  --foreground: oklch(0.168 0.004 107);  /* warm zwart */
+  --card: oklch(0.985 0.004 91);
   --card-foreground: var(--foreground);
-  --popover: oklch(0.998 0.003 140);
+  --popover: oklch(0.985 0.004 91);
   --popover-foreground: var(--foreground);
-  --primary: oklch(0.44 0.11 152);
-  --primary-foreground: oklch(0.98 0.01 145);
-  --secondary: oklch(0.955 0.01 140);
-  --secondary-foreground: oklch(0.25 0.02 150);
-  --muted: oklch(0.955 0.008 140);
-  --muted-foreground: oklch(0.45 0.015 150);
-  --accent: oklch(0.94 0.025 145);
-  --accent-foreground: oklch(0.24 0.04 150);
-  --accent-warm: oklch(0.68 0.13 60);
-  --destructive: oklch(0.55 0.20 27);
-  --border: oklch(0.905 0.012 140);
-  --input: oklch(0.905 0.012 140);
-  --ring: oklch(0.60 0.11 152);
+  --primary: oklch(0.389 0.039 139);     /* mosgroen */
+  --primary-foreground: oklch(0.965 0.005 78);
+  --secondary: oklch(0.932 0.010 82);
+  --secondary-foreground: oklch(0.247 0.008 95);
+  --muted: oklch(0.932 0.010 82);
+  --muted-foreground: oklch(0.478 0.011 94);
+  --accent: oklch(0.920 0.014 85);       /* champagnetint — hover */
+  --accent-foreground: oklch(0.168 0.004 107);
+  --accent-warm: oklch(0.640 0.074 92);  /* zacht goud — niet als tekst op licht */
+  --destructive: oklch(0.507 0.135 32);
+  --border: oklch(0.902 0.015 85);
+  --input: oklch(0.865 0.015 85);
+  --ring: oklch(0.455 0.045 139);
+  --surface-primair: oklch(0.895 0.035 139);
 
   background-color: var(--background);
   color: var(--foreground);
 
-  /* WS10 — statustokens die de configurator (status/page.tsx) gebruikt,
-     licht gepind: zonder deze regels zouden de :root/.dark-statuswaarden
-     uit globals.css meewisselen met het OS-thema terwijl de rest van de
+  /* WS10 — statustokens die de configurator gebruikt, licht gepind:
+     zonder deze regels zouden de :root/.dark-statuswaarden uit
+     globals.css meewisselen met het OS-thema terwijl de rest van de
      configurator altijd licht is. Zelfde receptuur als globals.css :root. */
-  --status-gepland: oklch(0.93 0.045 245);
-  --status-gepland-text: oklch(0.32 0.10 245);
-  --status-gepland-border: oklch(0.75 0.08 245);
-  --status-gepland-dot: oklch(0.55 0.16 245);
-  --status-herinnering: oklch(0.93 0.045 85);
-  --status-herinnering-text: oklch(0.32 0.10 85);
-  --status-herinnering-border: oklch(0.75 0.08 85);
-  --status-herinnering-dot: oklch(0.55 0.16 85);
-  --status-geaccepteerd: oklch(0.93 0.045 152);
-  --status-geaccepteerd-text: oklch(0.32 0.10 152);
-  --status-geaccepteerd-border: oklch(0.75 0.08 152);
-  --status-geaccepteerd-dot: oklch(0.55 0.16 152);
-  --status-afgewezen: oklch(0.93 0.045 30);
-  --status-afgewezen-text: oklch(0.32 0.10 30);
-  --status-afgewezen-border: oklch(0.75 0.08 30);
-  --status-afgewezen-dot: oklch(0.55 0.16 30);
-  --status-nacalculatie: oklch(0.93 0.045 175);
-  --status-nacalculatie-text: oklch(0.32 0.10 175);
-  --status-nacalculatie-border: oklch(0.75 0.08 175);
-  --status-nacalculatie-dot: oklch(0.55 0.16 175);
+  --status-gepland: oklch(0.945 0.03 250);
+  --status-gepland-text: oklch(0.36 0.085 250);
+  --status-gepland-border: oklch(0.82 0.06 250);
+  --status-gepland-dot: oklch(0.56 0.12 250);
+  --status-herinnering: oklch(0.945 0.03 72);
+  --status-herinnering-text: oklch(0.36 0.085 72);
+  --status-herinnering-border: oklch(0.82 0.06 72);
+  --status-herinnering-dot: oklch(0.56 0.12 72);
+  --status-in-uitvoering: oklch(0.945 0.03 58);
+  --status-in-uitvoering-text: oklch(0.36 0.085 58);
+  --status-in-uitvoering-border: oklch(0.82 0.06 58);
+  --status-in-uitvoering-dot: oklch(0.56 0.12 58);
+  --status-geaccepteerd: oklch(0.945 0.03 158);
+  --status-geaccepteerd-text: oklch(0.36 0.085 158);
+  --status-geaccepteerd-border: oklch(0.82 0.06 158);
+  --status-geaccepteerd-dot: oklch(0.56 0.12 158);
+  --status-afgewezen: oklch(0.945 0.03 27);
+  --status-afgewezen-text: oklch(0.36 0.085 27);
+  --status-afgewezen-border: oklch(0.82 0.06 27);
+  --status-afgewezen-dot: oklch(0.56 0.12 27);
+  --status-nacalculatie: oklch(0.945 0.03 200);
+  --status-nacalculatie-text: oklch(0.36 0.085 200);
+  --status-nacalculatie-border: oklch(0.82 0.06 200);
+  --status-nacalculatie-dot: oklch(0.56 0.12 200);
 }
 
 /* Rustig botanisch grid als drager achter de wizardpagina's —
-   merkgroen op lage sterkte, puur CSS (geen extra asset). */
+   mosgroen op lage sterkte, puur CSS (geen extra asset). */
 .cfg-veldpatroon {
   background-image:
-    radial-gradient(oklch(0.44 0.11 152 / 0.07) 1px, transparent 1px);
+    radial-gradient(oklch(0.389 0.039 139 / 0.08) 1px, transparent 1px);
   background-size: 22px 22px;
 }
