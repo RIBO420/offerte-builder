@@ -7,8 +7,7 @@ import {
   Text,
   View,
 } from "@react-pdf/renderer";
-import { formatCurrency, formatDate } from "./pdf-styles";
-import { getDefaultTheme } from "./pdf-theme";
+import { formatCurrency, formatDate, getDefaultTheme } from "./pdf-theme";
 import type { PdfTheme } from "./pdf-theme";
 import type { Bedrijfsgegevens } from "@/types/offerte";
 

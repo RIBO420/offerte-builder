@@ -60,8 +60,11 @@ interface Voorwaarden {
 
 // ── Constants ───────────────────────────────────────────────────────
 
-const DEFAULT_PRIMAIRE_KLEUR = "#16a34a";
-const DEFAULT_SECUNDAIRE_KLEUR = "#1a1a1a";
+// Huisstijl okt 2026: mosgroen + goud. Gelijk houden met
+// DEFAULT_PDF_PRIMAIRE_KLEUR / DEFAULT_PDF_SECUNDAIRE_KLEUR in pdf-theme.ts
+// (hier als literal, zodat dit tabblad react-pdf niet statisch binnenhaalt).
+const DEFAULT_PRIMAIRE_KLEUR = "#3a4a36";
+const DEFAULT_SECUNDAIRE_KLEUR = "#a89968";
 const MAX_LOGO_SIZE_BYTES = 2 * 1024 * 1024; // 2 MB
 const ALLOWED_LOGO_TYPES = [
   "image/png",
@@ -509,7 +512,7 @@ export function HuisstijlTab({ instellingen }: HuisstijlTabProps) {
                   value={primaireKleur}
                   onChange={(e) => setPrimaireKleur(e.target.value)}
                   onBlur={handlePrimaireKleurBlur}
-                  placeholder="#16a34a"
+                  placeholder={DEFAULT_PRIMAIRE_KLEUR}
                   className="font-mono uppercase"
                   maxLength={7}
                 />
@@ -536,7 +539,7 @@ export function HuisstijlTab({ instellingen }: HuisstijlTabProps) {
                   value={secundaireKleur}
                   onChange={(e) => setSecundaireKleur(e.target.value)}
                   onBlur={handleSecundaireKleurBlur}
-                  placeholder="#1a1a1a"
+                  placeholder={DEFAULT_SECUNDAIRE_KLEUR}
                   className="font-mono uppercase"
                   maxLength={7}
                 />
@@ -783,7 +786,7 @@ function VoorwaardenPdfCard() {
         {voorwaarden?.url ? (
           <div className="flex items-center justify-between gap-3 rounded-md border px-3 py-2">
             <div className="flex items-center gap-2 min-w-0">
-              <FileText className="h-4 w-4 text-green-500 dark:text-green-400 shrink-0" />
+              <FileText className="h-4 w-4 text-status-geaccepteerd-dot shrink-0" />
               <span className="text-sm truncate">{voorwaarden.naam}</span>
             </div>
             <div className="flex items-center gap-1 shrink-0">

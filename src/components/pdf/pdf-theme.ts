@@ -1,4 +1,26 @@
 import { StyleSheet } from "@react-pdf/renderer";
+import { PDF_FONT, PDF_KOP } from "./pdf-fonts";
+
+// ── Huisstijl (gids okt 2026, docs/design/huisstijl.md) ─────────────
+// Warm zwart en mosgroen dragen het ontwerp; goud is accent (als tekst op wit
+// maar 2,6:1, dus alleen lijnen en vlakken); warm wit draagt de informatie.
+
+export const HUISSTIJL = {
+  warmZwart: "#0F0F0D",
+  warmWit: "#F5F3F0",
+  goud: "#A89968",
+  champagne: "#C9B89D",
+  olijfgroen: "#4A5D45",
+  mosgroen: "#3A4A36",
+  /** Secundaire tekst: warme grijs, 6,6:1 op wit. */
+  warmGrijs: "#5F5D56",
+  /** Lijnen en tabelranden: champagnetint. */
+  lijn: "#E3DED4",
+} as const;
+
+/** Standaard PDF-kleuren wanneer een organisatie niets heeft ingesteld. */
+export const DEFAULT_PDF_PRIMAIRE_KLEUR = HUISSTIJL.mosgroen;
+export const DEFAULT_PDF_SECUNDAIRE_KLEUR = HUISSTIJL.goud;
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -113,13 +135,13 @@ const klassiekConfig: StijlConfig = {
   colors: (primary, secondary) => ({
     primary,
     secondary,
-    text: "#1a1a1a",
-    muted: "#666666",
+    text: HUISSTIJL.warmZwart,
+    muted: HUISSTIJL.warmGrijs,
     background: "#ffffff",
-    tableHeaderBg: "#f5f5f5",
-    tableHeaderText: "#666666",
-    tableAltRowBg: "#fafafa",
-    border: "#e5e5e5",
+    tableHeaderBg: primary,
+    tableHeaderText: HUISSTIJL.warmWit,
+    tableAltRowBg: HUISSTIJL.warmWit,
+    border: HUISSTIJL.lijn,
   }),
   spacing: {
     pagePadding: 40,
@@ -131,7 +153,7 @@ const klassiekConfig: StijlConfig = {
     titleSize: 12,
     bodySize: 10,
     smallSize: 9,
-    fontFamily: "Helvetica",
+    fontFamily: PDF_FONT,
   },
   header: {
     showColorBar: true,
@@ -154,13 +176,13 @@ const minimalistischConfig: StijlConfig = {
   colors: (primary, secondary) => ({
     primary,
     secondary,
-    text: "#1a1a1a",
-    muted: "#888888",
+    text: HUISSTIJL.warmZwart,
+    muted: HUISSTIJL.warmGrijs,
     background: "#ffffff",
     tableHeaderBg: "transparent",
-    tableHeaderText: "#1a1a1a",
+    tableHeaderText: HUISSTIJL.warmZwart,
     tableAltRowBg: "transparent",
-    border: "#e0e0e0",
+    border: HUISSTIJL.lijn,
   }),
   spacing: {
     pagePadding: 48,
@@ -172,7 +194,7 @@ const minimalistischConfig: StijlConfig = {
     titleSize: 11,
     bodySize: 9,
     smallSize: 8,
-    fontFamily: "Helvetica",
+    fontFamily: PDF_FONT,
   },
   header: {
     showColorBar: false,
@@ -195,13 +217,14 @@ const boldConfig: StijlConfig = {
   colors: (primary, secondary) => ({
     primary,
     secondary,
-    text: "#1a1a1a",
-    muted: "#555555",
+    text: HUISSTIJL.warmZwart,
+    muted: HUISSTIJL.warmGrijs,
     background: "#ffffff",
-    tableHeaderBg: secondary,
-    tableHeaderText: "#ffffff",
-    tableAltRowBg: lightenColor(primary, 0.92),
-    border: "#d0d0d0",
+    // Bold: mosgroene banner, warm-zwarte tabelkop.
+    tableHeaderBg: HUISSTIJL.warmZwart,
+    tableHeaderText: HUISSTIJL.warmWit,
+    tableAltRowBg: HUISSTIJL.warmWit,
+    border: HUISSTIJL.lijn,
   }),
   spacing: {
     pagePadding: 36,
@@ -213,7 +236,7 @@ const boldConfig: StijlConfig = {
     titleSize: 13,
     bodySize: 10,
     smallSize: 9,
-    fontFamily: "Helvetica",
+    fontFamily: PDF_FONT,
   },
   header: {
     showColorBar: true,
@@ -286,6 +309,9 @@ function createPdfStyles(
             flexDirection: "row",
             justifyContent: "space-between",
             alignItems: "center",
+            // Goud als accentlijn onder de mosgroene banner.
+            borderBottomWidth: header.colorBarHeight,
+            borderBottomColor: colors.secondary,
           }
         : {
             flexDirection: "row",
@@ -295,7 +321,7 @@ function createPdfStyles(
             ...(header.showColorBar
               ? {
                   borderBottomWidth: header.colorBarHeight,
-                  borderBottomColor: colors.primary,
+                  borderBottomColor: colors.secondary,
                 }
               : header.layout === "stacked"
                 ? {
@@ -324,14 +350,14 @@ function createPdfStyles(
     },
     logoTextTop: {
       fontSize: Math.round(header.logoSize / 6),
-      fontFamily: "Helvetica-Bold",
-      color: "#ffffff",
+      ...PDF_KOP,
+      color: HUISSTIJL.warmWit,
       textAlign: "center",
     },
     logoTextTuinen: {
       fontSize: Math.round(header.logoSize / 8.5),
-      fontFamily: "Helvetica-Bold",
-      color: "#ffffff",
+      ...PDF_KOP,
+      color: HUISSTIJL.warmWit,
       textAlign: "center",
       letterSpacing: 2,
     },
@@ -340,13 +366,13 @@ function createPdfStyles(
     },
     companyName: {
       fontSize: typography.headerSize,
-      fontFamily: "Helvetica-Bold",
-      color: header.layout === "banner" ? "#ffffff" : colors.primary,
+      ...PDF_KOP,
+      color: header.layout === "banner" ? HUISSTIJL.warmWit : colors.primary,
       marginBottom: 4,
     },
     companyDetail: {
       fontSize: typography.smallSize,
-      color: header.layout === "banner" ? "#ffffffcc" : colors.muted,
+      color: header.layout === "banner" ? `${HUISSTIJL.warmWit}cc` : colors.muted,
       marginBottom: 2,
     },
     offerteInfo: {
@@ -354,18 +380,18 @@ function createPdfStyles(
     },
     offerteNummer: {
       fontSize: 14,
-      fontFamily: "Helvetica-Bold",
-      color: header.layout === "banner" ? "#ffffff" : colors.text,
+      ...PDF_KOP,
+      color: header.layout === "banner" ? HUISSTIJL.warmWit : colors.text,
       marginBottom: 4,
     },
     offerteType: {
       fontSize: typography.bodySize,
-      color: header.layout === "banner" ? "#ffffffcc" : colors.muted,
+      color: header.layout === "banner" ? `${HUISSTIJL.warmWit}cc` : colors.muted,
       marginBottom: 2,
     },
     offerteDate: {
       fontSize: typography.smallSize,
-      color: header.layout === "banner" ? "#ffffffcc" : colors.muted,
+      color: header.layout === "banner" ? `${HUISSTIJL.warmWit}cc` : colors.muted,
     },
 
     // ── Sections ───────────────────────────────────────────────────
@@ -374,7 +400,7 @@ function createPdfStyles(
     },
     sectionTitle: {
       fontSize: typography.titleSize,
-      fontFamily: "Helvetica-Bold",
+      ...PDF_KOP,
       marginBottom: 10,
       paddingBottom: 4,
       borderBottomWidth: 1,
@@ -408,7 +434,7 @@ function createPdfStyles(
     },
     tableHeaderCell: {
       fontSize: typography.smallSize,
-      fontFamily: "Helvetica-Bold",
+      ...PDF_KOP,
       color: colors.tableHeaderText,
     },
     tableRow: {
@@ -457,7 +483,7 @@ function createPdfStyles(
       marginTop: spacing.sectionGap,
       paddingTop: 15,
       borderTopWidth: 2,
-      borderTopColor: colors.primary,
+      borderTopColor: colors.secondary,
     },
     totalsRow: {
       flexDirection: "row",
@@ -487,14 +513,14 @@ function createPdfStyles(
     totalsFinalLabel: {
       width: 150,
       fontSize: typography.titleSize,
-      fontFamily: "Helvetica-Bold",
+      ...PDF_KOP,
       textAlign: "right",
       paddingRight: 20,
     },
     totalsFinalValue: {
       width: 100,
       fontSize: typography.titleSize,
-      fontFamily: "Helvetica-Bold",
+      ...PDF_KOP,
       textAlign: "right",
       color: colors.primary,
     },
@@ -521,7 +547,7 @@ function createPdfStyles(
             paddingVertical: 10,
             paddingHorizontal: spacing.pagePadding,
             textAlign: "center",
-            color: "#ffffff",
+            color: HUISSTIJL.warmWit,
             fontSize: typography.smallSize - 1,
           }
         : footer.style === "spacious"
@@ -542,7 +568,7 @@ function createPdfStyles(
               left: spacing.pagePadding,
               right: spacing.pagePadding,
               textAlign: "center",
-              color: "#999999",
+              color: colors.muted,
               fontSize: 8,
               paddingTop: 10,
               ...(footer.showLine
@@ -554,12 +580,12 @@ function createPdfStyles(
     notesSection: {
       marginTop: spacing.sectionGap,
       padding: 15,
-      backgroundColor: "#f9f9f9",
+      backgroundColor: HUISSTIJL.warmWit,
       borderRadius: 4,
     },
     notesTitle: {
       fontSize: typography.bodySize,
-      fontFamily: "Helvetica-Bold",
+      ...PDF_KOP,
       marginBottom: 6,
       color: colors.muted,
     },
@@ -573,12 +599,12 @@ function createPdfStyles(
     scopeDetails: {
       marginTop: 10,
       padding: 10,
-      backgroundColor: "#f9fafb",
+      backgroundColor: HUISSTIJL.warmWit,
       borderRadius: 4,
     },
     scopeDetailTitle: {
       fontSize: typography.bodySize,
-      fontFamily: "Helvetica-Bold",
+      ...PDF_KOP,
       marginBottom: 6,
     },
     scopeDetailRow: {
@@ -602,8 +628,8 @@ function createPdfStyles(
       right: 0,
       textAlign: "center",
       fontSize: 60,
-      fontFamily: "Helvetica-Bold",
-      color: "#CCCCCC",
+      ...PDF_KOP,
+      color: HUISSTIJL.champagne,
       opacity: 0.3,
       transform: "rotate(-45deg)",
     },
@@ -612,13 +638,10 @@ function createPdfStyles(
 
 // ── Default branding ─────────────────────────────────────────────────
 
-const DEFAULT_PRIMARY = "#16a34a";
-const DEFAULT_SECONDARY = "#1a1a1a";
-
 const defaultBranding: PdfBranding = {
   logoUrl: null,
-  primaireKleur: DEFAULT_PRIMARY,
-  secundaireKleur: DEFAULT_SECONDARY,
+  primaireKleur: DEFAULT_PDF_PRIMAIRE_KLEUR,
+  secundaireKleur: DEFAULT_PDF_SECUNDAIRE_KLEUR,
   bedrijfsnaam: "Top Tuinen",
   bedrijfsgegevens: {},
 };

@@ -9,6 +9,7 @@ import {
 } from "@react-pdf/renderer";
 import { formatCurrency, formatDate } from "./pdf-theme";
 import { getDefaultTheme } from "./pdf-theme";
+import { PDF_KOP } from "./pdf-fonts";
 import type { PdfTheme } from "./pdf-theme";
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -322,7 +323,7 @@ export function ContractPDF({
                   <Text
                     style={{
                       fontSize: t.typography.bodySize,
-                      fontFamily: "Helvetica-Bold",
+                      ...PDF_KOP,
                       marginBottom: 6,
                       color: t.colors.text,
                     }}
@@ -500,7 +501,7 @@ export function ContractPDF({
             <Text
               style={{
                 fontSize: t.typography.bodySize,
-                fontFamily: "Helvetica-Bold",
+                ...PDF_KOP,
                 marginBottom: 16,
                 color: t.colors.text,
               }}
@@ -550,7 +551,7 @@ export function ContractPDF({
             <Text
               style={{
                 fontSize: t.typography.bodySize,
-                fontFamily: "Helvetica-Bold",
+                ...PDF_KOP,
                 marginBottom: 16,
                 color: t.colors.text,
               }}

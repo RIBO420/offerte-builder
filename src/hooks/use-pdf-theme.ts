@@ -4,7 +4,12 @@ import { useQuery } from "convex/react";
 import { useMemo } from "react";
 import { api } from "../../convex/_generated/api";
 import { useCurrentUser } from "./use-current-user";
-import { createPdfTheme, getDefaultTheme } from "@/components/pdf/pdf-theme";
+import {
+  createPdfTheme,
+  DEFAULT_PDF_PRIMAIRE_KLEUR,
+  DEFAULT_PDF_SECUNDAIRE_KLEUR,
+  getDefaultTheme,
+} from "@/components/pdf/pdf-theme";
 import type { PdfBranding, PdfTheme, TemplateStijl } from "@/components/pdf/pdf-theme";
 
 /**
@@ -44,8 +49,8 @@ export function usePdfTheme(): {
 
     const branding: PdfBranding = {
       logoUrl: logoUrl ?? null,
-      primaireKleur: instellingen.pdfPrimaireKleur ?? "#16a34a",
-      secundaireKleur: instellingen.pdfSecundaireKleur ?? "#1a1a1a",
+      primaireKleur: instellingen.pdfPrimaireKleur ?? DEFAULT_PDF_PRIMAIRE_KLEUR,
+      secundaireKleur: instellingen.pdfSecundaireKleur ?? DEFAULT_PDF_SECUNDAIRE_KLEUR,
       bedrijfsnaam: bedrijf?.naam ?? "Top Tuinen",
       bedrijfsgegevens: {
         kvkNummer: bedrijf?.kvk,

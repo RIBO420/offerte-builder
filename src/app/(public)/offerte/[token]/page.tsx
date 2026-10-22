@@ -48,7 +48,11 @@ export default function PubliekeOffertePagina({
   const downloadPdf = async () => {
     setBezig(true);
     try {
-      const [{ pdf }, { OffertePDF }, { createPdfTheme }] = await Promise.all([
+      const [
+        { pdf },
+        { OffertePDF },
+        { createPdfTheme, DEFAULT_PDF_PRIMAIRE_KLEUR, DEFAULT_PDF_SECUNDAIRE_KLEUR },
+      ] = await Promise.all([
         import("@react-pdf/renderer"),
         import("@/components/pdf/offerte-pdf"),
         import("@/components/pdf/pdf-theme"),
@@ -56,8 +60,8 @@ export default function PubliekeOffertePagina({
       const theme = createPdfTheme(
         {
           logoUrl: branding.logoUrl,
-          primaireKleur: branding.primaireKleur ?? "#16a34a",
-          secundaireKleur: branding.secundaireKleur ?? "#1a1a1a",
+          primaireKleur: branding.primaireKleur ?? DEFAULT_PDF_PRIMAIRE_KLEUR,
+          secundaireKleur: branding.secundaireKleur ?? DEFAULT_PDF_SECUNDAIRE_KLEUR,
           bedrijfsnaam: bedrijf,
           bedrijfsgegevens: {
             kvkNummer: bedrijfsgegevens?.kvk,
