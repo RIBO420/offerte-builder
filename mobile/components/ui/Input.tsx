@@ -1,12 +1,11 @@
 import React, { useState, forwardRef, useEffect } from 'react';
 import {
   View,
-  TextInput,
-  Text,
   TextInputProps,
   ActivityIndicator,
   AccessibilityInfo,
 } from 'react-native';
+import { Text, TextInput } from './Tekst';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,

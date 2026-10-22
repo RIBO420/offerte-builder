@@ -1,5 +1,6 @@
 import React, { Fragment, useState } from 'react';
-import { Text, TextInput, View } from 'react-native';
+import { View } from 'react-native';
+import { Text, TextInput } from '../../components/ui/Tekst';
 import { useLocalSearchParams } from 'expo-router';
 import { useQuery } from 'convex/react';
 import { CalendarX2, Lock, Search } from 'lucide-react-native';

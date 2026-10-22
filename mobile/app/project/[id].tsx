@@ -2,7 +2,8 @@ import { useCurrentUser } from '../../hooks/use-current-user';
 import { isInternalRole } from '../../lib/roles';
 import { GeenToegang } from '../../components/GeenToegang';
 import React, { type ComponentType, type ReactNode } from 'react';
-import { View, Text } from 'react-native';
+import { View } from 'react-native';
+import { Text } from '../../components/ui/Tekst';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Calendar, ChevronLeft, ChevronRight, CircleAlert, Clock, Flag, MapPin, Phone, SquareCheck } from 'lucide-react-native';
@@ -203,8 +204,8 @@ function ProjectDetailContent() {
               </View>
               <StatusPil label={status.label} toon={status.toon} />
             </View>
-            <View style={{ height: 6, borderRadius: 3, backgroundColor: kleuren.primarySoft, overflow: 'hidden' }}>
-              <View style={{ width: `${progressPercent}%`, height: 6, borderRadius: 3, backgroundColor: kleuren.primary }} />
+            <View style={{ height: 6, borderRadius: 3, backgroundColor: kleuren.goudSoft, overflow: 'hidden' }}>
+              <View style={{ width: `${progressPercent}%`, height: 6, borderRadius: 3, backgroundColor: kleuren.goud }} />
             </View>
 
             {/* Scope Tags Row */}

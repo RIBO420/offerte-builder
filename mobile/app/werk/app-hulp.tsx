@@ -1,5 +1,6 @@
 import React from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Text } from '../../components/ui/Tekst';
 import Constants from 'expo-constants';
 import { CheckCircle2, Clock, Download, RefreshCw, Smartphone, WifiOff } from 'lucide-react-native';
 import { VeldScherm } from '../../components/veld/VeldScherm';

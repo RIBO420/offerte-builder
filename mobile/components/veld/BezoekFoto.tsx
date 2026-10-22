@@ -1,5 +1,6 @@
 import React, { useState, type ReactNode } from 'react';
-import { Alert, Image, Modal, Text, View } from 'react-native';
+import { Alert, Image, Modal, View } from 'react-native';
+import { Text } from '../ui/Tekst';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Trash2, X } from 'lucide-react-native';
 import { Drukvlak } from '../werk/Bouwstenen';
@@ -19,7 +20,7 @@ export function BezoekFoto({ url, label, grootte, onVerwijder, children }: {
   const kleuren = useVeldKleuren();
   const donker = useIsDonker();
   const insets = useSafeAreaInsets();
-  const rand = { borderWidth: 1, borderColor: donker ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' };
+  const rand = { borderWidth: 1, borderColor: kleuren.border };
   const verwijder = () => Alert.alert('Foto verwijderen?', 'De foto verdwijnt uit dit bezoek en het klantdossier.', [
     { text: 'Annuleren', style: 'cancel' },
     { text: 'Verwijderen', style: 'destructive', onPress: async () => { setOpen(false); await onVerwijder?.(); } },

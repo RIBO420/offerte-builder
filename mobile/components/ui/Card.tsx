@@ -1,8 +1,9 @@
 import React, { ReactNode } from 'react';
-import { View, Text, ViewStyle, StyleProp } from 'react-native';
+import { View, ViewStyle, StyleProp } from 'react-native';
+import { Text } from './Tekst';
 import { cn } from '@/lib/utils';
 import { tekst } from '../../theme/typography';
-import type { ColorScheme } from '../../theme/colors';
+import { colors, type ColorScheme } from '../../theme/colors';
 import { useIsDonker, useVeldKleuren } from '../veld/BuitenModus';
 
 type CardVariant = 'default' | 'subtle' | 'ghost' | 'elevated' | 'glass' | 'nature';
@@ -52,7 +53,7 @@ function variantStijl(k: ColorScheme, variant: CardVariant, donker: boolean): Vi
         backgroundColor: k.card,
         borderWidth: 1,
         borderColor: k.border,
-        shadowColor: '#000',
+        shadowColor: colors.schaduw,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: donker ? 0.3 : 0.06,
         shadowRadius: 12,

@@ -1,5 +1,6 @@
 import React from 'react';
-import { ActivityIndicator, Modal, Platform, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Platform, ScrollView, View } from 'react-native';
+import { Text } from '../ui/Tekst';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from 'convex/react';
 import { Users, X } from 'lucide-react-native';

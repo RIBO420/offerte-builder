@@ -1,5 +1,6 @@
 import React from 'react';
-import { Alert, Image, Text, View } from 'react-native';
+import { Alert, Image, View } from 'react-native';
+import { Text } from '../ui/Tekst';
 import { RefreshCw } from 'lucide-react-native';
 import { Button } from '../ui/Button';
 import { useVeldOpdracht } from '../../hooks/use-veld-opdracht';

@@ -1,5 +1,6 @@
 import React from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Text } from '../ui/Tekst';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { Drukvlak } from '../werk/Bouwstenen';
 import { tekst } from '../../theme';

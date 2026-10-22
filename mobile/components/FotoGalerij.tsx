@@ -16,17 +16,16 @@
 import React, { useState, useCallback, useRef, type ComponentType } from 'react';
 import {
   View,
-  Text,
   Image,
   Modal,
   Pressable,
   ScrollView,
-  TextInput,
   Alert,
   StyleSheet,
   Dimensions,
   Platform,
 } from 'react-native';
+import { Text, TextInput } from './ui/Tekst';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
   useSharedValue,
@@ -36,7 +35,7 @@ import Animated, {
 import { scheduleOnRN } from 'react-native-worklets';
 import { Camera, Eye, Image as ImageIcoon, Map as KaartIcoon, MapPin, Plus, TriangleAlert, X, ZoomIn } from 'lucide-react-native';
 import { usePhotoCapture, type CapturedPhoto, type FotoType } from '@/hooks/use-photo-capture';
-import { tekst } from '../theme';
+import { colors, tekst } from '../theme';
 import { useVeldKleuren } from './veld/BuitenModus';
 import { Drukvlak, IcoonTegel, SectieKop, toonKleuren, type Toon } from './werk/Bouwstenen';
 
@@ -54,10 +53,10 @@ const KOLOM_BREEDTE = (SCHERM_BREEDTE - 48) / 2; // 2 kolommen met padding
  * donker met lichte tekst: het beeld eronder bepaalt het contrast, niet het thema.
  */
 export const BEELD_OVERLAY = {
-  scrim: 'rgba(0,0,0,0.55)',
-  achtergrond: 'rgba(0,0,0,0.95)',
-  tekst: 'rgba(255,255,255,0.96)',
-  tekstGedempt: 'rgba(255,255,255,0.7)',
+  scrim: `${colors.beeldDonker}8C`,
+  achtergrond: `${colors.beeldDonker}F2`,
+  tekst: `${colors.opBeeld}F5`,
+  tekstGedempt: `${colors.opBeeld}B3`,
 } as const;
 
 const FOTO_TYPE_CONFIG: Record<FotoType, { label: string; toon: Toon; icoon: Icoon }> = {

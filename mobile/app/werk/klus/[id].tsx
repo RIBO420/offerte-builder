@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text } from 'react-native';
+import { Text } from '../../../components/ui/Tekst';
 import { useQuery } from 'convex/react';
 import { useLocalSearchParams } from 'expo-router';
 import { SearchX } from 'lucide-react-native';

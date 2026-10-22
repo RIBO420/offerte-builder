@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Text, TextInput, View } from 'react-native';
+import { View } from 'react-native';
+import { Text, TextInput } from '../../components/ui/Tekst';
 import { useUser } from '@clerk/clerk-expo';
 import { CheckCircle2, KeyRound } from 'lucide-react-native';
 import { VeldScherm } from '../../components/veld/VeldScherm';

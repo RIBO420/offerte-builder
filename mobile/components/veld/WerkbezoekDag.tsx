@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Text, TextInput, View } from 'react-native';
+import { View } from 'react-native';
+import { Text, TextInput } from '../ui/Tekst';
 import { useVeldServerActie } from '../../hooks/use-veld-server-actie';
 import type { Id } from '../../convex/_generated/dataModel';
 import { useVeldOpdracht } from '../../hooks/use-veld-opdracht';

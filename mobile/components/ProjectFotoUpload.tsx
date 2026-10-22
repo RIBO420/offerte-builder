@@ -20,15 +20,14 @@
 import React, { useState, useCallback, useMemo, type ComponentType } from 'react';
 import {
   View,
-  Text,
   Modal,
   ScrollView,
-  TextInput,
   ActivityIndicator,
   Alert,
   StyleSheet,
   Platform,
 } from 'react-native';
+import { Text, TextInput } from './ui/Tekst';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   CameraOff,

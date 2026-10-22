@@ -1,5 +1,6 @@
 import React, { Fragment, useState } from 'react';
-import { Linking, Text, TextInput, View } from 'react-native';
+import { Linking, View } from 'react-native';
+import { Text, TextInput } from '../../components/ui/Tekst';
 import { AlertTriangle, BookOpen, ChevronDown, ChevronRight, Phone, Search } from 'lucide-react-native';
 import { useQuery } from 'convex/react';
 import { useVeldCache } from '../../hooks/use-veld-cache';

@@ -17,7 +17,8 @@
 
 import { useVeldServerActie } from '../../hooks/use-veld-server-actie';
 import React, { Component, useRef, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Alert, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, ScrollView, View } from 'react-native';
+import { Text } from '../../components/ui/Tekst';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from 'convex/react';
 import { CloudOff, Lock, Sun, UserX } from 'lucide-react-native';

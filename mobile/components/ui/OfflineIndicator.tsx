@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, Pressable, ActivityIndicator, type StyleProp, type ViewStyle } from 'react-native';
+import { View, Pressable, ActivityIndicator, type StyleProp, type ViewStyle } from 'react-native';
+import { Text } from './Tekst';
 import Animated, { useReducedMotion } from 'react-native-reanimated';
 import NetInfo from '@react-native-community/netinfo';
 import { Clock, CloudUpload, RefreshCw, Wifi, WifiOff } from 'lucide-react-native';

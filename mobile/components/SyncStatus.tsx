@@ -13,13 +13,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
-  Text,
   TouchableOpacity,
   Modal,
   ScrollView,
   ActivityIndicator,
   StyleSheet,
 } from 'react-native';
+import { Text } from './ui/Tekst';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
   useSharedValue,

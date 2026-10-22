@@ -1,12 +1,12 @@
 import { useState, useMemo, type ReactNode } from 'react';
 import {
   View,
-  Text,
   ScrollView,
   Alert,
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
+import { Text } from '../../components/ui/Tekst';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Check, ChevronDown, CircleX, Link, Lock, UserCheck, UserPlus, Users } from 'lucide-react-native';
 import { useQuery, useMutation } from 'convex/react';

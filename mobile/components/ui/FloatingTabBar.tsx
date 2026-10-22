@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Pressable, StyleSheet, Text } from 'react-native';
+import { View, Pressable, StyleSheet } from 'react-native';
+import { Text } from './Tekst';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
@@ -12,6 +13,7 @@ import {
 } from 'lucide-react-native';
 import { hapticPatterns } from '../../theme/haptics';
 import { useColors, useTheme } from '../../theme/ThemeProvider';
+import { colors } from '../../theme/colors';
 const ICON_SIZE = 22;
 
 const routeIcons: Record<string, React.ComponentType<any>> = {
@@ -80,7 +82,7 @@ export function FloatingTabBar({ state, navigation, descriptors }: BottomTabBarP
     <View style={[styles.wrapper, { paddingBottom: Math.max(insets.bottom, 12) }]}>
       <View style={[styles.container, { borderColor: kleuren.border, shadowOpacity: isDark ? 0.4 : 0.1 }]}>
         <BlurView intensity={isDark ? 40 : 60} tint={isDark ? 'dark' : 'light'} style={styles.blur}>
-          <View style={[styles.overlay, { backgroundColor: isDark ? `${kleuren.card}D9` : 'rgba(255,255,255,0.78)' }]}>
+          <View style={[styles.overlay, { backgroundColor: isDark ? `${kleuren.card}D9` : `${kleuren.card}C7` }]}>
             {zichtbareRoutes.map((route) => {
               // Vergelijk tegen de ORIGINELE index: state.index verwijst naar
               // state.routes, niet naar de gefilterde lijst.
@@ -136,7 +138,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     overflow: 'hidden',
     borderWidth: 1,
-    shadowColor: '#000',
+    shadowColor: colors.schaduw,
     shadowOffset: { width: 0, height: 8 },
     shadowRadius: 24,
   },

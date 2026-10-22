@@ -1,5 +1,6 @@
 import React, { Fragment, useEffect, useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Text } from '../../components/ui/Tekst';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@clerk/clerk-expo';
 import { Check, Clock, Compass, Truck, Users, WifiOff } from 'lucide-react-native';

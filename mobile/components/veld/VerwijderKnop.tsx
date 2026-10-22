@@ -1,5 +1,6 @@
 import React from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Text } from '../ui/Tekst';
 import { Trash2 } from 'lucide-react-native';
 import { Button } from '../ui';
 import { useVeldKleuren } from './BuitenModus';

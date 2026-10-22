@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Linking, Platform, Text, View } from 'react-native';
+import { Linking, Platform, View } from 'react-native';
+import { Text } from '../../components/ui/Tekst';
 import { useQuery } from 'convex/react';
 import { useEenmaligePush } from '../../hooks/use-eenmalige-push';
 import { AlertTriangle, CalendarX2, ChevronRight, Clock, MapPin, Navigation, UserX } from 'lucide-react-native';

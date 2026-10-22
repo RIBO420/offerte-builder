@@ -11,17 +11,17 @@ import React, { useEffect, useState, type ComponentType, type ReactNode } from '
 import {
   AccessibilityInfo,
   Pressable,
-  Text,
   View,
   type AccessibilityState,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
+import { Text } from '../ui/Tekst';
 import Animated, { useReducedMotion } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ChevronLeft, ChevronRight, ChevronRight as Pijl } from 'lucide-react-native';
 import { useIsDonker, useVeldKleuren } from '../veld/BuitenModus';
-import { hapticPatterns, tekst, type ColorScheme } from '../../theme';
+import { colors, hapticPatterns, tekst, type ColorScheme } from '../../theme';
 
 type Icoon = ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
 export type Toon = 'primair' | 'succes' | 'wachten' | 'gemist' | 'info' | 'neutraal';
@@ -139,7 +139,7 @@ export function Kaart({
           // Tuinvenster: in licht draagt een zachte schaduw de diepte, in donker
           // een haarlijn. Geen gekleurde gloed.
           !donker && {
-            shadowColor: '#000',
+            shadowColor: colors.schaduw,
             shadowOffset: { width: 0, height: 8 },
             shadowOpacity: 0.08,
             shadowRadius: 22,
@@ -173,7 +173,7 @@ export function Kaart({
           borderColor: kleuren.border,
         },
         variant === 'standaard' && !donker && {
-          shadowColor: '#000',
+          shadowColor: colors.schaduw,
           shadowOffset: { width: 0, height: 4 },
           shadowOpacity: 0.05,
           shadowRadius: 14,
@@ -333,8 +333,8 @@ export function Segment<T extends string>({
             borderRadius: 11,
             backgroundColor: donker ? kleuren.accent : kleuren.card,
             borderWidth: donker ? 1 : 0,
-            borderColor: donker ? 'rgba(123,211,137,0.28)' : kleuren.border,
-            shadowColor: '#000',
+            borderColor: donker ? `${kleuren.primary}47` : kleuren.border,
+            shadowColor: colors.schaduw,
             shadowOffset: { width: 0, height: 2 },
             shadowOpacity: donker ? 0 : 0.08,
             shadowRadius: 6,
@@ -477,10 +477,10 @@ export function WeekStrook({
                 justifyContent: 'center',
                 backgroundColor: isGekozen ? kleuren.primary : 'transparent',
                 borderWidth: isVandaag && !isGekozen ? 1.5 : 0,
-                borderColor: kleuren.primary,
+                borderColor: kleuren.goud,
               }}
             >
-              <Text style={[tekst.kop, tekst.cijfers, { color: isGekozen ? kleuren.primaryForeground : isVandaag ? kleuren.primary : kleuren.foreground }]}>{nummer}</Text>
+              <Text style={[tekst.kop, tekst.cijfers, { color: isGekozen ? kleuren.primaryForeground : kleuren.foreground }]}>{nummer}</Text>
             </View>
             <View style={{ height: 8, justifyContent: 'center' }}>
               <View style={stipStijl(m)} />

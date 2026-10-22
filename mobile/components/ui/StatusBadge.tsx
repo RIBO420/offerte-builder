@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View } from 'react-native';
+import { Text } from './Tekst';
 import Animated, { useReducedMotion } from 'react-native-reanimated';
 import { tekst } from '../../theme/typography';
 import type { ColorScheme } from '../../theme/colors';

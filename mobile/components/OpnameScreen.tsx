@@ -11,12 +11,12 @@
 import React, { useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   View,
-  Text,
   ScrollView,
   Animated,
   ActivityIndicator,
   StyleSheet,
 } from 'react-native';
+import { Text } from './ui/Tekst';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Check, CircleAlert, FileText, Mic, Pause, Play, RotateCcw, Shield, Square } from 'lucide-react-native';
 import { useAudioRecording } from '../hooks/use-audio-recording';

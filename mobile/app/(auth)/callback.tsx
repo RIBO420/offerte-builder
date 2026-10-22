@@ -7,7 +7,8 @@
  */
 
 import { useEffect, useState, useRef, useCallback, type ReactNode } from 'react';
-import { View, Text, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator } from 'react-native';
+import { Text } from '../../components/ui/Tekst';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useSignIn, useSignUp, useAuth } from '@clerk/clerk-expo';

@@ -7,11 +7,12 @@
  */
 
 import React, { type ComponentType, type ReactNode } from 'react';
-import { Image, Text, View, useWindowDimensions } from 'react-native';
+import { Image, View, useWindowDimensions } from 'react-native';
+import { Text } from '../ui/Tekst';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BrickWall, Check, Coffee, Leaf, Shovel, Sprout, Truck, Warehouse } from 'lucide-react-native';
-import { tekst, useColors } from '../../theme';
+import { colors, tekst, useColors } from '../../theme';
 import type { VeldDagData } from '../../types/veld';
 import { CATEGORIE_LABELS } from '../../types/veld';
 
@@ -63,7 +64,7 @@ export function TuinKop({ titel, sub, rechts }: { titel: string; sub?: string; r
       <Image source={BEELDEN[deel]} style={{ position: 'absolute', top: 0, left: (schermBreedte - beeldBreedte) / 2, width: beeldBreedte, height: beeldHoogte }} resizeMode="cover" accessibilityIgnoresInvertColors />
       {/* Plaatselijke verduistering alleen achter de tekst, niet over de hele foto. */}
       <LinearGradient
-        colors={['rgba(0,0,0,0.38)', 'rgba(0,0,0,0.1)', 'rgba(0,0,0,0)']}
+        colors={[`${kleuren.beeldDonker}61`, `${kleuren.beeldDonker}1A`, `${kleuren.beeldDonker}00`]}
         locations={[0, 0.6, 1]}
         style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top + 128 }}
       />
@@ -77,20 +78,20 @@ export function TuinKop({ titel, sub, rechts }: { titel: string; sub?: string; r
       <View style={{ paddingTop: insets.top + 6, paddingHorizontal: 16, gap: 6 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 }}>
           <View accessible accessibilityLabel="Top Tuinen" style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Leaf size={16} color="#FFFFFF" strokeWidth={2.25} />
-            <Text style={[tekst.sub, { color: '#FFFFFF', fontWeight: '600' }, schaduw]}>Top Tuinen</Text>
+            <Leaf size={16} color={kleuren.opBeeld} strokeWidth={2.25} />
+            <Text style={[tekst.sub, { color: kleuren.opBeeld, fontWeight: '600' }, schaduw]}>Top Tuinen</Text>
           </View>
           {rechts}
         </View>
-        <Text accessibilityRole="header" style={[tekst.titel1, { color: '#FFFFFF' }, schaduw]} numberOfLines={2}>{titel}</Text>
-        {sub ? <Text style={[tekst.sub, { color: 'rgba(255,255,255,0.92)' }, schaduw]} numberOfLines={2}>{sub}</Text> : null}
+        <Text accessibilityRole="header" style={[tekst.titel1, { color: kleuren.opBeeld }, schaduw]} numberOfLines={2}>{titel}</Text>
+        {sub ? <Text style={[tekst.sub, { color: `${kleuren.opBeeld}EB` }, schaduw]} numberOfLines={2}>{sub}</Text> : null}
       </View>
     </View>
   );
 }
 
 // Tekstschaduw: houdt wit leesbaar op lichte plekken van het beeld.
-const schaduw = { textShadowColor: 'rgba(0,0,0,0.35)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6 };
+const schaduw = { textShadowColor: `${colors.beeldDonker}59`, textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6 };
 
 // ── DagTijdlijn ─────────────────────────────────────────────────────────────
 
@@ -213,7 +214,7 @@ export function DagTijdlijn({ items }: { items: DagItem[] }) {
         const pauze = item.soort === 'pauze';
         // Reizen en pauze zijn tussenstukken: een rustige regel, geen gekleurd blok.
         const stil = pauze || item.soort === 'reis';
-        const voor = pauze ? kleuren.foreground : '#FFFFFF';
+        const voor = pauze ? kleuren.foreground : kleuren.opBeeld;
         const duur = minutenTussen(item.begin, item.eind);
         const tijd = item.eind ? `${item.begin} tot ${item.eind}` : item.begin;
         return (
@@ -254,15 +255,15 @@ export function DagTijdlijn({ items }: { items: DagItem[] }) {
                 borderColor: kleuren.primary,
               }}
             >
-              <I size={18} color={pauze ? kleuren.mutedForeground : 'rgba(255,255,255,0.92)'} strokeWidth={2} />
+              <I size={18} color={pauze ? kleuren.mutedForeground : `${kleuren.opBeeld}EB`} strokeWidth={2} />
               <View style={{ flex: 1, gap: 1, alignSelf: blokHoogte(item) > 64 ? 'flex-start' : 'center', paddingTop: blokHoogte(item) > 64 ? 4 : 0 }}>
                 <Text style={[tekst.kop, { color: voor, fontSize: 16 }]} numberOfLines={1}>{item.titel}</Text>
-                {item.sub ? <Text style={[tekst.voetnoot, { color: pauze ? kleuren.mutedForeground : 'rgba(255,255,255,0.85)' }]} numberOfLines={1}>{item.sub}</Text> : null}
-                {item.eind && !pauze && blokHoogte(item) > 64 ? <Text style={[tekst.voetnoot, tekst.cijfers, { color: 'rgba(255,255,255,0.85)', marginTop: 2 }]}>{item.begin} – {item.eind}</Text> : null}
+                {item.sub ? <Text style={[tekst.voetnoot, { color: pauze ? kleuren.mutedForeground : `${kleuren.opBeeld}D9` }]} numberOfLines={1}>{item.sub}</Text> : null}
+                {item.eind && !pauze && blokHoogte(item) > 64 ? <Text style={[tekst.voetnoot, tekst.cijfers, { color: `${kleuren.opBeeld}D9`, marginTop: 2 }]}>{item.begin} – {item.eind}</Text> : null}
               </View>
               {item.klaar && (
-                <View style={{ width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: pauze ? kleuren.primarySoft : 'rgba(255,255,255,0.22)' }}>
-                  <Check size={14} color={pauze ? kleuren.primary : '#FFFFFF'} strokeWidth={3} />
+                <View style={{ width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: pauze ? kleuren.primarySoft : `${kleuren.opBeeld}38` }}>
+                  <Check size={14} color={pauze ? kleuren.primary : kleuren.opBeeld} strokeWidth={3} />
                 </View>
               )}
             </View>

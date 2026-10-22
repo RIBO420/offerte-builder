@@ -5,7 +5,8 @@
  */
 
 import { useCallback, type ComponentType } from 'react';
-import { RefreshControl, ScrollView, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, View } from 'react-native';
+import { Text } from '../../components/ui/Tekst';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Bell, BellOff, CheckCheck, ChevronLeft, FileText, Hammer, MessageCircle } from 'lucide-react-native';

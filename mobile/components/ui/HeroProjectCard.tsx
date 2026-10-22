@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View, Pressable } from 'react-native';
+import { Text } from './Tekst';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { useReducedMotion } from 'react-native-reanimated';
 import { Camera, Clock } from 'lucide-react-native';
@@ -120,7 +121,7 @@ export const HeroProjectCard = React.memo(function HeroProjectCard({
           </View>
 
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <View style={{ flex: 1, height: 6, backgroundColor: kleuren.primarySoft, borderRadius: 3, overflow: 'hidden' }}>
+            <View style={{ flex: 1, height: 6, backgroundColor: kleuren.goudSoft, borderRadius: 3, overflow: 'hidden' }}>
               {/* Absolute, kindloze vulling */}
               <View
                 style={{
@@ -129,7 +130,7 @@ export const HeroProjectCard = React.memo(function HeroProjectCard({
                   top: 0,
                   bottom: 0,
                   width: `${clampedProgress}%`,
-                  backgroundColor: kleuren.primary,
+                  backgroundColor: kleuren.goud,
                   borderRadius: 3,
                 }}
               />

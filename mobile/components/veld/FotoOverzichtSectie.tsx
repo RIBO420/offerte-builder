@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, Image, Text, View } from 'react-native';
+import { ActivityIndicator, Image, View } from 'react-native';
+import { Text } from '../ui/Tekst';
 import { tekst } from '../../theme';
 import { amsterdamTijd } from '../../lib/retour-tijd';
 import { BezoekFoto } from './BezoekFoto';

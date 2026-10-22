@@ -1,12 +1,12 @@
 import React, { useCallback } from 'react';
 import {
-  Text,
   Image,
   StyleSheet,
   FlatList,
   Pressable,
   useWindowDimensions,
 } from 'react-native';
+import { Text } from './Tekst';
 import Animated from 'react-native-reanimated';
 import { Camera } from 'lucide-react-native';
 import { usePressAnimation } from '../../hooks/use-spring-animation';

@@ -1,5 +1,6 @@
 import React, { ReactNode } from 'react';
-import { View, Text, ViewStyle, TextStyle } from 'react-native';
+import { View, ViewStyle, TextStyle } from 'react-native';
+import { Text } from './Tekst';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 import { tekst } from '../../theme/typography';

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Pressable, ViewStyle } from 'react-native';
 import Animated, { useReducedMotion } from 'react-native-reanimated';
 import { hapticPatterns } from '../../theme/haptics';
+import { colors } from '../../theme/colors';
 import { useIsDonker, useVeldKleuren } from '../veld/BuitenModus';
 
 type SwitchSize = 'sm' | 'md' | 'lg';
@@ -115,7 +116,7 @@ export function Switch({
             transitionProperty: 'transform',
             transitionDuration: duur,
             transitionTimingFunction: 'ease-out',
-            shadowColor: '#000',
+            shadowColor: colors.schaduw,
             shadowOffset: { width: 0, height: 2 },
             shadowOpacity: 0.2,
             shadowRadius: 2.5,

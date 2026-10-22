@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Text, StyleSheet, TextStyle, StyleProp } from 'react-native';
+import { StyleSheet, TextStyle, StyleProp } from 'react-native';
+import { Text } from './Tekst';
 import { useSharedValue, withTiming, useDerivedValue } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import { typography, tekst } from '../../theme/typography';

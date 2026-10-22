@@ -7,7 +7,8 @@
  */
 
 import React, { useState } from 'react';
-import { Alert, Linking, Text, View } from 'react-native';
+import { Alert, Linking, View } from 'react-native';
+import { Text } from '../ui/Tekst';
 import { useMutation, useQuery } from 'convex/react';
 import {
   CheckCircle2,

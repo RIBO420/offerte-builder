@@ -1,4 +1,5 @@
 import { useCurrentUser } from './use-current-user';
+import { colors, lightColors } from '../theme/colors';
 import { normalizeRole, getPermissionsForRole, isFieldRole, ROLE_LABELS, USER_ROLES, type NativeRole, type RolePermissions } from '../lib/roles';
 export { normalizeRole, getPermissionsForRole } from '../lib/roles';
 export type { RolePermissions } from '../lib/roles';
@@ -10,7 +11,7 @@ export const getRoleBadgeVariant = (role: unknown): 'default' | 'secondary' | 'o
   hasAdminPrivileges(role) ? 'default' : isFieldRole(normalizeRole(role)) ? 'secondary' : 'outline';
 export const ROLE_BADGE_COLORS = Object.fromEntries(
   [...USER_ROLES, 'onbekend'].map(role => [role, {
-    background: role === 'klant' || role === 'onbekend' ? '#6B7280' : '#2D5A27', text: '#FFFFFF',
+    background: role === 'klant' || role === 'onbekend' ? colors.werkLoods : lightColors.primary ?? colors.primary, text: colors.opBeeld,
   }])
 ) as Record<NativeRole, { background: string; text: string }>;
 export function useUserRole() {

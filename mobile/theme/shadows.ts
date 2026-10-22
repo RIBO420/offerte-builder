@@ -1,4 +1,5 @@
 import { Platform, ViewStyle } from 'react-native';
+import { colors } from './colors';
 
 type ShadowStyle = Pick<ViewStyle, 'shadowColor' | 'shadowOffset' | 'shadowOpacity' | 'shadowRadius' | 'elevation'>;
 
@@ -17,37 +18,37 @@ export const shadows = {
     shadowRadius: 0,
   }, 0),
   sm: createShadow({
-    shadowColor: '#000',
+    shadowColor: colors.schaduw,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
   }, 1),
   card: createShadow({
-    shadowColor: '#000',
+    shadowColor: colors.schaduw,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
   }, 3),
   md: createShadow({
-    shadowColor: '#000',
+    shadowColor: colors.schaduw,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
   }, 4),
   lg: createShadow({
-    shadowColor: '#000',
+    shadowColor: colors.schaduw,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.12,
     shadowRadius: 24,
   }, 8),
   modal: createShadow({
-    shadowColor: '#000',
+    shadowColor: colors.schaduw,
     shadowOffset: { width: 0, height: 20 },
     shadowOpacity: 0.25,
     shadowRadius: 60,
   }, 24),
   natureGlow: {
-    shadowColor: '#4ADE80',
+    shadowColor: colors.goud,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 20,

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Dimensions, Pressable, Modal, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, StyleSheet, Dimensions, Pressable, Modal, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { Text } from './Tekst';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,

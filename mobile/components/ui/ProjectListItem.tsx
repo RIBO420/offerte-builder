@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View, Pressable } from 'react-native';
+import { Text } from './Tekst';
 import Animated, { useReducedMotion } from 'react-native-reanimated';
 import { hapticPatterns } from '../../theme/haptics';
 import { tekst } from '../../theme/typography';

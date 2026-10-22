@@ -17,7 +17,8 @@
  */
 
 import { useCallback, useState } from 'react';
-import { View, Text, Pressable, ActivityIndicator } from 'react-native';
+import { View, Pressable, ActivityIndicator } from 'react-native';
+import { Text } from './ui/Tekst';
 import { Building2 } from 'lucide-react-native';
 import { useClerk } from '@clerk/clerk-expo';
 import { spacing } from '../theme/spacing';

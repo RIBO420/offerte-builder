@@ -1,7 +1,6 @@
 import React, { ReactNode, useCallback, useEffect, useMemo, useState, createContext, useContext } from 'react';
 import {
   View,
-  Text,
   Modal,
   Pressable,
   Animated,
@@ -11,6 +10,7 @@ import {
   Platform,
   Dimensions,
 } from 'react-native';
+import { Text } from './Tekst';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useReducedMotion } from 'react-native-reanimated';
 import { spacing } from '../../theme/spacing';

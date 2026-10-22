@@ -1,14 +1,13 @@
 import { useState, useEffect, useCallback, useRef, type ComponentType, type ReactNode } from 'react';
 import {
   View,
-  Text,
-  TextInput,
   KeyboardAvoidingView,
   ScrollView,
   Platform,
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { Text, TextInput } from '../../components/ui/Tekst';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Leaf, RefreshCw, Zap } from 'lucide-react-native';

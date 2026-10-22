@@ -1,8 +1,11 @@
 import '../global.css';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { View, Text, Pressable } from 'react-native';
+import * as SplashScreen from 'expo-splash-screen';
+import { useFonts, Outfit_400Regular, Outfit_600SemiBold } from '@expo-google-fonts/outfit';
+import { View, Pressable } from 'react-native';
+import { Text } from '../components/ui/Tekst';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ClerkProvider, ClerkLoaded } from '@clerk/clerk-expo';
@@ -16,6 +19,9 @@ import { RoleProvider } from '../contexts/RoleContext';
 import { ToastProvider } from '../contexts/ToastContext';
 import { OrgGate } from '../components/OrgGate';
 import { AlertTriangle, Flag, RefreshCw } from 'lucide-react-native';
+
+// Splash blijft staan tot Outfit geladen is (anders flitst de systeemletter).
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 
 // ============================================
@@ -147,7 +153,7 @@ function FoutScherm({ melding, onOpnieuw, onMeld }: { melding?: string; onOpnieu
           })}
         >
           <Flag size={16} color={kleuren.mutedForeground} strokeWidth={2} />
-          <Text style={[tekst.callout, { color: kleuren.foreground, fontWeight: '500' }]}>Meld probleem</Text>
+          <Text style={[tekst.callout, { color: kleuren.foreground, fontWeight: '600' }]}>Meld probleem</Text>
         </Pressable>
       </View>
     </View>
@@ -236,6 +242,17 @@ function InnerLayout() {
  * - ConvexProviderWithClerk voor database met auth integratie
  */
 export default function RootLayout() {
+  // Huisstijlletter. Lukt laden niet, dan toch door (systeemletter als terugval).
+  const [lettersGeladen, letterFout] = useFonts({ Outfit_400Regular, Outfit_600SemiBold });
+  const lettersKlaar = lettersGeladen || letterFout != null;
+
+  useEffect(() => {
+    if (letterFout) console.warn('[RootLayout] Outfit niet geladen:', letterFout);
+    if (lettersKlaar) SplashScreen.hideAsync().catch(() => {});
+  }, [lettersKlaar, letterFout]);
+
+  if (!lettersKlaar) return null;
+
   // Valideer dat Clerk publishable key is geconfigureerd
   if (!CLERK_PUBLISHABLE_KEY) {
     console.warn(
@@ -250,7 +267,7 @@ export default function RootLayout() {
         <ThemeProvider>
           <ToastProvider>
             <AppErrorBoundary>
-              <StatusBar style="light" />
+              <ThemaStatusBar />
               <Stack screenOptions={{ headerShown: false }}>
                 <Stack.Screen name="index" />
                 <Stack.Screen name="(auth)" options={{ headerShown: false }} />

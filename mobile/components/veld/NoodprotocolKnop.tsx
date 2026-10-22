@@ -6,7 +6,8 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'expo-router';
-import { Linking, ScrollView, Text, View } from 'react-native';
+import { Linking, ScrollView, View } from 'react-native';
+import { Text } from '../ui/Tekst';
 import { Phone, Siren } from 'lucide-react-native';
 import {
   Button,

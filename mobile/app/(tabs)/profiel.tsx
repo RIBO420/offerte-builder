@@ -1,12 +1,12 @@
 import { useCallback, useState, useEffect } from 'react';
 import {
   View,
-  Text,
   ScrollView,
   Alert,
   Image,
   Linking,
 } from 'react-native';
+import { Text } from '../../components/ui/Tekst';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useUser, useClerk } from '@clerk/clerk-expo';
@@ -319,7 +319,7 @@ function AuthenticatedProfielScreen() {
               style={{ width: 68, height: 68, borderRadius: 34, alignItems: 'center', justifyContent: 'center' }}
             >
               {imageUrl ? (
-                <Image source={{ uri: imageUrl }} style={{ width: 62, height: 62, borderRadius: 31, borderWidth: 1, borderColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }} accessibilityIgnoresInvertColors />
+                <Image source={{ uri: imageUrl }} style={{ width: 62, height: 62, borderRadius: 31, borderWidth: 1, borderColor: kleuren.border }} accessibilityIgnoresInvertColors />
               ) : (
                 // Dichte binnencirkel: het verloop mag niet door de initialen schemeren.
                 <View style={{ width: 62, height: 62, borderRadius: 31, backgroundColor: kleuren.card, alignItems: 'center', justifyContent: 'center' }}>

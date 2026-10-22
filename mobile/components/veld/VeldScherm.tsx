@@ -1,5 +1,6 @@
 import React, { Component, type ReactNode } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, View } from 'react-native';
+import { Text } from '../ui/Tekst';
 import { Stack } from 'expo-router';
 import { RefreshCw } from 'lucide-react-native';
 import { useCurrentUser } from '../../hooks/use-current-user';

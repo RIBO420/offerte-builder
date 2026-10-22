@@ -1,5 +1,6 @@
 import React from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Text } from '../ui/Tekst';
 import { useQuery } from 'convex/react';
 import { useEenmaligePush } from '../../hooks/use-eenmalige-push';
 import { Check, ChevronRight, Circle, Lock, Send, Truck } from 'lucide-react-native';

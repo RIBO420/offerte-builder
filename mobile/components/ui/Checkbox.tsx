@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Text, Pressable, ViewStyle } from 'react-native';
+import { Pressable, ViewStyle } from 'react-native';
+import { Text } from './Tekst';
 import Animated, { useReducedMotion } from 'react-native-reanimated';
 import { Check, Minus } from 'lucide-react-native';
 import { cn } from '@/lib/utils';

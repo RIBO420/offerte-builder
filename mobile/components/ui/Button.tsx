@@ -1,11 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
-  Text,
   ActivityIndicator,
   Pressable,
   View,
   type AccessibilityState,
 } from 'react-native';
+import { Text } from './Tekst';
 import Animated from 'react-native-reanimated';
 import { Check } from 'lucide-react-native';
 import { cva, type VariantProps } from 'class-variance-authority';
@@ -143,6 +143,8 @@ export function Button({
   geselecteerd,
 }: ButtonProps) {
   const { animatedStyle, onPressIn, onPressOut } = usePressAnimation();
+  // Primaire knop ingedrukt: olijf op mosgroen (huisstijl), naast de veerschaal.
+  const [ingedrukt, setIngedrukt] = useState(false);
 
   const isDisabled = disabled || loading;
   const variantKey = variant || 'primary';
@@ -210,8 +212,8 @@ export function Button({
     >
       <Pressable
         onPress={handlePress}
-        onPressIn={onPressIn}
-        onPressOut={onPressOut}
+        onPressIn={() => { setIngedrukt(true); onPressIn(); }}
+        onPressOut={() => { setIngedrukt(false); onPressOut(); }}
         disabled={isDisabled}
         className={cn(
           buttonVariants({ variant, size }),
@@ -219,7 +221,7 @@ export function Button({
           fullWidth && 'w-full',
           className
         )}
-        style={containerKleur}
+        style={[containerKleur, ingedrukt && variantKey === 'primary' ? { backgroundColor: kleuren.primaryPressed } : null]}
         accessibilityRole={geselecteerd === undefined ? 'button' : 'radio'}
         accessibilityState={{
           ...accessibilityState,

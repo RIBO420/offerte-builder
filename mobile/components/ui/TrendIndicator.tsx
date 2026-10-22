@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View } from 'react-native';
+import { Text } from './Tekst';
 import { Feather } from '@expo/vector-icons';
 import { tekst } from '../../theme/typography';
 import type { ColorScheme } from '../../theme/colors';

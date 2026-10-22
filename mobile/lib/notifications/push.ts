@@ -12,6 +12,7 @@ import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import { Platform } from "react-native";
 import Constants from "expo-constants";
+import { colors } from "../../theme/colors";
 
 /**
  * Check if push notifications are available in the current environment.
@@ -93,7 +94,7 @@ export async function requestNotificationPermission(): Promise<boolean> {
       name: "default",
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
-      lightColor: "#22C55E", // Green color matching app theme
+      lightColor: colors.werkOnderhoud, // olijfgroen (huisstijl)
     });
 
     // Create additional channels for different notification types
@@ -102,7 +103,7 @@ export async function requestNotificationPermission(): Promise<boolean> {
       description: "Notificaties voor chat berichten",
       importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 250, 250, 250],
-      lightColor: "#22C55E",
+      lightColor: colors.werkOnderhoud,
     });
 
     await Notifications.setNotificationChannelAsync("announcements", {
@@ -110,7 +111,7 @@ export async function requestNotificationPermission(): Promise<boolean> {
       description: "Belangrijke aankondigingen van het bedrijf",
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
-      lightColor: "#22C55E",
+      lightColor: colors.werkOnderhoud,
     });
   }
 

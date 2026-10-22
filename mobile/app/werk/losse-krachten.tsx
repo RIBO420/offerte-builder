@@ -1,5 +1,6 @@
 import React, { Fragment, useRef, useState, type ReactNode } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { Text, TextInput } from '../../components/ui/Tekst';
 import { Check, UserPlus, UserX, WifiOff } from 'lucide-react-native';
 import { useQuery } from 'convex/react';
 import { useVeldServerActie } from '../../hooks/use-veld-server-actie';

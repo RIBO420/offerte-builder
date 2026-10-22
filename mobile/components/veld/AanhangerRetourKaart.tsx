@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { Text, TextInput } from '../ui/Tekst';
 import { useQuery } from 'convex/react';
 import * as Crypto from 'expo-crypto';
 import { useVeldOpdracht } from '../../hooks/use-veld-opdracht';

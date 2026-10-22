@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { TextInput, View } from 'react-native';
+import { View } from 'react-native';
+import { TextInput } from '../../components/ui/Tekst';
 import { useQuery } from 'convex/react';
 import { useRouter } from 'expo-router';
 import { ImageOff, Search } from 'lucide-react-native';

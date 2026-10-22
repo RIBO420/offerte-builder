@@ -1,17 +1,17 @@
 import React, { useEffect, useMemo } from 'react';
 import {
   View,
-  Text,
   Animated,
   PanResponder,
   Dimensions,
   ViewStyle,
 } from 'react-native';
+import { Text } from './Tekst';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useReducedMotion } from 'react-native-reanimated';
 import { CircleCheck, CircleX, Info, TriangleAlert } from 'lucide-react-native';
 import { tekst } from '../../theme/typography';
-import type { ColorScheme } from '../../theme/colors';
+import { colors, type ColorScheme } from '../../theme/colors';
 import { useIsDonker, useVeldKleuren } from '../veld/BuitenModus';
 
 type Icoon = React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
@@ -246,7 +246,7 @@ export function Toast({
           alignItems: 'center',
           gap: 12,
           width: '100%',
-          shadowColor: '#000',
+          shadowColor: colors.schaduw,
           shadowOffset: { width: 0, height: 8 },
           shadowOpacity: donker ? 0.4 : 0.1,
           shadowRadius: 20,

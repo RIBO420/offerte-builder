@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, Image, Text, View } from 'react-native';
+import { ActivityIndicator, Image, View } from 'react-native';
+import { Text } from '../ui/Tekst';
 import { Camera, ImageIcon } from 'lucide-react-native';
 import { usePhotoCapture } from '../../hooks/use-photo-capture';
 import { useVeldOpdracht } from '../../hooks/use-veld-opdracht';
@@ -67,7 +68,7 @@ export function BezoekFotoActies({ werkitemId, datum, fotos = [], naam }: { werk
           {wachtend.map(r => (
             <View key={r.id} accessibilityLabel={`${faseNaam(r.payload.fase)}, ${r.status === 'conflict' ? 'niet opgeslagen' : 'wordt geüpload'}`} style={{ width: tegel, height: tegel }}>
               <Image source={{ uri: String(r.payload.localUri) }} resizeMode="cover" style={{ width: tegel, height: tegel, borderRadius: 12, backgroundColor: kleuren.muted, opacity: r.status === 'conflict' ? 0.5 : 0.75 }} />
-              {r.status !== 'conflict' && <ActivityIndicator color="#FFFFFF" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />}
+              {r.status !== 'conflict' && <ActivityIndicator color={kleuren.opBeeld} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} />}
               <TegelLabel tekst={r.status === 'conflict' ? 'Mislukt' : 'Uploaden'} toon={r.status === 'conflict' ? 'fout' : 'neutraal'} />
             </View>
           ))}
@@ -95,8 +96,8 @@ export function BezoekFotoActies({ werkitemId, datum, fotos = [], naam }: { werk
 function TegelLabel({ tekst: label, toon = 'neutraal' }: { tekst: string; toon?: 'neutraal' | 'fout' }) {
   const kleuren = useVeldKleuren(); const donker = useIsDonker();
   return (
-    <View style={{ position: 'absolute', left: 6, bottom: 6, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2, backgroundColor: toon === 'fout' ? (donker ? kleuren.danger : '#B42F29') : 'rgba(0,0,0,0.55)' }}>
-      <Text style={[tekst.bijschrift, { color: toon === 'fout' && donker ? '#1A0B0B' : '#FFFFFF', fontWeight: '600' }]}>{label}</Text>
+    <View style={{ position: 'absolute', left: 6, bottom: 6, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2, backgroundColor: toon === 'fout' ? kleuren.destructive : `${kleuren.beeldDonker}8C` }}>
+      <Text style={[tekst.bijschrift, { color: toon === 'fout' ? kleuren.destructiveForeground : kleuren.opBeeld, fontWeight: '600' }]}>{label}</Text>
     </View>
   );
 }

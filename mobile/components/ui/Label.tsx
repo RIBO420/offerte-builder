@@ -1,5 +1,6 @@
 import React from 'react';
-import { Text, TextStyle } from 'react-native';
+import { TextStyle } from 'react-native';
+import { Text } from './Tekst';
 import { tekst } from '../../theme/typography';
 import { useVeldKleuren } from '../veld/BuitenModus';
 

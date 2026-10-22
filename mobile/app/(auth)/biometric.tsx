@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import {
   View,
-  Text,
   Alert,
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
+import { Text } from '../../components/ui/Tekst';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { ShieldCheck, Fingerprint, Zap, Shield, Lock } from 'lucide-react-native';

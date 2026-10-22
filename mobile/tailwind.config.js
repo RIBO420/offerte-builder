@@ -62,11 +62,15 @@ module.exports = {
         input: colors.input,
         ring: colors.ring,
 
-        // Semantic Colors
-        success: '#22c55e',
-        warning: '#f59e0b',
-        error: '#ef4444',
-        info: '#3b82f6',
+        // Semantic Colors (huisstijl; statische klassen volgen het donkere basispalet)
+        success: colors.success,
+        warning: colors.warning,
+        error: colors.danger,
+        info: colors.info,
+
+        // Merkaccent: lijnen, vandaag-markering, voortgang — geen leestekst op licht
+        goud: colors.goud,
+        champagne: colors.champagne,
 
         // Surface
         surface: {
@@ -94,8 +98,11 @@ module.exports = {
         sm: '6px',
       },
 
+      // Outfit (huisstijl). In RN kiest de familienaam het gewicht; de Text-wrapper
+      // in components/ui/Tekst.tsx zet font-semibold/font-bold om naar Outfit_600SemiBold.
       fontFamily: {
-        sans: ['System'],
+        sans: ['Outfit_400Regular'],
+        display: ['Outfit_600SemiBold'],
         mono: ['Menlo'],
       },
     },

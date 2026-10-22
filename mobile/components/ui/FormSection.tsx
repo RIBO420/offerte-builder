@@ -1,5 +1,6 @@
 import React, { ReactNode, useState } from 'react';
-import { View, Text, TouchableOpacity, LayoutAnimation, Platform, UIManager } from 'react-native';
+import { View, TouchableOpacity, LayoutAnimation, Platform, UIManager } from 'react-native';
+import { Text } from './Tekst';
 import { Feather } from '@expo/vector-icons';
 import { cn } from '@/lib/utils';
 import { tekst } from '../../theme/typography';

@@ -1,5 +1,6 @@
 import React, { type ComponentType } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Text } from '../ui/Tekst';
 import { toonKleuren, type Toon } from '../werk/Bouwstenen';
 import { useVeldKleuren } from '../veld/BuitenModus';
 import { initialen } from './chat-tijd';

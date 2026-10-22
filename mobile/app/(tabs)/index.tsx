@@ -5,7 +5,8 @@
  */
 
 import { useCallback, useState, type ComponentType } from 'react';
-import { Linking, Platform, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Linking, Platform, RefreshControl, ScrollView, View } from 'react-native';
+import { Text } from '../../components/ui/Tekst';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { setStatusBarStyle } from 'expo-status-bar';
@@ -141,7 +142,7 @@ function Dashboard() {
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 140 }}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={verversen} onRefresh={onRefresh} tintColor="#FFFFFF" />}
+        refreshControl={<RefreshControl refreshing={verversen} onRefresh={onRefresh} tintColor={kleuren.opBeeld} />}
       >
         <TuinKop
           titel={`${groetVan(dagdeelVan())}, ${voornaam}`}
@@ -150,11 +151,11 @@ function Dashboard() {
             <Drukvlak
               onPress={() => router.push('/(tabs)/notifications')}
               accessibilityLabel={totaalOngelezen > 0 ? `Meldingen, ${totaalOngelezen} nieuw` : 'Meldingen'}
-              style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' }}
+              style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: `${kleuren.opBeeld}33`, alignItems: 'center', justifyContent: 'center' }}
             >
-              <Bell size={20} color="#FFFFFF" strokeWidth={2} />
+              <Bell size={20} color={kleuren.opBeeld} strokeWidth={2} />
               {totaalOngelezen > 0 && (
-                <View style={{ position: 'absolute', top: 10, right: 11, width: 9, height: 9, borderRadius: 5, backgroundColor: kleuren.primary, borderWidth: 1.5, borderColor: '#FFFFFF' }} />
+                <View style={{ position: 'absolute', top: 10, right: 11, width: 9, height: 9, borderRadius: 5, backgroundColor: kleuren.primary, borderWidth: 1.5, borderColor: kleuren.opBeeld }} />
               )}
             </Drukvlak>
           }
@@ -264,8 +265,8 @@ function NuKaart({ dag, gelogd }: { dag: VeldDagData | null; gelogd: number }) {
         </Text>
       </View>
       <View style={{ gap: 6 }}>
-        <View style={{ height: 4, borderRadius: 2, backgroundColor: kleuren.primarySoft, overflow: 'hidden' }}>
-          <View style={{ width: `${Math.max(4, Math.round(voortgang * 100))}%`, height: 4, borderRadius: 2, backgroundColor: kleuren.primary }} />
+        <View style={{ height: 4, borderRadius: 2, backgroundColor: kleuren.goudSoft, overflow: 'hidden' }}>
+          <View style={{ width: `${Math.max(4, Math.round(voortgang * 100))}%`, height: 4, borderRadius: 2, backgroundColor: kleuren.goud }} />
         </View>
         <Text style={[tekst.voetnoot, tekst.cijfers, { color: kleuren.mutedForeground }]}>
           {gelogdeKlussen} van {dag.stops.length} klussen gelogd · {urenLabel(huidige.geplandeMinuten)} gepland
@@ -336,8 +337,8 @@ function ProjectVlak({ projecten }: { projecten: ProjectVoortgang[] }) {
         </View>
         {voortgang !== null && (
           <View style={{ gap: 8 }}>
-            <View style={{ height: 6, borderRadius: 3, backgroundColor: kleuren.primarySoft, overflow: 'hidden' }}>
-              <View style={{ width: `${voortgang}%`, height: 6, borderRadius: 3, backgroundColor: kleuren.primary }} />
+            <View style={{ height: 6, borderRadius: 3, backgroundColor: kleuren.goudSoft, overflow: 'hidden' }}>
+              <View style={{ width: `${voortgang}%`, height: 6, borderRadius: 3, backgroundColor: kleuren.goud }} />
             </View>
             <Text style={[tekst.voetnoot, tekst.cijfers, { color: kleuren.mutedForeground, fontSize: 14 }]}>{voortgang}% van de begrote uren</Text>
           </View>
