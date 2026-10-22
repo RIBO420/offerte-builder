@@ -105,7 +105,9 @@ export function UitvoeringPaneel({
           <p className="text-[13px] text-status-in-uitvoering-text">
             Vul de voorcalculatie in om de offerte te kunnen verzenden.
           </p>
-          <Button asChild size="sm" className="self-start">
+          {/* Outline: de gevulde "Voorcalculatie invullen" staat al in de kop —
+              één gevulde actie per scherm. */}
+          <Button asChild size="sm" variant="outline" className="self-start">
             <Link href={`/offertes/${id}/voorcalculatie`}>
               <Calculator />
               Voorcalculatie invullen
